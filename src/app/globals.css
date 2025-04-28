@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --title-color: #f0f0f0;
+  --body-text: #b8bdc7;
+  --background: #131720;
+  --container: #0e0f11;
+}
+
+@layer base {
+  html, body {
+    @apply h-full w-full m-0 p-0;
+  }
+  
+  body {
+    @apply text-bodyText bg-background;
+    background-image: linear-gradient(rgba(50, 60, 80, 0.15) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(50, 60, 80, 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+}
