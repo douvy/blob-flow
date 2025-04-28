@@ -46,15 +46,19 @@ export default function Header() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           {/* Logo and Brand Name */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <Image
-                src="/images/logo.png"
-                alt="BlobFlow Logo"
-                width={36}
-                height={36}
-                className="h-9 w-9"
-              />
-              <span className="hidden sm:block text-xl font-bold text-titleText">BlobFlow</span>
+            <Link href="/" className="inline-flex">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Image
+                    src="/images/logo.png"
+                    alt="BlobFlow Logo"
+                    width={36}
+                    height={36}
+                    className="h-9 w-9"
+                  />
+                </div>
+                <span className="hidden sm:inline-block text-xl font-windsor-bold text-titleText ml-2 leading-none translate-y-[1px] pt-[3px]">BlobFlow</span>
+              </div>
             </Link>
           </div>
 
@@ -103,7 +107,7 @@ export default function Header() {
                 placeholder="Search blocks, txs, blobs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-background/50 border border-background/80 rounded-md py-2 pl-4 pr-10 text-bodyText placeholder-bodyText/50 focus:outline-none focus:ring-1 focus:ring-bodyText/30"
+                className="w-full bg-background/50 border border-background/80 rounded-md py-2 pl-4 pr-10 text-sm placeholder-bodyText focus:outline-none focus:ring-1 focus:ring-bodyText/30"
               />
               <button
                 type="submit"

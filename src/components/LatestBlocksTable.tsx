@@ -108,7 +108,7 @@ export default function LatestBlocksTable() {
 
   return (
     <section className="mb-10">
-      <h2 className="text-xl font-semibold text-titleText mb-4">Latest Blocks</h2>
+      <h2 className="text-xl font-windsor-bold text-titleText mb-4">Latest Blocks</h2>
       <div className="overflow-x-auto">
         <table className="min-w-full rounded-lg overflow-hidden bg-container">
           <thead className="bg-opacity-30 bg-gray-800">

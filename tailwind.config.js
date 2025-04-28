@@ -7,11 +7,15 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        'gt-flexa': ['GT Flexa', 'sans-serif'],
+        'windsor-bold': ['Windsor Bold', 'serif'],
+      },
       colors: {
         background: "#131720",
         container: "#0e0f11",
         titleText: "#f0f0f0",
-        bodyText: "#b8bdc7",
+        bodyText: "#f1f2f4",
         divider: "#20252c",
       },
       backgroundImage: {
