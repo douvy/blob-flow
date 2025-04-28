@@ -41,7 +41,7 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-[#15171a] border-b border-divider shadow-md">
+    <header className="sticky top-0 z-50 bg-[#15171a] border-b border-divider">
       <div className="container mx-auto px-4 py-2">
         <div className="flex flex-wrap items-center justify-between gap-4">
           {/* Logo and Brand Name */}

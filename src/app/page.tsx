@@ -10,10 +10,9 @@ export default function Home() {
       <Header />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-windsor-bold text-titleText mb-2">Dashboard</h1>
-          <p className="text-lg text-bodyText">
+          <h2 className="text-xl font-windsor-bold">
             Real-time metrics and analytics for Ethereum EIP-4844 blob data
-          </p>
+          </h2>
         </div>
         <LiveMetrics />
         <LatestBlocksTable />

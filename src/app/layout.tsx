@@ -6,6 +6,9 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'BlobFlow - Ethereum EIP-4844 Dashboard',
   description: 'Dashboard for tracking Ethereum EIP-4844 blob data statistics',
+  icons: {
+    icon: '/images/favicon.png',
+  },
 };
 
 export default function RootLayout({
