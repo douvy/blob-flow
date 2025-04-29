@@ -61,10 +61,10 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
         <table className="min-w-full overflow-hidden">
           <thead>
             <tr className="border-b border-divider">
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">User</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Count (Last 100 blocks)</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">% of Total</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Recent IDs</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">User</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Count (Last 100 blocks)</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">% of Total</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Recent ID</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-divider">
@@ -74,7 +74,7 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
                 className="bg-[#121317] hover:bg-opacity-80 transition-colors cursor-pointer"
                 onClick={() => onUserClick(user.id)}
               >
-                <td className="py-4 px-6 text-sm font-medium text-white">
+                <td className="py-3 px-6 text-sm font-medium text-white">
                   <span className={`inline-block w-4 h-4 rounded-full mr-3 ${
                     user.name === 'Arbitrum' ? 'bg-blue-500' :
                     user.name === 'Optimism' ? 'bg-red-500' :
@@ -84,8 +84,8 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
                   }`}></span>
                   {user.name}
                 </td>
-                <td className="py-4 px-6 text-sm text-white">{user.dataCount}</td>
-                <td className="py-4 px-6 text-sm text-white">
+                <td className="py-3 px-6 text-sm text-white">{user.dataCount}</td>
+                <td className="py-3 px-6 text-sm text-white">
                   <div className="flex items-center">
                     <span className="mr-3">{user.percentage}%</span>
                     <div className="w-32 bg-gray-800 rounded-full h-2.5">
@@ -102,11 +102,9 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
                     </div>
                   </div>
                 </td>
-                <td className="py-4 px-6 text-sm text-white font-mono">
-                  <div className="flex flex-col gap-2">
-                    {user.dataIds.map((dataId, idx) => (
-                      <span key={idx} className="text-xs text-secondaryText">{dataId}</span>
-                    ))}
+                <td className="py-3 px-6 text-sm text-white font-mono">
+                  <div className="flex flex-row gap-2 items-center">
+                    <span className="text-xs text-secondaryText truncate">{user.dataIds[0]}</span>
                   </div>
                 </td>
               </tr>

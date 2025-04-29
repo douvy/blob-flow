@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 
 export default function ExplainerSection() {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   return (
     <section className="bg-container rounded-lg p-6 shadow-md border border-divider">

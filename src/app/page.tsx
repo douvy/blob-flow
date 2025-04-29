@@ -38,20 +38,24 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
       <Header />
-      <div className="container mx-auto px-4 py-8 max-w-7xl">        
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Full width LiveMetrics with 4 cards */}
+        <div className="mb-12">
+          <LiveMetrics />
+        </div>
+        
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
           {/* Left Column (60%) */}
           <div className="lg:col-span-3 space-y-8">
-            <LiveMetrics />
             <TopUsersTable onUserClick={handleUserClick} />
             <LatestBlocksTable />
+            <MempoolTable />
           </div>
           
           {/* Right Column (40%) */}
           <div className="lg:col-span-2 space-y-8">
             <MetricsCharts />
             <ExplainerSection />
-            <MempoolTable />
           </div>
         </div>
         
