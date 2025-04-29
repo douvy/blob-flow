@@ -75,13 +75,15 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
                 onClick={() => onUserClick(user.id)}
               >
                 <td className="py-3 px-6 text-sm font-medium text-white">
-                  <span className={`inline-block w-4 h-4 rounded-full mr-3 ${
-                    user.name === 'Arbitrum' ? 'bg-blue-500' :
-                    user.name === 'Optimism' ? 'bg-red-500' :
-                    user.name === 'Base' ? 'bg-blue-300' :
-                    user.name === 'zkSync' ? 'bg-purple-500' :
-                    'bg-gray-500'
-                  }`}></span>
+                  {user.name === 'Unknown' ? (
+                    <span className="inline-block w-4 h-4 rounded-full mr-3 bg-gray-500"></span>
+                  ) : (
+                    <img 
+                      src={`/images/${user.name.toLowerCase()}.png`} 
+                      alt={user.name} 
+                      className="inline-block w-5 h-5 mr-3" 
+                    />
+                  )}
                   {user.name}
                 </td>
                 <td className="py-3 px-6 text-sm text-white">{user.dataCount}</td>
@@ -91,10 +93,10 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
                     <div className="w-32 bg-gray-800 rounded-full h-2.5">
                       <div 
                         className={`h-2.5 rounded-full ${
-                          user.name === 'Arbitrum' ? 'bg-blue-500' :
-                          user.name === 'Optimism' ? 'bg-red-500' :
-                          user.name === 'Base' ? 'bg-blue-300' :
-                          user.name === 'zkSync' ? 'bg-purple-500' :
+                          user.name === 'Arbitrum' ? 'bg-[#12aaff]' :
+                          user.name === 'Optimism' ? 'bg-[#ff0420]' :
+                          user.name === 'Base' ? 'bg-[#1652f0]' :
+                          user.name === 'zkSync' ? 'bg-[#f2f2f2]' :
                           'bg-gray-500'
                         }`} 
                         style={{ width: `${user.percentage}%` }}

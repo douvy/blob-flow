@@ -69,11 +69,11 @@ export default function MempoolTable() {
         <table className="min-w-full overflow-hidden">
           <thead>
             <tr className="border-b border-divider">
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Transaction Hash</th>
+              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">TX Hash</th>
               <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">From Address</th>
               <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">User</th>
               <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Expected Count</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Est. Cost</th>
+              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider w-28">Est. Cost</th>
               <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Time in Mempool</th>
             </tr>
           </thead>
@@ -84,13 +84,12 @@ export default function MempoolTable() {
                 <td className="py-4 px-6 text-sm font-mono text-white">{tx.fromAddress}</td>
                 <td className="py-4 px-6 text-sm text-white">
                   {tx.user ? (
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs ${
-                      tx.user === 'Arbitrum' ? 'bg-blue-900 bg-opacity-40 text-blue-300' :
-                      tx.user === 'Optimism' ? 'bg-red-900 bg-opacity-40 text-red-300' :
-                      tx.user === 'Base' ? 'bg-blue-800 bg-opacity-40 text-blue-200' :
-                      tx.user === 'zkSync' ? 'bg-purple-900 bg-opacity-40 text-purple-300' :
-                      'bg-gray-800 bg-opacity-40 text-gray-300'
-                    }`}>
+                    <span className="text-white text-sm flex items-center">
+                      <img 
+                        src={`/images/${tx.user.toLowerCase()}.png`} 
+                        alt={tx.user} 
+                        className="w-4 h-4 mr-1.5" 
+                      />
                       {tx.user}
                     </span>
                   ) : (
@@ -98,7 +97,7 @@ export default function MempoolTable() {
                   )}
                 </td>
                 <td className="py-4 px-6 text-sm text-white">{tx.blobCount}</td>
-                <td className="py-4 px-6 text-sm text-white">{tx.estimatedCost}</td>
+                <td className="py-4 px-6 text-sm text-white whitespace-nowrap">{tx.estimatedCost}</td>
                 <td className="py-4 px-6 text-sm text-white">{tx.timeInMempool}</td>
               </tr>
             ))}

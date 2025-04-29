@@ -130,13 +130,13 @@ export default function LatestBlocksTable() {
                     {block.attribution.map((attr, idx) => (
                       <span 
                         key={idx} 
-                        className={`text-xs px-3 py-1 rounded-full ${
-                          attr === 'Arbitrum' ? 'bg-blue-900 bg-opacity-40 text-blue-300' :
-                          attr === 'Optimism' ? 'bg-red-900 bg-opacity-40 text-red-300' :
-                          attr === 'Base' ? 'bg-blue-800 bg-opacity-40 text-blue-200' :
-                          'bg-purple-900 bg-opacity-40 text-purple-300'
-                        }`}
+                        className="text-xs text-white flex items-center mr-3"
                       >
+                        <img 
+                          src={`/images/${attr.toLowerCase()}.png`} 
+                          alt={attr} 
+                          className="w-4 h-4 mr-1.5" 
+                        />
                         {attr}
                       </span>
                     ))}
