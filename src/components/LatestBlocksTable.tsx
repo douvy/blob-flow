@@ -169,22 +169,14 @@ export default function LatestBlocksTable() {
           <button 
             onClick={prevPage} 
             disabled={currentPage === 1}
-            className={`px-3 py-1 text-sm rounded-md transition-none border border-divider ${
-              currentPage === 1 
-                ? 'opacity-50 cursor-not-allowed' 
-                : 'bg-[#1d1f23] text-white border-b-[#282a2f] border-b-2 hover:bg-[#22252c]'
-            }`}
+            className="px-3 py-1 text-sm rounded-md bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
           </button>
           <button 
             onClick={nextPage} 
             disabled={currentPage === totalPages}
-            className={`px-3 py-1 text-sm rounded-md transition-none border border-divider ${
-              currentPage === totalPages 
-                ? 'opacity-50 cursor-not-allowed' 
-                : 'bg-[#1d1f23] text-white border-b-[#282a2f] border-b-2 hover:bg-[#22252c]'
-            }`}
+            className="px-3 py-1 text-sm rounded-md bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
           </button>
