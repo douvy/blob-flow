@@ -1,6 +1,17 @@
 # Blob Flow
 
-A modern Next.js application for visualizing and analyzing blockchain data.
+An Ethereum EIP-4844 blob data analytics dashboard for visualizing and analyzing blob transactions, costs, and L2 usage patterns.
+
+## Features
+
+- Real-time blob metrics tracking (base fees, pending blobs, cost comparisons)
+- Interactive data visualization with time-based filtering (24h, 7d, 30d, All)
+- L2 attribution tracking (Arbitrum, Optimism, Base, zkSync)
+- Latest blocks table with detailed blob information
+- Top blob users analysis and detailed user metrics
+- Network selection (Mainnet, Sepolia, Goerli)
+- Responsive design with mobile navigation
+- Keyboard shortcuts for search (/)
 
 ## Getting Started
 
@@ -27,14 +38,23 @@ A modern Next.js application for visualizing and analyzing blockchain data.
 ```
 blob-flow/
 ├── public/           # Static assets
-│   └── images/       # Image files
+│   └── images/       # Image files and L2 logos
 ├── src/              # Source code
 │   ├── app/          # Next.js App Router
 │   ├── components/   # React components
+│   │   ├── BlobGraphs.tsx         # Blob data visualizations
+│   │   ├── ExplainerSection.tsx   # Educational content
+│   │   ├── LatestBlocksTable.tsx  # Recent blocks with blob data
+│   │   ├── LiveMetrics.tsx        # Real-time network metrics
+│   │   ├── MempoolTable.tsx       # Pending blob transactions
+│   │   ├── MetricsCharts.tsx      # Time-series data charts
+│   │   ├── TopUsersTable.tsx      # Top blob data users
+│   │   └── UserDetailView.tsx     # User-specific analytics
 │   ├── constants/    # Application constants
 │   ├── hooks/        # Custom React hooks
+│   │   ├── useLocalStorage.ts     # Client-side storage
+│   │   └── useSearchShortcut.ts   # Keyboard shortcut handling
 │   ├── lib/          # Library code, API clients
-│   ├── styles/       # CSS and styling
 │   ├── types/        # TypeScript type definitions
 │   └── utils/        # Utility functions
 ├── .gitignore        # Git ignore file
@@ -47,9 +67,11 @@ blob-flow/
 
 ## Built With
 
-- [Next.js](https://nextjs.org/) - React framework
+- [Next.js](https://nextjs.org/) - React framework with App Router
 - [TypeScript](https://www.typescriptlang.org/) - Type-safe JavaScript
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+- [Recharts](https://recharts.org/) - Composable charting library
+- [Font Awesome](https://fontawesome.com/) - Icon library
 
 ## License
 
