@@ -68,7 +68,7 @@ export default function Header() {
             <div className="relative">
               <button
                 type="button"
-                className="flex items-center space-x-1 bg-background/50 hover:bg-background/80 px-3 py-2 rounded-md text-sm font-medium text-bodyText transition-colors"
+                className="flex items-center space-x-1 bg-background/50 hover:bg-background/80 px-3 py-2 rounded-md text-sm font-medium text-bodyText transition-colors ml-2"
                 onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
               >
                 <span>{selectedNetwork}</span>
@@ -116,7 +116,7 @@ export default function Header() {
               {/* Connection Status */}
               <div className="hidden md:flex items-center space-x-2">
                 <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="text-xs text-bodyText">{isConnected ? 'Connected' : 'Disconnected'}</span>
+                <span className="text-sm text-bodyText">{isConnected ? 'Connected' : 'Disconnected'}</span>
               </div>
             </div>
 
@@ -134,10 +134,10 @@ export default function Header() {
                 <button
                   key={range}
                   onClick={() => handleTimeRangeChange(range)}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                  className={`px-3 py-1 text-sm rounded-md transition-none ${
                     selectedTimeRange === range
-                      ? 'bg-background text-titleText'
-                      : 'text-bodyText hover:bg-background/50'
+                      ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
+                      : 'text-white hover:text-white/90 border border-transparent'
                   }`}
                 >
                   {range}
