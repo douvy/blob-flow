@@ -157,7 +157,7 @@ export default function Header() {
               </button>
 
               {/* Connection Status */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 mr-4">
                 <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 <span className="text-sm text-bodyText">{isConnected ? 'Connected' : 'Disconnected'}</span>
               </div>
@@ -172,7 +172,7 @@ export default function Header() {
             </div>
 
             {/* Time Period Selector */}
-            <div className="hidden md:flex items-center space-x-1 bg-background/30 rounded-md p-0.5">
+            <div className="hidden md:flex items-center space-x-1 bg-background/30 rounded-md p-0.5 ml-4">
               {timeRangeOptions.map((range) => (
                 <button
                   key={range}

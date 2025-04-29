@@ -107,34 +107,34 @@ export default function LatestBlocksTable() {
   };
 
   return (
-    <section className="mb-10">
-      <h2 className="text-xl font-windsor-bold text-titleText mb-4">Latest Blocks</h2>
+    <section>
+      <h2 className="text-2xl font-windsor-bold text-white mb-3">Latest Blocks</h2>
       <div className="overflow-x-auto">
-        <table className="min-w-full rounded-lg overflow-hidden bg-container">
-          <thead className="bg-opacity-30 bg-gray-800">
-            <tr>
-              <th className="py-3 px-4 text-left text-xs font-medium text-titleText uppercase tracking-wider">Block</th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-titleText uppercase tracking-wider">Blobs</th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-titleText uppercase tracking-wider">Time</th>
-              <th className="py-3 px-4 text-left text-xs font-medium text-titleText uppercase tracking-wider">Attribution</th>
+        <table className="min-w-full overflow-hidden">
+          <thead>
+            <tr className="border-b border-divider">
+              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Block</th>
+              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Blobs</th>
+              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Time</th>
+              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Attribution</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800">
+          <tbody className="divide-y divide-divider">
             {currentBlocks.map((block) => (
-              <tr key={block.id} className="hover:bg-gray-800 hover:bg-opacity-20 transition-colors">
-                <td className="py-3 px-4 text-sm font-medium text-bodyText">{block.number}</td>
-                <td className="py-3 px-4 text-sm text-bodyText">{block.blobCount}</td>
-                <td className="py-3 px-4 text-sm text-bodyText">{block.timestamp}</td>
-                <td className="py-3 px-4 text-sm text-bodyText">
-                  <div className="flex flex-wrap gap-1">
+              <tr key={block.id} className="bg-[#141519] hover:bg-opacity-80 transition-colors">
+                <td className="py-4 px-6 text-sm font-medium text-white">{block.number}</td>
+                <td className="py-4 px-6 text-sm text-white">{block.blobCount}</td>
+                <td className="py-4 px-6 text-sm text-white">{block.timestamp}</td>
+                <td className="py-4 px-6 text-sm text-white">
+                  <div className="flex flex-wrap gap-2">
                     {block.attribution.map((attr, idx) => (
                       <span 
                         key={idx} 
-                        className={`text-xs px-2 py-1 rounded-full ${
-                          attr === 'Arbitrum' ? 'bg-blue-900 bg-opacity-30 text-blue-300' :
-                          attr === 'Optimism' ? 'bg-red-900 bg-opacity-30 text-red-300' :
-                          attr === 'Base' ? 'bg-blue-800 bg-opacity-30 text-blue-200' :
-                          'bg-purple-900 bg-opacity-30 text-purple-300'
+                        className={`text-xs px-3 py-1 rounded-full ${
+                          attr === 'Arbitrum' ? 'bg-blue-900 bg-opacity-40 text-blue-300' :
+                          attr === 'Optimism' ? 'bg-red-900 bg-opacity-40 text-red-300' :
+                          attr === 'Base' ? 'bg-blue-800 bg-opacity-40 text-blue-200' :
+                          'bg-purple-900 bg-opacity-40 text-purple-300'
                         }`}
                       >
                         {attr}
@@ -149,16 +149,16 @@ export default function LatestBlocksTable() {
       </div>
       
       {/* Pagination controls */}
-      <div className="flex justify-between items-center mt-4">
-        <div className="text-sm text-bodyText">
+      <div className="flex justify-between items-center mt-6">
+        <div className="text-sm text-secondaryText">
           Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, blocks.length)} of {blocks.length}
         </div>
-        <div className="flex space-x-2">
+        <div className="flex space-x-3">
           <button 
             onClick={prevPage} 
             disabled={currentPage === 1}
-            className={`px-3 py-1 rounded-md bg-container ${
-              currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'
+            className={`px-4 py-2 rounded-md bg-container border border-divider transition-colors ${
+              currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-80'
             }`}
           >
             Previous
@@ -166,8 +166,8 @@ export default function LatestBlocksTable() {
           <button 
             onClick={nextPage} 
             disabled={currentPage === totalPages}
-            className={`px-3 py-1 rounded-md bg-container ${
-              currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-700'
+            className={`px-4 py-2 rounded-md bg-container border border-divider transition-colors ${
+              currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-80'
             }`}
           >
             Next
