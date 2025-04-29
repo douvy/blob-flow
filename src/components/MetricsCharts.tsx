@@ -55,7 +55,7 @@ export default function MetricsCharts() {
                 data={baseFeeData}
                 margin={{ top: 5, right: 30, left: 30, bottom: 35 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.5} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0} />
                 <XAxis 
                   dataKey="time" 
                   stroke="#6e7687" 
@@ -109,7 +109,7 @@ export default function MetricsCharts() {
                 data={costComparisonData}
                 margin={{ top: 5, right: 30, left: 30, bottom: 35 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.5} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0} />
                 <XAxis 
                   dataKey="time" 
                   stroke="#6e7687" 
