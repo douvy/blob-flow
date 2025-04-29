@@ -74,7 +74,9 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
           document.body.appendChild(tooltip);
         } else {
           // Update text if tooltip already exists
-          tooltip.firstChild.textContent = tooltipText;
+          if (tooltip.firstChild) {
+            (tooltip.firstChild as HTMLElement).textContent = tooltipText;
+          }
         }
         
         // Position above the target element
