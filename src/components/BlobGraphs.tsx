@@ -54,16 +54,25 @@ export default function BlobGraphs() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={baseFeeData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                margin={{ top: 5, right: 30, left: 30, bottom: 50 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis dataKey="time" stroke="#888" />
-                <YAxis stroke="#888" />
+                <XAxis 
+                  dataKey="time" 
+                  stroke="#888" 
+                  tick={{ fontSize: 12 }}
+                  label={{ value: 'Time (UTC)', position: 'insideBottom', offset: -5, fill: '#888', fontSize: 12 }}
+                />
+                <YAxis 
+                  stroke="#888" 
+                  tick={{ fontSize: 12 }}
+                  label={{ value: 'gwei', angle: -90, position: 'insideLeft', offset: -15, fill: '#888', fontSize: 12 }}
+                />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#111', borderColor: '#333' }}
                   labelStyle={{ color: '#ddd' }}
                 />
-                <Legend />
+                <Legend wrapperStyle={{ paddingTop: '40px', marginBottom: '20px' }} verticalAlign="bottom" />
                 <Line 
                   type="monotone" 
                   dataKey="baseFee" 
@@ -83,16 +92,25 @@ export default function BlobGraphs() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={costComparisonData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                margin={{ top: 5, right: 30, left: 30, bottom: 50 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                <XAxis dataKey="time" stroke="#888" />
-                <YAxis stroke="#888" />
+                <XAxis 
+                  dataKey="time" 
+                  stroke="#888" 
+                  tick={{ fontSize: 12 }}
+                  label={{ value: 'Time (UTC)', position: 'insideBottom', offset: -5, fill: '#888', fontSize: 12 }}
+                />
+                <YAxis 
+                  stroke="#888" 
+                  tick={{ fontSize: 12 }}
+                  label={{ value: 'ETH', angle: -90, position: 'insideLeft', offset: -15, fill: '#888', fontSize: 12 }}
+                />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#111', borderColor: '#333' }}
                   labelStyle={{ color: '#ddd' }}
                 />
-                <Legend />
+                <Legend wrapperStyle={{ paddingTop: '40px', marginBottom: '20px' }} verticalAlign="bottom" />
                 <Line 
                   type="monotone" 
                   dataKey="blobCost" 

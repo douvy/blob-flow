@@ -56,11 +56,11 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
 
   return (
     <section>
-      <h2 className="text-2xl font-windsor-bold text-white mb-4">Top Users</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full overflow-hidden border border-divider">
+      <h2 className="text-2xl font-windsor-bold text-white mb-4">Top Blob Users</h2>
+      <div className="overflow-x-auto border border-divider rounded-lg">
+        <table className="min-w-full overflow-hidden">
           <thead>
-            <tr className="border-b border-divider">
+            <tr className="border-b border-divider bg-gradient-to-b from-[#22252c] to-[#16171b]">
               <th className="py-3 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">User</th>
               <th className="py-3 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Count (Last 100 blocks)</th>
               <th className="py-3 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">% of Total</th>
@@ -71,7 +71,7 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
             {users.map((user) => (
               <tr 
                 key={user.id} 
-                className="bg-[#121317]/50 hover:bg-opacity-80 transition-colors cursor-pointer"
+                className="bg-gradient-to-r from-[#161a29] to-[#19191e]/50 hover:bg-[#1a1b20] transition-colors cursor-pointer"
                 onClick={() => onUserClick(user.id)}
               >
                 <td className="py-3 px-6 text-sm font-medium text-white">

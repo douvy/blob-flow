@@ -8,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer
 } from 'recharts';
 
@@ -50,75 +49,93 @@ export default function MetricsCharts() {
       <div className="flex flex-col space-y-6">
         <div className="rounded-tl-lg border border-divider rounded-tr-lg rounded-bl-lg bg-blue/10 p-3 relative after:content-[''] after:absolute after:border-b-[10px] after:border-r-[10px] after:border-[#171c28] after:right-0 after:bottom-0 after:w-full after:h-full after:pointer-events-none after:rounded-br-lg after:rounded-bl-lg after:rounded-tr-lg after:-right-0 after:-bottom-0 after:left-[11px] after:top-[11px]">
           <h3 className="text-md font-medium mb-4 text-white">Base Fee over Time (gwei)</h3>
-          <div className="h-48">
+          <div className="h-56 relative">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={baseFeeData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 20 }}
+                margin={{ top: 5, right: 30, left: 30, bottom: 35 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.5} />
                 <XAxis 
                   dataKey="time" 
                   stroke="#6e7687" 
-                  tick={{ fill: '#6e7687' }}
+                  tick={{ fill: '#6e7687', fontSize: 12 }}
                   axisLine={{ stroke: '#333' }}
                   tickLine={{ stroke: '#333' }}
-                  label={{ value: 'Time (UTC)', position: 'insideBottom', offset: -10, fill: '#6e7687' }}
+                  label={{ value: 'Time (UTC)', position: 'insideBottom', offset: -5, fill: '#6e7687', fontSize: 12 }}
                 />
                 <YAxis 
                   stroke="#6e7687" 
-                  tick={{ fill: '#6e7687' }}
+                  tick={{ fill: '#6e7687', fontSize: 12 }}
                   axisLine={{ stroke: '#333' }}
                   tickLine={{ stroke: '#333' }}
-                  label={{ value: 'gwei', angle: -90, position: 'insideLeft', fill: '#6e7687' }}
+                  label={{ value: 'gwei', angle: -90, position: 'insideLeft', offset: -15, fill: '#6e7687', fontSize: 12 }}
                 />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#111', borderColor: '#333' }}
-                  labelStyle={{ color: '#ddd' }}
+                  contentStyle={{ 
+                    backgroundColor: '#14161a', 
+                    borderColor: '#333', 
+                    fontSize: '12px',
+                    borderRadius: '8px',
+                    padding: '8px' 
+                  }}
+                  labelStyle={{ color: '#fff', fontSize: '12px' }}
+                  itemStyle={{ color: '#fff', fontSize: '12px' }}
                 />
-                <Legend />
                 <Line 
                   type="monotone" 
                   dataKey="baseFee" 
-                  stroke="#3498db" 
+                  stroke="rgb(59, 130, 246)" 
                   strokeWidth={2}
                   activeDot={{ r: 8 }}
                   name="Base Fee (gwei)"
                 />
               </LineChart>
             </ResponsiveContainer>
+            <div className="absolute bottom-0 left-0 right-0 text-center text-xs text-[#6e7687]">
+              <span className="inline-flex items-center mr-4">
+                <span className="inline-block w-3 h-3 bg-blue mr-1 rounded-sm" style={{ backgroundColor: 'rgb(59, 130, 246)' }}></span>
+                Base Fee (gwei)
+              </span>
+            </div>
           </div>
         </div>
         
         <div className="rounded-tl-lg border border-divider rounded-tr-lg rounded-bl-lg bg-blue/10 p-3 relative after:content-[''] after:absolute after:border-b-[10px] after:border-r-[10px] after:border-[#171c28] after:right-0 after:bottom-0 after:w-full after:h-full after:pointer-events-none after:rounded-br-lg after:rounded-bl-lg after:rounded-tr-lg after:-right-0 after:-bottom-0 after:left-[11px] after:top-[11px]">
           <h3 className="text-md font-medium mb-4 text-white">Cost Comparison: Blob vs Calldata (ETH)</h3>
-          <div className="h-48">
+          <div className="h-56 relative">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={costComparisonData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 20 }}
+                margin={{ top: 5, right: 30, left: 30, bottom: 35 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.5} />
                 <XAxis 
                   dataKey="time" 
                   stroke="#6e7687" 
-                  tick={{ fill: '#6e7687' }}
+                  tick={{ fill: '#6e7687', fontSize: 12 }}
                   axisLine={{ stroke: '#333' }}
                   tickLine={{ stroke: '#333' }}
-                  label={{ value: 'Time (UTC)', position: 'insideBottom', offset: -10, fill: '#6e7687' }}
+                  label={{ value: 'Time (UTC)', position: 'insideBottom', offset: -5, fill: '#6e7687', fontSize: 12 }}
                 />
                 <YAxis 
                   stroke="#6e7687" 
-                  tick={{ fill: '#6e7687' }}
+                  tick={{ fill: '#6e7687', fontSize: 12 }}
                   axisLine={{ stroke: '#333' }}
                   tickLine={{ stroke: '#333' }}
-                  label={{ value: 'ETH', angle: -90, position: 'insideLeft', fill: '#6e7687' }}
+                  label={{ value: 'ETH', angle: -90, position: 'insideLeft', offset: -15, fill: '#6e7687', fontSize: 12 }}
                 />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#111', borderColor: '#333' }}
-                  labelStyle={{ color: '#ddd' }}
+                  contentStyle={{ 
+                    backgroundColor: '#14161a', 
+                    borderColor: '#333', 
+                    fontSize: '12px',
+                    borderRadius: '8px',
+                    padding: '8px' 
+                  }}
+                  labelStyle={{ color: '#fff', fontSize: '12px' }}
+                  itemStyle={{ color: '#fff', fontSize: '12px' }}
                 />
-                <Legend />
                 <Line 
                   type="monotone" 
                   dataKey="blobCost" 
@@ -135,6 +152,16 @@ export default function MetricsCharts() {
                 />
               </LineChart>
             </ResponsiveContainer>
+            <div className="absolute bottom-0 left-0 right-0 text-center text-xs text-[#6e7687]">
+              <span className="inline-flex items-center mr-4">
+                <span className="inline-block w-3 h-3 bg-[#2ecc71] mr-1 rounded-sm"></span>
+                Blob Cost (ETH)
+              </span>
+              <span className="inline-flex items-center">
+                <span className="inline-block w-3 h-3 bg-[#e74c3c] mr-1 rounded-sm"></span>
+                Calldata Cost (ETH)
+              </span>
+            </div>
           </div>
         </div>
       </div>
