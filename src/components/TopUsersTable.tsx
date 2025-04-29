@@ -56,9 +56,9 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
 
   return (
     <section>
-      <h2 className="text-2xl font-windsor-bold text-white mb-0">Top Users</h2>
+      <h2 className="text-2xl font-windsor-bold text-white mb-4">Top Users</h2>
       <div className="overflow-x-auto">
-        <table className="min-w-full overflow-hidden">
+        <table className="min-w-full overflow-hidden border border-divider">
           <thead>
             <tr className="border-b border-divider">
               <th className="py-3 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">User</th>
@@ -71,7 +71,7 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
             {users.map((user) => (
               <tr 
                 key={user.id} 
-                className="bg-[#121317] hover:bg-opacity-80 transition-colors cursor-pointer"
+                className="bg-[#121317]/50 hover:bg-opacity-80 transition-colors cursor-pointer"
                 onClick={() => onUserClick(user.id)}
               >
                 <td className="py-3 px-6 text-sm font-medium text-white">
