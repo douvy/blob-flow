@@ -108,39 +108,51 @@ export default function LatestBlocksTable() {
 
   return (
     <section>
-      <h2 className="text-2xl font-windsor-bold text-white mb-3">Latest Blocks</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full overflow-hidden">
+      <h2 className="text-2xl font-windsor-bold text-white mb-4">Latest Blocks</h2>
+      <div className="overflow-x-auto border border-divider rounded-lg">
+        <table className="min-w-full overflow-hidden table-fixed">
           <thead>
-            <tr className="border-b border-divider">
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Block</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Blobs</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Time</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Attribution</th>
+            <tr className="border-b border-divider bg-gradient-to-b from-[#22252c] to-[#16171b]">
+              <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-1/5">Block</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-1/6">Blobs</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-1/4 whitespace-nowrap">Time</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-2/5">Attribution</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-divider">
             {currentBlocks.map((block) => (
-              <tr key={block.id} className="bg-[#141519] hover:bg-opacity-80 transition-colors">
-                <td className="py-4 px-6 text-sm font-medium text-white">{block.number}</td>
-                <td className="py-4 px-6 text-sm text-white">{block.blobCount}</td>
-                <td className="py-4 px-6 text-sm text-white">{block.timestamp}</td>
-                <td className="py-4 px-6 text-sm text-white">
-                  <div className="flex flex-wrap gap-2">
-                    {block.attribution.map((attr, idx) => (
-                      <span 
-                        key={idx} 
-                        className="text-xs text-white flex items-center mr-3"
-                      >
-                        <img 
-                          src={`/images/${attr.toLowerCase()}.png`} 
-                          alt={attr} 
-                          className="w-4 h-4 mr-1.5" 
-                        />
-                        {attr}
+              <tr key={block.id} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
+                <td className="py-3 px-6 text-sm font-medium text-white">{block.number}</td>
+                <td className="py-3 px-6 text-sm text-white">{block.blobCount}</td>
+                <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{block.timestamp}</td>
+                <td className="py-3 px-6 text-sm text-white">
+                  {block.attribution.length === 1 ? (
+                    <div className="flex items-center">
+                      <img 
+                        src={`/images/${block.attribution[0].toLowerCase()}.png`} 
+                        alt={block.attribution[0]} 
+                        className="inline-block w-5 h-5 mr-2" 
+                      />
+                      <span className="whitespace-nowrap">{block.attribution[0]}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <div className="flex -space-x-2">
+                        {block.attribution.map((attr, idx) => (
+                          <img 
+                            key={idx}
+                            src={`/images/${attr.toLowerCase()}.png`} 
+                            alt={attr} 
+                            className="inline-block w-5 h-5 rounded-full ring-1 ring-gray-800" 
+                            title={attr}
+                          />
+                        ))}
+                      </div>
+                      <span className="whitespace-nowrap text-xs text-gray-400 ml-6">
+                        {block.attribution.length} networks
                       </span>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
@@ -150,15 +162,17 @@ export default function LatestBlocksTable() {
       
       {/* Pagination controls */}
       <div className="flex justify-between items-center mt-6">
-        <div className="text-sm text-secondaryText">
+        <div className="text-sm text-[#6e7787]">
           Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, blocks.length)} of {blocks.length}
         </div>
         <div className="flex space-x-3">
           <button 
             onClick={prevPage} 
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-md bg-container border border-divider transition-colors ${
-              currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-80'
+            className={`px-3 py-1 text-sm rounded-md transition-none border border-divider ${
+              currentPage === 1 
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'bg-[#1d1f23] text-white border-b-[#282a2f] border-b-2 hover:bg-[#22252c]'
             }`}
           >
             Previous
@@ -166,8 +180,10 @@ export default function LatestBlocksTable() {
           <button 
             onClick={nextPage} 
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-md bg-container border border-divider transition-colors ${
-              currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-80'
+            className={`px-3 py-1 text-sm rounded-md transition-none border border-divider ${
+              currentPage === totalPages 
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'bg-[#1d1f23] text-white border-b-[#282a2f] border-b-2 hover:bg-[#22252c]'
             }`}
           >
             Next

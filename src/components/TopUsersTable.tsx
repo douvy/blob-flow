@@ -200,7 +200,7 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
                 <td className="py-3 px-6 text-sm text-white">
                   <div className="flex items-center">
                     <span className="mr-3">{user.percentage}%</span>
-                    <div className="w-32 bg-gray-800 rounded-full h-2.5">
+                    <div className="w-32 bg-[#2a2f37] rounded-full h-2.5">
                       <div 
                         className={`h-2.5 rounded-full ${
                           user.name === 'Arbitrum' ? 'bg-[#12aaff]' :

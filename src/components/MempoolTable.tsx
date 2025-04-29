@@ -64,41 +64,44 @@ export default function MempoolTable() {
 
   return (
     <section>
-      <h2 className="text-2xl font-windsor-bold text-white mb-3">Mempool Attribution</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full overflow-hidden">
+      <h2 className="text-2xl font-windsor-bold text-white mb-4">Mempool Attribution</h2>
+      <div className="overflow-x-auto border border-divider rounded-lg">
+        <table className="min-w-full overflow-hidden table-fixed">
           <thead>
-            <tr className="border-b border-divider">
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">TX Hash</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">From Address</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">User</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Expected Count</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider w-28">Est. Cost</th>
-              <th className="py-4 px-6 text-left text-xs font-medium text-secondaryText uppercase tracking-wider">Time in Mempool</th>
+            <tr className="border-b border-divider bg-gradient-to-b from-[#22252c] to-[#16171b]">
+              <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[24%]">TX Hash</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%]">From</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%]">User</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[15%] whitespace-nowrap">Count</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[15%]">Est. Cost</th>
+              <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[14%] whitespace-nowrap">Time</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-divider">
             {pendingTransactions.map((tx) => (
-              <tr key={tx.id} className="bg-[#141519] hover:bg-opacity-80 transition-colors">
-                <td className="py-4 px-6 text-sm font-mono text-white truncate max-w-[150px]">{tx.txHash}</td>
-                <td className="py-4 px-6 text-sm font-mono text-white">{tx.fromAddress}</td>
-                <td className="py-4 px-6 text-sm text-white">
+              <tr key={tx.id} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
+                <td className="py-3 px-6 text-sm font-mono text-white">{tx.txHash.substring(0, 8)}...</td>
+                <td className="py-3 px-6 text-sm font-mono text-white">{tx.fromAddress}</td>
+                <td className="py-3 px-6 text-sm text-white">
                   {tx.user ? (
-                    <span className="text-white text-sm flex items-center">
+                    <div className="flex items-center">
                       <img 
                         src={`/images/${tx.user.toLowerCase()}.png`} 
                         alt={tx.user} 
-                        className="w-4 h-4 mr-1.5" 
+                        className="inline-block w-5 h-5 mr-3" 
                       />
                       {tx.user}
-                    </span>
+                    </div>
                   ) : (
-                    <span className="text-gray-500">Unknown</span>
+                    <div className="flex items-center">
+                      <span className="inline-block w-5 h-5 rounded-full mr-3 bg-gray-500"></span>
+                      <span className="text-white">Unknown</span>
+                    </div>
                   )}
                 </td>
-                <td className="py-4 px-6 text-sm text-white">{tx.blobCount}</td>
-                <td className="py-4 px-6 text-sm text-white whitespace-nowrap">{tx.estimatedCost}</td>
-                <td className="py-4 px-6 text-sm text-white">{tx.timeInMempool}</td>
+                <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.blobCount}</td>
+                <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.estimatedCost}</td>
+                <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.timeInMempool}</td>
               </tr>
             ))}
           </tbody>
