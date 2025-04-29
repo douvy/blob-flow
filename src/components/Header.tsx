@@ -83,13 +83,13 @@ export default function Header() {
             <div className="flex items-center">
               <Link href="/" className="inline-flex">
                 <div className="flex items-center">
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 mr-2">
                     <Image
                       src="/images/logo.png"
                       alt="BlobFlow Logo"
                       width={36}
                       height={36}
-                      className="h-9 w-9"
+                      className="h-8 w-8"
                     />
                   </div>
                   <span className="hidden sm:inline-block text-xl font-windsor-bold text-titleText ml-2 leading-none translate-y-[1px] pt-[3px]">BlobFlow</span>
