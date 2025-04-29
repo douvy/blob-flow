@@ -71,39 +71,60 @@ export default function UserDetailView({ userId, userName, onClose }: UserDetail
 
   // @ts-ignore - We'll assume the color exists for the sample
   const userColor = userColors[userName] || 'bg-gray-500';
+  
+  // Handle click outside to close modal
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+  
+  // Handle Escape key to close modal
+  React.useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscKey);
+    return () => document.removeEventListener('keydown', handleEscKey);
+  }, [onClose]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-container rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
-          <div className="flex items-center">
-            <span className={`w-4 h-4 rounded-full mr-3 ${userColor}`}></span>
-            <h2 className="text-xl font-windsor-bold text-titleText">{userName} Details</h2>
+    <div 
+      className="fixed inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center z-50"
+      onClick={handleBackdropClick}
+    >
+      <div className="bg-[#14161a] rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] overflow-hidden border border-divider">
+        <div className="flex items-center justify-between p-4 border-b border-divider">
+          <div className="flex items-center w-full justify-center relative">
+            <h2 className="text-xl font-windsor-bold text-titleText text-center">{userName} Details</h2>
+            <button 
+              onClick={onClose}
+              className="text-[#6c727f] hover:text-white absolute right-0"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <button 
-            onClick={onClose}
-            className="text-gray-400 hover:text-white"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
         
-        <div className="p-4 overflow-y-auto max-h-[calc(80vh-120px)]">
+        <div className="p-4 pt-0 overflow-y-auto max-h-[calc(80vh-80px)]">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-800">
-              <thead className="bg-opacity-30 bg-gray-800">
+            <table className="min-w-full divide-y divide-divider">
+              <thead>
                 <tr>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-titleText uppercase tracking-wider">ID</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-titleText uppercase tracking-wider">Status</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-titleText uppercase tracking-wider">Cost</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-titleText uppercase tracking-wider">Block / Time</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider">ID</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider">Status</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider">Cost</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider">Block / Time</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800">
+              <tbody className="divide-y divide-divider">
                 {detailItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-800 hover:bg-opacity-20 transition-colors">
+                  <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
                     <td className="py-3 px-4 text-sm font-mono text-bodyText">{item.id}</td>
                     <td className="py-3 px-4 text-sm text-bodyText">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
@@ -126,15 +147,6 @@ export default function UserDetailView({ userId, userName, onClose }: UserDetail
               </tbody>
             </table>
           </div>
-        </div>
-        
-        <div className="p-4 border-t border-gray-800 flex justify-end">
-          <button 
-            onClick={onClose}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>
