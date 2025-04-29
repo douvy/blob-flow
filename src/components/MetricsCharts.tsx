@@ -48,7 +48,7 @@ export default function MetricsCharts() {
     <section>
       <h2 className="text-2xl font-windsor-bold text-white mb-3">Data Trends</h2>
       <div className="flex flex-col space-y-6">
-        <div className="rounded-lg">
+        <div className="rounded-tl-lg border border-divider rounded-tr-lg rounded-bl-lg bg-blue/10 p-3 relative after:content-[''] after:absolute after:border-b-[10px] after:border-r-[10px] after:border-[#171c28] after:right-0 after:bottom-0 after:w-full after:h-full after:pointer-events-none after:rounded-br-lg after:rounded-bl-lg after:rounded-tr-lg after:-right-0 after:-bottom-0 after:left-[11px] after:top-[11px]">
           <h3 className="text-md font-medium mb-4 text-white">Base Fee over Time (gwei)</h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
@@ -90,7 +90,7 @@ export default function MetricsCharts() {
           </div>
         </div>
         
-        <div className="rounded-lg">
+        <div className="rounded-tl-lg border border-divider rounded-tr-lg rounded-bl-lg bg-blue/10 p-3 relative after:content-[''] after:absolute after:border-b-[10px] after:border-r-[10px] after:border-[#171c28] after:right-0 after:bottom-0 after:w-full after:h-full after:pointer-events-none after:rounded-br-lg after:rounded-bl-lg after:rounded-tr-lg after:-right-0 after:-bottom-0 after:left-[11px] after:top-[11px]">
           <h3 className="text-md font-medium mb-4 text-white">Cost Comparison: Blob vs Calldata (ETH)</h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">

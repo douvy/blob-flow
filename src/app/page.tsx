@@ -39,7 +39,7 @@ export default function Home() {
     <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
       <Header />
       <div className="container mx-auto px-4 py-8 max-w-7xl">        
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
           {/* Left Column (60%) */}
           <div className="lg:col-span-3 space-y-8">
             <LiveMetrics />
