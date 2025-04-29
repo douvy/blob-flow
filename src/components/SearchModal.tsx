@@ -137,28 +137,28 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 className={`px-2 py-2 rounded text-sm cursor-pointer ${selectedType === 'blocks' ? 'bg-[#23252a]' : 'hover:bg-[#23252a]'}`}
                 onClick={() => handleTypeSelect('blocks', 'block:')}
               >
-                <i className="fa-regular fa-cube text-[#4D7DBF] mr-2"></i>
+                <i className="fa-regular fa-cube text-blue mr-2"></i>
                 Blocks
               </div>
               <div 
                 className={`px-2 py-2 rounded text-sm cursor-pointer ${selectedType === 'blobs' ? 'bg-[#23252a]' : 'hover:bg-[#23252a]'}`}
                 onClick={() => handleTypeSelect('blobs', 'blob:')}
               >
-                <i className="fa-regular fa-fingerprint text-[#4D7DBF] mr-2"></i>
+                <i className="fa-regular fa-fingerprint text-blue mr-2"></i>
                 Blob IDs
               </div>
               <div 
                 className={`px-2 py-2 rounded text-sm cursor-pointer ${selectedType === 'transactions' ? 'bg-[#23252a]' : 'hover:bg-[#23252a]'}`}
                 onClick={() => handleTypeSelect('transactions', 'tx:')}
               >
-                <i className="fa-regular fa-exchange-alt text-[#4D7DBF] mr-2"></i>  
+                <i className="fa-regular fa-exchange-alt text-blue mr-2"></i>  
                 Transactions with blobs
               </div>
               <div 
                 className={`px-2 py-2 rounded text-sm cursor-pointer ${selectedType === 'rollups' ? 'bg-[#23252a]' : 'hover:bg-[#23252a]'}`}
                 onClick={() => handleTypeSelect('rollups', 'rollup:')}
               >
-                <i className="fa-regular fa-layer-group text-[#4D7DBF] mr-2"></i>  
+                <i className="fa-regular fa-layer-group text-blue mr-2"></i>  
                 Rollups
               </div>
             </div>
@@ -176,7 +176,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   handleTypeSelect('blocks', 'block:9274612');
                 }}
               >
-                <i className="fa-regular fa-rotate-right text-[#4D7DBF] mr-2"></i>
+                <i className="fa-regular fa-rotate-right text-blue mr-2"></i>
                 <span className="text-white">Block #9274612 - 8 blobs added by Arbitrum (3 min ago)</span>
               </div>
               <div 
@@ -186,7 +186,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   searchInputRef.current?.focus();
                 }}
               >
-                <i className="fa-regular fa-clock text-[#4D7DBF] mr-2"></i>
+                <i className="fa-regular fa-clock text-blue mr-2"></i>
                 <span className="text-white">12 pending blobs in mempool from Optimism (waiting for confirmation)</span>
               </div>
             </div>
@@ -199,11 +199,11 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             <h3 className="text-xs uppercase text-[#6e7687] px-2 py-1.5">Blob stats summary</h3>
             <div className="mt-1 space-y-0.5">
               <div className="px-2 py-2.5 rounded flex items-center cursor-pointer hover:bg-[#23252a]">
-                <i className="fa-regular fa-arrow-trend-up text-[#4D7DBF] mr-2"></i>
+                <i className="fa-regular fa-arrow-trend-up text-blue mr-2"></i>
                 <span className="text-white">Current Blob Base Fee: 0.00042 ETH (↑12% in 24h)</span>
               </div>
               <div className="px-2 py-2.5 rounded flex items-center cursor-pointer hover:bg-[#23252a]">
-                <i className="fa-regular fa-money-bill text-[#4D7DBF] mr-2"></i>
+                <i className="fa-regular fa-money-bill text-blue mr-2"></i>
                 <span className="text-white">Blob Cost vs Calldata: 3.2x cheaper for rollups today</span>
               </div>
             </div>
