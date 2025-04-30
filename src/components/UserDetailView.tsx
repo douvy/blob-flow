@@ -93,10 +93,10 @@ export default function UserDetailView({ userId, userName, onClose }: UserDetail
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 backdrop-blur-[1px] flex items-end md:items-center justify-center z-50"
       onClick={handleBackdropClick}
     >
-      <div className="bg-[#14161a] rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] overflow-hidden border border-divider">
+      <div className="bg-[#14161a] rounded-none md:rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] md:max-h-[80vh] h-[90vh] md:h-auto overflow-hidden border-t md:border border-divider">
         <div className="flex items-center justify-between p-4 border-b border-divider">
           <div className="flex items-center w-full justify-center relative">
             <h2 className="text-xl font-windsor-bold text-titleText text-center">{userName} Details</h2>
@@ -111,22 +111,22 @@ export default function UserDetailView({ userId, userName, onClose }: UserDetail
           </div>
         </div>
         
-        <div className="p-4 pt-0 overflow-y-auto max-h-[calc(80vh-80px)]">
+        <div className="p-4 pt-0 overflow-y-auto max-h-[calc(100vh-80px)] md:max-h-[calc(80vh-80px)]">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-divider">
+            <table className="min-w-full divide-y divide-divider w-max">
               <thead>
                 <tr>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider">ID</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider">Status</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider">Cost</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider">Block / Time</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">ID</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">Status</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">Cost</th>
+                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">Block / Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
                 {detailItems.map((item) => (
                   <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
-                    <td className="py-3 px-4 text-sm font-mono text-bodyText">{item.id}</td>
-                    <td className="py-3 px-4 text-sm text-bodyText">
+                    <td className="py-3 px-4 text-sm font-mono text-bodyText whitespace-nowrap">{item.id}</td>
+                    <td className="py-3 px-4 text-sm text-bodyText whitespace-nowrap">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
                         item.status === 'confirmed' 
                           ? 'bg-green text-[#14171f]' 
@@ -135,8 +135,8 @@ export default function UserDetailView({ userId, userName, onClose }: UserDetail
                         {item.status === 'confirmed' ? 'Confirmed' : 'Pending'}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-sm text-bodyText">{item.cost}</td>
-                    <td className="py-3 px-4 text-sm text-bodyText">
+                    <td className="py-3 px-4 text-sm text-bodyText whitespace-nowrap">{item.cost}</td>
+                    <td className="py-3 px-4 text-sm text-bodyText whitespace-nowrap">
                       {item.status === 'confirmed' 
                         ? `Block ${item.blockNumber} (${item.timestamp})` 
                         : `Pending (${item.timestamp})`

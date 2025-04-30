@@ -184,7 +184,7 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
                 className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors cursor-pointer"
                 onClick={() => onUserClick(user.id)}
               >
-                <td className="py-3 px-6 text-sm font-medium text-white">
+                <td className="py-3 px-6 text-sm font-medium text-white whitespace-nowrap">
                   <div className="flex items-center">
                     {user.name === 'Unknown' ? (
                       <span className="inline-block w-5 h-5 rounded-full mr-3 bg-gray-500"></span>
@@ -198,8 +198,8 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
                     {user.name}
                   </div>
                 </td>
-                <td className="py-3 px-6 text-sm text-white">{user.dataCount}</td>
-                <td className="py-3 px-6 text-sm text-white">
+                <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{user.dataCount}</td>
+                <td className="py-3 px-6 text-sm text-white whitespace-nowrap">
                   <div className="flex items-center">
                     <span className="mr-3">{user.percentage}%</span>
                     <div className="w-32 bg-[#2a2f37] rounded-full h-2.5">
@@ -216,7 +216,7 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
                     </div>
                   </div>
                 </td>
-                <td className="py-3 px-6 text-sm text-white font-mono">
+                <td className="py-3 px-6 text-sm text-white font-mono whitespace-nowrap">
                   <div className="flex flex-row gap-2 items-center">
                     <span className="text-sm text-white truncate">{user.dataIds[0]}</span>
                   </div>
