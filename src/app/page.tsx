@@ -47,15 +47,23 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
           {/* Left Column (60%) */}
           <div className="lg:col-span-3 space-y-8">
-            <TopUsersTable onUserClick={handleUserClick} />
-            <LatestBlocksTable />
-            <MempoolTable />
+            <div className="mb-12">
+              <TopUsersTable onUserClick={handleUserClick} />
+            </div>
+            <div className="mb-12">
+              <LatestBlocksTable />
+            </div>
+            <div className="mb-12">
+              <MempoolTable />
+            </div>
           </div>
           
           {/* Right Column (40%) */}
           <div className="lg:col-span-2 space-y-8">
-            <MetricsCharts />
-            <div>
+            <div className="mb-12">
+              <MetricsCharts />
+            </div>
+            <div className="mb-12">
               <h2 className="text-2xl font-windsor-bold text-white mb-3">What are blobs?</h2>
               <ExplainerSection />
             </div>
