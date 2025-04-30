@@ -111,7 +111,7 @@ export default function Header() {
             <div className="relative hidden md:block">
               <button
                 type="button"
-                className="flex items-center space-x-1 bg-background/50 hover:bg-background/80 px-3 py-2 rounded-md text-sm font-medium text-bodyText transition-colors ml-2"
+                className="flex items-center space-x-1 px-3 py-1 text-sm rounded-md transition-none bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2 ml-6"
                 onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
               >
                 <span>{selectedNetwork}</span>
@@ -130,8 +130,8 @@ export default function Header() {
                         <button
                           className={`block w-full text-left px-4 py-2 text-sm ${
                             selectedNetwork === network
-                              ? 'bg-background/50 text-titleText'
-                              : 'text-bodyText hover:bg-background/30'
+                              ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
+                              : 'text-bodyText hover:bg-[#23252a]'
                           }`}
                           onClick={() => handleNetworkChange(network)}
                         >
@@ -221,7 +221,7 @@ export default function Header() {
                 </div>
                 <button
                   type="button"
-                  className="flex items-center space-x-1 bg-background/30 hover:bg-background/50 border border-divider px-3 py-2 rounded-md text-sm font-medium text-bodyText transition-colors"
+                  className="flex items-center space-x-1 px-3 py-1 text-sm rounded-md transition-none bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2"
                   onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
                 >
                   <span>{selectedNetwork}</span>
@@ -236,8 +236,8 @@ export default function Header() {
                           <button
                             className={`block w-full text-left px-4 py-2 text-sm ${
                               selectedNetwork === network
-                                ? 'bg-background/50 text-titleText'
-                                : 'text-bodyText hover:bg-background/30'
+                                ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
+                                : 'text-bodyText hover:bg-[#23252a]'
                             }`}
                             onClick={() => {
                               handleNetworkChange(network);
