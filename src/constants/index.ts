@@ -15,8 +15,8 @@ export const ROUTES = {
 
 export const THEME = {
   PRIMARY: '#3498db',
-  SECONDARY: '#2ecc71',
+  SECONDARY: '#66CC99',
   BACKGROUND: '#f8f9fa',
   TEXT: '#333333',
-  ERROR: '#e74c3c',
+  ERROR: '#FF6B6B',
 };

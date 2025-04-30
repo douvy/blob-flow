@@ -19,7 +19,9 @@ module.exports = {
         secondaryText: "#6e7687",
         divider: "#23252a",
         dividerBlue: "#27364e",
-        blue: "#4D7DBF"
+        blue: "#4D7DBF",
+        green: "#66CC99",
+        red: "#FF6B6B"
       },
       backgroundImage: {
         'grid-pattern': "linear-gradient(rgba(50, 60, 80, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(50, 60, 80, 0.15) 1px, transparent 1px)",

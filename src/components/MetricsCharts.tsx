@@ -154,11 +154,11 @@ export default function MetricsCharts() {
             </ResponsiveContainer>
             <div className="absolute bottom-0 left-0 right-0 text-center text-xs text-[#6e7687]">
               <span className="inline-flex items-center mr-4">
-                <span className="inline-block w-3 h-3 bg-[#2ecc71] mr-1 rounded-sm"></span>
+                <span className="inline-block w-3 h-3 bg-green mr-1 rounded-sm"></span>
                 Blob Cost (ETH)
               </span>
               <span className="inline-flex items-center">
-                <span className="inline-block w-3 h-3 bg-[#e74c3c] mr-1 rounded-sm"></span>
+                <span className="inline-block w-3 h-3 bg-red mr-1 rounded-sm"></span>
                 Calldata Cost (ETH)
               </span>
             </div>
