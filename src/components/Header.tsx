@@ -218,15 +218,15 @@ export default function Header() {
                 </div>
                 <button
                   type="button"
-                  className="flex items-center space-x-1 bg-background/50 hover:bg-background/80 px-3 py-2 rounded-md text-sm font-medium text-bodyText transition-colors"
+                  className="flex items-center space-x-1 bg-background/30 hover:bg-background/50 border border-divider px-3 py-2 rounded-md text-sm font-medium text-bodyText transition-colors"
                   onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
                 >
                   <span>{selectedNetwork}</span>
-                  <i className={`fa-regular fa-chevron-${isNetworkDropdownOpen ? 'up' : 'right'} text-xs ml-1`} aria-hidden="true"></i>
+                  <i className={`fa-regular fa-chevron-${isNetworkDropdownOpen ? 'up' : 'down'} text-xs ml-1`} aria-hidden="true"></i>
                 </button>
                 
                 {isNetworkDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-40 bg-container border border-background/50 rounded-md shadow-lg z-10">
+                  <div className="absolute right-0 top-full mt-1 w-40 bg-[#1a1c22] border border-divider rounded-md shadow-lg z-10">
                     <ul className="py-1">
                       {networkOptions.map((network) => (
                         <li key={network}>
@@ -288,7 +288,7 @@ export default function Header() {
                   <i className="fa-regular fa-clock text-blue" aria-hidden="true"></i>
                   <span className="text-bodyText">Time Period</span>
                 </div>
-                <div className="flex items-center space-x-1 bg-background/30 rounded-md p-0.5">
+                <div className="flex items-center space-x-1 bg-background/30 border border-divider rounded-md p-0.5">
                   {timeRangeOptions.map((range) => (
                     <button
                       key={range}
