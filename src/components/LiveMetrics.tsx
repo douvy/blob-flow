@@ -10,25 +10,29 @@ export default function LiveMetrics() {
       title: 'Current Blob Base Fee',
       value: '12.45 gwei',
       trend: 'up' as const,
-      description: 'Fee increased 0.8% in the last hour'
+      description: 'Hourly change: +0.8%',
+      icon: 'fa-solid fa-money-bills'
     },
     {
       title: 'Pending Blobs in Mempool',
       value: '237',
       trend: 'up' as const,
-      description: 'Current mempool status'
+      description: 'Current mempool status',
+      icon: 'fa-solid fa-timer'
     },
     {
-      title: 'Average Blobs per Block (24h)',
+      title: 'Avg. Blobs per Block (24h)',
       value: '16.4',
       trend: 'neutral' as const,
-      description: 'Stable over the past 24 hours'
+      description: '24h network average',
+      icon: 'fa-solid fa-cubes'
     },
     {
       title: 'Blob Cost vs Calldata Cost',
       value: '72% cheaper',
       trend: 'down' as const,
-      description: 'Cost compared to equivalent L1 calldata'
+      description: 'Savings vs calldata',
+      icon: 'fa-solid fa-scale-unbalanced-flip'
     }
   ];
 
@@ -43,6 +47,7 @@ export default function LiveMetrics() {
             value={metric.value}
             trend={metric.trend}
             description={metric.description}
+            icon={metric.icon}
           />
         ))}
       </div>

@@ -7,9 +7,10 @@ interface MetricCardProps {
   value: string;
   trend?: 'up' | 'down' | 'neutral';
   description?: string;
+  icon?: string;
 }
 
-export default function MetricCard({ title, value, trend = 'neutral', description }: MetricCardProps) {
+export default function MetricCard({ title, value, trend = 'neutral', description, icon }: MetricCardProps) {
   return (
     <div className="relative h-full">
       {/* Blue outer glow/border */}
@@ -20,7 +21,10 @@ export default function MetricCard({ title, value, trend = 'neutral', descriptio
              background: `url('/images/subtle-pattern.png') repeat, #141519` 
            }}>
         <div className="flex justify-between items-start mb-2">
-          <h3 className="text-secondaryText font-medium text-xs uppercase tracking-wider">{title}</h3>
+          <h3 className="text-[#b8bdc7] font-medium text-xs uppercase tracking-wider flex items-center mb-1">
+            {icon && <i className={`${icon} text-blue mr-2`} aria-hidden="true"></i>}
+            {title}
+          </h3>
           {trend === 'up' && (
             <i className="fa-regular fa-arrow-up-right text-blue" aria-hidden="true"></i>
           )}
@@ -30,7 +34,7 @@ export default function MetricCard({ title, value, trend = 'neutral', descriptio
         </div>
         <div>
           <p className="text-2xl font-windsor-bold text-white">{value}</p>
-          {description && <p className="text-xs mt-1 text-secondaryText">{description}</p>}
+          {description && <p className="text-xs mt-1 text-[#b8bdc7]">{description}</p>}
         </div>
       </div>
     </div>
