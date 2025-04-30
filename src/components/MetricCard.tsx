@@ -22,10 +22,10 @@ export default function MetricCard({ title, value, trend = 'neutral', descriptio
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-secondaryText font-medium text-xs uppercase tracking-wider">{title}</h3>
           {trend === 'up' && (
-            <i className="fa-regular fa-arrow-up-right text-green" aria-hidden="true"></i>
+            <i className="fa-regular fa-arrow-up-right text-blue" aria-hidden="true"></i>
           )}
           {trend === 'down' && (
-            <i className="fa-regular fa-arrow-down-right text-red" aria-hidden="true"></i>
+            <i className="fa-regular fa-arrow-down-right text-purple" aria-hidden="true"></i>
           )}
         </div>
         <div>
