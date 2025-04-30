@@ -26,10 +26,10 @@ export default function MetricCard({ title, value, trend = 'neutral', descriptio
             {title}
           </h3>
           {trend === 'up' && (
-            <i className="fa-regular fa-arrow-up-right text-blue" aria-hidden="true"></i>
+            <i className="fa-regular fa-arrow-up-right text-[#b8bdc7]" aria-hidden="true"></i>
           )}
           {trend === 'down' && (
-            <i className="fa-regular fa-arrow-down-right text-purple" aria-hidden="true"></i>
+            <i className="fa-regular fa-arrow-down-right text-[#b8bdc7]" aria-hidden="true"></i>
           )}
         </div>
         <div>
