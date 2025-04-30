@@ -100,7 +100,7 @@ export default function Header() {
             {/* Mobile Menu Toggle - Only visible below md breakpoint */}
             <button
               type="button"
-              className="md:hidden absolute right-0 top-0 flex items-center justify-center h-9 w-9 border border-divider rounded-md text-blue focus:outline-none"
+              className="md:hidden absolute right-0 top-1/2 -translate-y-1/2 flex items-center justify-center h-8 w-8 border border-divider rounded-md text-blue focus:outline-none"
               aria-label="Toggle mobile menu"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
@@ -157,14 +157,14 @@ export default function Header() {
               </button>
 
               {/* Connection Status */}
-              <div className="flex items-center space-x-2 mr-4">
+              <div className="flex items-center space-x-2 mr-4 ml-1">
                 <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 <span className="text-sm text-bodyText">{isConnected ? 'Connected' : 'Disconnected'}</span>
               </div>
             </div>
 
             {/* Network Stats */}
-            <div className="hidden lg:block text-xs text-bodyText">
+            <div className="hidden lg:block text-xs text-bodyText ml-4 mr-4">
               <div className="flex items-center space-x-1">
                 <span>Base Fee:</span>
                 <span className="font-medium text-titleText">0.00042 ETH</span>
