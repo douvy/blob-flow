@@ -8,7 +8,7 @@ export default function ExplainerSection() {
       
       <div className="prose prose-invert max-w-none">
         <p className="text-[#b8bdc7]">
-        Blobs are data structures introduced in Ethereum's EIP-4844 ("Proto-Danksharding") that provide cost-efficient storage for Layer 2 rollups, reducing fees compared to traditional calldata. These temporary structures attach to blocks without affecting Ethereum's state.
+        Blobs (Binary Large Objects) are data structures introduced in Ethereum's EIP-4844 ("Proto-Danksharding") that provide cost-efficient storage for Layer 2 rollups, reducing fees compared to traditional calldata. These temporary structures attach to blocks without affecting Ethereum's state.
         </p>
         
         <p className="text-[#b8bdc7] mt-4">
