@@ -139,14 +139,14 @@ export default function MetricsCharts() {
                 <Line 
                   type="monotone" 
                   dataKey="blobCost" 
-                  stroke="#2ecc71" 
+                  stroke="#4D7DBF" 
                   strokeWidth={2}
                   name="Blob Cost (ETH)"
                 />
                 <Line 
                   type="monotone" 
                   dataKey="calldataCost" 
-                  stroke="#e74c3c" 
+                  stroke="#6A5ACD" 
                   strokeWidth={2}
                   name="Calldata Cost (ETH)"
                 />
@@ -154,11 +154,11 @@ export default function MetricsCharts() {
             </ResponsiveContainer>
             <div className="absolute bottom-0 left-0 right-0 text-center text-xs text-[#6e7687]">
               <span className="inline-flex items-center mr-4">
-                <span className="inline-block w-3 h-3 bg-green mr-1 rounded-sm"></span>
+                <span className="inline-block w-3 h-3 bg-blue mr-1 rounded-sm"></span>
                 Blob Cost (ETH)
               </span>
               <span className="inline-flex items-center">
-                <span className="inline-block w-3 h-3 bg-red mr-1 rounded-sm"></span>
+                <span className="inline-block w-3 h-3 bg-purple mr-1 rounded-sm"></span>
                 Calldata Cost (ETH)
               </span>
             </div>
