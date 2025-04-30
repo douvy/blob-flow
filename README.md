@@ -12,6 +12,7 @@ An Ethereum EIP-4844 blob data analytics dashboard for visualizing and analyzing
 - Network selection (Mainnet, Sepolia, Goerli)
 - Responsive design with mobile navigation
 - Keyboard shortcuts for search (/)
+- Interactive search modal with comprehensive filtering options
 
 ## Getting Started
 
@@ -38,16 +39,21 @@ An Ethereum EIP-4844 blob data analytics dashboard for visualizing and analyzing
 ```
 blob-flow/
 ├── public/           # Static assets
-│   └── images/       # Image files and L2 logos
+│   ├── images/       # Image files and L2 logos
+│   └── fonts/        # Custom web fonts
 ├── src/              # Source code
 │   ├── app/          # Next.js App Router
 │   ├── components/   # React components
 │   │   ├── BlobGraphs.tsx         # Blob data visualizations
 │   │   ├── ExplainerSection.tsx   # Educational content
+│   │   ├── Footer.tsx             # Site footer
+│   │   ├── Header.tsx             # Application header with network selection
 │   │   ├── LatestBlocksTable.tsx  # Recent blocks with blob data
 │   │   ├── LiveMetrics.tsx        # Real-time network metrics
 │   │   ├── MempoolTable.tsx       # Pending blob transactions
+│   │   ├── MetricCard.tsx         # Individual metric display card
 │   │   ├── MetricsCharts.tsx      # Time-series data charts
+│   │   ├── SearchModal.tsx        # Search interface with filters
 │   │   ├── TopUsersTable.tsx      # Top blob data users
 │   │   └── UserDetailView.tsx     # User-specific analytics
 │   ├── constants/    # Application constants
@@ -55,6 +61,7 @@ blob-flow/
 │   │   ├── useLocalStorage.ts     # Client-side storage
 │   │   └── useSearchShortcut.ts   # Keyboard shortcut handling
 │   ├── lib/          # Library code, API clients
+│   ├── styles/       # Global styles and CSS modules
 │   ├── types/        # TypeScript type definitions
 │   └── utils/        # Utility functions
 ├── .gitignore        # Git ignore file
@@ -67,12 +74,24 @@ blob-flow/
 
 ## Built With
 
-- [Next.js](https://nextjs.org/) - React framework with App Router
-- [TypeScript](https://www.typescriptlang.org/) - Type-safe JavaScript
-- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
-- [Recharts](https://recharts.org/) - Composable charting library
-- [Font Awesome](https://fontawesome.com/) - Icon library
+- [Next.js](https://nextjs.org/) (v15.3.1) - React framework with App Router
+- [React](https://react.dev/) (v19.1.0) - JavaScript UI library
+- [TypeScript](https://www.typescriptlang.org/) (v5.8.3) - Type-safe JavaScript
+- [Tailwind CSS](https://tailwindcss.com/) (v3.3.0) - Utility-first CSS framework
+- [Recharts](https://recharts.org/) (v2.15.3) - Composable charting library
+- [Font Awesome](https://fontawesome.com/) - Icon library via CDN
+
+## Design Notes
+
+- Custom typography using GT Flexa and Windsor Bold font families
+- Dark theme with grid background pattern
+- Mobile-optimized interface with bottom slide-up navigation menu
+- Responsive design
+
+## Development Status
+
+The application is currently set up with placeholder/mock data for demonstration and development purposes. The API client is configured but points to a placeholder URL. The UI is fully functional with mock data to demonstrate the application's capabilities.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
