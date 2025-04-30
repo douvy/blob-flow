@@ -69,9 +69,8 @@ export default function Home() {
             onClose={handleCloseDetail}
           />
         )}
-        
-        <Footer />
       </div>
+      <Footer />
     </main>
   );
 }
