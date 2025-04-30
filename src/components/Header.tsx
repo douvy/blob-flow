@@ -158,16 +158,19 @@ export default function Header() {
 
               {/* Connection Status */}
               <div className="flex items-center space-x-2 mr-4 ml-1">
-                <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green' : 'bg-red'}`}></div>
+                <div className="relative">
+                  <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green' : 'bg-red'}`}></div>
+                  <div className={`absolute inset-0 rounded-full ${isConnected ? 'bg-green' : 'bg-red'} opacity-75 animate-ping`}></div>
+                </div>
                 <span className="text-sm text-bodyText">{isConnected ? 'Connected' : 'Disconnected'}</span>
               </div>
             </div>
 
             {/* Network Stats */}
             <div className="hidden lg:block text-xs text-bodyText ml-4 mr-4">
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-1 text-[#b8bdc7]">
                 <span>Base Fee:</span>
-                <span className="font-medium text-titleText">0.00042 ETH</span>
+                <span className="font-medium">0.00042 ETH</span>
               </div>
             </div>
 
@@ -268,7 +271,10 @@ export default function Header() {
               <div className="flex items-center gap-3">
                 <i className="fa-regular fa-signal-stream text-blue" aria-hidden="true"></i>
                 <div className="flex items-center space-x-2">
-                  <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <div className="relative">
+                    <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <div className={`absolute inset-0 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} opacity-75 animate-ping`}></div>
+                  </div>
                   <span className="text-sm text-bodyText">{isConnected ? 'Connected' : 'Disconnected'}</span>
                 </div>
               </div>
