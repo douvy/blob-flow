@@ -1,54 +1,34 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 
 export default function ExplainerSection() {
-  const [isExpanded, setIsExpanded] = useState(true);
-
   return (
-    <section className="bg-container rounded-lg p-6 shadow-md border border-divider">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-windsor-bold text-white">What are blobs?</h2>
-        <button 
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="text-blue-400 hover:text-blue-300 transition-colors focus:outline-none"
-        >
-          {isExpanded ? 'Show less' : 'Show more'}
-        </button>
-      </div>
+    <section className="bg-[#171a22]/60 rounded-lg p-6 shadow-md border border-dividerBlue">
       
       <div className="prose prose-invert max-w-none">
-        <p className="text-white">
-          <strong>Blobs</strong> (Binary Large Objects) were introduced in Ethereum's EIP-4844 (also known as "Proto-Danksharding"). 
-          They provide a new, more cost-efficient way for Layer 2 rollups to store data on Ethereum, reducing fees 
-          by up to 10x compared to traditional calldata.
+        <p className="text-[#b8bdc7]">
+          Blobs (Binary Large Objects) were introduced in Ethereum's EIP-4844 (also known as "Proto-Danksharding"). They provide a more cost-efficient way for Layer 2 rollups to store data on Ethereum, reducing fees compared to traditional calldata.
         </p>
         
-        {isExpanded && (
-          <>
-            <p className="text-white mt-4">
-              Blobs are temporary data structures attached to blocks that don't affect Ethereum's state directly. 
-              They're specifically designed for rollups, which previously had to use expensive calldata to submit 
-              batches of transactions to Ethereum.
-            </p>
-            
-            <p className="text-white mt-4">
-              Key benefits include:
-            </p>
-            
-            <ul className="list-disc pl-5 mt-2 text-white">
-              <li>Lower transaction costs for rollup users</li>
-              <li>Increased data throughput for Layer 2 solutions</li>
-              <li>Step toward Ethereum's full sharding implementation</li>
-              <li>Data availability without permanent state bloat</li>
-            </ul>
-            
-            <p className="text-white mt-4">
-              This dashboard tracks blob usage, costs, and attribution to different rollup providers, 
-              offering insights into how this new technology is being adopted.
-            </p>
-          </>
-        )}
+        <p className="text-[#b8bdc7] mt-4">
+          Blobs are temporary data structures attached to blocks that don't affect Ethereum's state directly. They're designed for rollups, which previously had to use expensive calldata to submit transaction batches.
+        </p>
+        
+        <p className="text-[#b8bdc7] mt-4">
+          Key benefits include:
+        </p>
+        
+        <ul className="list-disc pl-5 mt-2 text-[#b8bdc7]">
+          <li>Lower transaction costs for rollup users</li>
+          <li>Increased data throughput for Layer 2 solutions</li>
+          <li>Step toward Ethereum's full sharding implementation</li>
+          <li>Data availability without permanent state bloat</li>
+        </ul>
+        
+        <p className="text-[#b8bdc7] mt-4">
+          This dashboard tracks blob usage, costs, and attribution to different rollup providers.
+        </p>
         
         <div className="mt-6">
           <a 

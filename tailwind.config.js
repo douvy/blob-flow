@@ -18,6 +18,7 @@ module.exports = {
         bodyText: "#f1f2f4",
         secondaryText: "#6e7687",
         divider: "#23252a",
+        dividerBlue: "#27364e",
         blue: "#4D7DBF"
       },
       backgroundImage: {
