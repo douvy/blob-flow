@@ -35,8 +35,8 @@
   
   body {
     @apply text-bodyText bg-background font-gt-flexa;
-    background-image: linear-gradient(rgba(50, 60, 80, 0.15) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(50, 60, 80, 0.25) 1px, transparent 1px);
+    background-image: linear-gradient(#1a1f2e 1px, transparent 1px),
+                      linear-gradient(90deg, #1a1f2e 1px, transparent 1px);
     background-size: 20px 20px;
   }
 }
