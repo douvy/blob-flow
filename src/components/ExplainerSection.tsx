@@ -35,7 +35,7 @@ export default function ExplainerSection() {
             href="https://eips.ethereum.org/EIPS/eip-4844" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center"
+            className="text-lightBlue hover:text-lightBlue/80 inline-flex items-center"
           >
             Read EIP-4844 Specification
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">

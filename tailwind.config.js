@@ -20,6 +20,7 @@ module.exports = {
         divider: "#23252a",
         dividerBlue: "#27364e",
         blue: "#4D7DBF",
+        lightBlue: "#9ac4fd",
         green: "#66CC99",
         red: "#FF6B6B",
         yellow: "#FFFF00"
