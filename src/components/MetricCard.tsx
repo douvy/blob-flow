@@ -13,9 +13,12 @@ export default function MetricCard({ title, value, trend = 'neutral', descriptio
   return (
     <div className="relative h-full">
       {/* Blue outer glow/border */}
-      <div className="absolute -inset-[2px] rounded-lg bg-[#0751c5]/25"></div>
+      <div className="absolute -inset-[2px] rounded-lg bg-blue/40"></div>
       
-      <div className="relative bg-[#141519] rounded-lg p-4 shadow-md transition-all hover:shadow-lg border border-divider h-full">
+      <div className="relative rounded-lg p-4 shadow-md transition-all hover:shadow-lg border border-divider h-full" 
+           style={{ 
+             background: `url('/images/subtle-pattern.png') repeat, #141519` 
+           }}>
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-secondaryText font-medium text-xs uppercase tracking-wider">{title}</h3>
           {trend === 'up' && (
