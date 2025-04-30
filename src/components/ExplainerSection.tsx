@@ -8,26 +8,22 @@ export default function ExplainerSection() {
       
       <div className="prose prose-invert max-w-none">
         <p className="text-[#b8bdc7]">
-          Blobs (Binary Large Objects) were introduced in Ethereum's EIP-4844 (also known as "Proto-Danksharding"). They provide a more cost-efficient way for Layer 2 rollups to store data on Ethereum, reducing fees compared to traditional calldata.
+        Blobs are data structures introduced in Ethereum's EIP-4844 ("Proto-Danksharding") that provide cost-efficient storage for Layer 2 rollups, reducing fees compared to traditional calldata. These temporary structures attach to blocks without affecting Ethereum's state.
         </p>
         
         <p className="text-[#b8bdc7] mt-4">
-          Blobs are temporary data structures attached to blocks that don't affect Ethereum's state directly. They're designed for rollups, which previously had to use expensive calldata to submit transaction batches.
-        </p>
-        
-        <p className="text-[#b8bdc7] mt-4">
-          Key benefits include:
+        Key benefits:
         </p>
         
         <ul className="list-disc pl-5 mt-2 text-[#b8bdc7]">
           <li>Lower transaction costs for rollup users</li>
           <li>Increased data throughput for Layer 2 solutions</li>
-          <li>Step toward Ethereum's full sharding implementation</li>
+          <li>Progress toward Ethereum's full sharding</li>
           <li>Data availability without permanent state bloat</li>
         </ul>
         
         <p className="text-[#b8bdc7] mt-4">
-          This dashboard tracks blob usage, costs, and attribution to different rollup providers.
+        This dashboard tracks blob usage, costs, and attribution across rollup providers.
         </p>
         
         <div className="mt-6">
