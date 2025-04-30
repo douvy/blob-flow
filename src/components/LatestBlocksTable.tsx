@@ -143,7 +143,7 @@ export default function LatestBlocksTable() {
                             key={idx}
                             src={`/images/${attr.toLowerCase()}.png`} 
                             alt={attr} 
-                            className="inline-block w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-5 min-h-5" 
+                            className="inline-block w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem]" 
                             title={attr}
                           />
                         ))}
