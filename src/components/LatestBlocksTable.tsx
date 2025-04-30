@@ -148,7 +148,7 @@ export default function LatestBlocksTable() {
                           />
                         ))}
                       </div>
-                      <span className="whitespace-nowrap text-xs text-gray-400 ml-6">
+                      <span className="whitespace-nowrap text-sm text-white ml-6">
                         {block.attribution.length} networks
                       </span>
                     </div>
