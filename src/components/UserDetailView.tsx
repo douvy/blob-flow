@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import useScrollLock from '../hooks/useScrollLock';
 
 interface DetailItem {
   id: string;
@@ -17,6 +18,9 @@ interface UserDetailViewProps {
 }
 
 export default function UserDetailView({ userId, userName, onClose }: UserDetailViewProps) {
+  // Lock scrolling when the modal is open
+  useScrollLock(true);
+  
   // Sample data - would be fetched from API in production based on userId
   const detailItems: DetailItem[] = [
     {

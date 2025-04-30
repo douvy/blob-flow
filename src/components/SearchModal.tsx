@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, FormEvent } from 'react';
+import useScrollLock from '../hooks/useScrollLock';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -14,6 +15,9 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [selectedType, setSelectedType] = useState<SearchType>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  
+  // Lock scrolling when the modal is open
+  useScrollLock(isOpen);
 
   // Reset search query and selected type when modal opens
   useEffect(() => {

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
+import useScrollLock from '../hooks/useScrollLock';
 
 type NetworkOption = 'Mainnet' | 'Sepolia' | 'Goerli';
 type TimeRange = '24h' | '7d' | '30d' | 'All';
@@ -18,6 +19,9 @@ export default function Header() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Lock scrolling when the mobile menu is open
+  useScrollLock(isMobileMenuOpen);
 
   // Ensure hydration matching by only showing client-side elements after mounting
   useEffect(() => {
