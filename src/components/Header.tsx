@@ -272,10 +272,10 @@ export default function Header() {
                 <i className="fa-regular fa-signal-stream text-blue" aria-hidden="true"></i>
                 <div className="flex items-center space-x-2">
                   <div className="relative">
-                    <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                    <div className={`absolute inset-0 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} opacity-75 animate-ping`}></div>
+                    <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green' : 'bg-red'}`}></div>
+                    <div className={`absolute inset-0 rounded-full ${isConnected ? 'bg-green' : 'bg-red'} opacity-75 animate-ping`}></div>
                   </div>
-                  <span className="text-sm text-bodyText">{isConnected ? 'Connected' : 'Disconnected'}</span>
+                  <span className="text-base text-bodyText">{isConnected ? 'Connected' : 'Disconnected'}</span>
                 </div>
               </div>
               
@@ -283,14 +283,14 @@ export default function Header() {
               <div className="flex items-center gap-3">
                 <i className="fa-regular fa-arrow-trend-up text-blue" aria-hidden="true"></i>
                 <div className="flex items-center space-x-1">
-                  <span className="text-sm text-bodyText">Base Fee:</span>
-                  <span className="font-medium text-titleText">0.00042 ETH</span>
+                  <span className="text-base text-bodyText">Base Fee:</span>
+                  <span className="font-medium text-base text-titleText">0.00042 ETH</span>
                 </div>
               </div>
               
               {/* Time Period Selector */}
               <div>
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-3 mb-4">
                   <i className="fa-regular fa-timer text-blue" aria-hidden="true"></i>
                   <span className="text-bodyText">Time Period</span>
                 </div>
