@@ -21,7 +21,8 @@ module.exports = {
         dividerBlue: "#27364e",
         blue: "#4D7DBF",
         green: "#66CC99",
-        red: "#FF6B6B"
+        red: "#FF6B6B",
+        yellow: "#FFFF00"
       },
       backgroundImage: {
         'grid-pattern': "linear-gradient(rgba(50, 60, 80, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(50, 60, 80, 0.15) 1px, transparent 1px)",

@@ -129,8 +129,8 @@ export default function UserDetailView({ userId, userName, onClose }: UserDetail
                     <td className="py-3 px-4 text-sm text-bodyText">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
                         item.status === 'confirmed' 
-                          ? 'bg-green-900 bg-opacity-30 text-green-300' 
-                          : 'bg-yellow-900 bg-opacity-30 text-yellow-300'
+                          ? 'bg-green text-[#14171f]' 
+                          : 'bg-yellow text-black'
                       }`}>
                         {item.status === 'confirmed' ? 'Confirmed' : 'Pending'}
                       </span>
