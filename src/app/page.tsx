@@ -63,7 +63,7 @@ export default function Home() {
             <div className="mb-12">
               <MetricsCharts />
             </div>
-            <div className="mb-12">
+            <div className="mb-12 pt-2">
               <h2 className="text-2xl font-windsor-bold text-white mb-3">What are blobs?</h2>
               <ExplainerSection />
             </div>

@@ -63,7 +63,7 @@ export default function MempoolTable() {
   ];
 
   return (
-    <section>
+    <section className="pt-2">
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Mempool Attribution</h2>
       <div className="overflow-x-auto border border-divider rounded-lg">
         <table className="min-w-full overflow-hidden table-fixed">
