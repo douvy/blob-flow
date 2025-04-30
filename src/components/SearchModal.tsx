@@ -186,7 +186,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   searchInputRef.current?.focus();
                 }}
               >
-                <i className="fa-regular fa-clock text-blue mr-2"></i>
+                <i className="fa-regular fa-timer text-blue mr-2"></i>
                 <span className="text-white">12 pending blobs in mempool from Optimism (waiting for confirmation)</span>
               </div>
             </div>
@@ -199,11 +199,11 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             <h3 className="text-xs uppercase text-[#6e7687] px-2 py-1.5">Blob stats summary</h3>
             <div className="mt-1 space-y-0.5">
               <div className="px-2 py-2.5 rounded flex items-center cursor-pointer hover:bg-[#23252a]">
-                <i className="fa-regular fa-arrow-trend-up text-blue mr-2"></i>
+                <i className="fa-regular fa-arrow-up-right text-blue mr-2"></i>
                 <span className="text-white">Current Blob Base Fee: 0.00042 ETH (↑12% in 24h)</span>
               </div>
               <div className="px-2 py-2.5 rounded flex items-center cursor-pointer hover:bg-[#23252a]">
-                <i className="fa-regular fa-money-bill text-blue mr-2"></i>
+                <i className="fa-regular fa-scale-unbalanced-flip text-blue mr-2"></i>
                 <span className="text-white">Blob Cost vs Calldata: 3.2x cheaper for rollups today</span>
               </div>
             </div>

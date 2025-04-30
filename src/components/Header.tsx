@@ -291,7 +291,7 @@ export default function Header() {
               {/* Time Period Selector */}
               <div>
                 <div className="flex items-center gap-3 mb-2">
-                  <i className="fa-regular fa-clock text-blue" aria-hidden="true"></i>
+                  <i className="fa-regular fa-timer text-blue" aria-hidden="true"></i>
                   <span className="text-bodyText">Time Period</span>
                 </div>
                 <div className="flex items-center space-x-1 bg-background/30 border border-divider rounded-md p-0.5">

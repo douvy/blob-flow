@@ -25,7 +25,7 @@ export default function LiveMetrics() {
       value: '16.4',
       trend: 'neutral' as const,
       description: '24h network average',
-      icon: 'fa-solid fa-cubes'
+      icon: 'fa-solid fa-cube'
     },
     {
       title: 'Blob Cost vs Calldata Cost',
