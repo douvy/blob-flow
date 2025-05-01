@@ -230,7 +230,7 @@ export default function Header() {
               // Prevent text selection during drag
               document.body.style.userSelect = 'none';
               
-              function onMouseMove(moveE) {
+              function onMouseMove(moveE: MouseEvent) {
                 if (!dragging) return;
                 moveE.preventDefault();
                 const deltaY = moveE.clientY - startY;
@@ -239,7 +239,7 @@ export default function Header() {
                 }
               }
               
-              function onMouseUp(upE) {
+              function onMouseUp(upE: MouseEvent) {
                 dragging = false;
                 document.body.style.userSelect = '';
                 
@@ -265,7 +265,7 @@ export default function Header() {
               const tray = e.currentTarget;
               const startY = e.touches[0].clientY;
               
-              function onTouchMove(moveE) {
+              function onTouchMove(moveE: TouchEvent) {
                 const touchY = moveE.touches[0].clientY;
                 const deltaY = touchY - startY;
                 if (deltaY > 0) {
@@ -273,7 +273,7 @@ export default function Header() {
                 }
               }
               
-              function onTouchEnd(endE) {
+              function onTouchEnd(endE: TouchEvent) {
                 let deltaY = 0;
                 if (endE.changedTouches && endE.changedTouches.length > 0) {
                   deltaY = endE.changedTouches[0].clientY - startY;
