@@ -6,6 +6,7 @@ import Link from 'next/link';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
+import useDragToClose from '../hooks/useDragToClose';
 
 type NetworkOption = 'Mainnet' | 'Sepolia' | 'Goerli';
 type TimeRange = '24h' | '7d' | '30d' | 'All';
@@ -77,6 +78,8 @@ export default function Header() {
 
   // Use the shortcut hook to open search modal with / key
   useSearchShortcut(toggleSearchModal);
+  
+  // Removed complex drag to close in favor of direct implementation
 
   return (
     <>
@@ -212,10 +215,91 @@ export default function Header() {
           }}
         >
           <div 
-            className={`absolute bottom-0 left-0 right-0 bg-[#1c1e23] rounded-t-xl transition-transform duration-300 ease-in-out transform ${
+            id="mobile-menu-tray"
+            className={`select-none absolute bottom-0 left-0 right-0 bg-[#1c1e23] rounded-t-xl transition-transform duration-300 ease-in-out transform ${
               isMobileMenuOpen ? 'translate-y-0' : 'translate-y-full'
             }`}
+            onMouseDown={(e) => {
+              // Prevent text selection
+              e.preventDefault();
+              
+              const tray = e.currentTarget;
+              const startY = e.clientY;
+              let dragging = true;
+              
+              // Prevent text selection during drag
+              document.body.style.userSelect = 'none';
+              
+              function onMouseMove(moveE) {
+                if (!dragging) return;
+                moveE.preventDefault();
+                const deltaY = moveE.clientY - startY;
+                if (deltaY > 0) {
+                  tray.style.transform = `translateY(${deltaY}px)`;
+                }
+              }
+              
+              function onMouseUp(upE) {
+                dragging = false;
+                document.body.style.userSelect = '';
+                
+                const deltaY = upE.clientY - startY;
+                if (deltaY > 50) {
+                  // Reset transform immediately to avoid flicker when reopening
+                  requestAnimationFrame(() => {
+                    tray.style.transform = '';
+                    setIsMobileMenuOpen(false);
+                  });
+                } else {
+                  tray.style.transform = '';
+                }
+                
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+              }
+              
+              document.addEventListener('mousemove', onMouseMove);
+              document.addEventListener('mouseup', onMouseUp);
+            }}
+            onTouchStart={(e) => {
+              const tray = e.currentTarget;
+              const startY = e.touches[0].clientY;
+              
+              function onTouchMove(moveE) {
+                const touchY = moveE.touches[0].clientY;
+                const deltaY = touchY - startY;
+                if (deltaY > 0) {
+                  tray.style.transform = `translateY(${deltaY}px)`;
+                }
+              }
+              
+              function onTouchEnd(endE) {
+                let deltaY = 0;
+                if (endE.changedTouches && endE.changedTouches.length > 0) {
+                  deltaY = endE.changedTouches[0].clientY - startY;
+                }
+                
+                if (deltaY > 50) {
+                  // Reset transform immediately to avoid flicker when reopening
+                  requestAnimationFrame(() => {
+                    tray.style.transform = '';
+                    setIsMobileMenuOpen(false);
+                  });
+                } else {
+                  tray.style.transform = '';
+                }
+                
+                document.removeEventListener('touchmove', onTouchMove);
+                document.removeEventListener('touchend', onTouchEnd);
+              }
+              
+              document.addEventListener('touchmove', onTouchMove, { passive: false });
+              document.addEventListener('touchend', onTouchEnd);
+            }}
           >
+            <div className="w-full flex items-center justify-center pt-3 pb-1">
+              <div className="w-16 h-1 bg-gray-300/20 rounded-full"></div>
+            </div>
             <div className="p-5 space-y-5">
               {/* Network Selector */}
               <div className="flex items-center justify-between relative">

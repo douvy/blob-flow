@@ -2,6 +2,7 @@
 
 import React from 'react';
 import useScrollLock from '../hooks/useScrollLock';
+import useDragToClose from '../hooks/useDragToClose';
 
 interface DetailItem {
   id: string;
@@ -94,13 +95,131 @@ export default function UserDetailView({ userId, userName, onClose }: UserDetail
     document.addEventListener('keydown', handleEscKey);
     return () => document.removeEventListener('keydown', handleEscKey);
   }, [onClose]);
+  
+  // Removed complex drag to close in favor of direct implementation
 
   return (
     <div 
       className="fixed inset-0 bg-black/50 backdrop-blur-[1px] flex items-end md:items-center justify-center z-50"
       onClick={handleBackdropClick}
     >
-      <div className="bg-[#14161a] rounded-none md:rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] md:max-h-[80vh] h-[90vh] md:h-auto overflow-hidden border-t md:border border-divider">
+      <div 
+        className="select-none bg-[#14161a] rounded-none md:rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] md:max-h-[80vh] h-[90vh] md:h-auto overflow-hidden border-t md:border border-divider"
+        onMouseDown={(e) => {
+          // Only apply on mobile
+          if (window.innerWidth >= 768) return;
+          
+          // Prevent text selection
+          e.preventDefault();
+          
+          const modal = e.currentTarget;
+          const startY = e.clientY;
+          let dragging = true;
+          
+          // Prevent text selection during drag
+          document.body.style.userSelect = 'none';
+          
+          function onMouseMove(moveE) {
+            if (!dragging) return;
+            moveE.preventDefault();
+            const deltaY = moveE.clientY - startY;
+            if (deltaY > 0) {
+              modal.style.transform = `translateY(${deltaY}px)`;
+            }
+          }
+          
+          function onMouseUp(upE) {
+            dragging = false;
+            document.body.style.userSelect = '';
+            
+            const deltaY = upE.clientY - startY;
+            if (deltaY > 50) {
+              // Apply final animation before closing
+              modal.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+              modal.style.opacity = '0';
+              modal.style.transform = `translateY(${window.innerHeight}px)`;
+              
+              // Delay close to allow animation
+              setTimeout(() => {
+                // Reset styles before closing to ensure clean reopening
+                onClose();
+                modal.style.opacity = '1';
+                modal.style.transform = '';
+                modal.style.transition = '';
+              }, 200);
+            } else {
+              modal.style.transition = 'transform 0.2s ease-out';
+              modal.style.transform = '';
+              // Remove transition after animation completes
+              setTimeout(() => {
+                modal.style.transition = '';
+              }, 200);
+            }
+            
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+          }
+          
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup', onMouseUp);
+        }}
+        onTouchStart={(e) => {
+          // Only apply on mobile
+          if (window.innerWidth >= 768) return;
+          
+          const modal = e.currentTarget;
+          const startY = e.touches[0].clientY;
+          
+          function onTouchMove(moveE) {
+            const touchY = moveE.touches[0].clientY;
+            const deltaY = touchY - startY;
+            if (deltaY > 0) {
+              modal.style.transform = `translateY(${deltaY}px)`;
+              // Prevent scrolling while dragging
+              moveE.preventDefault();
+            }
+          }
+          
+          function onTouchEnd(endE) {
+            let deltaY = 0;
+            if (endE.changedTouches && endE.changedTouches.length > 0) {
+              deltaY = endE.changedTouches[0].clientY - startY;
+            }
+            
+            if (deltaY > 50) {
+              // Apply final animation before closing
+              modal.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+              modal.style.opacity = '0';
+              modal.style.transform = `translateY(${window.innerHeight}px)`;
+              
+              // Delay close to allow animation
+              setTimeout(() => {
+                // Reset styles before closing to ensure clean reopening
+                onClose();
+                modal.style.opacity = '1';
+                modal.style.transform = '';
+                modal.style.transition = '';
+              }, 200);
+            } else {
+              modal.style.transition = 'transform 0.2s ease-out';
+              modal.style.transform = '';
+              // Remove transition after animation completes
+              setTimeout(() => {
+                modal.style.transition = '';
+              }, 200);
+            }
+            
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+          }
+          
+          document.addEventListener('touchmove', onTouchMove, { passive: false });
+          document.addEventListener('touchend', onTouchEnd);
+        }}
+      >
+        <div className="w-full flex items-center justify-center pt-3 pb-1 md:hidden">
+          <div className="w-16 h-1 bg-gray-300/20 rounded-full"></div>
+        </div>
         <div className="flex items-center justify-between p-4 border-b border-divider">
           <div className="flex items-center w-full justify-center relative">
             <h2 className="text-xl font-windsor-bold text-titleText text-center">{userName} Details</h2>
