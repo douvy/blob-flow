@@ -21,7 +21,7 @@ export default function useDragToClose({
     
     if (!handleElement) return; // Return if handle element not found
     
-    const modalElement = handleElement.closest('[id$="-tray"], [class*="modal"], [class*="fixed"]');
+    const modalElement = handleElement.closest('[id$="-tray"], [class*="modal"], [class*="fixed"]') as HTMLElement;
     if (!modalElement) return; // Return if no parent modal/tray element found
     
     const handleTouchStart = (e: TouchEvent) => {
