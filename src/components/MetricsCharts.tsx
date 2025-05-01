@@ -139,7 +139,7 @@ export default function MetricsCharts() {
                 <Line 
                   type="monotone" 
                   dataKey="blobCost" 
-                  stroke="#4D7DBF" 
+                  stroke="rgb(59, 130, 246)" 
                   strokeWidth={2}
                   name="Blob Cost (ETH)"
                 />
@@ -154,7 +154,7 @@ export default function MetricsCharts() {
             </ResponsiveContainer>
             <div className="absolute bottom-0 left-0 right-0 text-center text-xs text-[#6e7687]">
               <span className="inline-flex items-center mr-4">
-                <span className="inline-block w-3 h-3 bg-blue mr-1 rounded-sm"></span>
+                <span className="inline-block w-3 h-3 mr-1 rounded-sm" style={{ backgroundColor: 'rgb(59, 130, 246)' }}></span>
                 Blob Cost (ETH)
               </span>
               <span className="inline-flex items-center">
