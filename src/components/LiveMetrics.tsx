@@ -11,28 +11,28 @@ export default function LiveMetrics() {
       value: '12.45 gwei',
       trend: 'up' as const,
       description: 'Hourly change: +0.8%',
-      icon: 'fa-solid fa-money-bills'
+      icon: 'fa-regular fa-money-bills'
     },
     {
       title: 'Pending Blobs in Mempool',
       value: '237',
       trend: 'up' as const,
       description: 'Current mempool status',
-      icon: 'fa-solid fa-timer'
+      icon: 'fa-regular fa-timer'
     },
     {
       title: 'Avg. Blobs per Block (24h)',
       value: '16.4',
       trend: 'neutral' as const,
       description: '24h network average',
-      icon: 'fa-solid fa-cube'
+      icon: 'fa-regular fa-cube'
     },
     {
       title: 'Blob Cost vs Calldata Cost',
       value: '72% cheaper',
       trend: 'down' as const,
       description: 'Savings vs calldata',
-      icon: 'fa-solid fa-scale-unbalanced-flip'
+      icon: 'fa-regular fa-scale-unbalanced-flip'
     }
   ];
 
