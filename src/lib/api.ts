@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../constants';
 import {
+  Block,
   LatestBlocksResponse,
   MempoolResponse,
   StatsResponse,
