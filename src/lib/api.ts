@@ -2,10 +2,11 @@ import { API_BASE_URL } from '../constants';
 import {
   Block,
   LatestBlocksResponse,
-  MempoolResponse,
+  MempoolResponse, 
   StatsResponse,
   TopUsersResponse,
-  User
+  User,
+  UserDetail
 } from '../types';
 
 /**
@@ -133,7 +134,7 @@ export const api = {
    * @param userId - User ID to retrieve
    */
   getUserById: (userId: number) => 
-    fetchApi<{ data: User }>(`/users/${userId}`),
+    fetchApi<{ data: UserDetail }>(`/users/${userId}`),
 };
 
 export default api;

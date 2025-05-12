@@ -3,14 +3,11 @@
 import React from 'react';
 import useScrollLock from '../hooks/useScrollLock';
 import useDragToClose from '../hooks/useDragToClose';
+import { useApiData } from '../hooks/useApiData';
+import { api } from '../lib/api';
+import DataStateWrapper from './DataStateWrapper';
 
-interface DetailItem {
-  id: string;
-  status: 'confirmed' | 'pending';
-  cost: string;
-  blockNumber?: string;
-  timestamp: string;
-}
+import { UserTransaction, UserDetail } from '../types';
 
 interface UserDetailViewProps {
   userId: number;
@@ -22,49 +19,14 @@ export default function UserDetailView({ userId, userName, onClose }: UserDetail
   // Lock scrolling when the modal is open
   useScrollLock(true);
   
-  // Sample data - would be fetched from API in production based on userId
-  const detailItems: DetailItem[] = [
-    {
-      id: '0xabcd1234efgh5678',
-      status: 'confirmed',
-      cost: '0.00123 ETH',
-      blockNumber: '19342751',
-      timestamp: '30 sec ago'
-    },
-    {
-      id: '0xijkl9012mnop3456',
-      status: 'confirmed',
-      cost: '0.00098 ETH',
-      blockNumber: '19342749',
-      timestamp: '2 min ago'
-    },
-    {
-      id: '0xqrst7890uvwx1234',
-      status: 'pending',
-      cost: '0.00145 ETH',
-      timestamp: '1 min ago'
-    },
-    {
-      id: '0xyzab5678cdef9012',
-      status: 'confirmed',
-      cost: '0.00087 ETH',
-      blockNumber: '19342747',
-      timestamp: '4 min ago'
-    },
-    {
-      id: '0xghij3456klmn7890',
-      status: 'confirmed',
-      cost: '0.00112 ETH',
-      blockNumber: '19342745',
-      timestamp: '6 min ago'
-    },
-    {
-      id: '0xopqr1234stuv5678',
-      status: 'pending',
-      cost: '0.00132 ETH',
-      timestamp: '3 min ago'
-    }
-  ];
+  // Fetch user details from API
+  const { data, isLoading, error } = useApiData(
+    () => api.getUserById(userId),
+    [userId]
+  );
+  
+  // User data retrieved from API
+  const detailItems: UserTransaction[] = data?.data?.transactions || [];
 
   const userColors = {
     'Arbitrum': 'bg-blue-500',
@@ -235,41 +197,62 @@ export default function UserDetailView({ userId, userName, onClose }: UserDetail
         </div>
         
         <div className="p-4 pt-0 overflow-y-auto max-h-[calc(100vh-80px)] md:max-h-[calc(80vh-80px)]">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-divider w-max">
-              <thead>
-                <tr>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">ID</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">Status</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">Cost</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">Block / Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-divider">
-                {detailItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
-                    <td className="py-3 px-4 text-sm font-mono text-bodyText whitespace-nowrap">{item.id}</td>
-                    <td className="py-3 px-4 text-sm text-bodyText whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                        item.status === 'confirmed' 
-                          ? 'bg-green text-[#14171f]' 
-                          : 'bg-yellow text-black'
-                      }`}>
-                        {item.status === 'confirmed' ? 'Confirmed' : 'Pending'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-bodyText whitespace-nowrap">{item.cost}</td>
-                    <td className="py-3 px-4 text-sm text-bodyText whitespace-nowrap">
-                      {item.status === 'confirmed' 
-                        ? `Block ${item.blockNumber} (${item.timestamp})` 
-                        : `Pending (${item.timestamp})`
-                      }
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataStateWrapper
+            isLoading={isLoading}
+            error={error}
+            loadingComponent={
+              <div className="w-full p-10 flex flex-col items-center justify-center">
+                <div className="animate-pulse space-y-4 w-full">
+                  <div className="h-5 bg-[#202538] rounded w-1/4 mx-auto"></div>
+                  <div className="h-40 bg-[#202538] rounded w-full"></div>
+                  <div className="h-10 bg-[#202538] rounded w-1/2 mx-auto"></div>
+                </div>
+              </div>
+            }
+          >
+            {detailItems.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-divider w-max">
+                  <thead>
+                    <tr>
+                      <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">ID</th>
+                      <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">Status</th>
+                      <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">Cost</th>
+                      <th className="py-3 px-4 text-left text-xs font-medium text-[#6e7687] uppercase tracking-wider whitespace-nowrap">Block / Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-divider">
+                    {detailItems.map((item) => (
+                      <tr key={item.id} className="hover:bg-[#23252a] transition-colors">
+                        <td className="py-3 px-4 text-sm font-mono text-bodyText whitespace-nowrap">{item.id}</td>
+                        <td className="py-3 px-4 text-sm text-bodyText whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                            item.status === 'confirmed' 
+                              ? 'bg-green text-[#14171f]' 
+                              : 'bg-yellow text-black'
+                          }`}>
+                            {item.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-bodyText whitespace-nowrap">{item.cost}</td>
+                        <td className="py-3 px-4 text-sm text-bodyText whitespace-nowrap">
+                          {item.status === 'confirmed' 
+                            ? `Block ${item.blockNumber} (${item.timestamp})` 
+                            : `Pending (${item.timestamp})`
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-lg text-white mb-2">No transactions found</div>
+                <p className="text-[#6c727f]">This user hasn't made any blob transactions yet.</p>
+              </div>
+            )}
+          </DataStateWrapper>
         </div>
       </div>
     </div>
