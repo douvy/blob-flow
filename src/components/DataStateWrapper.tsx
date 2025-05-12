@@ -57,5 +57,5 @@ export default function DataStateWrapper({
     return <>{defaultErrorComponent(error)}</>;
   }
 
-  return <>{children}</>;
+  return <React.Fragment>{children}</React.Fragment>;
 }
