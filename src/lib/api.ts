@@ -299,27 +299,16 @@ async function fetchApi<T>(
     
     const data = await response.json();
     return data as T;
-  } catch (error) {
+  } catch (caughtError: unknown) {
     clearTimeout(timeoutId);
     
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        throw new Error(`Request timeout after ${timeoutMs}ms`);
-      }
-      
-      // Retry network errors
-      if (
-        error.message.includes('network') && 
-        retries < MAX_RETRIES
-      ) {
-        const delay = Math.pow(2, retries) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return fetchApi<T>(endpoint, options, timeoutMs, retries + 1);
-      }
-    }
+    // Since we're using mock data in production, we can simplify the error handling
+    // Just log and re-throw any errors
+    console.error('API fetch error:', caughtError);
     
-    console.error('API fetch error:', error);
-    throw error;
+    // Since we're always using mock data now, we'll never reach this point
+    // in real usage, but we'll keep it for when we switch to real API
+    throw new Error('API request failed');
   }
 }
 
