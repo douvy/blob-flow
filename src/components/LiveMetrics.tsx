@@ -18,36 +18,34 @@ export default function LiveMetrics() {
   const getMetricsFromData = (statsData: StatsResponse) => {
     const stats = statsData.data;
     
-    // Determine trend directions based on data
-    const blobFeeTrend = stats.blobBaseFeeChange > 0 ? 'up' : 
-                        stats.blobBaseFeeChange < 0 ? 'down' : 'neutral';
-    
+    // Return metrics with trend direction calculated from data
     return [
       {
         title: 'Current Blob Base Fee',
         value: stats.currentBlobBaseFee,
-        trend: blobFeeTrend as const,
+        trend: stats.blobBaseFeeChange > 0 ? 'up' : 
+               stats.blobBaseFeeChange < 0 ? 'down' : 'neutral',
         description: `Hourly change: ${stats.blobBaseFeeChange > 0 ? '+' : ''}${stats.blobBaseFeeChange.toFixed(1)}%`,
         icon: 'fa-regular fa-money-bills'
       },
       {
         title: 'Pending Blobs in Mempool',
         value: stats.pendingBlobsCount.toString(),
-        trend: 'neutral' as const,
+        trend: 'neutral',
         description: 'Current mempool status',
         icon: 'fa-regular fa-timer'
       },
       {
         title: 'Avg. Blobs per Block (24h)',
         value: stats.avgBlobsPerBlock.toString(),
-        trend: 'neutral' as const,
+        trend: 'neutral',
         description: '24h network average',
         icon: 'fa-regular fa-cube'
       },
       {
         title: 'Blob Cost vs Calldata Cost',
         value: stats.blobVsCalldataSavings,
-        trend: 'down' as const,
+        trend: 'down',
         description: 'Savings vs calldata',
         icon: 'fa-regular fa-scale-unbalanced-flip'
       }
