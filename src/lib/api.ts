@@ -30,8 +30,9 @@ async function fetchApi<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
-  // In development, for testing purposes, simulate API responses with mock data
-  if (process.env.NODE_ENV === 'development') {
+  // Always use mock data for now (both development and production)
+  // You can change this back to environment-based logic later when you have a real API
+  if (true) {
     // Create a simple mock that returns empty data but with proper structure
     console.log(`[DEV MODE] Simulating API call to: ${endpoint}`);
     
