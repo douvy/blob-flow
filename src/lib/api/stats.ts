@@ -1,5 +1,6 @@
 import { StatsResponse } from '../../types';
 import { fetchApi } from './core';
+import { formatWeiToReadable } from '../../utils';
 
 /**
  * Get network stats data
@@ -15,7 +16,7 @@ export async function getStats(timeframe?: '24h' | '7d' | '30d' | 'all', network
     // Map the API response to our expected format
     return {
         data: {
-            currentBlobBaseFee: response.data.current_base_fee || '0 gwei',
+            currentBlobBaseFee: formatWeiToReadable(response.data.current_base_fee || '0'),
             blobBaseFeeChange: response.data.hourly_base_fee_change || 0,
             pendingBlobsCount: response.data.total_pending_blobs || 0,
             avgBlobsPerBlock: Math.round(((response.data.total_confirmed_blobs || 100) / 100) * 10) / 10, // Rough estimate
