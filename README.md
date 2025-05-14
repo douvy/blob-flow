@@ -9,7 +9,7 @@ An Ethereum EIP-4844 blob data analytics dashboard for visualizing and analyzing
 - L2 attribution tracking (Arbitrum, Optimism, Base, zkSync)
 - Latest blocks table with detailed blob information
 - Top blob users analysis and detailed user metrics
-- Network selection (Mainnet, Sepolia, Goerli)
+- Network selection (Mainnet, Sepolia)
 - Responsive design with mobile navigation
 - Keyboard shortcuts for search (/)
 - Interactive search modal with comprehensive filtering options

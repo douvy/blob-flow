@@ -5,10 +5,12 @@ import { usePaginatedApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { Block, LatestBlocksResponse } from '../types';
 import DataStateWrapper from './DataStateWrapper';
+import { useNetwork } from '../hooks/useNetwork';
 
 export default function LatestBlocksTable() {
   const itemsPerPage = 5;
-  
+  const { selectedNetwork } = useNetwork();
+
   // Fetch latest blocks data with pagination
   const {
     data,
@@ -16,8 +18,9 @@ export default function LatestBlocksTable() {
     error,
     pagination: { page, nextPage, prevPage }
   } = usePaginatedApiData<LatestBlocksResponse>(
-    (page, limit) => api.getLatestBlocks(page, limit),
-    []
+    (page, limit, network) => api.getLatestBlocks(page, limit, network),
+    [selectedNetwork],
+    selectedNetwork.apiParam
   );
 
   // Loading state for the table
@@ -49,9 +52,9 @@ export default function LatestBlocksTable() {
                   <div className="flex items-center">
                     <div className="flex -space-x-2">
                       {[...Array(3)].map((_, idx) => (
-                        <div 
+                        <div
                           key={idx}
-                          className="inline-block w-5 h-5 rounded-full bg-[#202538] animate-pulse" 
+                          className="inline-block w-5 h-5 rounded-full bg-[#202538] animate-pulse"
                         />
                       ))}
                     </div>
@@ -62,7 +65,7 @@ export default function LatestBlocksTable() {
           </tbody>
         </table>
       </div>
-      
+
       <div className="flex justify-between items-center mt-6">
         <div className="text-sm text-[#6e7787]">
           <div className="h-5 bg-[#202538] rounded w-40 animate-pulse"></div>
@@ -78,7 +81,7 @@ export default function LatestBlocksTable() {
   return (
     <section>
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Latest Blocks</h2>
-      
+
       <DataStateWrapper
         isLoading={isLoading}
         error={error}
@@ -105,10 +108,10 @@ export default function LatestBlocksTable() {
                       <td className="py-3 px-6 text-sm text-white">
                         {block.attribution.length === 1 ? (
                           <div className="flex items-center">
-                            <img 
-                              src={`/images/${block.attribution[0].toLowerCase()}.png`} 
-                              alt={block.attribution[0]} 
-                              className="inline-block w-5 h-5 mr-2" 
+                            <img
+                              src={`/images/${block.attribution[0].toLowerCase()}.png`}
+                              alt={block.attribution[0]}
+                              className="inline-block w-5 h-5 mr-2"
                             />
                             <span className="whitespace-nowrap">{block.attribution[0]}</span>
                           </div>
@@ -116,11 +119,11 @@ export default function LatestBlocksTable() {
                           <div className="flex items-center">
                             <div className="flex -space-x-2">
                               {block.attribution.map((attr, idx) => (
-                                <img 
+                                <img
                                   key={idx}
-                                  src={`/images/${attr.toLowerCase()}.png`} 
-                                  alt={attr} 
-                                  className="inline-block w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem]" 
+                                  src={`/images/${attr.toLowerCase()}.png`}
+                                  alt={attr}
+                                  className="inline-block w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem]"
                                   title={attr}
                                 />
                               ))}
@@ -136,24 +139,24 @@ export default function LatestBlocksTable() {
                 </tbody>
               </table>
             </div>
-            
+
             {/* Pagination controls */}
             <div className="flex justify-between items-center mt-6">
               <div className="text-sm text-[#6e7787]">
-                Showing {data.pagination.currentPage > 0 && data.data.length > 0 
-                  ? `${(data.pagination.currentPage - 1) * itemsPerPage + 1}-${(data.pagination.currentPage - 1) * itemsPerPage + data.data.length}` 
+                Showing {data.pagination.currentPage > 0 && data.data.length > 0
+                  ? `${(data.pagination.currentPage - 1) * itemsPerPage + 1}-${(data.pagination.currentPage - 1) * itemsPerPage + data.data.length}`
                   : '0'} of {data.pagination.totalItems}
               </div>
               <div className="flex space-x-3">
-                <button 
-                  onClick={prevPage} 
+                <button
+                  onClick={prevPage}
                   disabled={page === 1}
                   className="px-3 py-1 text-sm rounded-md bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
-                <button 
-                  onClick={nextPage} 
+                <button
+                  onClick={nextPage}
                   disabled={page >= data.pagination.totalPages}
                   className="px-3 py-1 text-sm rounded-md bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >

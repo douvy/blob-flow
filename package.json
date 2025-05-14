@@ -22,7 +22,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "recharts": "^2.15.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "viem": "^2.29.2"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.14",
