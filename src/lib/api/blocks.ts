@@ -22,7 +22,7 @@ export async function getLatestBlocks(page = 1, limit = 10): Promise<LatestBlock
         const blobCount = response.data.filter((b: any) => b.block_number.toString() === blockNumber).length;
 
         // Get unique attributions for this block
-        const attributions = Array.from(new Set(
+        const attributions: string[] = Array.from(new Set(
             response.data
                 .filter((b: any) => b.block_number.toString() === blockNumber)
                 .map((b: any) => b.user_attribution as string)
@@ -72,7 +72,7 @@ export async function getBlockByNumber(blockNumber: string): Promise<{ data: Blo
     }
 
     // Get unique attributions for this block
-    const attributions = Array.from(new Set(
+    const attributions: string[] = Array.from(new Set(
         blockBlobs
             .map((blob: any) => blob.user_attribution as string)
             .filter(Boolean)
