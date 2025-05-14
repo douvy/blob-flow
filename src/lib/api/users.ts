@@ -55,52 +55,14 @@ export async function getUserById(userId: number): Promise<{ data: UserDetail }>
         throw new Error(`User with ID ${userId} not found`);
     }
 
-    // Create mock transaction data for the user
-    const transactions = [
-        {
-            id: '0xabcd1234efgh5678',
-            status: 'confirmed' as const,
-            cost: '0.00123 ETH',
-            blockNumber: '19342751',
-            timestamp: '30 sec ago'
-        },
-        {
-            id: '0xijkl9012mnop3456',
-            status: 'confirmed' as const,
-            cost: '0.00098 ETH',
-            blockNumber: '19342749',
-            timestamp: '2 min ago'
-        },
-        {
-            id: '0xqrst7890uvwx1234',
-            status: 'pending' as const,
-            cost: '0.00145 ETH',
-            timestamp: '1 min ago'
-        },
-        {
-            id: '0xyzab5678cdef9012',
-            status: 'confirmed' as const,
-            cost: '0.00087 ETH',
-            blockNumber: '19342747',
-            timestamp: '4 min ago'
-        },
-        {
-            id: '0xghij3456klmn7890',
-            status: 'confirmed' as const,
-            cost: '0.00112 ETH',
-            blockNumber: '19342745',
-            timestamp: '6 min ago'
-        }
-    ];
-
-    // Create the user detail object
+    // Create the user detail object with empty transactions
     const userDetail: UserDetail = {
         ...user,
-        transactions,
-        totalCost: '0.01 ETH',
-        avgCostPerBlob: '0.001 ETH',
-        firstSeen: '2 days ago',
-        latestActivity: '30 min ago'
+        transactions: [],
+        totalCost: '0 ETH',
+        avgCostPerBlob: '0 ETH',
+        firstSeen: 'Unknown',
+        latestActivity: 'Unknown'
     };
 
     return { data: userDetail };
