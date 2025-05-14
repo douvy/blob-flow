@@ -18,12 +18,7 @@ export const NETWORKS = {
     name: 'Sepolia',
     apiParam: 'sepolia',
     icon: '/images/logo.png',
-  },
-  GOERLI: {
-    name: 'Goerli',
-    apiParam: 'goerli',
-    icon: '/images/logo.png',
-  },
+  }
 };
 
 export const DEFAULT_NETWORK = NETWORKS.MAINNET;
