@@ -21,7 +21,7 @@ export function useApiData<T>(
   const refetch = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const result = await fetchFunction();
       setData(result);
@@ -48,43 +48,45 @@ export function useApiData<T>(
  * 
  * @param fetchFunction - Function that fetches paginated data
  * @param dependencies - Array of dependencies to trigger refetch
+ * @param network - Optional network parameter
  */
 export function usePaginatedApiData<T>(
-  fetchFunction: (page: number, limit: number) => Promise<T>,
-  dependencies: any[] = []
+  fetchFunction: (page: number, limit: number, network?: string) => Promise<T>,
+  dependencies: any[] = [],
+  network?: string
 ) {
   const [page, setPage] = useState<number>(1);
   const [limit, setLimit] = useState<number>(10);
-  
+
   // Create the fetch function with current page and limit
   const fetchData = useCallback(() => {
-    return fetchFunction(page, limit);
-  }, [fetchFunction, page, limit]);
-  
+    return fetchFunction(page, limit, network);
+  }, [fetchFunction, page, limit, network]);
+
   // Use the base hook
   const { data, isLoading, error, refetch } = useApiData<T>(
     fetchData,
     [page, limit, ...dependencies]
   );
-  
+
   // Navigation functions
   const nextPage = useCallback(() => {
     setPage(prev => prev + 1);
   }, []);
-  
+
   const prevPage = useCallback(() => {
     setPage(prev => Math.max(1, prev - 1));
   }, []);
-  
+
   const goToPage = useCallback((pageNum: number) => {
     setPage(Math.max(1, pageNum));
   }, []);
-  
+
   const changeLimit = useCallback((newLimit: number) => {
     setLimit(newLimit);
     setPage(1); // Reset to first page when changing items per page
   }, []);
-  
+
   return {
     data,
     isLoading,

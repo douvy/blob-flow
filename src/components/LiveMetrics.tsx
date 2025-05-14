@@ -6,23 +6,26 @@ import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { StatsResponse } from '../types';
 import DataStateWrapper from './DataStateWrapper';
+import { useNetwork } from '../hooks/useNetwork';
 
 export default function LiveMetrics() {
+  const { selectedNetwork } = useNetwork();
+
   // Fetch stats data from API
   const { data, isLoading, error } = useApiData<StatsResponse>(
-    () => api.getStats(),
-    []
+    () => api.getStats(undefined, selectedNetwork.apiParam),
+    [selectedNetwork]
   );
 
   // Transform API data into metrics format
   const getMetricsFromData = (statsData: StatsResponse) => {
     const stats = statsData.data;
-    
+
     // Explicitly type the trend values to match the Metric interface
-    const blobFeeTrend: 'up' | 'down' | 'neutral' = 
-      stats.blobBaseFeeChange > 0 ? 'up' : 
-      stats.blobBaseFeeChange < 0 ? 'down' : 'neutral';
-    
+    const blobFeeTrend: 'up' | 'down' | 'neutral' =
+      stats.blobBaseFeeChange > 0 ? 'up' :
+        stats.blobBaseFeeChange < 0 ? 'down' : 'neutral';
+
     // Return metrics with trend direction calculated from data
     return [
       {
@@ -72,7 +75,7 @@ export default function LiveMetrics() {
   return (
     <section>
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Live Metrics</h2>
-      
+
       <DataStateWrapper
         isLoading={isLoading}
         error={error}
@@ -81,7 +84,7 @@ export default function LiveMetrics() {
         {data && (
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {getMetricsFromData(data).map((metric, index) => (
-              <MetricCard 
+              <MetricCard
                 key={index}
                 title={metric.title}
                 value={metric.value}

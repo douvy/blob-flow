@@ -5,16 +5,20 @@ import { usePaginatedApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { MempoolResponse, MempoolTransaction } from '../types';
 import DataStateWrapper from './DataStateWrapper';
+import { useNetwork } from '../hooks/useNetwork';
 
 export default function MempoolTable() {
+  const { selectedNetwork } = useNetwork();
+
   // Fetch mempool data with pagination
   const {
     data,
     isLoading,
     error,
   } = usePaginatedApiData<MempoolResponse>(
-    (page, limit) => api.getMempool(page, limit),
-    []
+    (page, limit, network) => api.getMempool(page, limit, network),
+    [selectedNetwork],
+    selectedNetwork.apiParam
   );
 
   // Loading state for the table
@@ -71,7 +75,7 @@ export default function MempoolTable() {
   return (
     <section className="pt-2">
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Mempool Attribution</h2>
-      
+
       <DataStateWrapper
         isLoading={isLoading}
         error={error}
@@ -98,10 +102,10 @@ export default function MempoolTable() {
                     <td className="py-3 px-6 text-sm text-white">
                       {tx.user ? (
                         <div className="flex items-center">
-                          <img 
-                            src={`/images/${tx.user.toLowerCase()}.png`} 
-                            alt={tx.user} 
-                            className="inline-block w-5 h-5 mr-3" 
+                          <img
+                            src={`/images/${tx.user.toLowerCase()}.png`}
+                            alt={tx.user}
+                            className="inline-block w-5 h-5 mr-3"
                           />
                           {tx.user}
                         </div>

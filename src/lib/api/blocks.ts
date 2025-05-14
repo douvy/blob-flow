@@ -5,13 +5,14 @@ import { fetchApi, formatRelativeTime } from './core';
  * Get latest blocks with pagination
  * @param page - Page number (starts at 1)
  * @param limit - Number of items per page
+ * @param network - Optional network parameter
  */
-export async function getLatestBlocks(page = 1, limit = 10): Promise<LatestBlocksResponse> {
+export async function getLatestBlocks(page = 1, limit = 10, network?: string): Promise<LatestBlocksResponse> {
     // Convert page-based pagination to cursor-based pagination
     // For the first page, we don't need a cursor
     const cursor = page > 1 ? `page_${page}` : '';
 
-    const response = await fetchApi<any>(`/blob/latest?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`);
+    const response = await fetchApi<any>(`/blob/latest?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`, network);
 
     // Map the API response to our expected format
     const blocks: Block[] = response.data.map((blob: any, index: number) => {
@@ -57,10 +58,11 @@ export async function getLatestBlocks(page = 1, limit = 10): Promise<LatestBlock
 /**
  * Get specific block by number
  * @param blockNumber - Block number to retrieve
+ * @param network - Optional network parameter
  */
-export async function getBlockByNumber(blockNumber: string): Promise<{ data: Block }> {
+export async function getBlockByNumber(blockNumber: string, network?: string): Promise<{ data: Block }> {
     // We need to query all blobs for this block number
-    const response = await fetchApi<any>(`/blob/latest?limit=100`);
+    const response = await fetchApi<any>(`/blob/latest?limit=100`, network);
 
     // Filter blobs for this block
     const blockBlobs = response.data.filter((blob: any) =>
@@ -92,7 +94,8 @@ export async function getBlockByNumber(blockNumber: string): Promise<{ data: Blo
 /**
  * Get specific blob transaction by hash
  * @param txHash - Transaction hash to retrieve
+ * @param network - Optional network parameter
  */
-export async function getBlobByTxHash(txHash: string): Promise<any> {
-    return fetchApi<any>(`/blob/${txHash}`);
+export async function getBlobByTxHash(txHash: string, network?: string): Promise<any> {
+    return fetchApi<any>(`/blob/${txHash}`, network);
 }

@@ -11,24 +11,28 @@ export const api = {
      * Get latest blocks with pagination
      * @param page - Page number (starts at 1)
      * @param limit - Number of items per page
+     * @param network - Optional network parameter
      */
     getLatestBlocks,
 
     /**
      * Get specific block by number
      * @param blockNumber - Block number to retrieve
+     * @param network - Optional network parameter
      */
     getBlockByNumber,
 
     /**
      * Get specific blob transaction by hash
      * @param txHash - Transaction hash to retrieve
+     * @param network - Optional network parameter
      */
     getBlobByTxHash,
 
     /**
      * Get network stats data
      * @param timeframe - Optional timeframe filter (24h, 7d, 30d, all)
+     * @param network - Optional network parameter
      */
     getStats,
 
@@ -36,6 +40,7 @@ export const api = {
      * Get mempool data (pending transactions) with pagination
      * @param page - Page number (starts at 1)
      * @param limit - Number of items per page
+     * @param network - Optional network parameter
      */
     getMempool,
 
@@ -43,12 +48,14 @@ export const api = {
      * Get top users data with pagination
      * @param page - Page number (starts at 1)
      * @param limit - Number of items per page
+     * @param network - Optional network parameter
      */
     getTopUsers,
 
     /**
      * Get specific user details by ID
      * @param userId - User ID to retrieve
+     * @param network - Optional network parameter
      */
     getUserById,
 };

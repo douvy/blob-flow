@@ -12,7 +12,7 @@ import UserDetailView from '@/components/UserDetailView';
 import Footer from '@/components/Footer';
 
 export default function Home() {
-  const [selectedUser, setSelectedUser] = useState<{id: number, name: string} | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{ id: number, name: string } | null>(null);
 
   // Sample user data mapping - in a real app, this would come from an API
   const users = {
@@ -43,7 +43,7 @@ export default function Home() {
         <div className="mb-12">
           <LiveMetrics />
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
           {/* Left Column (60%) */}
           <div className="lg:col-span-3 space-y-8">
@@ -57,7 +57,7 @@ export default function Home() {
               <MempoolTable />
             </div>
           </div>
-          
+
           {/* Right Column (40%) */}
           <div className="lg:col-span-2 space-y-8">
             <div className="mb-12">
@@ -69,9 +69,9 @@ export default function Home() {
             </div>
           </div>
         </div>
-        
+
         {selectedUser && (
-          <UserDetailView 
+          <UserDetailView
             userId={selectedUser.id}
             userName={selectedUser.name}
             onClose={handleCloseDetail}
