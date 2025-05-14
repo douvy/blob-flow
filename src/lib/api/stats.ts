@@ -4,9 +4,10 @@ import { fetchApi } from './core';
 /**
  * Get network stats data
  * @param timeframe - Optional timeframe filter (24h, 7d, 30d, all)
+ * @param network - Optional network parameter
  */
-export async function getStats(timeframe?: '24h' | '7d' | '30d' | 'all'): Promise<StatsResponse> {
-    const response = await fetchApi<any>(`/stats`);
+export async function getStats(timeframe?: '24h' | '7d' | '30d' | 'all', network?: string): Promise<StatsResponse> {
+    const response = await fetchApi<any>(`/stats`, network);
 
     // Calculate blob vs calldata savings as a percentage
     const blobVsCalldataSavings = `${Math.round((1 - (response.data.blob_vs_calldata_cost || 0.5)) * 100)}% cheaper`;

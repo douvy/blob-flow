@@ -5,20 +5,24 @@ import { usePaginatedApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { TopUsersResponse, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
+import { useNetwork } from '../hooks/useNetwork';
 
 interface TopUsersTableProps {
   onUserClick: (userId: number) => void;
 }
 
 export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
+  const { selectedNetwork } = useNetwork();
+
   // Fetch top users data with pagination
   const {
     data,
     isLoading,
     error,
   } = usePaginatedApiData<TopUsersResponse>(
-    (page, limit) => api.getTopUsers(page, limit),
-    []
+    (page, limit, network) => api.getTopUsers(page, limit, network),
+    [selectedNetwork],
+    selectedNetwork.apiParam
   );
 
   useEffect(() => {

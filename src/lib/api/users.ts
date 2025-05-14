@@ -5,15 +5,16 @@ import { fetchApi, formatRelativeTime } from './core';
  * Get top users data with pagination
  * @param page - Page number (starts at 1)
  * @param limit - Number of items per page
+ * @param network - Optional network parameter
  */
-export async function getTopUsers(page = 1, limit = 5): Promise<TopUsersResponse> {
+export async function getTopUsers(page = 1, limit = 5, network?: string): Promise<TopUsersResponse> {
     // Convert page-based pagination to cursor-based pagination
     const cursor = page > 1 ? `page_${page}` : '';
 
-    const response = await fetchApi<any>(`/users?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`);
+    const response = await fetchApi<any>(`/users?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`, network);
 
     // Get total blob count to calculate percentages
-    const statsResponse = await fetchApi<any>(`/stats`);
+    const statsResponse = await fetchApi<any>(`/stats`, network);
     const totalBlobs = statsResponse.data.total_blobs || 1000; // Fallback value
 
     // Map the API response to our expected format
@@ -44,11 +45,12 @@ export async function getTopUsers(page = 1, limit = 5): Promise<TopUsersResponse
 /**
  * Get specific user details by ID
  * @param userId - User ID to retrieve
+ * @param network - Optional network parameter
  */
-export async function getUserById(userId: number): Promise<{ data: UserDetail }> {
+export async function getUserById(userId: number, network?: string): Promise<{ data: UserDetail }> {
     // In a real implementation, we would fetch the user by ID
     // For now, we'll use the top users endpoint and filter by ID
-    const topUsersResponse = await getTopUsers(1, 10);
+    const topUsersResponse = await getTopUsers(1, 10, network);
     const user = topUsersResponse.data.find(u => u.id === userId);
 
     if (!user) {

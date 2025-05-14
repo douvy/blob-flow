@@ -7,20 +7,21 @@ import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
 import useDragToClose from '../hooks/useDragToClose';
+import { useNetwork } from '../hooks/useNetwork';
+import { NETWORKS, DEFAULT_NETWORK } from '../constants';
 
-type NetworkOption = 'Mainnet' | 'Sepolia' | 'Goerli';
 type TimeRange = '24h' | '7d' | '30d' | 'All';
 
 export default function Header() {
+  const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   const [isMounted, setIsMounted] = useState(false);
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
-  const [selectedNetwork, setSelectedNetwork] = useState<NetworkOption>('Mainnet');
   const [isConnected, setIsConnected] = useState(true);
   const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('24h');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
-  
+
   // Lock scrolling when the mobile menu is open
   useScrollLock(isMobileMenuOpen);
 
@@ -29,10 +30,9 @@ export default function Header() {
     setIsMounted(true);
   }, []);
 
-  const networkOptions: NetworkOption[] = ['Mainnet', 'Sepolia', 'Goerli'];
   const timeRangeOptions: TimeRange[] = ['24h', '7d', '30d', 'All'];
 
-  const handleNetworkChange = (network: NetworkOption) => {
+  const handleNetworkChange = (network: typeof DEFAULT_NETWORK) => {
     setSelectedNetwork(network);
     setIsNetworkDropdownOpen(false);
   };
@@ -51,7 +51,7 @@ export default function Header() {
   const toggleMobileMenu = () => {
     // Force toggle the mobile menu state
     setIsMobileMenuOpen(prev => !prev);
-    
+
     // Close the network dropdown if it's open
     if (isNetworkDropdownOpen) {
       setIsNetworkDropdownOpen(false);
@@ -69,7 +69,7 @@ export default function Header() {
         setIsMobileMenuOpen(false);
       }
     }
-    
+
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
@@ -78,7 +78,7 @@ export default function Header() {
 
   // Use the shortcut hook to open search modal with / key
   useSearchShortcut(toggleSearchModal);
-  
+
   // Removed complex drag to close in favor of direct implementation
 
   return (
@@ -121,28 +121,27 @@ export default function Header() {
                 className="flex items-center space-x-1 px-3 py-1 text-sm rounded-md transition-none bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2 ml-6"
                 onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
               >
-                <span>{selectedNetwork}</span>
+                <span>{selectedNetwork.name}</span>
                 {isMounted ? (
                   <i className={`fa-regular fa-chevron-${isNetworkDropdownOpen ? 'up' : 'down'} text-xs`} aria-hidden="true"></i>
                 ) : (
                   <i className="fa-regular fa-chevron-down text-xs" aria-hidden="true"></i>
                 )}
               </button>
-              
+
               {isMounted && isNetworkDropdownOpen && (
                 <div className="absolute mt-1 w-40 bg-container border border-background/50 rounded-md shadow-lg z-10">
                   <ul className="py-1">
                     {networkOptions.map((network) => (
-                      <li key={network}>
+                      <li key={network.name}>
                         <button
-                          className={`block w-full text-left px-4 py-2 text-sm ${
-                            selectedNetwork === network
-                              ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
-                              : 'text-bodyText hover:bg-[#23252a]'
-                          }`}
+                          className={`block w-full text-left px-4 py-2 text-sm ${selectedNetwork.name === network.name
+                            ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
+                            : 'text-bodyText hover:bg-[#23252a]'
+                            }`}
                           onClick={() => handleNetworkChange(network)}
                         >
-                          {network}
+                          {network.name}
                         </button>
                       </li>
                     ))}
@@ -187,11 +186,10 @@ export default function Header() {
                 <button
                   key={range}
                   onClick={() => handleTimeRangeChange(range)}
-                  className={`px-3 py-1 text-sm rounded-md transition-none ${
-                    selectedTimeRange === range
-                      ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
-                      : 'text-white hover:text-white/90 border border-transparent'
-                  }`}
+                  className={`px-3 py-1 text-sm rounded-md transition-none ${selectedTimeRange === range
+                    ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
+                    : 'text-white hover:text-white/90 border border-transparent'
+                    }`}
                 >
                   {range}
                 </button>
@@ -204,32 +202,30 @@ export default function Header() {
 
       {/* Mobile Menu Tray */}
       {isMounted && (
-        <div 
-          className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] transition-opacity duration-300 md:hidden ${
-            isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
+        <div
+          className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] transition-opacity duration-300 md:hidden ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsMobileMenuOpen(false);
             }
           }}
         >
-          <div 
+          <div
             id="mobile-menu-tray"
-            className={`select-none absolute bottom-0 left-0 right-0 bg-[#1c1e23] rounded-t-xl transition-transform duration-300 ease-in-out transform ${
-              isMobileMenuOpen ? 'translate-y-0' : 'translate-y-full'
-            }`}
+            className={`select-none absolute bottom-0 left-0 right-0 bg-[#1c1e23] rounded-t-xl transition-transform duration-300 ease-in-out transform ${isMobileMenuOpen ? 'translate-y-0' : 'translate-y-full'
+              }`}
             onMouseDown={(e) => {
               // Prevent text selection
               e.preventDefault();
-              
+
               const tray = e.currentTarget;
               const startY = e.clientY;
               let dragging = true;
-              
+
               // Prevent text selection during drag
               document.body.style.userSelect = 'none';
-              
+
               function onMouseMove(moveE: MouseEvent) {
                 if (!dragging) return;
                 moveE.preventDefault();
@@ -238,11 +234,11 @@ export default function Header() {
                   tray.style.transform = `translateY(${deltaY}px)`;
                 }
               }
-              
+
               function onMouseUp(upE: MouseEvent) {
                 dragging = false;
                 document.body.style.userSelect = '';
-                
+
                 const deltaY = upE.clientY - startY;
                 if (deltaY > 50) {
                   // Reset transform immediately to avoid flicker when reopening
@@ -253,18 +249,18 @@ export default function Header() {
                 } else {
                   tray.style.transform = '';
                 }
-                
+
                 document.removeEventListener('mousemove', onMouseMove);
                 document.removeEventListener('mouseup', onMouseUp);
               }
-              
+
               document.addEventListener('mousemove', onMouseMove);
               document.addEventListener('mouseup', onMouseUp);
             }}
             onTouchStart={(e) => {
               const tray = e.currentTarget;
               const startY = e.touches[0].clientY;
-              
+
               function onTouchMove(moveE: TouchEvent) {
                 const touchY = moveE.touches[0].clientY;
                 const deltaY = touchY - startY;
@@ -272,13 +268,13 @@ export default function Header() {
                   tray.style.transform = `translateY(${deltaY}px)`;
                 }
               }
-              
+
               function onTouchEnd(endE: TouchEvent) {
                 let deltaY = 0;
                 if (endE.changedTouches && endE.changedTouches.length > 0) {
                   deltaY = endE.changedTouches[0].clientY - startY;
                 }
-                
+
                 if (deltaY > 50) {
                   // Reset transform immediately to avoid flicker when reopening
                   requestAnimationFrame(() => {
@@ -288,11 +284,11 @@ export default function Header() {
                 } else {
                   tray.style.transform = '';
                 }
-                
+
                 document.removeEventListener('touchmove', onTouchMove);
                 document.removeEventListener('touchend', onTouchEnd);
               }
-              
+
               document.addEventListener('touchmove', onTouchMove, { passive: false });
               document.addEventListener('touchend', onTouchEnd);
             }}
@@ -312,27 +308,26 @@ export default function Header() {
                   className="flex items-center space-x-1 px-3 py-1 text-sm rounded-md transition-none bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2"
                   onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
                 >
-                  <span>{selectedNetwork}</span>
+                  <span>{selectedNetwork.name}</span>
                   <i className={`fa-regular fa-chevron-${isNetworkDropdownOpen ? 'up' : 'down'} text-xs ml-1`} aria-hidden="true"></i>
                 </button>
-                
+
                 {isNetworkDropdownOpen && (
                   <div className="absolute right-0 top-full mt-1 w-40 bg-[#1a1c22] border border-divider rounded-md shadow-lg z-10">
                     <ul className="py-1">
                       {networkOptions.map((network) => (
-                        <li key={network}>
+                        <li key={network.name}>
                           <button
-                            className={`block w-full text-left px-4 py-2 text-sm ${
-                              selectedNetwork === network
-                                ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
-                                : 'text-bodyText hover:bg-[#23252a]'
-                            }`}
+                            className={`block w-full text-left px-4 py-2 text-sm ${selectedNetwork.name === network.name
+                              ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
+                              : 'text-bodyText hover:bg-[#23252a]'
+                              }`}
                             onClick={() => {
                               handleNetworkChange(network);
                               setIsNetworkDropdownOpen(false);
                             }}
                           >
-                            {network}
+                            {network.name}
                           </button>
                         </li>
                       ))}
@@ -340,9 +335,9 @@ export default function Header() {
                   </div>
                 )}
               </div>
-              
+
               {/* Search Button */}
-              <div 
+              <div
                 className="flex items-center justify-between cursor-pointer"
                 onClick={toggleSearchModal}
               >
@@ -354,7 +349,7 @@ export default function Header() {
                   /
                 </div>
               </div>
-              
+
               {/* Connection Status */}
               <div className="flex items-center gap-3">
                 <i className="fa-regular fa-signal-stream text-blue" aria-hidden="true"></i>
@@ -366,7 +361,7 @@ export default function Header() {
                   <span className="text-base text-bodyText">{isConnected ? 'Connected' : 'Disconnected'}</span>
                 </div>
               </div>
-              
+
               {/* Base Fee */}
               <div className="flex items-center gap-3">
                 <i className="fa-regular fa-arrow-trend-up text-blue" aria-hidden="true"></i>
@@ -375,7 +370,7 @@ export default function Header() {
                   <span className="font-medium text-base text-titleText">0.00042 ETH</span>
                 </div>
               </div>
-              
+
               {/* Time Period Selector */}
               <div>
                 <div className="flex items-center gap-3 mb-4">
@@ -387,18 +382,17 @@ export default function Header() {
                     <button
                       key={range}
                       onClick={() => handleTimeRangeChange(range)}
-                      className={`px-3 py-1 text-sm rounded-md transition-none flex-1 ${
-                        selectedTimeRange === range
-                          ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
-                          : 'text-white hover:text-white/90 border border-transparent'
-                      }`}
+                      className={`px-3 py-1 text-sm rounded-md transition-none flex-1 ${selectedTimeRange === range
+                        ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
+                        : 'text-white hover:text-white/90 border border-transparent'
+                        }`}
                     >
                       {range}
                     </button>
                   ))}
                 </div>
               </div>
-              
+
               {/* Close Button */}
               <div className="pt-2 border-t border-divider">
                 <button
@@ -415,7 +409,7 @@ export default function Header() {
       )}
 
       {/* Search Modal */}
-      <SearchModal 
+      <SearchModal
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
       />

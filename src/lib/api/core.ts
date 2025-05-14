@@ -39,17 +39,21 @@ export function truncateAddress(address: string): string {
 /**
  * Fetches data from the API with timeout, retry, and error handling
  * @param endpoint - API endpoint to fetch from
+ * @param network - Optional network parameter
  * @param options - Fetch options
  * @param timeoutMs - Request timeout in milliseconds
  * @param retries - Number of retries for failed requests
  */
 export async function fetchApi<T>(
     endpoint: string,
+    network?: string,
     options?: RequestInit,
     timeoutMs: number = DEFAULT_TIMEOUT_MS,
     retries: number = 0
 ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    // Add network parameter to the endpoint if provided
+    const networkParam = network ? `${endpoint.includes('?') ? '&' : '?'}network=${network}` : '';
+    const url = `${API_BASE_URL}${endpoint}${networkParam}`;
 
     // Create abort controller for timeout
     const controller = new AbortController();
@@ -74,7 +78,7 @@ export async function fetchApi<T>(
                 // Server error, retry with exponential backoff
                 const delay = Math.pow(2, retries) * 1000;
                 await new Promise(resolve => setTimeout(resolve, delay));
-                return fetchApi<T>(endpoint, options, timeoutMs, retries + 1);
+                return fetchApi<T>(endpoint, network, options, timeoutMs, retries + 1);
             }
 
             throw new Error(`API error: ${response.status} ${response.statusText}`);

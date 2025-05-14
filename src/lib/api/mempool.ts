@@ -5,12 +5,13 @@ import { fetchApi, formatRelativeTime, truncateAddress } from './core';
  * Get mempool data (pending transactions) with pagination
  * @param page - Page number (starts at 1)
  * @param limit - Number of items per page
+ * @param network - Optional network parameter
  */
-export async function getMempool(page = 1, limit = 5): Promise<MempoolResponse> {
+export async function getMempool(page = 1, limit = 5, network?: string): Promise<MempoolResponse> {
     // Convert page-based pagination to cursor-based pagination
     const cursor = page > 1 ? `page_${page}` : '';
 
-    const response = await fetchApi<any>(`/blob/mempool?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`);
+    const response = await fetchApi<any>(`/blob/mempool?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`, network);
 
     // Map the API response to our expected format
     const transactions: MempoolTransaction[] = response.data.map((blob: any, index: number) => {
