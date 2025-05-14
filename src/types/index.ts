@@ -28,7 +28,7 @@ export interface PaginatedResponse<T> {
 }
 
 // Latest blocks response
-export interface LatestBlocksResponse extends PaginatedResponse<Block> {}
+export interface LatestBlocksResponse extends PaginatedResponse<Block> { }
 
 // Mempool transaction type
 export interface MempoolTransaction {
@@ -42,7 +42,7 @@ export interface MempoolTransaction {
 }
 
 // Mempool response
-export interface MempoolResponse extends PaginatedResponse<MempoolTransaction> {}
+export interface MempoolResponse extends PaginatedResponse<MempoolTransaction> { }
 
 // User data type for listing
 export interface User {
@@ -50,7 +50,6 @@ export interface User {
   name: string;
   dataCount: number;
   percentage: number;
-  dataIds: string[];
 }
 
 // Transaction details for user detail view
@@ -72,7 +71,7 @@ export interface UserDetail extends User {
 }
 
 // Top users response
-export interface TopUsersResponse extends PaginatedResponse<User> {}
+export interface TopUsersResponse extends PaginatedResponse<User> { }
 
 // Stats type definitions
 export interface TimeSeriesDataPoint {
