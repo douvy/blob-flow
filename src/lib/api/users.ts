@@ -25,8 +25,7 @@ export async function getTopUsers(page = 1, limit = 5): Promise<TopUsersResponse
             id: index + 1,
             name: user.name || (user.address ? `${user.address.substring(0, 6)}...` : 'Unknown'),
             dataCount: user.blob_count,
-            percentage,
-            dataIds: [user.address]
+            percentage
         };
     });
 
