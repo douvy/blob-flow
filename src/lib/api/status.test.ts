@@ -1,17 +1,26 @@
 import { getStatus } from './status';
-import * as core from './core';
 
-vi.mock('./core', () => ({
-  fetchApi: vi.fn(),
-}));
+const originalFetch = global.fetch;
 
 describe('api/status', () => {
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
   it('calls status endpoint', async () => {
-    vi.mocked(core.fetchApi).mockResolvedValue({ success: true, data: { uptime: '1h' } } as any);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: { uptime: '1h' } }),
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await getStatus('mainnet');
 
-    expect(core.fetchApi).toHaveBeenCalledWith('/status', 'mainnet');
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/status?network=mainnet'),
+      expect.any(Object)
+    );
     expect(result.success).toBe(true);
   });
 });
