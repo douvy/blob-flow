@@ -131,3 +131,60 @@ export interface StatusResponse {
   uptime: string;
   last_indexed_time: string;
 }
+
+// ---- Chart Data Types ----
+
+export interface BaseFeeDataPoint {
+  timestamp: number;
+  label: string;
+  baseFeeGwei: number;
+  blockNumber?: number;
+}
+
+export interface GasUtilizationDataPoint {
+  timestamp: number;
+  label: string;
+  blockNumber: number;
+  blobGasUsed: number;
+  targetGas: number;
+  blobCount: number;
+  utilizationPct: number;
+}
+
+export interface L2UsageDataPoint {
+  timestamp: number;
+  label: string;
+  arbitrum: number;
+  optimism: number;
+  base: number;
+  zksync: number;
+  unknown: number;
+  total: number;
+}
+
+export interface CostComparisonDataPoint {
+  timestamp: number;
+  label: string;
+  blobCostEth: number;
+  calldataEquivEth: number;
+  savingsPct: number;
+}
+
+export interface FeeMarketIndicators {
+  currentBaseFeeGwei: number;
+  averageBaseFeeGwei: number;
+  feeRatio: number;
+  pendingBlobCount: number;
+  recentBaseFeeSparkline: number[];
+}
+
+export type Granularity = 'block' | 'hourly' | 'daily';
+
+export interface ChartDataset {
+  baseFee: BaseFeeDataPoint[];
+  gasUtilization: GasUtilizationDataPoint[];
+  l2Usage: L2UsageDataPoint[];
+  costComparison: CostComparisonDataPoint[];
+  indicators: FeeMarketIndicators;
+  granularity: Granularity;
+}
