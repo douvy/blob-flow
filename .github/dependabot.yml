@@ -8,6 +8,9 @@ updates:
       time: "06:00"
       timezone: "America/Chicago"
     open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+      include: "scope"
     groups:
       production-dependencies:
         dependency-type: "production"
@@ -22,3 +25,6 @@ updates:
       time: "06:15"
       timezone: "America/Chicago"
     open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+      include: "scope"
