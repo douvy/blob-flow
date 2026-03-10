@@ -1,7 +1,9 @@
-import api, { api as namedApi } from './index';
-
 describe('api/index', () => {
-  it('exports complete api surface', () => {
+  it('exports complete api surface', async () => {
+    const module = await import('./index');
+    const api = module.default;
+    const namedApi = module.api;
+
     expect(api).toBe(namedApi);
     expect(api).toHaveProperty('getLatestBlocks');
     expect(api).toHaveProperty('getBlobByTxHash');

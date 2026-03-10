@@ -7,7 +7,7 @@ import { truncateAddress } from '../../utils';
  * @param limit - Number of users to return
  * @param network - Optional network parameter
  */
-export async function getTopUsers(limit = 10, network?: string): Promise<TopUsersResponse> {
+export const getTopUsers = async (limit = 10, network?: string): Promise<TopUsersResponse> => {
     const response = await fetchApi<ApiResponse<UserResponse[]>>(`/users?limit=${limit}`, network);
 
     // Calculate total blobs across all returned users for percentage calculation
@@ -29,14 +29,14 @@ export async function getTopUsers(limit = 10, network?: string): Promise<TopUser
     });
 
     return { data: users };
-}
+};
 
 /**
  * Get specific user details by address
  * @param userId - User index in the top users list
  * @param network - Optional network parameter
  */
-export async function getUserById(userId: number, network?: string): Promise<{ data: UserDetail }> {
+export const getUserById = async (userId: number, network?: string): Promise<{ data: UserDetail }> => {
     const topUsersResponse = await getTopUsers(10, network);
     const user = topUsersResponse.data.find(u => u.id === userId);
 
@@ -54,4 +54,4 @@ export async function getUserById(userId: number, network?: string): Promise<{ d
     };
 
     return { data: userDetail };
-}
+};

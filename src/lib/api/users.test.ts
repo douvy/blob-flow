@@ -1,5 +1,3 @@
-import { getTopUsers, getUserById } from './users';
-
 const originalFetch = global.fetch;
 
 describe('api/users', () => {
@@ -12,6 +10,7 @@ describe('api/users', () => {
   });
 
   it('maps backend users to frontend shape with percentages', async () => {
+    const usersApi = await import('./users');
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -37,7 +36,7 @@ describe('api/users', () => {
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const result = await getTopUsers(10, 'mainnet');
+    const result = await usersApi.getTopUsers(10, 'mainnet');
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/users?limit=10&network=mainnet'),
@@ -53,6 +52,7 @@ describe('api/users', () => {
   });
 
   it('returns user detail for valid user id', async () => {
+    const usersApi = await import('./users');
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -71,7 +71,7 @@ describe('api/users', () => {
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const result = await getUserById(1, 'mainnet');
+    const result = await usersApi.getUserById(1, 'mainnet');
 
     expect(result.data).toMatchObject({
       id: 1,
@@ -83,6 +83,7 @@ describe('api/users', () => {
   });
 
   it('throws if user id is not found', async () => {
+    const usersApi = await import('./users');
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ success: true, data: [] }),
@@ -90,6 +91,6 @@ describe('api/users', () => {
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    await expect(getUserById(99, 'mainnet')).rejects.toThrow('User with ID 99 not found');
+    await expect(usersApi.getUserById(99, 'mainnet')).rejects.toThrow('User with ID 99 not found');
   });
 });
