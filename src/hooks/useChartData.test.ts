@@ -66,7 +66,6 @@ describe('useChartData', () => {
   });
 
   it('returns chartData with aggregated data when blobs are available', async () => {
-    let callCount = 0;
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (url.includes('/blob/latest')) {
         return Promise.resolve({
