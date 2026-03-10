@@ -34,6 +34,14 @@ An Ethereum EIP-4844 blob data analytics dashboard for visualizing and analyzing
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
+## Testing
+
+This project uses Vitest with a CI-enforced 90% line coverage minimum for core logic.
+
+- `npm run test` - run tests
+- `npm run test-coverage` - run tests with coverage report
+- `make test-coverage` - run coverage and enforce the threshold locally
+
 ## Project Structure
 
 ```
