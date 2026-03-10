@@ -53,7 +53,7 @@ export default function useDragToClose({
       }
     };
     
-    const handleTouchEnd = (e: TouchEvent) => {
+    const handleTouchEnd = () => {
       if (startYRef.current === null || currentYRef.current === null) return;
       
       const elementHeight = modalElement.offsetHeight;
