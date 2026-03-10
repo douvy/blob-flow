@@ -1,38 +1,27 @@
-import { MempoolResponse, MempoolTransaction } from '../../types';
+import { MempoolResponse, MempoolTransaction, ApiResponse, BlobResponse } from '../../types';
 import { fetchApi, formatRelativeTime, truncateAddress } from './core';
+import { formatWeiToReadable } from '../../utils';
 
 /**
- * Get mempool data (pending transactions) with pagination
- * @param page - Page number (starts at 1)
- * @param limit - Number of items per page
+ * Get mempool data (pending blob transactions)
+ * @param limit - Number of blobs to fetch
  * @param network - Optional network parameter
  */
-export async function getMempool(page = 1, limit = 5, network?: string): Promise<MempoolResponse> {
-    // Convert page-based pagination to cursor-based pagination
-    const cursor = page > 1 ? `page_${page}` : '';
-
-    const response = await fetchApi<any>(`/blob/mempool?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`, network);
+export async function getMempool(limit = 10, network?: string): Promise<MempoolResponse> {
+    const response = await fetchApi<ApiResponse<BlobResponse[]>>(`/blob/mempool?limit=${limit}`, network);
 
     // Map the API response to our expected format
-    const transactions: MempoolTransaction[] = response.data.map((blob: any, index: number) => {
+    const transactions: MempoolTransaction[] = response.data.map((blob: BlobResponse, index: number) => {
         return {
             id: index + 1,
             txHash: blob.tx_hash,
             fromAddress: truncateAddress(blob.from_address),
             user: blob.user_attribution || null,
-            blobCount: 1, // Each blob is a separate entry in the API
-            estimatedCost: blob.total_cost_eth + ' ETH',
+            blobCount: 1,
+            estimatedCost: formatWeiToReadable(blob.total_cost_eth),
             timeInMempool: formatRelativeTime(blob.timestamp)
         };
     });
 
-    return {
-        data: transactions,
-        pagination: {
-            currentPage: page,
-            totalPages: Math.ceil(response.pagination.total_items / limit),
-            totalItems: response.pagination.total_items,
-            itemsPerPage: limit
-        }
-    };
+    return { data: transactions };
 }

@@ -13,7 +13,7 @@ export default function LiveMetrics() {
 
   // Fetch stats data from API
   const { data, isLoading, error } = useApiData<StatsResponse>(
-    () => api.getStats(undefined, selectedNetwork.apiParam),
+    () => api.getStats(selectedNetwork.apiParam),
     [selectedNetwork]
   );
 
@@ -21,18 +21,12 @@ export default function LiveMetrics() {
   const getMetricsFromData = (statsData: StatsResponse) => {
     const stats = statsData.data;
 
-    // Explicitly type the trend values to match the Metric interface
-    const blobFeeTrend: 'up' | 'down' | 'neutral' =
-      stats.blobBaseFeeChange > 0 ? 'up' :
-        stats.blobBaseFeeChange < 0 ? 'down' : 'neutral';
-
-    // Return metrics with trend direction calculated from data
     return [
       {
-        title: 'Current Blob Base Fee',
-        value: stats.currentBlobBaseFee,
-        trend: blobFeeTrend,
-        description: `Hourly change: ${stats.blobBaseFeeChange > 0 ? '+' : ''}${stats.blobBaseFeeChange.toFixed(1)}%`,
+        title: 'Avg Blob Base Fee',
+        value: stats.averageBaseFee,
+        trend: 'neutral' as const,
+        description: `${stats.totalConfirmedBlobs} confirmed blobs`,
         icon: 'fa-regular fa-money-bills'
       },
       {
@@ -43,17 +37,17 @@ export default function LiveMetrics() {
         icon: 'fa-regular fa-timer'
       },
       {
-        title: 'Avg. Blobs per Block (24h)',
-        value: stats.avgBlobsPerBlock.toString(),
+        title: 'Total Blobs Indexed',
+        value: stats.totalBlobs.toLocaleString(),
         trend: 'neutral' as const,
-        description: '24h network average',
+        description: `Last block: ${stats.lastIndexedBlock.toLocaleString()}`,
         icon: 'fa-regular fa-cube'
       },
       {
-        title: 'Blob Cost vs Calldata Cost',
-        value: stats.blobVsCalldataSavings,
-        trend: 'down' as const,
-        description: 'Savings vs calldata',
+        title: 'Avg Total Cost',
+        value: stats.averageTotalCost,
+        trend: 'neutral' as const,
+        description: `Avg tip: ${stats.averageTip}`,
         icon: 'fa-regular fa-scale-unbalanced-flip'
       }
     ];

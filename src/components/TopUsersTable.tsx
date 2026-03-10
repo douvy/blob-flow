@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { usePaginatedApiData } from '../hooks/useApiData';
+import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { TopUsersResponse, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
@@ -14,15 +14,9 @@ interface TopUsersTableProps {
 export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
   const { selectedNetwork } = useNetwork();
 
-  // Fetch top users data with pagination
-  const {
-    data,
-    isLoading,
-    error,
-  } = usePaginatedApiData<TopUsersResponse>(
-    (page, limit, network) => api.getTopUsers(page, limit, network),
-    [selectedNetwork],
-    selectedNetwork.apiParam
+  const { data, isLoading, error } = useApiData<TopUsersResponse>(
+    () => api.getTopUsers(10, selectedNetwork.apiParam),
+    [selectedNetwork]
   );
 
   useEffect(() => {
@@ -54,7 +48,7 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
             fontSize: '12px',
             boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
             border: '1px solid #333',
-            zIndex: '99999999', // Super high z-index
+            zIndex: '99999999',
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
             opacity: '1',
@@ -224,7 +218,7 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
                   >
                     <td className="py-3 px-6 text-sm font-medium text-white whitespace-nowrap">
                       <div className="flex items-center">
-                        {user.name === 'Unknown' ? (
+                        {user.name === 'Unknown' || user.name.includes('...') ? (
                           <span className="inline-block w-5 h-5 rounded-full mr-3 bg-gray-500"></span>
                         ) : (
                           <img
