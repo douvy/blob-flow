@@ -9,15 +9,14 @@ import useScrollLock from '../hooks/useScrollLock';
 import useDragToClose from '../hooks/useDragToClose';
 import { useNetwork } from '../hooks/useNetwork';
 import { NETWORKS, DEFAULT_NETWORK } from '../constants';
-
-type TimeRange = '24h' | '7d' | '30d' | 'All';
+import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 
 export default function Header() {
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
+  const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
   const [isMounted, setIsMounted] = useState(false);
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
-  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('24h');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
