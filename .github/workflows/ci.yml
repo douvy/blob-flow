@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test-coverage
+
+      - name: Display coverage summary
+        run: node -e "const s=require('./coverage/coverage-summary.json'); console.log(JSON.stringify(s.total, null, 2));"
+
+      - name: Enforce coverage threshold
+        run: |
+          COVERAGE=$(node -e "const s=require('./coverage/coverage-summary.json').total.lines.pct; console.log(s);")
+          THRESHOLD=90
+          echo "Total coverage: ${COVERAGE}%"
+          if awk -v cov="${COVERAGE}" -v threshold="${THRESHOLD}" 'BEGIN {exit !(cov < threshold)}'; then
+            echo "::error::Coverage ${COVERAGE}% is below the ${THRESHOLD}% threshold"
+            exit 1
+          fi
+          echo "Coverage ${COVERAGE}% meets the ${THRESHOLD}% threshold"
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage
+          retention-days: 7

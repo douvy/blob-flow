@@ -1,4 +1,4 @@
-import { TopUsersResponse, User, UserDetail, ApiResponse, UserResponse } from '../../types';
+import { TopUsersResponse, User, ApiResponse, UserResponse, BlobResponse } from '../../types';
 import { fetchApi } from './core';
 import { truncateAddress } from '../../utils';
 
@@ -7,7 +7,7 @@ import { truncateAddress } from '../../utils';
  * @param limit - Number of users to return
  * @param network - Optional network parameter
  */
-export async function getTopUsers(limit = 10, network?: string): Promise<TopUsersResponse> {
+export const getTopUsers = async (limit = 10, network?: string): Promise<TopUsersResponse> => {
     const response = await fetchApi<ApiResponse<UserResponse[]>>(`/users?limit=${limit}`, network);
 
     // Calculate total blobs across all returned users for percentage calculation
@@ -29,29 +29,27 @@ export async function getTopUsers(limit = 10, network?: string): Promise<TopUser
     });
 
     return { data: users };
-}
+};
 
 /**
- * Get specific user details by address
- * @param userId - User index in the top users list
+ * Get a single user's aggregated stats by address
+ * @param address - Ethereum address
  * @param network - Optional network parameter
  */
-export async function getUserById(userId: number, network?: string): Promise<{ data: UserDetail }> {
-    const topUsersResponse = await getTopUsers(10, network);
-    const user = topUsersResponse.data.find(u => u.id === userId);
+export const getUserByAddress = async (address: string, network?: string): Promise<UserResponse> => {
+    const response = await fetchApi<ApiResponse<UserResponse>>(`/users/${address}`, network);
+    return response.data;
+};
 
-    if (!user) {
-        throw new Error(`User with ID ${userId} not found`);
-    }
-
-    const userDetail: UserDetail = {
-        ...user,
-        transactions: [],
-        totalCost: user.totalCostEth,
-        avgCostPerBlob: '0 ETH',
-        firstSeen: 'Unknown',
-        latestActivity: user.lastTimestamp
-    };
-
-    return { data: userDetail };
-}
+/**
+ * Get blobs for a specific user address
+ * @param address - Ethereum address
+ * @param confirmed - true for confirmed blobs, false for mempool
+ * @param limit - Number of blobs to return
+ * @param network - Optional network parameter
+ */
+export const getUserBlobs = async (address: string, confirmed: boolean, limit = 20, network?: string): Promise<BlobResponse[]> => {
+    const endpoint = confirmed ? '/blob/latest' : '/blob/mempool';
+    const response = await fetchApi<ApiResponse<BlobResponse[]>>(`${endpoint}?from=${address}&limit=${limit}`, network);
+    return response.data;
+};
