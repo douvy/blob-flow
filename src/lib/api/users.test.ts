@@ -51,46 +51,80 @@ describe('api/users', () => {
     expect(result.data[1].name).toBe('Known User');
   });
 
-  it('returns user detail for valid user id', async () => {
+  it('returns a user record by address', async () => {
     const usersApi = await import('./users');
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         success: true,
-        data: [
-          {
-            address: '0x1234567890abcdef',
-            name: 'User A',
-            blob_count: 5,
-            total_cost_eth: '2.0',
-            last_timestamp: '2026-01-01T00:00:00.000Z',
-          },
-        ],
+        data: {
+          network_id: 1,
+          network_name: 'mainnet',
+          address: '0x1234567890abcdef',
+          name: 'User A',
+          blob_count: 5,
+          total_cost_eth: '2.0',
+          last_timestamp: '2026-01-01T00:00:00.000Z',
+        },
       }),
     });
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const result = await usersApi.getUserById(1, 'mainnet');
+    const result = await usersApi.getUserByAddress('0x1234567890abcdef', 'mainnet');
 
-    expect(result.data).toMatchObject({
-      id: 1,
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/users/0x1234567890abcdef?network=mainnet'),
+      expect.any(Object)
+    );
+    expect(result).toMatchObject({
       name: 'User A',
-      totalCost: '2.0',
-      avgCostPerBlob: '0 ETH',
-      firstSeen: 'Unknown',
+      blob_count: 5,
+      total_cost_eth: '2.0',
     });
   });
 
-  it('throws if user id is not found', async () => {
+  it('returns confirmed blobs for a user address', async () => {
     const usersApi = await import('./users');
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ success: true, data: [] }),
+      json: async () => ({
+        success: true,
+        data: [{ tx_hash: '0xabc', from_address: '0x123' }],
+      }),
     });
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    await expect(usersApi.getUserById(99, 'mainnet')).rejects.toThrow('User with ID 99 not found');
+    const result = await usersApi.getUserBlobs('0x123', true, 20, 'mainnet');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/blob/latest?from=0x123&limit=20&network=mainnet'),
+      expect.any(Object)
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ tx_hash: '0xabc' });
+  });
+
+  it('returns mempool blobs for a user address', async () => {
+    const usersApi = await import('./users');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [{ tx_hash: '0xdef', from_address: '0x123' }],
+      }),
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await usersApi.getUserBlobs('0x123', false, 10, 'sepolia');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/blob/mempool?from=0x123&limit=10&network=sepolia'),
+      expect.any(Object)
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ tx_hash: '0xdef' });
   });
 });

@@ -11,6 +11,7 @@ describe('api/index', () => {
     expect(api).toHaveProperty('getStatus');
     expect(api).toHaveProperty('getMempool');
     expect(api).toHaveProperty('getTopUsers');
-    expect(api).toHaveProperty('getUserById');
+    expect(api).toHaveProperty('getUserByAddress');
+    expect(api).toHaveProperty('getUserBlobs');
   });
 });
