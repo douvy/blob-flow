@@ -1,4 +1,4 @@
-// Metric type definition
+// Metric type definition (UI only)
 export interface Metric {
   title: string;
   value: string;
@@ -7,7 +7,33 @@ export interface Metric {
   icon?: string;
 }
 
-// Block type definition
+// Generic API response wrapper from backend
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error?: string;
+}
+
+// Backend BlobResponse - matches api.BlobResponse from swagger
+export interface BlobResponse {
+  network_id: number;
+  network_name: string;
+  block_number: number;
+  blob_index: number;
+  tx_hash: string;
+  from_address: string;
+  blob_size_bytes: number;
+  base_fee_per_blob_gas: string;
+  tip_per_blob_gas: string;
+  total_cost_eth: string;
+  timestamp: string;
+  confirmed: boolean;
+  user_attribution?: string;
+  max_fee_per_blob_gas?: string;
+  blob_gas_used?: number;
+}
+
+// Frontend Block type (transformed from BlobResponse for display)
 export interface Block {
   id: number;
   number: string;
@@ -16,21 +42,12 @@ export interface Block {
   attribution: string[];
 }
 
-// API Response interfaces for backend integration
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    currentPage: number;
-    totalPages: number;
-    totalItems: number;
-    itemsPerPage: number;
-  };
+// Latest blocks response (frontend-shaped)
+export interface LatestBlocksResponse {
+  data: Block[];
 }
 
-// Latest blocks response
-export interface LatestBlocksResponse extends PaginatedResponse<Block> { }
-
-// Mempool transaction type
+// Mempool transaction type (transformed for display)
 export interface MempoolTransaction {
   id: number;
   txHash: string;
@@ -41,15 +58,31 @@ export interface MempoolTransaction {
   timeInMempool: string;
 }
 
-// Mempool response
-export interface MempoolResponse extends PaginatedResponse<MempoolTransaction> { }
+// Mempool response (frontend-shaped)
+export interface MempoolResponse {
+  data: MempoolTransaction[];
+}
 
-// User data type for listing
+// Backend UserResponse - matches api.UserResponse from swagger
+export interface UserResponse {
+  network_id: number;
+  network_name: string;
+  address: string;
+  name?: string;
+  blob_count: number;
+  total_cost_eth: string;
+  last_timestamp: string;
+}
+
+// Frontend User type (transformed for display)
 export interface User {
   id: number;
   name: string;
+  address: string;
   dataCount: number;
   percentage: number;
+  totalCostEth: string;
+  lastTimestamp: string;
 }
 
 // Transaction details for user detail view
@@ -70,39 +103,49 @@ export interface UserDetail extends User {
   latestActivity: string;
 }
 
-// Top users response
-export interface TopUsersResponse extends PaginatedResponse<User> { }
-
-// Stats type definitions
-export interface TimeSeriesDataPoint {
-  timestamp: string;
-  value: number;
+// Top users response (frontend-shaped)
+export interface TopUsersResponse {
+  data: User[];
 }
 
+// Backend StatsResponse - matches api.StatsResponse from swagger
+export interface BackendStatsResponse {
+  network_id: number;
+  network_name: string;
+  total_blobs: number;
+  total_confirmed_blobs: number;
+  total_pending_blobs: number;
+  average_base_fee: string;
+  average_tip: string;
+  average_total_cost: string;
+  last_indexed_block: number;
+  last_indexed_time: string;
+}
+
+// Frontend NetworkStats (transformed for display)
 export interface NetworkStats {
-  currentBlobBaseFee: string;
-  blobBaseFeeChange: number;
+  averageBaseFee: string;
+  totalBlobs: number;
+  totalConfirmedBlobs: number;
   pendingBlobsCount: number;
   avgBlobsPerBlock: number;
-  blobVsCalldataSavings: string;
-  timeFrames: {
-    '24h': TimeSeriesData;
-    '7d': TimeSeriesData;
-    '30d': TimeSeriesData;
-    'all': TimeSeriesData;
-  };
+  averageTip: string;
+  averageTotalCost: string;
+  lastIndexedBlock: number;
+  lastIndexedTime: string;
 }
 
-export interface TimeSeriesData {
-  blobBaseFees: TimeSeriesDataPoint[];
-  blobsPerBlock: TimeSeriesDataPoint[];
-  costComparison: TimeSeriesDataPoint[];
-  attribution: {
-    [network: string]: number;
-  };
-}
-
-// Stats response
+// Stats response (frontend-shaped)
 export interface StatsResponse {
   data: NetworkStats;
+}
+
+// Backend StatusResponse - matches api.StatusResponse from swagger
+export interface StatusResponse {
+  network_id: number;
+  network_name: string;
+  last_indexed_block: number;
+  indexer_version: string;
+  uptime: string;
+  last_indexed_time: string;
 }

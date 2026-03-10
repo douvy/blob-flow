@@ -3,7 +3,7 @@
  */
 
 export const APP_NAME = 'Blob Flow';
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://blob-indexer.ahkc.win/api';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://blob-indexer.ahkc.win/api/v1';
 
 /**
  * Network configuration

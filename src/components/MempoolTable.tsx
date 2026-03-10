@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { usePaginatedApiData } from '../hooks/useApiData';
+import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { MempoolResponse, MempoolTransaction } from '../types';
 import DataStateWrapper from './DataStateWrapper';
@@ -10,15 +10,9 @@ import { useNetwork } from '../hooks/useNetwork';
 export default function MempoolTable() {
   const { selectedNetwork } = useNetwork();
 
-  // Fetch mempool data with pagination
-  const {
-    data,
-    isLoading,
-    error,
-  } = usePaginatedApiData<MempoolResponse>(
-    (page, limit, network) => api.getMempool(page, limit, network),
-    [selectedNetwork],
-    selectedNetwork.apiParam
+  const { data, isLoading, error } = useApiData<MempoolResponse>(
+    () => api.getMempool(10, selectedNetwork.apiParam),
+    [selectedNetwork]
   );
 
   // Loading state for the table
