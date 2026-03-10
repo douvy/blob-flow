@@ -85,24 +85,6 @@ export interface User {
   lastTimestamp: string;
 }
 
-// Transaction details for user detail view
-export interface UserTransaction {
-  id: string;
-  status: 'confirmed' | 'pending';
-  cost: string;
-  blockNumber?: string;
-  timestamp: string;
-}
-
-// Detailed user data with transactions
-export interface UserDetail extends User {
-  transactions: UserTransaction[];
-  totalCost: string;
-  avgCostPerBlob: string;
-  firstSeen: string;
-  latestActivity: string;
-}
-
 // Top users response (frontend-shaped)
 export interface TopUsersResponse {
   data: User[];
