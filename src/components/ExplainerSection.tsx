@@ -8,7 +8,7 @@ export default function ExplainerSection() {
       
       <div className="prose prose-invert max-w-none">
         <p className="text-[#b8bdc7]">
-        Blobs (Binary Large Objects) are data structures introduced in Ethereum's EIP-4844 ("Proto-Danksharding") that provide cost-efficient storage for Layer 2 rollups, reducing fees compared to traditional calldata. These temporary structures attach to blocks without affecting Ethereum's state.
+        Blobs (Binary Large Objects) are data structures introduced in Ethereum&apos;s EIP-4844 (&quot;Proto-Danksharding&quot;) that provide cost-efficient storage for Layer 2 rollups, reducing fees compared to traditional calldata. These temporary structures attach to blocks without affecting Ethereum&apos;s state.
         </p>
         
         <p className="text-[#b8bdc7] mt-4">
@@ -18,7 +18,7 @@ export default function ExplainerSection() {
         <ul className="list-disc pl-5 mt-2 text-[#b8bdc7]">
           <li>Lower transaction costs for rollup users</li>
           <li>Increased data throughput for Layer 2 solutions</li>
-          <li>Progress toward Ethereum's full sharding</li>
+          <li>Progress toward Ethereum&apos;s full sharding</li>
           <li>Data availability without permanent state bloat</li>
         </ul>
         

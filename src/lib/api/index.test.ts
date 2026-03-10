@@ -1,8 +1,8 @@
 describe('api/index', () => {
   it('exports complete api surface', async () => {
-    const module = await import('./index');
-    const api = module.default;
-    const namedApi = module.api;
+    const apiModule = await import('./index');
+    const api = apiModule.default;
+    const namedApi = apiModule.api;
 
     expect(api).toBe(namedApi);
     expect(api).toHaveProperty('getLatestBlocks');

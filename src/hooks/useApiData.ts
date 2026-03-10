@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, type DependencyList } from 'react';
 
 /**
  * Generic hook for fetching data from API with loading and error states
@@ -11,7 +11,7 @@ import { useEffect, useState, useCallback } from 'react';
  */
 export function useApiData<T>(
   fetchFunction: () => Promise<T>,
-  dependencies: any[] = [],
+  dependencies: DependencyList = [],
   initialData?: T
 ) {
   const [data, setData] = useState<T | undefined>(initialData);
@@ -52,7 +52,7 @@ export function useApiData<T>(
  */
 export function usePaginatedApiData<T>(
   fetchFunction: (page: number, limit: number, network?: string) => Promise<T>,
-  dependencies: any[] = [],
+  dependencies: DependencyList = [],
   network?: string
 ) {
   const [page, setPage] = useState<number>(1);
