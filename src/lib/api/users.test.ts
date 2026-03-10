@@ -1,17 +1,13 @@
 import { getTopUsers, getUserById } from './users';
 import * as core from './core';
 
-vi.mock('./core', () => ({
-  fetchApi: vi.fn(),
-}));
-
 describe('api/users', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('maps backend users to frontend shape with percentages', async () => {
-    vi.mocked(core.fetchApi).mockResolvedValue({
+    vi.spyOn(core, 'fetchApi').mockResolvedValue({
       success: true,
       data: [
         {
@@ -44,7 +40,7 @@ describe('api/users', () => {
   });
 
   it('returns user detail for valid user id', async () => {
-    vi.mocked(core.fetchApi).mockResolvedValue({
+    vi.spyOn(core, 'fetchApi').mockResolvedValue({
       success: true,
       data: [
         {
@@ -69,7 +65,7 @@ describe('api/users', () => {
   });
 
   it('throws if user id is not found', async () => {
-    vi.mocked(core.fetchApi).mockResolvedValue({ success: true, data: [] } as any);
+    vi.spyOn(core, 'fetchApi').mockResolvedValue({ success: true, data: [] } as any);
 
     await expect(getUserById(99, 'mainnet')).rejects.toThrow('User with ID 99 not found');
   });
