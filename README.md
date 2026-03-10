@@ -42,6 +42,14 @@ This project uses Vitest with a CI-enforced 90% line coverage minimum for core l
 - `npm run test-coverage` - run tests with coverage report
 - `make test-coverage` - run coverage and enforce the threshold locally
 
+## CI/CD
+
+GitHub Actions workflows are configured for:
+
+- `CI` (`.github/workflows/ci.yml`): lint, typecheck, test coverage enforcement, and production build checks on PRs and pushes to `main`/`master`
+- `PR Title` (`.github/workflows/pr-title.yml`): enforces conventional commit style PR titles
+- `Secrets Scan` (`.github/workflows/secrets-scan.yml`): gitleaks checks on PR/push, weekly schedule, and manual dispatch
+
 ## Project Structure
 
 ```

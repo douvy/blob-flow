@@ -42,7 +42,7 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
           </tr>
         </thead>
         <tbody className="divide-y divide-divider">
-          {blobs.map((blob, index) => (
+          {blobs.map((blob) => (
             <tr key={`${blob.tx_hash}-${blob.blob_index}`} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
               <td className="py-3 px-6 text-sm font-mono text-white">{truncateTxHash(blob.tx_hash)}</td>
               {showBlock && (
