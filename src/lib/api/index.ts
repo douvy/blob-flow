@@ -2,7 +2,7 @@ import { getLatestBlocks, getBlobByTxHash } from './blocks';
 import { getMempool } from './mempool';
 import { getStats } from './stats';
 import { getStatus } from './status';
-import { getTopUsers, getUserById } from './users';
+import { getTopUsers, getUserByAddress, getUserBlobs } from './users';
 
 export const api = {
     getLatestBlocks,
@@ -11,7 +11,8 @@ export const api = {
     getStatus,
     getMempool,
     getTopUsers,
-    getUserById,
+    getUserByAddress,
+    getUserBlobs,
 };
 
 export default api;

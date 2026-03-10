@@ -1,17 +1,15 @@
 "use client";
 
 import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { TopUsersResponse, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 
-interface TopUsersTableProps {
-  onUserClick: (userId: number) => void;
-}
-
-export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
+export default function TopUsersTable() {
+  const router = useRouter();
   const { selectedNetwork } = useNetwork();
 
   const { data, isLoading, error } = useApiData<TopUsersResponse>(
@@ -214,7 +212,7 @@ export default function TopUsersTable({ onUserClick }: TopUsersTableProps) {
                   <tr
                     key={user.id}
                     className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors cursor-pointer"
-                    onClick={() => onUserClick(user.id)}
+                    onClick={() => router.push(`/user/${user.address}`)}
                   >
                     <td className="py-3 px-6 text-sm font-medium text-white whitespace-nowrap">
                       <div className="flex items-center">
