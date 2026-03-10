@@ -22,7 +22,7 @@ export default function TopUsersTable() {
     const setupTooltips = () => {
       const tooltipElements = document.querySelectorAll('[data-tooltip]');
 
-      const handleMouseEnter = (e: MouseEvent) => {
+      const handleMouseEnter = (e: Event) => {
         const target = e.currentTarget as HTMLElement;
         const tooltipText = target.getAttribute('data-tooltip');
 
@@ -96,14 +96,14 @@ export default function TopUsersTable() {
 
       // Add event listeners
       tooltipElements.forEach(el => {
-        el.addEventListener('mouseenter', handleMouseEnter as any);
+        el.addEventListener('mouseenter', handleMouseEnter);
         el.addEventListener('mouseleave', handleMouseLeave);
       });
 
       return () => {
         // Cleanup
         tooltipElements.forEach(el => {
-          el.removeEventListener('mouseenter', handleMouseEnter as any);
+          el.removeEventListener('mouseenter', handleMouseEnter);
           el.removeEventListener('mouseleave', handleMouseLeave);
         });
 

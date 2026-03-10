@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
-import useDragToClose from '../hooks/useDragToClose';
 import { useNetwork } from '../hooks/useNetwork';
-import { NETWORKS, DEFAULT_NETWORK } from '../constants';
+import { DEFAULT_NETWORK } from '../constants';
 
 type TimeRange = '24h' | '7d' | '30d' | 'All';
 
@@ -16,11 +15,10 @@ export default function Header() {
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   const [isMounted, setIsMounted] = useState(false);
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
-  const [isConnected, setIsConnected] = useState(true);
+  const isConnected = true;
   const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('24h');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   // Lock scrolling when the mobile menu is open
   useScrollLock(isMobileMenuOpen);
@@ -47,16 +45,6 @@ export default function Header() {
       setIsMobileMenuOpen(false);
     }
   }, [isMobileMenuOpen]);
-
-  const toggleMobileMenu = () => {
-    // Force toggle the mobile menu state
-    setIsMobileMenuOpen(prev => !prev);
-
-    // Close the network dropdown if it's open
-    if (isNetworkDropdownOpen) {
-      setIsNetworkDropdownOpen(false);
-    }
-  };
 
   // Close mobile menu when clicking outside
   // Remove the existing click outside handler as it may be interfering

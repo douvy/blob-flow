@@ -1,7 +1,13 @@
-.PHONY: test test-coverage
+.PHONY: lint typecheck test test-coverage build ci
 
 NPM = npm
 COVERAGE_THRESHOLD ?= 90
+
+lint:
+	$(NPM) run lint
+
+typecheck:
+	$(NPM) run typecheck
 
 test:
 	$(NPM) run test
@@ -15,3 +21,8 @@ test-coverage:
 		exit 1; \
 	fi; \
 	echo "OK: Coverage $${COVERAGE}% meets $(COVERAGE_THRESHOLD)% threshold"
+
+build:
+	$(NPM) run build
+
+ci: lint typecheck test-coverage build
