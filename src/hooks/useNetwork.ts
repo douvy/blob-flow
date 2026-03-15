@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from 'react';
 import { NETWORKS, DEFAULT_NETWORK } from '../constants';
 import { useLocalStorage } from './useLocalStorage';
 
