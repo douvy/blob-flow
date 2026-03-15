@@ -5,12 +5,6 @@ import nextTs from 'eslint-config-next/typescript'
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  {
-    rules: {
-      // react-hooks@7 added this stricter rule; existing hydration patterns use setState in effects
-      'react-hooks/set-state-in-effect': 'off',
-    },
-  },
   globalIgnores([
     '.next/**',
     'out/**',

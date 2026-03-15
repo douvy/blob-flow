@@ -19,14 +19,12 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   // Lock scrolling when the modal is open
   useScrollLock(isOpen);
 
-  // Reset search query and selected type when modal opens
+  // Reset search query and selected type when modal opens, then focus input
   useEffect(() => {
     if (isOpen) {
-      setSearchQuery('');
-      setSelectedType(null);
-      
-      // Focus search input when modal opens
       setTimeout(() => {
+        setSearchQuery('');
+        setSelectedType(null);
         searchInputRef.current?.focus();
       }, 100);
     }

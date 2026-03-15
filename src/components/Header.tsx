@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import SearchModal from './SearchModal';
@@ -13,7 +13,7 @@ import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 export default function Header() {
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
   const isConnected = true;
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -21,11 +21,6 @@ export default function Header() {
 
   // Lock scrolling when the mobile menu is open
   useScrollLock(isMobileMenuOpen);
-
-  // Ensure hydration matching by only showing client-side elements after mounting
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const timeRangeOptions: TimeRange[] = ['24h', '7d', '30d', 'All'];
 
