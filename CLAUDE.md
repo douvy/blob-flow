@@ -55,6 +55,10 @@ src/
 - Tailwind utility classes for all styling — no CSS modules
 - Custom fonts: GT Flexa, Windsor Bold
 
+## CI Standards
+
+Never make CI less restrictive. Do not add lint/type-check exceptions (e.g. `eslint-disable`, `@ts-ignore`, `any` casts), skip checks, or loosen rules to make builds pass. Fix the underlying issue instead.
+
 ## Environment Variables
 
 - `NEXT_PUBLIC_API_URL` — API base URL (default: `https://blob-indexer.ahkc.win/api/v1`)

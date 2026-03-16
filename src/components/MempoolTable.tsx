@@ -11,8 +11,7 @@ export default function MempoolTable() {
   const { selectedNetwork } = useNetwork();
 
   const { data, isLoading, error } = useApiData<MempoolResponse>(
-    () => api.getMempool(10, selectedNetwork.apiParam),
-    [selectedNetwork]
+    () => api.getMempool(10, selectedNetwork.apiParam)
   );
 
   // Loading state for the table
