@@ -43,7 +43,7 @@ describe('usePaginatedApiData', () => {
   it('fetches with page and limit and supports pagination controls', async () => {
     const fetchFn = vi.fn().mockResolvedValue({ items: [] });
 
-    const { result } = renderHook(() => usePaginatedApiData(fetchFn, [], 'mainnet'));
+    const { result } = renderHook(() => usePaginatedApiData(fetchFn, 'mainnet'));
 
     await waitFor(() => expect(fetchFn).toHaveBeenCalledWith(1, 10, 'mainnet'));
 

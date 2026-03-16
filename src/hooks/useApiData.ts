@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback, type DependencyList } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 /**
  * Generic hook for fetching data from API with loading and error states
- * 
+ *
  * @param fetchFunction - Function that returns a promise with data
- * @param dependencies - Array of dependencies to trigger refetch
  * @param initialData - Optional initial data
  */
 export function useApiData<T>(
   fetchFunction: () => Promise<T>,
-  dependencies: DependencyList = [],
   initialData?: T
 ) {
   const [data, setData] = useState<T | undefined>(initialData);
@@ -37,22 +35,19 @@ export function useApiData<T>(
 
   useEffect(() => {
     refetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...dependencies]);
+  }, [refetch]);
 
   return { data, isLoading, error, refetch };
 }
 
 /**
  * Hook for paginated API data with page navigation
- * 
+ *
  * @param fetchFunction - Function that fetches paginated data
- * @param dependencies - Array of dependencies to trigger refetch
  * @param network - Optional network parameter
  */
 export function usePaginatedApiData<T>(
   fetchFunction: (page: number, limit: number, network?: string) => Promise<T>,
-  dependencies: DependencyList = [],
   network?: string
 ) {
   const [page, setPage] = useState<number>(1);
@@ -64,10 +59,7 @@ export function usePaginatedApiData<T>(
   }, [fetchFunction, page, limit, network]);
 
   // Use the base hook
-  const { data, isLoading, error, refetch } = useApiData<T>(
-    fetchData,
-    [page, limit, ...dependencies]
-  );
+  const { data, isLoading, error, refetch } = useApiData<T>(fetchData);
 
   // Navigation functions
   const nextPage = useCallback(() => {
