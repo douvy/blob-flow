@@ -13,8 +13,7 @@ export default function TopUsersTable() {
   const { selectedNetwork } = useNetwork();
 
   const { data, isLoading, error } = useApiData<TopUsersResponse>(
-    () => api.getTopUsers(10, selectedNetwork.apiParam),
-    [selectedNetwork]
+    () => api.getTopUsers(10, selectedNetwork.apiParam)
   );
 
   useEffect(() => {

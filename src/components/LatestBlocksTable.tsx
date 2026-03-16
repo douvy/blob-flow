@@ -11,8 +11,7 @@ export default function LatestBlocksTable() {
   const { selectedNetwork } = useNetwork();
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
-    () => api.getLatestBlocks(20, selectedNetwork.apiParam),
-    [selectedNetwork]
+    () => api.getLatestBlocks(20, selectedNetwork.apiParam)
   );
 
   // Loading state for the table
