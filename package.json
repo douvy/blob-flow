@@ -17,7 +17,7 @@
   "license": "MIT",
   "description": "Ethereum EIP-4844 blob data dashboard",
   "dependencies": {
-    "@types/node": "^22.15.3",
+    "@types/node": "^25.5.0",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "eslint": "^9.25.1",
