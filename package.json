@@ -20,7 +20,7 @@
     "@types/node": "^22.15.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
-    "eslint": "^9.25.1",
+    "eslint": "^10.1.0",
     "eslint-config-next": "^16.1.6",
     "next": "^16.1.6",
     "react": "^19.1.0",
