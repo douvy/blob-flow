@@ -27,7 +27,7 @@
     "react-dom": "^19.1.0",
     "recharts": "^2.15.3",
     "typescript": "^5.8.3",
-    "viem": "^2.29.2"
+    "viem": "^2.47.6"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
