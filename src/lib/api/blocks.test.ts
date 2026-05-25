@@ -38,6 +38,7 @@ describe('api/blocks', () => {
             block_number: 101,
             timestamp: '2026-01-01T00:00:02.000Z',
             user_attribution: undefined,
+            tx_hash: '0xghi',
           },
         ],
       }),

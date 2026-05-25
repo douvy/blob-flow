@@ -66,6 +66,48 @@ export function formatWeiToReadable(weiValue: string | number): string {
   }
 }
 
+export function formatWeiToGwei(weiValue: string | number, maximumFractionDigits = 6): string {
+  const rawWeiValue = normalizeDecimalString(weiValue);
+  const gweiValue = formatDecimalUnits(rawWeiValue, 9);
+  return `${formatDecimalString(gweiValue, maximumFractionDigits)} Gwei`;
+}
+
+export function formatGwei(gweiValue: string | number, maximumFractionDigits = 6): string {
+  const rawGweiValue = normalizeDecimalString(gweiValue);
+  return `${formatDecimalString(rawGweiValue, maximumFractionDigits)} Gwei`;
+}
+
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return '0 sec';
+  }
+
+  if (seconds < 60) {
+    return `${Math.round(seconds)} sec`;
+  }
+
+  if (seconds < 3600) {
+    const minutes = Math.round(seconds / 60);
+    return `${minutes} min`;
+  }
+
+  const hours = seconds / 3600;
+  return `${formatCompactDecimal(hours, 1)} hr`;
+}
+
+export function formatPercent(value: number, maximumFractionDigits = 1): string {
+  if (!Number.isFinite(value)) {
+    return '0%';
+  }
+
+  return `${formatCompactDecimal(value, maximumFractionDigits)}%`;
+}
+
+export function formatWeiToEth(weiValue: string | number): string {
+  const rawWeiValue = normalizeDecimalString(weiValue);
+  return `${formatDecimalUnits(rawWeiValue, 18)} ETH`;
+}
+
 export function formatCostEthOrWei(costEthOrWei: string | number): string {
   const rawCost = normalizeDecimalString(costEthOrWei);
 
@@ -109,4 +151,80 @@ function formatDecimalUnits(value: string, decimals: number): string {
 function trimTrailingZeros(value: string): string {
   const trimmedValue = value.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
   return trimmedValue || '0';
+}
+
+function formatDecimalString(value: string, maximumFractionDigits: number): string {
+  const normalizedValue = normalizeDecimalString(value);
+  const [wholePart, fractionalPart = ''] = normalizedValue.split('.');
+  const fractionDigits = Math.max(0, Math.floor(maximumFractionDigits));
+
+  if (fractionDigits === 0) {
+    return groupIntegerPart(
+      shouldRoundUp(fractionalPart.charAt(0))
+        ? incrementIntegerString(wholePart)
+        : wholePart
+    );
+  }
+
+  let roundedWholePart = wholePart;
+  let roundedFractionalPart = fractionalPart.slice(0, fractionDigits);
+  const nextDigit = fractionalPart.charAt(fractionDigits);
+
+  if (shouldRoundUp(nextDigit)) {
+    const rounded = incrementFractionString(
+      roundedWholePart,
+      roundedFractionalPart.padEnd(fractionDigits, '0')
+    );
+    roundedWholePart = rounded.wholePart;
+    roundedFractionalPart = rounded.fractionalPart;
+  }
+
+  const trimmedFractionalPart = roundedFractionalPart.replace(/0+$/, '');
+  const formattedWholePart = groupIntegerPart(roundedWholePart);
+
+  if (!trimmedFractionalPart) {
+    return formattedWholePart;
+  }
+
+  return `${formattedWholePart}.${trimmedFractionalPart}`;
+}
+
+function formatCompactDecimal(value: number, maximumFractionDigits: number): string {
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits,
+  }).format(value);
+}
+
+function incrementFractionString(wholePart: string, fractionalPart: string) {
+  const digits = fractionalPart.split('');
+
+  for (let index = digits.length - 1; index >= 0; index -= 1) {
+    const nextDigit = Number(digits[index]) + 1;
+    if (nextDigit < 10) {
+      digits[index] = nextDigit.toString();
+      return {
+        wholePart,
+        fractionalPart: digits.join(''),
+      };
+    }
+
+    digits[index] = '0';
+  }
+
+  return {
+    wholePart: incrementIntegerString(wholePart),
+    fractionalPart: digits.join(''),
+  };
+}
+
+function incrementIntegerString(value: string): string {
+  return (BigInt(value) + BigInt(1)).toString();
+}
+
+function groupIntegerPart(value: string): string {
+  return value.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function shouldRoundUp(value: string): boolean {
+  return value >= '5' && value <= '9';
 }

@@ -1,7 +1,12 @@
 import {
   formatCostEthOrWei,
   formatDate,
+  formatDuration,
+  formatGwei,
   formatNumber,
+  formatPercent,
+  formatWeiToGwei,
+  formatWeiToEth,
   formatWeiToReadable,
   getAttributionImageSrc,
   getAttributionInitial,
@@ -32,6 +37,11 @@ describe('utils', () => {
     expect(formatWeiToReadable('1000000000000000000')).toBe('1 ETH');
   });
 
+  it('formats wei values explicitly as ETH', () => {
+    expect(formatWeiToEth('500000000000000')).toBe('0.0005 ETH');
+    expect(formatWeiToEth('2203603226459001.927')).toBe('0.002203603226459001927 ETH');
+  });
+
   it('formats decimal ETH costs and integer wei costs', () => {
     expect(formatCostEthOrWei('0.001')).toBe('0.001 ETH');
     expect(formatCostEthOrWei('1000000000')).toBe('1 Gwei');
@@ -46,5 +56,21 @@ describe('utils', () => {
     expect(getAttributionImageSrc('Arbitrum One')).toBe('/images/arbitrum.png');
     expect(getAttributionImageSrc('Taiko')).toBeNull();
     expect(getAttributionInitial('Taiko')).toBe('T');
+  });
+
+  it('formats blob gas fees in gwei', () => {
+    expect(formatWeiToGwei('9389122')).toBe('0.009389 Gwei');
+    expect(formatWeiToGwei('1000000000')).toBe('1 Gwei');
+    expect(formatWeiToGwei('123456789012345678901234567890')).toBe(
+      '123,456,789,012,345,678,901.234568 Gwei'
+    );
+    expect(formatGwei('0.008487503')).toBe('0.008488 Gwei');
+  });
+
+  it('formats durations and percentages compactly', () => {
+    expect(formatDuration(20.7)).toBe('21 sec');
+    expect(formatDuration(314.03)).toBe('5 min');
+    expect(formatDuration(5400)).toBe('1.5 hr');
+    expect(formatPercent(35.7143)).toBe('35.7%');
   });
 });

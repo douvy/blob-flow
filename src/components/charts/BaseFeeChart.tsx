@@ -26,6 +26,13 @@ interface BaseFeeChartProps {
   data: BaseFeeDataPoint[];
 }
 
+function formatGweiTick(value: number): string {
+  if (value === 0) return '0';
+  if (Math.abs(value) < 0.01) return value.toFixed(3);
+  if (Math.abs(value) < 1) return value.toFixed(2);
+  return value.toFixed(1);
+}
+
 export default function BaseFeeChart({ data }: BaseFeeChartProps) {
   const avgBaseFee = useMemo(() => {
     if (data.length === 0) return 0;
@@ -59,7 +66,7 @@ export default function BaseFeeChart({ data }: BaseFeeChartProps) {
           axisLine={AXIS_LINE}
           tickLine={AXIS_LINE}
           width={45}
-          tickFormatter={(v) => v.toFixed(1)}
+          tickFormatter={formatGweiTick}
         />
         <Tooltip
           contentStyle={CHART_TOOLTIP_STYLE}
