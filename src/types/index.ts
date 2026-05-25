@@ -216,6 +216,31 @@ export interface StatsResponse {
   data: NetworkStats;
 }
 
+// Rolling stats response from /stats/windows
+export type RollingWindowKey = '5m' | '1h' | '24h' | '7d' | '30d';
+
+export interface BackendStatsWindow {
+  window: RollingWindowKey | string;
+  duration_seconds: number;
+  start_time: string;
+  end_time: string;
+  average_blob_base_fee: string;
+  median_blob_base_fee: string;
+  p95_blob_base_fee: string;
+  total_blobs: number;
+  total_blob_gas_used: number;
+  average_utilization: string;
+  total_cost_eth: string;
+  unique_senders: number;
+}
+
+export interface BackendStatsWindowsResponse {
+  network_id: number;
+  network_name: string;
+  generated_at: string;
+  windows: BackendStatsWindow[];
+}
+
 // Backend StatusResponse - matches api.StatusResponse from swagger
 export interface StatusResponse {
   network_id: number;
@@ -224,6 +249,63 @@ export interface StatusResponse {
   indexer_version: string;
   uptime: string;
   last_indexed_time: string;
+}
+
+// Blob fee market response from /blob/pricing
+export interface BlobPricingParams {
+  target: number;
+  max: number;
+  update_fraction: number;
+  target_gas: number;
+  max_gas: number;
+}
+
+export interface BlobPricingPressure {
+  recent_blocks_above_target: number;
+  consecutive_full_blocks: number;
+  percent_recent_blocks_at_max_blobs: number;
+  predicted_direction: string;
+  next_block_fee_estimate: {
+    low: string;
+    high: string;
+  };
+}
+
+export interface BlobPricingBlock {
+  block_number: number;
+  block_timestamp: string;
+  blob_count: number;
+  blob_gas_used: number;
+  blob_gas_target: number;
+  blob_gas_limit: number;
+  excess_blob_gas: number;
+  blob_base_fee: string;
+  blob_base_fee_gwei: string;
+  utilization_ratio: string;
+  blob_params_target: number;
+  blob_params_max: number;
+  target_blobs: number;
+  max_blobs: number;
+  available_blobs: number;
+  utilization_percent: number;
+  is_full: boolean;
+  is_above_target: boolean;
+  update_fraction: number;
+}
+
+export interface BlobPricingResponse {
+  network_id: number;
+  network_name: string;
+  current_base_fee: string;
+  current_base_fee_gwei: string;
+  current_excess_gas: number;
+  current_utilization: string;
+  predicted_next_fee: string;
+  predicted_next_fee_gwei: string;
+  fork_stage: string;
+  blob_params: BlobPricingParams;
+  market_pressure: BlobPricingPressure;
+  recent_blocks: BlobPricingBlock[];
 }
 
 // ---- Chart Data Types ----
@@ -274,11 +356,33 @@ export interface FeeMarketIndicators {
 
 export type Granularity = 'block' | 'hourly' | 'daily';
 
+export interface RollingWindowDataPoint {
+  window: RollingWindowKey | string;
+  label: string;
+  durationSeconds: number;
+  startTimestamp: number;
+  endTimestamp: number;
+  averageBaseFeeGwei: number;
+  medianBaseFeeGwei: number;
+  p95BaseFeeGwei: number;
+  totalBlobs: number;
+  totalBlobGasUsed: number;
+  averageUtilizationPct: number;
+  totalCostEth: number;
+  uniqueSenders: number;
+}
+
 export interface ChartDataset {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
   l2Usage: L2UsageDataPoint[];
   costComparison: CostComparisonDataPoint[];
+  rollingWindows: RollingWindowDataPoint[];
+  selectedWindow: RollingWindowDataPoint | null;
   indicators: FeeMarketIndicators;
   granularity: Granularity;
+  recentBlockCount: number;
+  coverageLabel: string;
+  rollingCoverageLabel: string;
+  blockCoverageLabel: string;
 }

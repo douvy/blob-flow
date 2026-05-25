@@ -6,14 +6,15 @@ import {
   Line,
   ResponsiveContainer,
 } from 'recharts';
-import type { FeeMarketIndicators } from '../../types';
+import type { FeeMarketIndicators, RollingWindowDataPoint } from '../../types';
 import { COLORS } from '../../constants/chartTheme';
 
 interface FeeIndicatorsProps {
   indicators: FeeMarketIndicators;
+  selectedWindow?: RollingWindowDataPoint | null;
 }
 
-export default function FeeIndicators({ indicators }: FeeIndicatorsProps) {
+export default function FeeIndicators({ indicators, selectedWindow }: FeeIndicatorsProps) {
   const {
     currentBaseFeeGwei,
     averageBaseFeeGwei,
@@ -25,6 +26,7 @@ export default function FeeIndicators({ indicators }: FeeIndicatorsProps) {
   const isHigh = feeRatio > 1;
   const sparkData = recentBaseFeeSparkline.map((value, i) => ({ value, i }));
   const sparkColor = isHigh ? COLORS.red : COLORS.green;
+  const comparisonLabel = selectedWindow ? `${selectedWindow.label} avg` : 'avg';
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -59,7 +61,7 @@ export default function FeeIndicators({ indicators }: FeeIndicatorsProps) {
             {isHigh ? '\u25B2' : '\u25BC'} {((feeRatio - 1) * 100).toFixed(0)}% vs avg
           </span>
           <span className="text-[11px] text-[#6e7687]">
-            ({averageBaseFeeGwei.toFixed(2)} Gwei)
+            ({averageBaseFeeGwei.toFixed(2)} Gwei {comparisonLabel})
           </span>
         </div>
       </div>

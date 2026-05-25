@@ -1,6 +1,15 @@
-import { StatsResponse, ApiResponse, BackendStatsResponse, WebSocketStatsResponse } from '../../types';
+import {
+    StatsResponse,
+    ApiResponse,
+    BackendStatsResponse,
+    BackendStatsWindowsResponse,
+    RollingWindowKey,
+    WebSocketStatsResponse,
+} from '../../types';
 import { fetchApi } from './core';
 import { formatCostEthOrWei, formatWeiToReadable } from '../../utils';
+
+export const DEFAULT_STATS_WINDOWS: RollingWindowKey[] = ['5m', '1h', '24h', '7d', '30d'];
 
 export function transformStatsResponse(stats: BackendStatsResponse | WebSocketStatsResponse): StatsResponse {
     return {
@@ -26,4 +35,22 @@ export async function getStats(network?: string): Promise<StatsResponse> {
     const response = await fetchApi<ApiResponse<BackendStatsResponse>>(`/stats`, network);
 
     return transformStatsResponse(response.data);
+}
+
+/**
+ * Get rolling market stats for one or more duration windows.
+ * @param windows - Rolling windows to request from the API
+ * @param network - Optional network parameter
+ */
+export async function getStatsWindows(
+    windows: RollingWindowKey[] = DEFAULT_STATS_WINDOWS,
+    network?: string
+): Promise<BackendStatsWindowsResponse> {
+    const windowParam = windows.map(encodeURIComponent).join(',');
+    const response = await fetchApi<ApiResponse<BackendStatsWindowsResponse>>(
+        `/stats/windows?windows=${windowParam}`,
+        network
+    );
+
+    return response.data;
 }

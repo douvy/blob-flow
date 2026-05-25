@@ -1,191 +1,212 @@
 import { formatUnits } from 'viem';
 import type { TimeRange } from '../contexts/TimeRangeContext';
 import type {
-  BlobResponse,
-  Granularity,
-  ChartDataset,
+  BackendStatsWindowsResponse,
   BaseFeeDataPoint,
+  BlobPricingResponse,
+  ChartDataset,
   GasUtilizationDataPoint,
-  L2UsageDataPoint,
-  CostComparisonDataPoint,
-  FeeMarketIndicators,
+  NetworkStats,
+  RollingWindowDataPoint,
+  RollingWindowKey,
 } from '../types';
 
-const TARGET_BLOB_GAS = 393_216; // 3 blobs * 131,072 gas per blob
-const DEFAULT_BLOB_GAS = 131_072; // Gas per single blob
+const WINDOW_LABELS: Record<RollingWindowKey, string> = {
+  '5m': '5m',
+  '1h': '1h',
+  '24h': '24h',
+  '7d': '7d',
+  '30d': '30d',
+};
 
-function getGranularity(range: TimeRange): Granularity {
-  switch (range) {
-    case '24h': return 'block';
-    case '7d': return 'hourly';
-    case '30d':
-    case 'All':
-      return 'daily';
-  }
+const WINDOW_FALLBACK_ORDER: RollingWindowKey[] = ['30d', '7d', '24h', '1h', '5m'];
+
+function roundTo(value: number, digits: number): number {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
 }
 
-function filterByTimeRange(blobs: BlobResponse[], range: TimeRange): BlobResponse[] {
-  if (range === 'All') return blobs;
-  const now = Date.now();
-  const ms: Record<string, number> = {
-    '24h': 24 * 60 * 60 * 1000,
-    '7d': 7 * 24 * 60 * 60 * 1000,
-    '30d': 30 * 24 * 60 * 60 * 1000,
-  };
-  const cutoff = now - (ms[range] || 0);
-  return blobs.filter(b => new Date(b.timestamp).getTime() >= cutoff);
+function parseFiniteNumber(value: string | number | undefined): number {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function weiToGwei(wei: string): number {
-  try {
-    return Number(formatUnits(BigInt(wei || '0'), 9));
-  } catch {
-    return 0;
-  }
+function decimalWeiToGwei(value: string | undefined): number {
+  return roundTo(parseFiniteNumber(value) / 1e9, 6);
 }
 
-function weiToEth(wei: string): number {
-  try {
-    return Number(formatUnits(BigInt(wei || '0'), 18));
-  } catch {
-    return 0;
+function weiToEth(value: string | undefined): number {
+  if (!value) return 0;
+
+  if (/^\d+$/.test(value)) {
+    return Number(formatUnits(BigInt(value), 18));
   }
+
+  return parseFiniteNumber(value) / 1e18;
 }
 
-function bucketKey(blob: BlobResponse, granularity: Granularity): string {
-  if (granularity === 'block') {
-    return blob.block_number.toString();
-  }
-  const date = new Date(blob.timestamp);
-  if (granularity === 'hourly') {
-    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
-  }
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+function isoTimestamp(value: string): number {
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
-function formatLabel(blob: BlobResponse, granularity: Granularity): string {
-  if (granularity === 'block') {
-    return `#${blob.block_number}`;
+function formatWindowLabel(window: string): string {
+  if (window in WINDOW_LABELS) {
+    return WINDOW_LABELS[window as RollingWindowKey];
   }
-  const date = new Date(blob.timestamp);
-  if (granularity === 'hourly') {
-    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-  }
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return window;
 }
 
-export function aggregateChartData(
-  rawBlobs: BlobResponse[],
+function getCurrentBaseFeeGwei(pricing: BlobPricingResponse, baseFee: BaseFeeDataPoint[]): number {
+  const current = parseFiniteNumber(pricing.current_base_fee_gwei);
+  if (current > 0) return roundTo(current, 6);
+
+  const latest = baseFee[baseFee.length - 1];
+  return latest?.baseFeeGwei ?? 0;
+}
+
+function formatBlockCoverage(recentBlockCount: number): string {
+  if (recentBlockCount === 0) return 'no recent pricing blocks';
+  if (recentBlockCount === 1) return 'latest 1 pricing block';
+  return `latest ${recentBlockCount.toLocaleString()} pricing blocks`;
+}
+
+function formatRollingCoverage(timeRange: TimeRange, selectedWindow: RollingWindowDataPoint | null): string {
+  if (!selectedWindow) return 'rolling stats unavailable';
+
+  if (timeRange === 'All') {
+    return `All view uses the ${selectedWindow.label} rolling API window`;
+  }
+
+  if (selectedWindow.window !== timeRange) {
+    return `${timeRange} view uses the ${selectedWindow.label} rolling API window`;
+  }
+
+  return `${selectedWindow.label} rolling API window`;
+}
+
+export function getRequestedRollingWindow(timeRange: TimeRange): RollingWindowKey {
+  if (timeRange === 'All') return '30d';
+  return timeRange;
+}
+
+export function transformStatsWindows(
+  statsWindows: BackendStatsWindowsResponse
+): RollingWindowDataPoint[] {
+  return statsWindows.windows
+    .map((window) => ({
+      window: window.window,
+      label: formatWindowLabel(window.window),
+      durationSeconds: window.duration_seconds,
+      startTimestamp: isoTimestamp(window.start_time),
+      endTimestamp: isoTimestamp(window.end_time),
+      averageBaseFeeGwei: decimalWeiToGwei(window.average_blob_base_fee),
+      medianBaseFeeGwei: decimalWeiToGwei(window.median_blob_base_fee),
+      p95BaseFeeGwei: decimalWeiToGwei(window.p95_blob_base_fee),
+      totalBlobs: window.total_blobs,
+      totalBlobGasUsed: window.total_blob_gas_used,
+      averageUtilizationPct: roundTo(parseFiniteNumber(window.average_utilization) * 100, 2),
+      totalCostEth: weiToEth(window.total_cost_eth),
+      uniqueSenders: window.unique_senders,
+    }))
+    .sort((a, b) => a.durationSeconds - b.durationSeconds);
+}
+
+export function selectRollingWindow(
+  windows: RollingWindowDataPoint[],
   timeRange: TimeRange
+): RollingWindowDataPoint | null {
+  const requestedWindow = getRequestedRollingWindow(timeRange);
+  const exactMatch = windows.find((window) => window.window === requestedWindow);
+  if (exactMatch) return exactMatch;
+
+  for (const fallback of WINDOW_FALLBACK_ORDER) {
+    const fallbackMatch = windows.find((window) => window.window === fallback);
+    if (fallbackMatch) return fallbackMatch;
+  }
+
+  return windows[windows.length - 1] ?? null;
+}
+
+export function transformPricingBlocks(pricing: BlobPricingResponse): {
+  baseFee: BaseFeeDataPoint[];
+  gasUtilization: GasUtilizationDataPoint[];
+} {
+  const sortedBlocks = [...pricing.recent_blocks].sort((a, b) => {
+    const timestampDiff = isoTimestamp(a.block_timestamp) - isoTimestamp(b.block_timestamp);
+    return timestampDiff !== 0 ? timestampDiff : a.block_number - b.block_number;
+  });
+
+  const baseFee = sortedBlocks.map((block) => ({
+    timestamp: isoTimestamp(block.block_timestamp),
+    label: `#${block.block_number}`,
+    baseFeeGwei: roundTo(
+      parseFiniteNumber(block.blob_base_fee_gwei) || decimalWeiToGwei(block.blob_base_fee),
+      6
+    ),
+    blockNumber: block.block_number,
+  }));
+
+  const gasUtilization = sortedBlocks.map((block) => {
+    const targetGas = block.blob_gas_target || pricing.blob_params.target_gas;
+    const utilizationPct =
+      targetGas > 0
+        ? roundTo((block.blob_gas_used / targetGas) * 100, 0)
+        : roundTo(parseFiniteNumber(block.utilization_ratio) * 100, 0);
+
+    return {
+      timestamp: isoTimestamp(block.block_timestamp),
+      label: `#${block.block_number}`,
+      blockNumber: block.block_number,
+      blobGasUsed: block.blob_gas_used,
+      targetGas,
+      blobCount: block.blob_count,
+      utilizationPct,
+    };
+  });
+
+  return { baseFee, gasUtilization };
+}
+
+export function buildChartDataset(
+  statsWindows: BackendStatsWindowsResponse,
+  pricing: BlobPricingResponse,
+  timeRange: TimeRange,
+  stats?: NetworkStats
 ): ChartDataset {
-  const granularity = getGranularity(timeRange);
-  const filtered = filterByTimeRange(rawBlobs, timeRange);
-
-  const sorted = [...filtered].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
-
-  // Group into buckets preserving insertion order
-  const bucketKeys: string[] = [];
-  const buckets = new Map<string, BlobResponse[]>();
-  for (const blob of sorted) {
-    const key = bucketKey(blob, granularity);
-    if (!buckets.has(key)) {
-      buckets.set(key, []);
-      bucketKeys.push(key);
-    }
-    buckets.get(key)!.push(blob);
-  }
-
-  const baseFee: BaseFeeDataPoint[] = [];
-  const gasUtil: GasUtilizationDataPoint[] = [];
-  const l2Usage: L2UsageDataPoint[] = [];
-  const costComp: CostComparisonDataPoint[] = [];
-
-  for (const key of bucketKeys) {
-    const blobs = buckets.get(key)!;
-    const representative = blobs[0];
-    const ts = new Date(representative.timestamp).getTime();
-    const label = formatLabel(representative, granularity);
-
-    // Base Fee: average within bucket
-    const avgBaseFee =
-      blobs.reduce((sum, b) => sum + weiToGwei(b.base_fee_per_blob_gas), 0) / blobs.length;
-    baseFee.push({
-      timestamp: ts,
-      label,
-      baseFeeGwei: Math.round(avgBaseFee * 1000) / 1000,
-      blockNumber: representative.block_number,
-    });
-
-    // Gas Utilization
-    const totalGas = blobs.reduce((sum, b) => sum + (b.blob_gas_used || DEFAULT_BLOB_GAS), 0);
-    gasUtil.push({
-      timestamp: ts,
-      label,
-      blockNumber: representative.block_number,
-      blobGasUsed: totalGas,
-      targetGas: TARGET_BLOB_GAS,
-      blobCount: blobs.length,
-      utilizationPct: Math.round((totalGas / TARGET_BLOB_GAS) * 100),
-    });
-
-    // L2 Usage
-    const attribs = { arbitrum: 0, optimism: 0, base: 0, zksync: 0, unknown: 0 };
-    for (const b of blobs) {
-      const attr = (b.user_attribution || 'unknown').toLowerCase();
-      if (attr in attribs) {
-        attribs[attr as keyof typeof attribs]++;
-      } else {
-        attribs.unknown++;
-      }
-    }
-    l2Usage.push({ timestamp: ts, label, ...attribs, total: blobs.length });
-
-    // Cost Comparison (blob cost vs estimated calldata equivalent)
-    const avgBlobCost =
-      blobs.reduce((sum, b) => sum + weiToEth(b.total_cost_eth), 0) / blobs.length;
-    // Approximate: calldata for 128KB blob costs ~16x more than blob gas
-    const avgCalldataCost = avgBlobCost * 16;
-    const savings =
-      avgCalldataCost > 0
-        ? Math.round(((avgCalldataCost - avgBlobCost) / avgCalldataCost) * 100)
-        : 0;
-    costComp.push({
-      timestamp: ts,
-      label,
-      blobCostEth: avgBlobCost,
-      calldataEquivEth: avgCalldataCost,
-      savingsPct: savings,
-    });
-  }
-
-  // Fee market indicators from recent data
-  const recentBlobs = sorted.slice(-50);
-  const currentBaseFee =
-    recentBlobs.length > 0
-      ? weiToGwei(recentBlobs[recentBlobs.length - 1].base_fee_per_blob_gas)
-      : 0;
-  const avgFee =
-    recentBlobs.length > 0
-      ? recentBlobs.reduce((s, b) => s + weiToGwei(b.base_fee_per_blob_gas), 0) / recentBlobs.length
-      : 0;
-  const sparkline = baseFee.slice(-12).map(d => d.baseFeeGwei);
-
-  const indicators: FeeMarketIndicators = {
-    currentBaseFeeGwei: Math.round(currentBaseFee * 1000) / 1000,
-    averageBaseFeeGwei: Math.round(avgFee * 1000) / 1000,
-    feeRatio: avgFee > 0 ? Math.round((currentBaseFee / avgFee) * 100) / 100 : 1,
-    pendingBlobCount: 0, // Filled from /stats separately
-    recentBaseFeeSparkline: sparkline,
-  };
+  const rollingWindows = transformStatsWindows(statsWindows);
+  const selectedWindow = selectRollingWindow(rollingWindows, timeRange);
+  const { baseFee, gasUtilization } = transformPricingBlocks(pricing);
+  const currentBaseFeeGwei = getCurrentBaseFeeGwei(pricing, baseFee);
+  const averageBaseFeeGwei =
+    selectedWindow?.averageBaseFeeGwei ??
+    (baseFee.length > 0
+      ? baseFee.reduce((sum, point) => sum + point.baseFeeGwei, 0) / baseFee.length
+      : 0);
+  const rollingCoverageLabel = formatRollingCoverage(timeRange, selectedWindow);
+  const blockCoverageLabel = formatBlockCoverage(pricing.recent_blocks.length);
 
   return {
     baseFee,
-    gasUtilization: gasUtil,
-    l2Usage,
-    costComparison: costComp,
-    indicators,
-    granularity,
+    gasUtilization,
+    l2Usage: [],
+    costComparison: [],
+    rollingWindows,
+    selectedWindow,
+    indicators: {
+      currentBaseFeeGwei,
+      averageBaseFeeGwei: roundTo(averageBaseFeeGwei, 6),
+      feeRatio:
+        averageBaseFeeGwei > 0
+          ? roundTo(currentBaseFeeGwei / averageBaseFeeGwei, 2)
+          : 1,
+      pendingBlobCount: stats?.pendingBlobsCount ?? 0,
+      recentBaseFeeSparkline: baseFee.slice(-12).map((point) => point.baseFeeGwei),
+    },
+    granularity: 'block',
+    recentBlockCount: pricing.recent_blocks.length,
+    rollingCoverageLabel,
+    blockCoverageLabel,
+    coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show the ${blockCoverageLabel}.`,
   };
 }

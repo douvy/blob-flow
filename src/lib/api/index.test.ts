@@ -7,7 +7,9 @@ describe('api/index', () => {
     expect(api).toBe(namedApi);
     expect(api).toHaveProperty('getLatestBlocks');
     expect(api).toHaveProperty('getBlobByTxHash');
+    expect(api).toHaveProperty('getBlobPricing');
     expect(api).toHaveProperty('getStats');
+    expect(api).toHaveProperty('getStatsWindows');
     expect(api).toHaveProperty('getStatus');
     expect(api).toHaveProperty('getMempool');
     expect(api).toHaveProperty('getTopUsers');
