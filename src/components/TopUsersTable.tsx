@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { TopUsersResponse, User } from '../types';
@@ -216,42 +217,48 @@ export default function TopUsersTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {displayData.data.map((user: User) => (
-                  <tr
-                    key={user.address}
-                    className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors cursor-pointer"
-                    onClick={() => router.push(`/user/${user.address}`)}
-                  >
-                    <td className="py-3 px-6 text-sm font-medium text-white whitespace-nowrap">
-                      <div className="flex items-center">
-                        {getAttributionImageSrc(user.name) ? (
-                          <img
-                            src={getAttributionImageSrc(user.name) || ''}
-                            alt={user.name}
-                            className="inline-block w-5 h-5 mr-3"
-                          />
-                        ) : (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-3 bg-gray-500 text-[10px] text-white font-medium">
-                            {getAttributionInitial(user.name)}
-                          </span>
-                        )}
-                        {user.name}
-                      </div>
-                    </td>
-                    <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{user.dataCount}</td>
-                    <td className="py-3 px-6 text-sm text-white whitespace-nowrap">
-                      <div className="flex items-center">
-                        <span className="mr-3">{user.percentage}%</span>
-                        <div className="w-32 bg-[#2a2f37] rounded-full h-2.5">
-                          <div
-                            className={`h-2.5 rounded-full ${getUserColor(user.name)}`}
-                            style={{ width: `${user.percentage}%` }}
-                          ></div>
+                {displayData.data.map((user: User) => {
+                  const imageSrc = getAttributionImageSrc(user.name);
+
+                  return (
+                    <tr
+                      key={user.address}
+                      className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/user/${user.address}`)}
+                    >
+                      <td className="py-3 px-6 text-sm font-medium text-white whitespace-nowrap">
+                        <div className="flex items-center">
+                          {imageSrc ? (
+                            <Image
+                              src={imageSrc}
+                              alt={user.name}
+                              width={20}
+                              height={20}
+                              className="inline-block w-5 h-5 mr-3"
+                            />
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-3 bg-gray-500 text-[10px] text-white font-medium">
+                              {getAttributionInitial(user.name)}
+                            </span>
+                          )}
+                          {user.name}
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{user.dataCount}</td>
+                      <td className="py-3 px-6 text-sm text-white whitespace-nowrap">
+                        <div className="flex items-center">
+                          <span className="mr-3">{user.percentage}%</span>
+                          <div className="w-32 bg-[#2a2f37] rounded-full h-2.5">
+                            <div
+                              className={`h-2.5 rounded-full ${getUserColor(user.name)}`}
+                              style={{ width: `${user.percentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

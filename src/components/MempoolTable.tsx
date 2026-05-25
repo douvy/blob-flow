@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Image from 'next/image';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { MempoolResponse, MempoolTransaction } from '../types';
@@ -120,47 +121,53 @@ export default function MempoolTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {displayData.data.map((tx: MempoolTransaction) => (
-                  <tr key={`${tx.txHash}-${tx.rawBlob.blob_index}`} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
-                    <td className="py-3 px-6 text-sm font-mono text-white">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTransaction(tx)}
-                        className="cursor-pointer rounded text-left text-white underline decoration-[#3B55E6]/50 underline-offset-4 transition-colors hover:text-[#9ac4fd] focus:outline-none focus:ring-2 focus:ring-[#3B55E6] focus:ring-offset-2 focus:ring-offset-[#161a29]"
-                        aria-label={`View pending blob details for transaction ${tx.txHash}`}
-                      >
-                        {truncateTxHash(tx.txHash)}
-                      </button>
-                    </td>
-                    <td className="py-3 px-6 text-sm font-mono text-white">{tx.fromAddress}</td>
-                    <td className="py-3 px-6 text-sm text-white">
-                      {tx.user ? (
-                        <div className="flex items-center">
-                          {getAttributionImageSrc(tx.user) ? (
-                            <img
-                              src={getAttributionImageSrc(tx.user) || ''}
-                              alt={tx.user}
-                              className="inline-block w-5 h-5 mr-3"
-                            />
-                          ) : (
-                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-3 bg-gray-500 text-[10px] text-white font-medium">
-                              {getAttributionInitial(tx.user)}
-                            </span>
-                          )}
-                          {tx.user}
-                        </div>
-                      ) : (
-                        <div className="flex items-center">
-                          <span className="inline-block w-5 h-5 rounded-full mr-3 bg-gray-500"></span>
-                          <span className="text-white">Unknown</span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.blobCount}</td>
-                    <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.estimatedCost}</td>
-                    <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.timeInMempool}</td>
-                  </tr>
-                ))}
+                {displayData.data.map((tx: MempoolTransaction) => {
+                  const userImageSrc = tx.user ? getAttributionImageSrc(tx.user) : null;
+
+                  return (
+                    <tr key={`${tx.txHash}-${tx.rawBlob.blob_index}`} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
+                      <td className="py-3 px-6 text-sm font-mono text-white">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTransaction(tx)}
+                          className="cursor-pointer rounded text-left text-white underline decoration-[#3B55E6]/50 underline-offset-4 transition-colors hover:text-[#9ac4fd] focus:outline-none focus:ring-2 focus:ring-[#3B55E6] focus:ring-offset-2 focus:ring-offset-[#161a29]"
+                          aria-label={`View pending blob details for transaction ${tx.txHash}`}
+                        >
+                          {truncateTxHash(tx.txHash)}
+                        </button>
+                      </td>
+                      <td className="py-3 px-6 text-sm font-mono text-white">{tx.fromAddress}</td>
+                      <td className="py-3 px-6 text-sm text-white">
+                        {tx.user ? (
+                          <div className="flex items-center">
+                            {userImageSrc ? (
+                              <Image
+                                src={userImageSrc}
+                                alt={tx.user}
+                                width={20}
+                                height={20}
+                                className="inline-block w-5 h-5 mr-3"
+                              />
+                            ) : (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-3 bg-gray-500 text-[10px] text-white font-medium">
+                                {getAttributionInitial(tx.user)}
+                              </span>
+                            )}
+                            {tx.user}
+                          </div>
+                        ) : (
+                          <div className="flex items-center">
+                            <span className="inline-block w-5 h-5 rounded-full mr-3 bg-gray-500"></span>
+                            <span className="text-white">Unknown</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.blobCount}</td>
+                      <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.estimatedCost}</td>
+                      <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.timeInMempool}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
