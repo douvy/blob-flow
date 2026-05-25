@@ -26,11 +26,13 @@ describe('api/blocks', () => {
             block_number: 100,
             timestamp: '2026-01-01T00:00:00.000Z',
             user_attribution: 'Optimism',
+            tx_hash: '0xabc',
           },
           {
             block_number: 100,
             timestamp: '2026-01-01T00:00:01.000Z',
             user_attribution: 'Optimism',
+            tx_hash: '0xdef',
           },
           {
             block_number: 101,
@@ -56,6 +58,7 @@ describe('api/blocks', () => {
       timestamp: '1 min ago',
       attribution: ['Optimism'],
     });
+    expect(result.data[0].blobs.map((blob) => blob.tx_hash)).toEqual(['0xabc', '0xdef']);
     expect(result.data[1].attribution).toEqual(['Unknown']);
   });
 
