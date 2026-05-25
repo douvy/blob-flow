@@ -6,6 +6,7 @@ import {
   formatNumber,
   formatPercent,
   formatWeiToGwei,
+  formatWeiToEth,
   formatWeiToReadable,
   getAttributionImageSrc,
   getAttributionInitial,
@@ -34,6 +35,11 @@ describe('utils', () => {
     expect(formatWeiToReadable('1000000000')).toBe('1 Gwei');
     expect(formatWeiToReadable('5014755072.74762611')).toBe('5.01475507274762611 Gwei');
     expect(formatWeiToReadable('1000000000000000000')).toBe('1 ETH');
+  });
+
+  it('formats wei values explicitly as ETH', () => {
+    expect(formatWeiToEth('500000000000000')).toBe('0.0005 ETH');
+    expect(formatWeiToEth('2203603226459001.927')).toBe('0.002203603226459001927 ETH');
   });
 
   it('formats decimal ETH costs and integer wei costs', () => {

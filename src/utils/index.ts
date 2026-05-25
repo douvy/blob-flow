@@ -103,6 +103,11 @@ export function formatPercent(value: number, maximumFractionDigits = 1): string 
   return `${formatCompactDecimal(value, maximumFractionDigits)}%`;
 }
 
+export function formatWeiToEth(weiValue: string | number): string {
+  const rawWeiValue = normalizeDecimalString(weiValue);
+  return `${formatDecimalUnits(rawWeiValue, 18)} ETH`;
+}
+
 export function formatCostEthOrWei(costEthOrWei: string | number): string {
   const rawCost = normalizeDecimalString(costEthOrWei);
 
