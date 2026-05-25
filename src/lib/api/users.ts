@@ -2,19 +2,12 @@ import { TopUsersResponse, User, ApiResponse, UserResponse, BlobResponse } from 
 import { fetchApi } from './core';
 import { truncateAddress } from '../../utils';
 
-/**
- * Get top blob users
- * @param limit - Number of users to return
- * @param network - Optional network parameter
- */
-export const getTopUsers = async (limit = 10, network?: string): Promise<TopUsersResponse> => {
-    const response = await fetchApi<ApiResponse<UserResponse[]>>(`/users?limit=${limit}`, network);
-
+export function transformUserResponses(usersResponse: UserResponse[]): TopUsersResponse {
     // Calculate total blobs across all returned users for percentage calculation
-    const totalBlobs = response.data.reduce((sum, user) => sum + user.blob_count, 0) || 1;
+    const totalBlobs = usersResponse.reduce((sum, user) => sum + user.blob_count, 0) || 1;
 
     // Map the API response to our expected format
-    const users: User[] = response.data.map((user: UserResponse, index: number) => {
+    const users: User[] = usersResponse.map((user: UserResponse, index: number) => {
         const percentage = Math.round((user.blob_count / totalBlobs) * 1000) / 10;
 
         return {
@@ -29,6 +22,17 @@ export const getTopUsers = async (limit = 10, network?: string): Promise<TopUser
     });
 
     return { data: users };
+}
+
+/**
+ * Get top blob users
+ * @param limit - Number of users to return
+ * @param network - Optional network parameter
+ */
+export const getTopUsers = async (limit = 10, network?: string): Promise<TopUsersResponse> => {
+    const response = await fetchApi<ApiResponse<UserResponse[]>>(`/users?limit=${limit}`, network);
+
+    return transformUserResponses(response.data);
 };
 
 /**

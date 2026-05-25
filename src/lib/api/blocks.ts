@@ -1,5 +1,90 @@
-import { Block, LatestBlocksResponse, ApiResponse, BlobResponse, PricingResponse } from '../../types';
+import {
+    ApiResponse,
+    BackendBlobPricingRecentBlock,
+    BackendBlobPricingResponse,
+    BlobResponse,
+    Block,
+    LatestBlocksResponse,
+    NewBlockData,
+} from '../../types';
 import { fetchApi, formatRelativeTime } from './core';
+
+function getAttributions(blobs: BlobResponse[]): string[] {
+    const attributions: string[] = Array.from(new Set(
+        blobs
+            .map(blob => blob.user_attribution)
+            .filter((attr): attr is string => Boolean(attr))
+    ));
+
+    return attributions.length > 0 ? attributions : ['Unknown'];
+}
+
+function getBlockUrl(blobs: BlobResponse[]): string | undefined {
+    return blobs.find(blob => Boolean(blob.block_url))?.block_url;
+}
+
+function getBlockBaseFeeGwei(blobs: BlobResponse[]): string {
+    return blobs.find(blob => Boolean(blob.base_fee_per_blob_gas_gwei))
+        ?.base_fee_per_blob_gas_gwei || '0';
+}
+
+function getBlobGasUsed(blobs: BlobResponse[]): number {
+    return blobs.reduce((total, blob) => total + (blob.blob_gas_used || 0), 0);
+}
+
+export function transformNewBlockData(
+    blockData: NewBlockData,
+    pricingBlock?: BackendBlobPricingRecentBlock
+): Block {
+    const maxBlobs = pricingBlock?.max_blobs || blockData.blob_count;
+    const targetBlobs = pricingBlock?.target_blobs || 0;
+    const utilizationPercent = pricingBlock?.utilization_percent
+        ?? (maxBlobs > 0 ? (blockData.blob_count / maxBlobs) * 100 : 0);
+
+    return {
+        id: blockData.block_number,
+        number: blockData.block_number.toString(),
+        blockUrl: getBlockUrl(blockData.blobs),
+        blobCount: pricingBlock?.blob_count ?? blockData.blob_count,
+        blobGasUsed: pricingBlock?.blob_gas_used ?? getBlobGasUsed(blockData.blobs),
+        blobGasTarget: pricingBlock?.blob_gas_target ?? 0,
+        blobGasLimit: pricingBlock?.blob_gas_limit ?? 0,
+        targetBlobs,
+        maxBlobs,
+        availableBlobs: pricingBlock?.available_blobs ?? Math.max(0, maxBlobs - blockData.blob_count),
+        baseFeeGwei: pricingBlock?.blob_base_fee_gwei ?? getBlockBaseFeeGwei(blockData.blobs),
+        utilizationPercent,
+        isFull: pricingBlock?.is_full ?? (maxBlobs > 0 && blockData.blob_count >= maxBlobs),
+        isAboveTarget: pricingBlock?.is_above_target ?? (targetBlobs > 0 && blockData.blob_count > targetBlobs),
+        timestamp: formatRelativeTime(blockData.timestamp),
+        attribution: getAttributions(blockData.blobs),
+        blobs: blockData.blobs
+    };
+}
+
+export function transformBlobResponsesToBlocks(blobsResponse: BlobResponse[]): LatestBlocksResponse {
+    // Group blobs by block number
+    const blockMap = new Map<string, { blobs: BlobResponse[]; firstSeen: string }>();
+    for (const blob of blobsResponse) {
+        const blockNum = blob.block_number.toString();
+        if (!blockMap.has(blockNum)) {
+            blockMap.set(blockNum, { blobs: [], firstSeen: blob.timestamp });
+        }
+        blockMap.get(blockNum)!.blobs.push(blob);
+    }
+
+    // Convert to Block[] for display
+    const blocks: Block[] = Array.from(blockMap.entries()).map(([blockNum, { blobs, firstSeen }]) => {
+        return transformNewBlockData({
+            block_number: Number(blockNum),
+            blob_count: blobs.length,
+            timestamp: firstSeen,
+            blobs
+        });
+    });
+
+    return { data: blocks };
+}
 
 /**
  * Get latest blocks with pricing and capacity details.
@@ -7,50 +92,34 @@ import { fetchApi, formatRelativeTime } from './core';
  * @param network - Optional network parameter
  */
 export async function getLatestBlocks(limit = 20, network?: string): Promise<LatestBlocksResponse> {
-    const pricingResponse = await fetchApi<ApiResponse<PricingResponse>>('/blob/pricing', network);
+    const pricingResponse = await fetchApi<ApiResponse<BackendBlobPricingResponse>>(
+        `/blob/pricing?blocks=${limit}`,
+        network
+    );
     const blobLimit = Math.max(limit * pricingResponse.data.blob_params.max, limit);
-    const latestBlobsResponse = await fetchApi<ApiResponse<BlobResponse[]>>(`/blob/latest?limit=${blobLimit}`, network);
+    const latestBlobsResponse = await fetchApi<ApiResponse<BlobResponse[]>>(
+        `/blob/latest?limit=${blobLimit}`,
+        network
+    );
 
-    const blobDetailsByBlock = new Map<number, { attributions: string[]; blockUrl?: string }>();
+    const blobsByBlock = new Map<number, BlobResponse[]>();
     for (const blob of latestBlobsResponse.data) {
         if (blob.block_number < 0) continue;
 
-        if (!blobDetailsByBlock.has(blob.block_number)) {
-            blobDetailsByBlock.set(blob.block_number, { attributions: [], blockUrl: blob.block_url });
-        }
-
-        const details = blobDetailsByBlock.get(blob.block_number);
-        if (!details) continue;
-
-        if (!details.blockUrl && blob.block_url) {
-            details.blockUrl = blob.block_url;
-        }
-
-        if (blob.user_attribution && !details.attributions.includes(blob.user_attribution)) {
-            details.attributions.push(blob.user_attribution);
-        }
+        const blobs = blobsByBlock.get(blob.block_number) || [];
+        blobs.push(blob);
+        blobsByBlock.set(blob.block_number, blobs);
     }
 
-    const blocks: Block[] = pricingResponse.data.recent_blocks.slice(0, limit).map((block, index) => {
-        const details = blobDetailsByBlock.get(block.block_number);
-        return {
-            id: index + 1,
-            number: block.block_number.toString(),
-            blockUrl: details?.blockUrl,
-            blobCount: block.blob_count,
-            blobGasUsed: block.blob_gas_used,
-            blobGasTarget: block.blob_gas_target,
-            blobGasLimit: block.blob_gas_limit,
-            targetBlobs: block.target_blobs,
-            maxBlobs: block.max_blobs,
-            availableBlobs: block.available_blobs,
-            baseFeeGwei: block.blob_base_fee_gwei,
-            utilizationPercent: block.utilization_percent,
-            isFull: block.is_full,
-            isAboveTarget: block.is_above_target,
-            timestamp: formatRelativeTime(block.block_timestamp),
-            attribution: details && details.attributions.length > 0 ? details.attributions : ['Unknown']
-        };
+    const blocks: Block[] = pricingResponse.data.recent_blocks.slice(0, limit).map((block) => {
+        const blobs = blobsByBlock.get(block.block_number) || [];
+
+        return transformNewBlockData({
+            block_number: block.block_number,
+            blob_count: block.blob_count,
+            timestamp: block.block_timestamp,
+            blobs
+        }, block);
     });
 
     return { data: blocks };

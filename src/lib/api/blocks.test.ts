@@ -24,7 +24,11 @@ describe('api/blocks', () => {
           success: true,
           data: {
             blob_params: {
+              target: 3,
               max: 6,
+              update_fraction: 3338477,
+              target_gas: 393216,
+              max_gas: 786432,
             },
             recent_blocks: [
               {
@@ -34,13 +38,19 @@ describe('api/blocks', () => {
                 blob_gas_used: 262144,
                 blob_gas_target: 393216,
                 blob_gas_limit: 786432,
+                excess_blob_gas: 0,
+                blob_base_fee: '250000000',
+                blob_base_fee_gwei: '0.25',
+                utilization_ratio: '0.3333',
+                blob_params_target: 3,
+                blob_params_max: 6,
                 target_blobs: 3,
                 max_blobs: 6,
                 available_blobs: 4,
-                blob_base_fee_gwei: '0.25',
                 utilization_percent: 33.33,
                 is_full: false,
                 is_above_target: false,
+                update_fraction: 3338477,
               },
               {
                 block_number: 101,
@@ -49,13 +59,19 @@ describe('api/blocks', () => {
                 blob_gas_used: 0,
                 blob_gas_target: 393216,
                 blob_gas_limit: 786432,
+                excess_blob_gas: 0,
+                blob_base_fee: '200000000',
+                blob_base_fee_gwei: '0.2',
+                utilization_ratio: '0',
+                blob_params_target: 3,
+                blob_params_max: 6,
                 target_blobs: 3,
                 max_blobs: 6,
                 available_blobs: 6,
-                blob_base_fee_gwei: '0.2',
                 utilization_percent: 0,
                 is_full: false,
                 is_above_target: false,
+                update_fraction: 3338477,
               },
             ],
           },
@@ -71,11 +87,13 @@ describe('api/blocks', () => {
               timestamp: '2026-01-01T00:00:00.000Z',
               user_attribution: 'Optimism',
               block_url: 'https://etherscan.io/block/100',
+              tx_hash: '0xabc',
             },
             {
               block_number: 100,
               timestamp: '2026-01-01T00:00:01.000Z',
               user_attribution: 'Optimism',
+              tx_hash: '0xdef',
             },
           ],
         }),
@@ -87,7 +105,7 @@ describe('api/blocks', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      expect.stringContaining('/blob/pricing?network=mainnet'),
+      expect.stringContaining('/blob/pricing?blocks=20&network=mainnet'),
       expect.any(Object)
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -107,6 +125,7 @@ describe('api/blocks', () => {
       maxBlobs: 6,
       attribution: ['Optimism'],
     });
+    expect(result.data[0].blobs.map((blob) => blob.tx_hash)).toEqual(['0xabc', '0xdef']);
     expect(result.data[1].attribution).toEqual(['Unknown']);
   });
 

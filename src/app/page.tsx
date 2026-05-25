@@ -3,23 +3,26 @@
 import React from 'react';
 import Header from '@/components/Header';
 import LiveMetrics from '@/components/LiveMetrics';
+import BlobMarketPanels from '@/components/BlobMarketPanels';
 import MetricsCharts from '@/components/MetricsCharts';
 import LatestBlocksTable from '@/components/LatestBlocksTable';
 import TopUsersTable from '@/components/TopUsersTable';
 import MempoolTable from '@/components/MempoolTable';
 import ExplainerSection from '@/components/ExplainerSection';
 import Footer from '@/components/Footer';
-import { TimeRangeProvider } from '@/contexts/TimeRangeContext';
 
 export default function Home() {
   return (
-    <TimeRangeProvider>
     <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
       <Header />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Full width LiveMetrics with 4 cards */}
         <div className="mb-12">
           <LiveMetrics />
+        </div>
+
+        <div className="mb-12">
+          <BlobMarketPanels />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
@@ -50,6 +53,5 @@ export default function Home() {
       </div>
       <Footer />
     </main>
-    </TimeRangeProvider>
   );
 }

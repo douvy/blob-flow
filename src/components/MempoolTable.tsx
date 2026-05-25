@@ -1,25 +1,58 @@
 "use client";
 
+import Image from 'next/image';
 import React from 'react';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { MempoolResponse, MempoolTransaction } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
-import { formatBlobCount, formatBlobSize, getNetworkIconSrc } from '../utils';
+import {
+  formatBlobCount,
+  formatBlobSize,
+  getAttributionImageSrc,
+  getAttributionInitial,
+} from '../utils';
+import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
+import MempoolBlobDetailsModal from './MempoolBlobDetailsModal';
 
 export default function MempoolTable() {
   const { selectedNetwork } = useNetwork();
-  const fetchMempool = React.useCallback(
-    () => api.getMempool(10, selectedNetwork.apiParam),
-    [selectedNetwork.apiParam]
-  );
+  const { latestEvents } = useBlobWebSocket();
+  const [selectedTransaction, setSelectedTransaction] = React.useState<MempoolTransaction | null>(null);
 
   const { data, isLoading, error } = useApiData<MempoolResponse>(
-    fetchMempool
+    () => api.getMempool(10, selectedNetwork.apiParam),
+    undefined,
+    selectedNetwork.apiParam
   );
 
-  // Loading state for the table
+  const displayData = React.useMemo<MempoolResponse | undefined>(() => {
+    const liveEvent = latestEvents.mempool_update;
+    if (!liveEvent) {
+      return data;
+    }
+
+    if (liveEvent.data.action === 'remove') {
+      return {
+        data: (data?.data || [])
+          .filter((tx) => tx.txHash !== liveEvent.data.blob.tx_hash)
+          .map((tx, index) => ({ ...tx, id: index + 1 })),
+      };
+    }
+
+    const liveTransaction = transformBlobToMempoolTransaction(liveEvent.data.blob, 0);
+    return {
+      data: [
+        liveTransaction,
+        ...(data?.data || []).filter((tx) => tx.txHash !== liveTransaction.txHash),
+      ]
+        .slice(0, 10)
+        .map((tx, index) => ({ ...tx, id: index + 1 })),
+    };
+  }, [data, latestEvents.mempool_update]);
+
   const loadingComponent = (
     <div className="overflow-x-auto border border-divider rounded-lg">
       <table className="min-w-full overflow-hidden table-fixed">
@@ -62,7 +95,6 @@ export default function MempoolTable() {
     </div>
   );
 
-  // Function to truncate transaction hash for display
   const truncateTxHash = (hash: string): string => {
     if (hash.length <= 10) return hash;
     return `${hash.substring(0, 8)}...`;
@@ -73,11 +105,11 @@ export default function MempoolTable() {
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Mempool Attribution</h2>
 
       <DataStateWrapper
-        isLoading={isLoading}
-        error={error}
+        isLoading={isLoading && !displayData}
+        error={displayData ? null : error}
         loadingComponent={loadingComponent}
       >
-        {data && (
+        {displayData && (
           <div className="overflow-x-auto border border-divider rounded-lg">
             <table className="min-w-full overflow-hidden table-fixed">
               <thead>
@@ -91,49 +123,56 @@ export default function MempoolTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {data.data.map((tx: MempoolTransaction) => {
-                  const iconSrc = getNetworkIconSrc(tx.user);
+                {displayData.data.map((tx: MempoolTransaction) => {
+                  const user = tx.user || 'Unknown';
+                  const iconSrc = getAttributionImageSrc(user);
 
                   return (
-                    <tr key={tx.id} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
+                    <tr
+                      key={`${tx.txHash}-${tx.rawBlob.blob_index}`}
+                      className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors"
+                    >
                       <td className="py-3 px-3 sm:px-4 text-sm font-mono text-white">
-                        {tx.transactionUrl ? (
-                          <a
-                            href={tx.transactionUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue hover:underline"
-                          >
-                            {truncateTxHash(tx.txHash)}
-                          </a>
-                        ) : (
-                          <span>{truncateTxHash(tx.txHash)}</span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTransaction(tx)}
+                          className="cursor-pointer rounded text-left text-white underline decoration-[#3B55E6]/50 underline-offset-4 transition-colors hover:text-[#9ac4fd] focus:outline-none focus:ring-2 focus:ring-[#3B55E6] focus:ring-offset-2 focus:ring-offset-[#161a29]"
+                          aria-label={`View pending blob details for transaction ${tx.txHash}`}
+                        >
+                          {truncateTxHash(tx.txHash)}
+                        </button>
                         <div className="text-xs text-[#8a93a5] mt-1 font-sans md:hidden">{tx.timeInMempool}</div>
                       </td>
                       <td className="py-3 px-3 sm:px-4 text-sm text-white min-w-0">
-                        <div className="font-mono whitespace-nowrap">
+                        <div className="font-mono whitespace-nowrap" title={tx.fromAddressFull}>
                           {tx.fromAddressUrl ? (
                             <a
                               href={tx.fromAddressUrl}
                               target="_blank"
                               rel="noreferrer"
                               className="text-blue hover:underline"
-                              title={tx.fromAddressFull}
                             >
                               {tx.fromAddress}
                             </a>
                           ) : (
-                            <span title={tx.fromAddressFull}>{tx.fromAddress}</span>
+                            <span>{tx.fromAddress}</span>
                           )}
                         </div>
                         <div className="flex items-center text-xs text-[#8a93a5] mt-1 min-w-0">
                           {iconSrc ? (
-                            <img src={iconSrc} alt={tx.user || 'Unknown'} className="inline-block w-4 h-4 mr-2 shrink-0" />
+                            <Image
+                              src={iconSrc}
+                              alt={user}
+                              width={16}
+                              height={16}
+                              className="inline-block w-4 h-4 mr-2 shrink-0"
+                            />
                           ) : (
-                            <span className="inline-block w-4 h-4 rounded-full mr-2 bg-gray-500 shrink-0" />
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full mr-2 bg-gray-500 text-[9px] text-white font-medium shrink-0">
+                              {getAttributionInitial(user)}
+                            </span>
                           )}
-                          <span className="truncate">{tx.user || 'Unknown'}</span>
+                          <span className="truncate">{user}</span>
                         </div>
                       </td>
                       <td className="py-3 px-3 sm:px-4 text-sm text-white">
@@ -158,6 +197,10 @@ export default function MempoolTable() {
           </div>
         )}
       </DataStateWrapper>
+      <MempoolBlobDetailsModal
+        transaction={selectedTransaction}
+        onClose={() => setSelectedTransaction(null)}
+      />
     </section>
   );
 }

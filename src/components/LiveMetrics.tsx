@@ -1,62 +1,121 @@
 "use client";
 
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import MetricCard from './MetricCard';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
-import { StatsResponse } from '../types';
+import { selectRollingWindow, transformStatsWindows } from '../lib/chartAggregation';
+import { transformStatsResponse } from '../lib/api/stats';
+import { BackendStatsWindowsResponse, RollingWindowDataPoint, StatsResponse } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
+import { useTimeRange } from '../contexts/TimeRangeContext';
+import { useBlobWebSocket } from '../contexts/LiveDataContext';
+
+function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function formatGwei(value: number): string {
+  if (value === 0) return '0 Gwei';
+  if (value < 0.01) return `${value.toFixed(4)} Gwei`;
+  return `${value.toFixed(2)} Gwei`;
+}
+
+function formatEth(value: number): string {
+  if (value === 0) return '0 ETH';
+  if (value < 0.000001) return `${value.toExponential(1)} ETH`;
+  if (value < 0.001) return `${value.toFixed(6)} ETH`;
+  return `${value.toFixed(4)} ETH`;
+}
 
 export default function LiveMetrics() {
   const { selectedNetwork } = useNetwork();
-  const fetchStats = React.useCallback(
-    () => api.getStats(selectedNetwork.apiParam),
-    [selectedNetwork.apiParam]
+  const { timeRange } = useTimeRange();
+  const { latestEvents } = useBlobWebSocket();
+  const network = selectedNetwork.apiParam;
+
+  const fetchStats = useCallback(
+    () => api.getStats(network),
+    [network]
   );
 
-  // Fetch stats data from API
-  const { data, isLoading, error } = useApiData<StatsResponse>(
-    fetchStats
+  const fetchStatsWindows = useCallback(
+    () => api.getStatsWindows(undefined, network),
+    [network]
   );
 
-  // Transform API data into metrics format
-  const getMetricsFromData = (statsData: StatsResponse) => {
+  const {
+    data,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useApiData<StatsResponse>(fetchStats, undefined, network);
+
+  const {
+    data: statsWindows,
+    isLoading: windowsLoading,
+    error: windowsError,
+  } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, undefined, network);
+
+  const rollingWindows = useMemo(
+    () => (statsWindows ? transformStatsWindows(statsWindows) : []),
+    [statsWindows]
+  );
+
+  const selectedWindow = useMemo(
+    () => selectRollingWindow(rollingWindows, timeRange),
+    [rollingWindows, timeRange]
+  );
+
+  const liveStatsData = latestEvents.stats_update
+    ? transformStatsResponse(latestEvents.stats_update.data)
+    : undefined;
+  const displayData = liveStatsData || data;
+
+  const getMetricsFromData = (
+    statsData: StatsResponse,
+    window: RollingWindowDataPoint
+  ) => {
     const stats = statsData.data;
 
     return [
       {
-        title: 'Avg Blob Base Fee',
-        value: stats.averageBaseFee,
+        title: 'Avg Base Fee',
+        value: formatGwei(window.averageBaseFeeGwei),
         trend: 'neutral' as const,
-        description: `${stats.totalConfirmedBlobs} confirmed blobs`,
+        description: `Median ${formatGwei(window.medianBaseFeeGwei)} / p95 ${formatGwei(window.p95BaseFeeGwei)}`,
         icon: 'fa-regular fa-money-bills'
       },
       {
-        title: 'Pending Blobs in Mempool',
-        value: stats.pendingBlobsCount.toString(),
+        title: 'Rolling Blobs',
+        value: formatCompactNumber(window.totalBlobs),
         trend: 'neutral' as const,
-        description: 'Current mempool status',
-        icon: 'fa-regular fa-timer'
-      },
-      {
-        title: 'Total Blobs Indexed',
-        value: stats.totalBlobs.toLocaleString(),
-        trend: 'neutral' as const,
-        description: `Last block: ${stats.lastIndexedBlock.toLocaleString()}`,
+        description: `${window.label} rolling window`,
         icon: 'fa-regular fa-cube'
       },
       {
-        title: 'Avg Total Cost',
-        value: stats.averageTotalCost,
+        title: 'Unique Senders',
+        value: formatCompactNumber(window.uniqueSenders),
         trend: 'neutral' as const,
-        description: `Avg tip: ${stats.averageTip}`,
+        description: `Avg util ${window.averageUtilizationPct.toFixed(1)}%`,
+        icon: 'fa-regular fa-users'
+      },
+      {
+        title: 'Total Blob Cost',
+        value: formatEth(window.totalCostEth),
+        trend: 'neutral' as const,
+        description: `Pending: ${stats.pendingBlobsCount.toLocaleString()} blobs`,
         icon: 'fa-regular fa-scale-unbalanced-flip'
       }
     ];
   };
 
-  // Loading state component specifically for metrics cards
+  const isLoading = statsLoading || windowsLoading;
+  const error = statsError || windowsError;
+
   const loadingComponent = (
     <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {[...Array(4)].map((_, index) => (
@@ -74,13 +133,13 @@ export default function LiveMetrics() {
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Live Metrics</h2>
 
       <DataStateWrapper
-        isLoading={isLoading}
-        error={error}
+        isLoading={isLoading && (!displayData || !selectedWindow)}
+        error={displayData && selectedWindow ? null : error}
         loadingComponent={loadingComponent}
       >
-        {data && (
+        {displayData && selectedWindow && (
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {getMetricsFromData(data).map((metric, index) => (
+            {getMetricsFromData(displayData, selectedWindow).map((metric, index) => (
               <MetricCard
                 key={index}
                 title={metric.title}

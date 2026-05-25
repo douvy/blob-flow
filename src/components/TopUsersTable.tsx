@@ -1,5 +1,6 @@
 "use client";
 
+import Image from 'next/image';
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApiData } from '../hooks/useApiData';
@@ -7,22 +8,25 @@ import { api } from '../lib/api';
 import { TopUsersResponse, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
-import { getNetworkIconSrc } from '../utils';
+import { getAttributionImageSrc, getAttributionInitial } from '../utils';
+import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { transformUserResponses } from '../lib/api/users';
 
 export default function TopUsersTable() {
   const router = useRouter();
   const { selectedNetwork } = useNetwork();
-  const fetchTopUsers = React.useCallback(
-    () => api.getTopUsers(10, selectedNetwork.apiParam),
-    [selectedNetwork.apiParam]
-  );
+  const { latestEvents } = useBlobWebSocket();
 
   const { data, isLoading, error } = useApiData<TopUsersResponse>(
-    fetchTopUsers
+    () => api.getTopUsers(10, selectedNetwork.apiParam),
+    undefined,
+    selectedNetwork.apiParam
   );
+  const displayData = latestEvents.users_update
+    ? transformUserResponses(latestEvents.users_update.data)
+    : data;
 
   useEffect(() => {
-    // Function to set up event listeners for tooltips
     const setupTooltips = () => {
       const tooltipElements = document.querySelectorAll('[data-tooltip]');
 
@@ -30,17 +34,14 @@ export default function TopUsersTable() {
         const target = e.currentTarget as HTMLElement;
         const tooltipText = target.getAttribute('data-tooltip');
 
-        // Get or create tooltip
         let tooltip = document.getElementById('custom-tooltip');
         if (!tooltip) {
           tooltip = document.createElement('div');
           tooltip.id = 'custom-tooltip';
 
-          // Create a small arrow element for the tooltip
           const arrow = document.createElement('div');
           tooltip.appendChild(arrow);
 
-          // Style the tooltip - VERY high z-index, fixed position
           Object.assign(tooltip.style, {
             position: 'fixed',
             backgroundColor: '#14161a',
@@ -58,7 +59,6 @@ export default function TopUsersTable() {
             fontFamily: 'inherit'
           });
 
-          // Style the arrow
           Object.assign(arrow.style, {
             position: 'absolute',
             bottom: '-4px',
@@ -71,21 +71,15 @@ export default function TopUsersTable() {
             borderTop: '4px solid #14161a'
           });
 
-          // Create a text container to hold the text
           const textContainer = document.createElement('div');
           textContainer.textContent = tooltipText;
           tooltip.insertBefore(textContainer, arrow);
 
-          // Add to body
           document.body.appendChild(tooltip);
-        } else {
-          // Update text if tooltip already exists
-          if (tooltip.firstChild) {
-            (tooltip.firstChild as HTMLElement).textContent = tooltipText;
-          }
+        } else if (tooltip.firstChild) {
+          (tooltip.firstChild as HTMLElement).textContent = tooltipText;
         }
 
-        // Position above the target element
         const rect = target.getBoundingClientRect();
         tooltip.style.left = (rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2)) + 'px';
         tooltip.style.top = (rect.top - tooltip.offsetHeight - 8) + 'px';
@@ -98,14 +92,12 @@ export default function TopUsersTable() {
         }
       };
 
-      // Add event listeners
       tooltipElements.forEach(el => {
         el.addEventListener('mouseenter', handleMouseEnter);
         el.addEventListener('mouseleave', handleMouseLeave);
       });
 
       return () => {
-        // Cleanup
         tooltipElements.forEach(el => {
           el.removeEventListener('mouseenter', handleMouseEnter);
           el.removeEventListener('mouseleave', handleMouseLeave);
@@ -118,13 +110,9 @@ export default function TopUsersTable() {
       };
     };
 
-    // Setup tooltips
-    const cleanup = setupTooltips();
-
-    return cleanup;
+    return setupTooltips();
   }, []);
 
-  // Loading state for the table
   const loadingComponent = (
     <div className="overflow-x-auto border border-divider rounded-lg">
       <table className="min-w-full overflow-hidden table-fixed">
@@ -169,7 +157,6 @@ export default function TopUsersTable() {
     </div>
   );
 
-  // Helper function to determine user's color for the progress bar
   const getUserColor = (userName: string): string => {
     switch (userName.toLowerCase()) {
       case 'arbitrum':
@@ -190,11 +177,11 @@ export default function TopUsersTable() {
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Top Blob Users</h2>
 
       <DataStateWrapper
-        isLoading={isLoading}
-        error={error}
+        isLoading={isLoading && !displayData}
+        error={displayData ? null : error}
         loadingComponent={loadingComponent}
       >
-        {data && (
+        {displayData && (
           <div className="overflow-x-auto border border-divider rounded-lg">
             <table className="min-w-full overflow-hidden table-fixed">
               <thead>
@@ -212,25 +199,29 @@ export default function TopUsersTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {data.data.map((user: User) => {
-                  const iconSrc = getNetworkIconSrc(user.name);
+                {displayData.data.map((user: User) => {
+                  const iconSrc = getAttributionImageSrc(user.name);
 
                   return (
                     <tr
-                      key={user.id}
+                      key={user.address}
                       className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors cursor-pointer"
                       onClick={() => router.push(`/user/${user.address}`)}
                     >
                       <td className="py-3 px-6 text-sm font-medium text-white whitespace-nowrap">
                         <div className="flex items-center">
                           {iconSrc ? (
-                            <img
+                            <Image
                               src={iconSrc}
                               alt={user.name}
+                              width={20}
+                              height={20}
                               className="inline-block w-5 h-5 mr-3"
                             />
                           ) : (
-                            <span className="inline-block w-5 h-5 rounded-full mr-3 bg-gray-500"></span>
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-3 bg-gray-500 text-[10px] text-white font-medium">
+                              {getAttributionInitial(user.name)}
+                            </span>
                           )}
                           {user.name}
                         </div>

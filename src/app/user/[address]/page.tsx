@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
@@ -13,21 +13,49 @@ import { UserResponse, BlobResponse } from '@/types';
 import {
   formatBlobCount,
   formatBlobSize,
+  formatCostEthOrWei,
   formatFeeHeadroom,
   formatGwei,
   formatWeiToEth,
-  getNetworkIconSrc,
+  formatWeiToGwei,
+  getAttributionImageSrc,
+  getAttributionInitial,
   getBlobCount,
   truncateAddress,
 } from '@/utils';
 import { formatRelativeTime } from '@/lib/api/core';
 
-function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boolean }) {
-  const truncateTxHash = (hash: string): string => {
-    if (hash.length <= 14) return hash;
-    return `${hash.substring(0, 10)}...${hash.substring(hash.length - 4)}`;
-  };
+function truncateTxHash(hash: string): string {
+  if (hash.length <= 14) return hash;
+  return `${hash.substring(0, 10)}...${hash.substring(hash.length - 4)}`;
+}
 
+function safeFormat(formatter: () => string): string {
+  try {
+    return formatter();
+  } catch {
+    return '-';
+  }
+}
+
+function formatBlobFee(gweiValue?: string, weiValue?: string): string {
+  if (gweiValue) return safeFormat(() => formatGwei(gweiValue));
+  if (weiValue) return safeFormat(() => formatWeiToGwei(weiValue));
+  return '-';
+}
+
+function formatWeiCost(weiValue?: string): string {
+  if (!weiValue) return '-';
+  return safeFormat(() => formatWeiToEth(weiValue, true));
+}
+
+function formatTotalCost(totalCost?: string): string {
+  if (!totalCost) return '-';
+  if (totalCost.includes('.')) return safeFormat(() => formatCostEthOrWei(totalCost));
+  return formatWeiCost(totalCost);
+}
+
+function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boolean }) {
   const txWidth = showBlock ? 'w-[24%]' : 'w-[28%]';
   const blockWidth = 'w-[12%]';
   const sizeWidth = showBlock ? 'w-[14%]' : 'w-[16%]';
@@ -60,17 +88,13 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
         <tbody className="divide-y divide-divider">
           {blobs.map((blob) => {
             const blobCount = getBlobCount(blob.blob_gas_used, blob.blob_size_bytes);
-            const baseFee = blob.base_fee_per_blob_gas_gwei
-              ? formatGwei(blob.base_fee_per_blob_gas_gwei)
-              : formatGwei(blob.base_fee_per_blob_gas, { fromWei: true });
-            const tip = blob.tip_per_blob_gas_gwei
-              ? formatGwei(blob.tip_per_blob_gas_gwei)
-              : formatGwei(blob.tip_per_blob_gas, { fromWei: true });
-            const maxFee = blob.max_fee_per_blob_gas_gwei
-              ? formatGwei(blob.max_fee_per_blob_gas_gwei)
-              : formatGwei(blob.max_fee_per_blob_gas, { fromWei: true });
-            const realizedCost = formatWeiToEth(blob.realized_cost_wei || blob.total_cost_eth);
-            const maxCost = formatWeiToEth(blob.max_cost_wei);
+            const baseFee = formatBlobFee(blob.base_fee_per_blob_gas_gwei, blob.base_fee_per_blob_gas);
+            const tip = formatBlobFee(blob.tip_per_blob_gas_gwei, blob.tip_per_blob_gas);
+            const maxFee = formatBlobFee(blob.max_fee_per_blob_gas_gwei, blob.max_fee_per_blob_gas);
+            const realizedCost = blob.realized_cost_wei
+              ? formatWeiCost(blob.realized_cost_wei)
+              : formatTotalCost(blob.total_cost_eth);
+            const maxCost = formatWeiCost(blob.max_cost_wei);
             const headroom = formatFeeHeadroom(blob.fee_cap_headroom_percent);
 
             return (
@@ -141,34 +165,29 @@ export default function UserDetailPage() {
   const params = useParams();
   const address = params.address as string;
   const { selectedNetwork } = useNetwork();
-  const fetchUser = React.useCallback(
-    () => api.getUserByAddress(address, selectedNetwork.apiParam),
-    [address, selectedNetwork.apiParam]
-  );
-  const fetchConfirmedBlobs = React.useCallback(
-    () => api.getUserBlobs(address, true, 20, selectedNetwork.apiParam),
-    [address, selectedNetwork.apiParam]
-  );
-  const fetchMempoolBlobs = React.useCallback(
-    () => api.getUserBlobs(address, false, 20, selectedNetwork.apiParam),
-    [address, selectedNetwork.apiParam]
-  );
+  const refetchKey = `${selectedNetwork.apiParam}:${address}`;
 
   const { data: user, isLoading: userLoading, error: userError } = useApiData<UserResponse>(
-    fetchUser
+    () => api.getUserByAddress(address, selectedNetwork.apiParam),
+    undefined,
+    refetchKey
   );
 
   const { data: confirmedBlobs, isLoading: blobsLoading, error: blobsError } = useApiData<BlobResponse[]>(
-    fetchConfirmedBlobs
+    () => api.getUserBlobs(address, true, 20, selectedNetwork.apiParam),
+    undefined,
+    refetchKey
   );
 
   const { data: mempoolBlobs, isLoading: mempoolLoading, error: mempoolError } = useApiData<BlobResponse[]>(
-    fetchMempoolBlobs
+    () => api.getUserBlobs(address, false, 20, selectedNetwork.apiParam),
+    undefined,
+    refetchKey
   );
 
   const userName = user?.name || truncateAddress(address);
   const userIconSrc = user?.name && !user.name.includes('...')
-    ? getNetworkIconSrc(user.name)
+    ? getAttributionImageSrc(user.name)
     : null;
 
   const loadingStats = (
@@ -222,27 +241,26 @@ export default function UserDetailPage() {
     <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
       <Header />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Back link */}
         <Link href="/" className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2">
           <i className="fa-regular fa-arrow-left" aria-hidden="true" />
           Back to Dashboard
         </Link>
 
-        {/* User header */}
         <DataStateWrapper isLoading={userLoading} error={userError} loadingComponent={loadingStats}>
           {user && (
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
                 {userIconSrc ? (
-                  <img src={userIconSrc} alt={user.name || userName} className="w-8 h-8" />
+                  <Image src={userIconSrc} alt={user.name || userName} width={32} height={32} className="w-8 h-8" />
                 ) : (
-                  <span className="w-8 h-8 rounded-full bg-gray-500 inline-block" />
+                  <span className="w-8 h-8 rounded-full bg-gray-500 inline-flex items-center justify-center text-sm text-white font-medium">
+                    {getAttributionInitial(userName)}
+                  </span>
                 )}
                 <h1 className="text-3xl font-windsor-bold text-white">{userName}</h1>
               </div>
               <p className="text-bodyText font-mono text-sm mb-6">{address}</p>
 
-              {/* Stats cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
                   <div className="text-xs text-[#6e7787] uppercase tracking-wider mb-1">Blob Count</div>
@@ -250,7 +268,7 @@ export default function UserDetailPage() {
                 </div>
                 <div className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
                   <div className="text-xs text-[#6e7787] uppercase tracking-wider mb-1">Total Cost</div>
-                  <div className="text-xl text-white font-medium">{formatWeiToEth(user.total_cost_eth)}</div>
+                  <div className="text-xl text-white font-medium">{formatCostEthOrWei(user.total_cost_eth)}</div>
                 </div>
                 <div className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
                   <div className="text-xs text-[#6e7787] uppercase tracking-wider mb-1">Last Active</div>
@@ -261,7 +279,6 @@ export default function UserDetailPage() {
           )}
         </DataStateWrapper>
 
-        {/* Recent confirmed blobs */}
         <section className="mb-8">
           <h2 className="text-2xl font-windsor-bold text-white mb-4">Recent Blobs</h2>
           <DataStateWrapper isLoading={blobsLoading} error={blobsError} loadingComponent={loadingTable}>
@@ -269,7 +286,6 @@ export default function UserDetailPage() {
           </DataStateWrapper>
         </section>
 
-        {/* Mempool blobs */}
         <section className="mb-8">
           <h2 className="text-2xl font-windsor-bold text-white mb-4">Pending Blobs</h2>
           <DataStateWrapper isLoading={mempoolLoading} error={mempoolError} loadingComponent={loadingTable}>
