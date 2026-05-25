@@ -27,8 +27,9 @@ export function formatDate(date: Date): string {
  * @returns Formatted string with appropriate unit
  */
 export function formatWeiToReadable(weiValue: string | number): string {
-  // Convert string to bigint if needed
-  const wei = typeof weiValue === 'string' ? BigInt(weiValue) : BigInt(weiValue.toString());
+  const rawWeiValue = typeof weiValue === 'string' ? weiValue : weiValue.toString();
+  const wholeWeiValue = rawWeiValue.split('.')[0] || '0';
+  const wei = BigInt(wholeWeiValue);
 
   // Define thresholds for different units
   const GWEI_THRESHOLD = BigInt(1_000_000_000); // 10^9

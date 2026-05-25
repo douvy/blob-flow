@@ -18,6 +18,7 @@ describe('utils', () => {
   it('formats wei values with appropriate unit', () => {
     expect(formatWeiToReadable('500')).toBe('500 Wei');
     expect(formatWeiToReadable('1000000000')).toContain('Gwei');
+    expect(formatWeiToReadable('5014755072.74762611')).toContain('Gwei');
     expect(formatWeiToReadable('1000000000000000000')).toContain('ETH');
   });
 });

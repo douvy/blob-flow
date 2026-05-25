@@ -9,13 +9,25 @@ import useScrollLock from '../hooks/useScrollLock';
 import { useNetwork } from '../hooks/useNetwork';
 import { DEFAULT_NETWORK } from '../constants';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
+import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { BlobWebSocketConnectionState } from '../types';
+
+const LIVE_STATUS_STYLES: Record<BlobWebSocketConnectionState, { label: string; color: string }> = {
+  connecting: { label: 'Connecting', color: 'bg-yellow-400' },
+  connected: { label: 'Connected', color: 'bg-green' },
+  stale: { label: 'Stale', color: 'bg-yellow-400' },
+  reconnecting: { label: 'Reconnecting', color: 'bg-yellow-400' },
+  disconnected: { label: 'Disconnected', color: 'bg-red' },
+};
 
 export default function Header() {
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
+  const { connectionState } = useBlobWebSocket();
   const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
-  const isConnected = true;
+  const liveStatus = LIVE_STATUS_STYLES[connectionState];
+  const shouldAnimateLiveStatus = connectionState !== 'disconnected';
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -147,10 +159,12 @@ export default function Header() {
               {/* Connection Status */}
               <div className="flex items-center space-x-2 mr-4 ml-1">
                 <div className="relative">
-                  <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green' : 'bg-red'}`}></div>
-                  <div className={`absolute inset-0 rounded-full ${isConnected ? 'bg-green' : 'bg-red'} opacity-75 animate-ping`}></div>
+                  <div className={`h-2.5 w-2.5 rounded-full ${liveStatus.color}`}></div>
+                  {shouldAnimateLiveStatus && (
+                    <div className={`absolute inset-0 rounded-full ${liveStatus.color} opacity-75 animate-ping`}></div>
+                  )}
                 </div>
-                <span className="text-sm text-bodyText">{isConnected ? 'Connected' : 'Disconnected'}</span>
+                <span className="text-sm text-bodyText">{liveStatus.label}</span>
               </div>
             </div>
 
@@ -337,10 +351,12 @@ export default function Header() {
                 <i className="fa-regular fa-signal-stream text-blue" aria-hidden="true"></i>
                 <div className="flex items-center space-x-2">
                   <div className="relative">
-                    <div className={`h-2.5 w-2.5 rounded-full ${isConnected ? 'bg-green' : 'bg-red'}`}></div>
-                    <div className={`absolute inset-0 rounded-full ${isConnected ? 'bg-green' : 'bg-red'} opacity-75 animate-ping`}></div>
+                    <div className={`h-2.5 w-2.5 rounded-full ${liveStatus.color}`}></div>
+                    {shouldAnimateLiveStatus && (
+                      <div className={`absolute inset-0 rounded-full ${liveStatus.color} opacity-75 animate-ping`}></div>
+                    )}
                   </div>
-                  <span className="text-base text-bodyText">{isConnected ? 'Connected' : 'Disconnected'}</span>
+                  <span className="text-base text-bodyText">{liveStatus.label}</span>
                 </div>
               </div>
 

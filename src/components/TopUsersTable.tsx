@@ -7,14 +7,20 @@ import { api } from '../lib/api';
 import { TopUsersResponse, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
+import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { transformUserResponses } from '../lib/api/users';
 
 export default function TopUsersTable() {
   const router = useRouter();
   const { selectedNetwork } = useNetwork();
+  const { latestEvents } = useBlobWebSocket();
 
   const { data, isLoading, error } = useApiData<TopUsersResponse>(
     () => api.getTopUsers(10, selectedNetwork.apiParam)
   );
+  const displayData = latestEvents.users_update
+    ? transformUserResponses(latestEvents.users_update.data)
+    : data;
 
   useEffect(() => {
     // Function to set up event listeners for tooltips
@@ -185,11 +191,11 @@ export default function TopUsersTable() {
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Top Blob Users</h2>
 
       <DataStateWrapper
-        isLoading={isLoading}
-        error={error}
+        isLoading={isLoading && !displayData}
+        error={displayData ? null : error}
         loadingComponent={loadingComponent}
       >
-        {data && (
+        {displayData && (
           <div className="overflow-x-auto border border-divider rounded-lg">
             <table className="min-w-full overflow-hidden table-fixed">
               <thead>
@@ -207,7 +213,7 @@ export default function TopUsersTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {data.data.map((user: User) => (
+                {displayData.data.map((user: User) => (
                   <tr
                     key={user.id}
                     className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors cursor-pointer"
