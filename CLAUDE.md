@@ -59,6 +59,10 @@ src/
 
 Never make CI less restrictive. Do not add lint/type-check exceptions (e.g. `eslint-disable`, `@ts-ignore`, `any` casts), skip checks, or loosen rules to make builds pass. Fix the underlying issue instead.
 
+## Pull Request Titles
+
+PR titles must use Conventional Commit format: `type: subject` or `type(scope): subject`. Allowed types are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, and `revert`. Keep the subject non-empty and do not prefix titles with labels such as `[codex]`.
+
 ## Environment Variables
 
 - `NEXT_PUBLIC_API_URL` — API base URL (default: `https://blob-indexer.ahkc.win/api/v1`)
