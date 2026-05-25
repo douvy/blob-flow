@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { TopUsersResponse, User } from '../types';
@@ -225,9 +226,11 @@ export default function TopUsersTable() {
                     <td className="py-3 px-6 text-sm font-medium text-white whitespace-nowrap">
                       <div className="flex items-center">
                         {getAttributionImageSrc(user.name) ? (
-                          <img
+                          <Image
                             src={getAttributionImageSrc(user.name) || ''}
                             alt={user.name}
+                            width={20}
+                            height={20}
                             className="inline-block w-5 h-5 mr-3"
                           />
                         ) : (

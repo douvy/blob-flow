@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Image from 'next/image';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { MempoolResponse, MempoolTransaction } from '../types';
@@ -126,9 +127,11 @@ export default function MempoolTable() {
                       {tx.user ? (
                         <div className="flex items-center">
                           {getAttributionImageSrc(tx.user) ? (
-                            <img
+                            <Image
                               src={getAttributionImageSrc(tx.user) || ''}
                               alt={tx.user}
+                              width={20}
+                              height={20}
                               className="inline-block w-5 h-5 mr-3"
                             />
                           ) : (

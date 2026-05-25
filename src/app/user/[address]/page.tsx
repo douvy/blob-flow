@@ -3,6 +3,7 @@
 import React from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import DataStateWrapper from '@/components/DataStateWrapper';
@@ -147,7 +148,13 @@ export default function UserDetailPage() {
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
                 {user.name && getAttributionImageSrc(user.name) ? (
-                  <img src={getAttributionImageSrc(user.name) || ''} alt={user.name} className="w-8 h-8" />
+                  <Image
+                    src={getAttributionImageSrc(user.name) || ''}
+                    alt={user.name}
+                    width={32}
+                    height={32}
+                    className="w-8 h-8"
+                  />
                 ) : (
                   <span className="w-8 h-8 rounded-full bg-gray-500 inline-flex items-center justify-center text-sm text-white font-medium">
                     {getAttributionInitial(userName)}

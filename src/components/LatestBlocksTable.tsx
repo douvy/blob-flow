@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Image from 'next/image';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { Block, LatestBlocksResponse } from '../types';
@@ -106,9 +107,11 @@ export default function LatestBlocksTable() {
                       {block.attribution.length === 1 ? (
                         <div className="flex items-center">
                           {getAttributionImageSrc(block.attribution[0]) ? (
-                            <img
+                            <Image
                               src={getAttributionImageSrc(block.attribution[0]) || ''}
                               alt={block.attribution[0]}
+                              width={20}
+                              height={20}
                               className="inline-block w-5 h-5 mr-2"
                             />
                           ) : (
@@ -125,10 +128,12 @@ export default function LatestBlocksTable() {
                               const imageSrc = getAttributionImageSrc(attr);
 
                               return imageSrc ? (
-                                <img
+                                <Image
                                   key={idx}
                                   src={imageSrc}
                                   alt={attr}
+                                  width={20}
+                                  height={20}
                                   className="inline-block w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem]"
                                   title={attr}
                                 />
