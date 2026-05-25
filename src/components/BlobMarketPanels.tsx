@@ -1,34 +1,25 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useBlobWebSocket, useLiveBlobEvent } from '@/contexts/LiveDataContext';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLiveBlobEvent } from '@/contexts/LiveDataContext';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
-import { BlobPricing, BlobWebSocketConnectionState, MempoolPressure } from '@/types';
-import { formatNumber, formatPercent } from '@/utils';
+import { BlobPricing, BlobPricingRecentBlock } from '@/types';
+import { formatGwei, formatNumber, formatPercent } from '@/utils';
 import DataStateWrapper from './DataStateWrapper';
 
 const FALLBACK_REFRESH_MS = 60000;
-const STALE_AFTER_MS = 90000;
-
-interface MarketSnapshot {
-  pricing: BlobPricing;
-  pressure: MempoolPressure;
-}
+const RECENT_BLOCK_ROWS = 8;
 
 export default function BlobMarketPanels() {
   const { selectedNetwork } = useNetwork();
-  const { connectionState } = useBlobWebSocket();
-  const [snapshot, setSnapshot] = useState<MarketSnapshot | undefined>();
+  const [pricing, setPricing] = useState<BlobPricing | undefined>();
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
-  const [now, setNow] = useState(Date.now());
 
   const isMountedRef = useRef(false);
   const inFlightNetworkRef = useRef<string | null>(null);
-  const snapshotRef = useRef<MarketSnapshot | undefined>(undefined);
+  const pricingRef = useRef<BlobPricing | undefined>(undefined);
   const requestIdRef = useRef(0);
 
   const fetchMarketData = useCallback(async () => {
@@ -40,28 +31,21 @@ export default function BlobMarketPanels() {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     inFlightNetworkRef.current = network;
-    const hasSnapshot = Boolean(snapshotRef.current);
+    const hasPricing = Boolean(pricingRef.current);
 
-    if (hasSnapshot) {
-      setIsRefreshing(true);
-    } else {
+    if (!hasPricing) {
       setIsLoading(true);
     }
 
     try {
-      const [pricing, pressure] = await Promise.all([
-        api.getBlobPricing(network, 20),
-        api.getMempoolPressure(network),
-      ]);
+      const nextPricing = await api.getBlobPricing(network, 20);
 
       if (!isMountedRef.current || requestId !== requestIdRef.current) {
         return;
       }
 
-      const nextSnapshot = { pricing, pressure };
-      snapshotRef.current = nextSnapshot;
-      setSnapshot(nextSnapshot);
-      setLastUpdatedAt(Date.now());
+      pricingRef.current = nextPricing;
+      setPricing(nextPricing);
       setError(null);
     } catch (err) {
       if (!isMountedRef.current || requestId !== requestIdRef.current) {
@@ -73,7 +57,6 @@ export default function BlobMarketPanels() {
       if (isMountedRef.current && requestId === requestIdRef.current) {
         inFlightNetworkRef.current = null;
         setIsLoading(false);
-        setIsRefreshing(false);
       }
     }
   }, [selectedNetwork.apiParam]);
@@ -81,10 +64,9 @@ export default function BlobMarketPanels() {
   useEffect(() => {
     isMountedRef.current = true;
     inFlightNetworkRef.current = null;
-    snapshotRef.current = undefined;
-    setSnapshot(undefined);
+    pricingRef.current = undefined;
+    setPricing(undefined);
     setError(null);
-    setLastUpdatedAt(null);
     setIsLoading(true);
     void fetchMarketData();
 
@@ -107,44 +89,28 @@ export default function BlobMarketPanels() {
     };
   }, [fetchMarketData]);
 
-  useEffect(() => {
-    const staleTimer = window.setInterval(() => {
-      setNow(Date.now());
-    }, 15000);
-
-    return () => {
-      window.clearInterval(staleTimer);
-    };
-  }, []);
-
-  const isStale = connectionState === 'stale' || (lastUpdatedAt !== null && now - lastUpdatedAt > STALE_AFTER_MS);
-  const initialError = snapshot ? null : error;
+  const initialError = pricing ? null : error;
 
   return (
     <section>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h2 className="text-2xl font-windsor-bold text-white">Blob Market</h2>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-[#8f9aad]">
-          <MarketStatusPill status={connectionState} isStale={isStale} />
-          {isRefreshing && <span className="text-blue">Refreshing</span>}
-          <span>{lastUpdatedAt ? `Updated ${formatUpdatedAt(lastUpdatedAt)}` : 'Waiting for data'}</span>
-        </div>
       </div>
 
       <DataStateWrapper
-        isLoading={isLoading && !snapshot}
+        isLoading={isLoading && !pricing}
         error={initialError}
         loadingComponent={<BlobMarketSkeleton />}
       >
-        {snapshot && (
+        {pricing && (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <PricingPanel pricing={snapshot.pricing} />
-            <PressurePanel pressure={snapshot.pressure} />
+            <CurrentMarketPanel pricing={pricing} />
+            <RecentFeeBlocksPanel pricing={pricing} />
           </div>
         )}
       </DataStateWrapper>
 
-      {snapshot && error && (
+      {pricing && error && (
         <p className="mt-3 text-xs text-red-300">
           Refresh failed: {error.message}. Showing the latest available market data.
         </p>
@@ -153,17 +119,21 @@ export default function BlobMarketPanels() {
   );
 }
 
-function PricingPanel({ pricing }: { pricing: BlobPricing }) {
+function CurrentMarketPanel({ pricing }: { pricing: BlobPricing }) {
   const direction = pricing.marketPressure.predictedDirection.toLowerCase();
   const directionClass = getDirectionClass(direction);
-  const utilizationPercent = formatPercent(pricing.currentUtilization * 100);
+  const latestBlock = pricing.recentBlocks[0];
+  const utilizationPercent = latestBlock
+    ? formatPercent(latestBlock.utilizationPercent)
+    : formatPercent(pricing.currentUtilization * 100);
+  const recentStats = useMemo(() => getRecentBlockStats(pricing.recentBlocks), [pricing.recentBlocks]);
 
   return (
     <article className="rounded-lg border border-divider bg-[#161a29]/80 p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-medium text-white">Blob Pricing</h3>
-          <p className="text-sm text-[#8f9aad]">{pricing.forkStage} fork parameters</p>
+          <h3 className="text-lg font-medium text-white">Current Blob Market</h3>
+          <p className="text-sm text-[#8f9aad]">{pricing.networkName} latest block pricing</p>
         </div>
         <span className={`rounded-full border px-3 py-1 text-xs capitalize ${directionClass}`}>
           {direction || 'stable'}
@@ -173,7 +143,22 @@ function PricingPanel({ pricing }: { pricing: BlobPricing }) {
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
         <MetricBlock label="Current base fee" value={pricing.currentBaseFee} />
         <MetricBlock label="Predicted next fee" value={pricing.predictedNextFee} />
+        <MetricBlock
+          label="Latest block fill"
+          value={latestBlock ? `${latestBlock.blobCount}/${latestBlock.maxBlobs} blobs` : '-'}
+        />
+        <MetricBlock label="Recent fee range" value={recentStats.feeRange} />
       </div>
+
+      {latestBlock && (
+        <div className="mt-5 border-t border-divider pt-5">
+          <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+            <span className="text-white">Block {latestBlock.blockNumber.toLocaleString()}</span>
+            <span className="text-[#8f9aad]">{utilizationPercent} full</span>
+          </div>
+          <FullnessBar percent={latestBlock.utilizationPercent} isAboveTarget={latestBlock.isAboveTarget} />
+        </div>
+      )}
 
       <div className="mt-5 border-t border-divider pt-5">
         <div className="grid grid-cols-2 gap-4 text-sm">
@@ -182,7 +167,7 @@ function PricingPanel({ pricing }: { pricing: BlobPricing }) {
             value={`${pricing.marketPressure.nextBlockFeeEstimate.low} - ${pricing.marketPressure.nextBlockFeeEstimate.high}`}
             compact
           />
-          <MetricBlock label="Current utilization" value={utilizationPercent} compact />
+          <MetricBlock label="Average fill" value={recentStats.averageFill} compact />
           <MetricBlock
             label="Target / max blobs"
             value={`${pricing.blobParams.target.toLocaleString()} / ${pricing.blobParams.max.toLocaleString()}`}
@@ -208,71 +193,54 @@ function PricingPanel({ pricing }: { pricing: BlobPricing }) {
   );
 }
 
-function PressurePanel({ pressure }: { pressure: MempoolPressure }) {
-  const totalPending = pressure.pendingBlobCount;
-  const includability = pressure.includability;
-
+function RecentFeeBlocksPanel({ pricing }: { pricing: BlobPricing }) {
   return (
     <article className="rounded-lg border border-divider bg-[#161a29]/80 p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-medium text-white">Inclusion Pressure</h3>
-          <p className="text-sm text-[#8f9aad]">
-            {includability.pricingAvailable ? `Base fee ${includability.latestBlobBaseFee}` : 'Pricing unavailable'}
-          </p>
+          <h3 className="text-lg font-medium text-white">Recent Block Fees</h3>
+          <p className="text-sm text-[#8f9aad]">{pricing.recentBlocks.length} block pricing window</p>
         </div>
-        <span className="rounded-full border border-blue/40 bg-blue/10 px-3 py-1 text-xs text-blue">
-          {totalPending.toLocaleString()} pending
+        <span className="rounded-full border border-[#8f9aad]/40 bg-[#8f9aad]/10 px-3 py-1 text-xs text-[#d7dde8]">
+          {pricing.forkStage}
         </span>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-3">
-        <MiniStat label="Blob gas" value={formatNumber(pressure.pendingBlobGas)} />
-        <MiniStat label="Senders" value={pressure.pendingUniqueSenders.toLocaleString()} />
-        <MiniStat label="Sample" value={pressure.sampleTruncated ? `${pressure.sampleLimit}+` : pressure.sampleLimit.toLocaleString()} />
-      </div>
-
-      <div className="mt-5 border-t border-divider pt-5 space-y-4">
-        <InclusionBar
-          label="Likely includable"
-          value={includability.likelyIncludableCount}
-          total={totalPending}
-          colorClass="bg-green-400"
-        />
-        <InclusionBar
-          label="Underpriced"
-          value={includability.underpricedCount}
-          total={totalPending}
-          colorClass="bg-amber-300"
-        />
-        <InclusionBar
-          label="Unknown pricing"
-          value={includability.unknownPricingCount}
-          total={totalPending}
-          colorClass="bg-[#8f9aad]"
-        />
-      </div>
-
-      <div className="mt-5 border-t border-divider pt-5">
-        <h4 className="text-sm font-medium text-white mb-3">Mempool fee distribution</h4>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <MiniStat label="Min" value={pressure.feeDistribution.min} />
-          <MiniStat label="Median" value={pressure.feeDistribution.median} />
-          <MiniStat label="Avg" value={pressure.feeDistribution.avg} />
-          <MiniStat label="P95" value={pressure.feeDistribution.p95} />
-          <MiniStat label="Max" value={pressure.feeDistribution.max} />
-        </div>
-      </div>
-
-      <div className="mt-5 border-t border-divider pt-5">
-        <h4 className="text-sm font-medium text-white mb-3">Pending age</h4>
-        <div className="grid grid-cols-3 gap-3">
-          <MiniStat label="Newest" value={pressure.pendingTransactionAge.newest} />
-          <MiniStat label="Average" value={pressure.pendingTransactionAge.average} />
-          <MiniStat label="Oldest" value={pressure.pendingTransactionAge.oldest} />
-        </div>
+      <div className="mt-5 space-y-3">
+        {pricing.recentBlocks.slice(0, RECENT_BLOCK_ROWS).map((block) => (
+          <RecentFeeBlockRow key={block.blockNumber} block={block} />
+        ))}
       </div>
     </article>
+  );
+}
+
+function RecentFeeBlockRow({ block }: { block: BlobPricingRecentBlock }) {
+  const fillLabel = `${block.blobCount}/${block.maxBlobs}`;
+  const status = block.isFull ? 'Full' : block.isAboveTarget ? 'Above target' : 'Under target';
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3 rounded-md border border-divider/70 bg-[#111522]/70 px-3 py-2">
+      <div className="min-w-0">
+        <div className="text-[11px] text-[#8f9aad]">Block</div>
+        <div className="truncate text-sm font-medium text-white">{block.blockNumber.toLocaleString()}</div>
+      </div>
+      <div className="min-w-0">
+        <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-[#8f9aad]">
+          <span>{fillLabel} blobs</span>
+          <span>{formatPercent(block.utilizationPercent, 0)}</span>
+        </div>
+        <FullnessBar percent={block.utilizationPercent} isAboveTarget={block.isAboveTarget} />
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11px] text-[#8f9aad]">Base fee</div>
+        <div className="truncate text-sm font-medium text-white">{block.blobBaseFee}</div>
+      </div>
+      <div className="min-w-0">
+        <div className="text-[11px] text-[#8f9aad]">State</div>
+        <div className="truncate text-sm font-medium text-white">{status}</div>
+      </div>
+    </div>
   );
 }
 
@@ -296,43 +264,17 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function InclusionBar({
-  label,
-  value,
-  total,
-  colorClass,
-}: {
-  label: string;
-  value: number;
-  total: number;
-  colorClass: string;
-}) {
-  const percent = total > 0 ? (value / total) * 100 : 0;
+function FullnessBar({ percent, isAboveTarget }: { percent: number; isAboveTarget: boolean }) {
+  const boundedPercent = Math.min(100, Math.max(0, percent));
+  const fillClass = isAboveTarget ? 'bg-amber-300' : 'bg-green-400';
 
   return (
-    <div>
-      <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-        <span className="text-white">{label}</span>
-        <span className="text-[#8f9aad]">{value.toLocaleString()} / {total.toLocaleString()}</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-[#202538]">
-        <div
-          className={`h-full rounded-full ${colorClass}`}
-          style={{ width: `${Math.min(100, percent)}%` }}
-        />
-      </div>
+    <div className="h-2 overflow-hidden rounded-full bg-[#202538]">
+      <div
+        className={`h-full rounded-full ${fillClass}`}
+        style={{ width: `${boundedPercent}%` }}
+      />
     </div>
-  );
-}
-
-function MarketStatusPill({ status, isStale }: { status: BlobWebSocketConnectionState; isStale: boolean }) {
-  const config = getStatusConfig(status, isStale);
-
-  return (
-    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${config.className}`}>
-      <span className={`h-2 w-2 rounded-full ${config.dotClassName}`} />
-      {config.label}
-    </span>
   );
 }
 
@@ -353,46 +295,6 @@ function BlobMarketSkeleton() {
   );
 }
 
-function getStatusConfig(status: BlobWebSocketConnectionState, isStale: boolean) {
-  if (isStale || status === 'stale') {
-    return {
-      label: 'Stale',
-      className: 'border-amber-300/40 bg-amber-300/10 text-amber-200',
-      dotClassName: 'bg-amber-300',
-    };
-  }
-
-  if (status === 'connected') {
-    return {
-      label: 'Live',
-      className: 'border-green-400/40 bg-green-400/10 text-green-300',
-      dotClassName: 'bg-green-400',
-    };
-  }
-
-  if (status === 'reconnecting') {
-    return {
-      label: 'Reconnecting',
-      className: 'border-blue/40 bg-blue/10 text-blue',
-      dotClassName: 'bg-blue',
-    };
-  }
-
-  if (status === 'connecting') {
-    return {
-      label: 'Connecting',
-      className: 'border-blue/40 bg-blue/10 text-blue',
-      dotClassName: 'bg-blue',
-    };
-  }
-
-  return {
-    label: 'Disconnected',
-    className: 'border-red-300/40 bg-red-300/10 text-red-200',
-    dotClassName: 'bg-red-300',
-  };
-}
-
 function getDirectionClass(direction: string): string {
   if (direction === 'up') {
     return 'border-red-300/40 bg-red-300/10 text-red-200';
@@ -405,10 +307,33 @@ function getDirectionClass(direction: string): string {
   return 'border-[#8f9aad]/40 bg-[#8f9aad]/10 text-[#d7dde8]';
 }
 
-function formatUpdatedAt(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+function getRecentBlockStats(blocks: BlobPricingRecentBlock[]) {
+  if (blocks.length === 0) {
+    return {
+      averageFill: '-',
+      feeRange: '-',
+    };
+  }
+
+  const averageFill = blocks.reduce((sum, block) => sum + block.utilizationPercent, 0) / blocks.length;
+  const fees = blocks
+    .map((block) => Number(block.blobBaseFeeGwei))
+    .filter((fee) => Number.isFinite(fee));
+
+  if (fees.length === 0) {
+    return {
+      averageFill: formatPercent(averageFill),
+      feeRange: '-',
+    };
+  }
+
+  const minFee = Math.min(...fees);
+  const maxFee = Math.max(...fees);
+
+  return {
+    averageFill: formatPercent(averageFill),
+    feeRange: minFee === maxFee
+      ? formatGwei(minFee.toString())
+      : `${formatGwei(minFee.toString())} - ${formatGwei(maxFee.toString())}`,
+  };
 }
