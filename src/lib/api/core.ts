@@ -128,6 +128,10 @@ function getInFlightGetRequestKey(url: string, options?: RequestInit): string | 
         return null;
     }
 
+    if (hasRequestOptionsThatAffectResponse(options)) {
+        return null;
+    }
+
     return `${method}:${url}`;
 }
 
@@ -135,4 +139,12 @@ function clearInFlightGetRequest(key: string, request: Promise<unknown>) {
     if (inFlightGetRequests.get(key) === request) {
         inFlightGetRequests.delete(key);
     }
+}
+
+function hasRequestOptionsThatAffectResponse(options?: RequestInit): boolean {
+    if (!options) {
+        return false;
+    }
+
+    return Object.keys(options).some((key) => key !== 'method');
 }

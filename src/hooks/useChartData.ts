@@ -15,7 +15,7 @@ function getLimitForRange(range: string): number {
     case '7d': return 500;
     case '30d': return 1000;
     case 'All': return 1000;
-    default: return 200;
+    default: return DASHBOARD_LATEST_BLOB_LIMIT;
   }
 }
 
