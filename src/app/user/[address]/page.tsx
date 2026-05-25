@@ -86,6 +86,7 @@ export default function UserDetailPage() {
   );
 
   const userName = user?.name || truncateAddress(address);
+  const userImageSrc = user?.name ? getAttributionImageSrc(user.name) : null;
 
   const loadingStats = (
     <div className="space-y-4">
@@ -147,9 +148,9 @@ export default function UserDetailPage() {
           {user && (
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
-                {user.name && getAttributionImageSrc(user.name) ? (
+                {user.name && userImageSrc ? (
                   <Image
-                    src={getAttributionImageSrc(user.name) || ''}
+                    src={userImageSrc}
                     alt={user.name}
                     width={32}
                     height={32}

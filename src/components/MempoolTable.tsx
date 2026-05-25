@@ -119,40 +119,44 @@ export default function MempoolTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {displayData.data.map((tx: MempoolTransaction) => (
-                  <tr key={tx.id} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
-                    <td className="py-3 px-6 text-sm font-mono text-white">{truncateTxHash(tx.txHash)}</td>
-                    <td className="py-3 px-6 text-sm font-mono text-white">{tx.fromAddress}</td>
-                    <td className="py-3 px-6 text-sm text-white">
-                      {tx.user ? (
-                        <div className="flex items-center">
-                          {getAttributionImageSrc(tx.user) ? (
-                            <Image
-                              src={getAttributionImageSrc(tx.user) || ''}
-                              alt={tx.user}
-                              width={20}
-                              height={20}
-                              className="inline-block w-5 h-5 mr-3"
-                            />
-                          ) : (
-                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-3 bg-gray-500 text-[10px] text-white font-medium">
-                              {getAttributionInitial(tx.user)}
-                            </span>
-                          )}
-                          {tx.user}
-                        </div>
-                      ) : (
-                        <div className="flex items-center">
-                          <span className="inline-block w-5 h-5 rounded-full mr-3 bg-gray-500"></span>
-                          <span className="text-white">Unknown</span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.blobCount}</td>
-                    <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.estimatedCost}</td>
-                    <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.timeInMempool}</td>
-                  </tr>
-                ))}
+                {displayData.data.map((tx: MempoolTransaction) => {
+                  const userImageSrc = tx.user ? getAttributionImageSrc(tx.user) : null;
+
+                  return (
+                    <tr key={tx.id} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
+                      <td className="py-3 px-6 text-sm font-mono text-white">{truncateTxHash(tx.txHash)}</td>
+                      <td className="py-3 px-6 text-sm font-mono text-white">{tx.fromAddress}</td>
+                      <td className="py-3 px-6 text-sm text-white">
+                        {tx.user ? (
+                          <div className="flex items-center">
+                            {userImageSrc ? (
+                              <Image
+                                src={userImageSrc}
+                                alt={tx.user}
+                                width={20}
+                                height={20}
+                                className="inline-block w-5 h-5 mr-3"
+                              />
+                            ) : (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-3 bg-gray-500 text-[10px] text-white font-medium">
+                                {getAttributionInitial(tx.user)}
+                              </span>
+                            )}
+                            {tx.user}
+                          </div>
+                        ) : (
+                          <div className="flex items-center">
+                            <span className="inline-block w-5 h-5 rounded-full mr-3 bg-gray-500"></span>
+                            <span className="text-white">Unknown</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.blobCount}</td>
+                      <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.estimatedCost}</td>
+                      <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{tx.timeInMempool}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

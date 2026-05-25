@@ -98,64 +98,69 @@ export default function LatestBlocksTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {displayData.data.map((block: Block) => (
-                  <tr key={block.id} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
-                    <td className="py-3 px-6 text-sm font-medium text-white">{block.number}</td>
-                    <td className="py-3 px-6 text-sm text-white">{block.blobCount}</td>
-                    <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{block.timestamp}</td>
-                    <td className="py-3 px-6 text-sm text-white">
-                      {block.attribution.length === 1 ? (
-                        <div className="flex items-center">
-                          {getAttributionImageSrc(block.attribution[0]) ? (
-                            <Image
-                              src={getAttributionImageSrc(block.attribution[0]) || ''}
-                              alt={block.attribution[0]}
-                              width={20}
-                              height={20}
-                              className="inline-block w-5 h-5 mr-2"
-                            />
-                          ) : (
-                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 bg-gray-500 text-[10px] text-white font-medium">
-                              {getAttributionInitial(block.attribution[0])}
-                            </span>
-                          )}
-                          <span className="whitespace-nowrap">{block.attribution[0]}</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center">
-                          <div className="flex -space-x-2">
-                            {block.attribution.map((attr, idx) => {
-                              const imageSrc = getAttributionImageSrc(attr);
+                {displayData.data.map((block: Block) => {
+                  const primaryAttribution = block.attribution[0];
+                  const primaryImageSrc = primaryAttribution ? getAttributionImageSrc(primaryAttribution) : null;
 
-                              return imageSrc ? (
-                                <Image
-                                  key={idx}
-                                  src={imageSrc}
-                                  alt={attr}
-                                  width={20}
-                                  height={20}
-                                  className="inline-block w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem]"
-                                  title={attr}
-                                />
-                              ) : (
-                                <span
-                                  key={idx}
-                                  className="inline-flex items-center justify-center w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem] bg-gray-500 text-[10px] text-white font-medium"
-                                  title={attr}
-                                >
-                                  {getAttributionInitial(attr)}
-                                </span>
-                              );
-                            })}
+                  return (
+                    <tr key={block.id} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
+                      <td className="py-3 px-6 text-sm font-medium text-white">{block.number}</td>
+                      <td className="py-3 px-6 text-sm text-white">{block.blobCount}</td>
+                      <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{block.timestamp}</td>
+                      <td className="py-3 px-6 text-sm text-white">
+                        {block.attribution.length === 1 ? (
+                          <div className="flex items-center">
+                            {primaryImageSrc ? (
+                              <Image
+                                src={primaryImageSrc}
+                                alt={primaryAttribution}
+                                width={20}
+                                height={20}
+                                className="inline-block w-5 h-5 mr-2"
+                              />
+                            ) : (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 bg-gray-500 text-[10px] text-white font-medium">
+                                {getAttributionInitial(primaryAttribution)}
+                              </span>
+                            )}
+                            <span className="whitespace-nowrap">{primaryAttribution}</span>
                           </div>
-                          <span className="whitespace-nowrap text-sm text-white ml-6">
-                            {block.attribution.length} networks
-                          </span>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                        ) : (
+                          <div className="flex items-center">
+                            <div className="flex -space-x-2">
+                              {block.attribution.map((attr, idx) => {
+                                const imageSrc = getAttributionImageSrc(attr);
+
+                                return imageSrc ? (
+                                  <Image
+                                    key={idx}
+                                    src={imageSrc}
+                                    alt={attr}
+                                    width={20}
+                                    height={20}
+                                    className="inline-block w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem]"
+                                    title={attr}
+                                  />
+                                ) : (
+                                  <span
+                                    key={idx}
+                                    className="inline-flex items-center justify-center w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem] bg-gray-500 text-[10px] text-white font-medium"
+                                    title={attr}
+                                  >
+                                    {getAttributionInitial(attr)}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                            <span className="whitespace-nowrap text-sm text-white ml-6">
+                              {block.attribution.length} networks
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
