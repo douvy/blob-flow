@@ -4,6 +4,8 @@
 
 export const APP_NAME = 'Blob Flow';
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://blob-indexer.ahkc.win/api/v1';
+export const DASHBOARD_LATEST_BLOB_LIMIT = 200;
+export const LATEST_BLOCK_ROWS = 20;
 
 /**
  * Network configuration

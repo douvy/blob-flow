@@ -6,11 +6,12 @@ import { useTimeRange } from '../contexts/TimeRangeContext';
 import { useNetwork } from './useNetwork';
 import { api } from '../lib/api';
 import { aggregateChartData } from '../lib/chartAggregation';
+import { DASHBOARD_LATEST_BLOB_LIMIT } from '../constants';
 import type { BlobResponse, ChartDataset, StatsResponse } from '../types';
 
 function getLimitForRange(range: string): number {
   switch (range) {
-    case '24h': return 200;
+    case '24h': return DASHBOARD_LATEST_BLOB_LIMIT;
     case '7d': return 500;
     case '30d': return 1000;
     case 'All': return 1000;
