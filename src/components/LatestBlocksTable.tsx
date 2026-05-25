@@ -53,6 +53,44 @@ function formatBlockTarget(block: Block): string {
   return block.targetBlobs.toString();
 }
 
+function parseWeiString(value?: string): bigint | null {
+  if (!value || !/^\d+$/.test(value)) return null;
+  return BigInt(value);
+}
+
+function parseEthToWei(value: string): bigint | null {
+  if (!/^\d+(?:\.\d+)?$/.test(value)) return null;
+
+  const [wholePart, fractionalPart = ''] = value.split('.');
+  const paddedFractional = fractionalPart.padEnd(18, '0').slice(0, 18);
+  return BigInt(wholePart) * BigInt('1000000000000000000') + BigInt(paddedFractional || '0');
+}
+
+function getBlobPaidWei(blob: BlobResponse): bigint | null {
+  const realizedCost = parseWeiString(blob.realized_cost_wei);
+  if (realizedCost !== null) return realizedCost;
+
+  if (!blob.total_cost_eth) return null;
+  if (blob.total_cost_eth.includes('.')) return parseEthToWei(blob.total_cost_eth);
+  return parseWeiString(blob.total_cost_eth);
+}
+
+function formatBlockPaid(block: Block): string {
+  let totalWei = BigInt(0);
+  let costCount = 0;
+
+  for (const blob of block.blobs) {
+    const paidWei = getBlobPaidWei(blob);
+    if (paidWei === null) continue;
+
+    totalWei += paidWei;
+    costCount += 1;
+  }
+
+  if (costCount === 0) return '-';
+  return formatBlobWeiCost(totalWei.toString());
+}
+
 function AttributionDisplay({ attribution }: { attribution: string[] }) {
   if (attribution.length === 1) {
     const imageSrc = getAttributionImageSrc(attribution[0]);
@@ -162,7 +200,7 @@ function BlobDetailField({
 function BlobDetailsRow({ block }: { block: Block }) {
   return (
     <tr id={getBlockDetailsId(block.id)} className="bg-[#111522]">
-      <td colSpan={5} className="p-0">
+      <td colSpan={6} className="p-0">
         <div className="px-4 sm:px-6 py-4 border-t border-dividerBlue/50">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <h3 className="text-sm font-medium text-white">Blob details</h3>
@@ -263,6 +301,7 @@ export default function LatestBlocksTable() {
   const { selectedNetwork } = useNetwork();
   const { latestEvents } = useBlobWebSocket();
   const [expandedBlockId, setExpandedBlockId] = React.useState<number | null>(null);
+  const hasUserSelectedBlockRef = React.useRef(false);
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
     () => api.getLatestBlocks(DASHBOARD_LATEST_BLOB_LIMIT, selectedNetwork.apiParam),
@@ -284,6 +323,7 @@ export default function LatestBlocksTable() {
   }, [data, latestEvents.new_block]);
 
   const toggleBlock = React.useCallback((blockId: number) => {
+    hasUserSelectedBlockRef.current = true;
     setExpandedBlockId((currentBlockId) => currentBlockId === blockId ? null : blockId);
   }, []);
 
@@ -298,14 +338,25 @@ export default function LatestBlocksTable() {
   }, [toggleBlock]);
 
   React.useEffect(() => {
+    hasUserSelectedBlockRef.current = false;
     setExpandedBlockId(null);
   }, [selectedNetwork.apiParam]);
+
+  React.useEffect(() => {
+    if (!displayData || hasUserSelectedBlockRef.current) return;
+
+    const defaultExpandedBlock = displayData.data.find((block) => block.blobs.length > 0) || displayData.data[0];
+    if (defaultExpandedBlock && expandedBlockId !== defaultExpandedBlock.id) {
+      setExpandedBlockId(defaultExpandedBlock.id);
+    }
+  }, [displayData, expandedBlockId]);
 
   React.useEffect(() => {
     if (expandedBlockId === null || !displayData) return;
 
     const expandedBlockExists = displayData.data.some((block) => block.id === expandedBlockId);
     if (!expandedBlockExists) {
+      hasUserSelectedBlockRef.current = false;
       setExpandedBlockId(null);
     }
   }, [displayData, expandedBlockId]);
@@ -315,10 +366,11 @@ export default function LatestBlocksTable() {
       <table className="min-w-full overflow-hidden table-fixed">
         <thead>
           <tr className="border-b border-divider bg-gradient-to-b from-[#22252c] to-[#16171b]">
-            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[28%]">Block</th>
-            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[18%]">Blobs</th>
-            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[26%]">Util.</th>
-            <th className="hidden sm:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%] whitespace-nowrap">Base Fee</th>
+            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[24%]">Block</th>
+            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[15%]">Blobs</th>
+            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[22%]">Util.</th>
+            <th className="hidden sm:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[14%] whitespace-nowrap">Base Fee</th>
+            <th className="hidden md:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[13%]">Paid</th>
             <th className="hidden lg:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%]">Users</th>
           </tr>
         </thead>
@@ -339,6 +391,9 @@ export default function LatestBlocksTable() {
               <td className="hidden sm:table-cell py-3 px-3 sm:px-4">
                 <div className="h-5 bg-[#202538] rounded w-16 animate-pulse"></div>
               </td>
+              <td className="hidden md:table-cell py-3 px-3 sm:px-4">
+                <div className="h-5 bg-[#202538] rounded w-16 animate-pulse"></div>
+              </td>
               <td className="hidden lg:table-cell py-3 px-3 sm:px-4">
                 <div className="h-5 bg-[#202538] rounded w-20 animate-pulse"></div>
               </td>
@@ -351,7 +406,7 @@ export default function LatestBlocksTable() {
 
   return (
     <section>
-      <h2 className="text-2xl font-windsor-bold text-white mb-4">Latest Blocks</h2>
+      <h2 className="text-2xl font-windsor-bold text-white mb-4">Latest Blocks & Blob Fees</h2>
 
       <DataStateWrapper
         isLoading={isLoading && !displayData}
@@ -363,10 +418,11 @@ export default function LatestBlocksTable() {
             <table className="min-w-full overflow-hidden table-fixed">
               <thead>
                 <tr className="border-b border-divider bg-gradient-to-b from-[#22252c] to-[#16171b]">
-                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[28%]">Block</th>
-                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[18%]">Blobs</th>
-                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[26%]">Util.</th>
-                  <th className="hidden sm:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%] whitespace-nowrap">Base Fee</th>
+                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[24%]">Block</th>
+                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[15%]">Blobs</th>
+                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[22%]">Util.</th>
+                  <th className="hidden sm:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[14%] whitespace-nowrap">Base Fee</th>
+                  <th className="hidden md:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[13%]">Paid</th>
                   <th className="hidden lg:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%]">Users</th>
                 </tr>
               </thead>
@@ -376,6 +432,7 @@ export default function LatestBlocksTable() {
                   const detailsId = getBlockDetailsId(block.id);
                   const baseFee = formatBlockBaseFee(block);
                   const hasCapacity = block.maxBlobs > 0;
+                  const paidCost = formatBlockPaid(block);
 
                   return (
                     <React.Fragment key={block.id}>
@@ -423,6 +480,9 @@ export default function LatestBlocksTable() {
                           <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">
                             {formatBlockOpenCapacity(block)}
                           </div>
+                          <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap md:hidden">
+                            {paidCost}
+                          </div>
                         </td>
                         <td className="py-3 px-3 sm:px-4 text-sm text-white">
                           <div className="flex items-center gap-2">
@@ -440,6 +500,7 @@ export default function LatestBlocksTable() {
                           <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">target {formatBlockTarget(block)}</div>
                         </td>
                         <td className="hidden sm:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap">{baseFee}</td>
+                        <td className="hidden md:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap">{paidCost}</td>
                         <td className="hidden lg:table-cell py-3 px-3 sm:px-4 text-sm text-white">
                           <AttributionDisplay attribution={block.attribution} />
                         </td>
