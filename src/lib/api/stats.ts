@@ -1,6 +1,6 @@
 import { StatsResponse, ApiResponse, BackendStatsResponse, WebSocketStatsResponse } from '../../types';
 import { fetchApi } from './core';
-import { formatCostEthOrWei, formatWeiToReadable } from '../../utils';
+import { formatWeiToEth, formatWeiToReadable } from '../../utils';
 
 export function transformStatsResponse(stats: BackendStatsResponse | WebSocketStatsResponse): StatsResponse {
     return {
@@ -11,7 +11,7 @@ export function transformStatsResponse(stats: BackendStatsResponse | WebSocketSt
             pendingBlobsCount: stats.total_pending_blobs,
             avgBlobsPerBlock: Math.round(((stats.total_confirmed_blobs || 100) / 100) * 10) / 10,
             averageTip: formatWeiToReadable(stats.average_tip || '0'),
-            averageTotalCost: formatCostEthOrWei(stats.average_total_cost || '0'),
+            averageTotalCost: formatWeiToEth(stats.average_total_cost || '0'),
             lastIndexedBlock: stats.last_indexed_block,
             lastIndexedTime: stats.last_indexed_time
         }
