@@ -48,6 +48,10 @@ describe('api/mempool', () => {
       user: 'Base',
       blobCount: 1,
       timeInMempool: '5 min ago',
+      rawBlob: expect.objectContaining({
+        tx_hash: '0xabc',
+        from_address: '0x1234567890abcdef',
+      }),
     });
     expect(result.data[0].estimatedCost).toContain('Gwei');
   });
