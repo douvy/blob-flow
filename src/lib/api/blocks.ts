@@ -13,7 +13,8 @@ export function transformNewBlockData(blockData: NewBlockData): Block {
         number: blockData.block_number.toString(),
         blobCount: blockData.blob_count,
         timestamp: formatRelativeTime(blockData.timestamp),
-        attribution: attributions.length > 0 ? attributions : ['Unknown']
+        attribution: attributions.length > 0 ? attributions : ['Unknown'],
+        blobs: blockData.blobs
     };
 }
 
