@@ -186,9 +186,7 @@ export default function UserDetailPage() {
   );
 
   const userName = user?.name || truncateAddress(address);
-  const userIconSrc = user?.name && !user.name.includes('...')
-    ? getAttributionImageSrc(user.name)
-    : null;
+  const userImageSrc = user?.name ? getAttributionImageSrc(user.name) : null;
 
   const loadingStats = (
     <div className="space-y-4">
@@ -250,8 +248,14 @@ export default function UserDetailPage() {
           {user && (
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
-                {userIconSrc ? (
-                  <Image src={userIconSrc} alt={user.name || userName} width={32} height={32} className="w-8 h-8" />
+                {user.name && userImageSrc ? (
+                  <Image
+                    src={userImageSrc}
+                    alt={user.name}
+                    width={32}
+                    height={32}
+                    className="w-8 h-8"
+                  />
                 ) : (
                   <span className="w-8 h-8 rounded-full bg-gray-500 inline-flex items-center justify-center text-sm text-white font-medium">
                     {getAttributionInitial(userName)}

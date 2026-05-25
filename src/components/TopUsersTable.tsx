@@ -200,7 +200,7 @@ export default function TopUsersTable() {
               </thead>
               <tbody className="divide-y divide-divider">
                 {displayData.data.map((user: User) => {
-                  const iconSrc = getAttributionImageSrc(user.name);
+                  const imageSrc = getAttributionImageSrc(user.name);
 
                   return (
                     <tr
@@ -210,9 +210,9 @@ export default function TopUsersTable() {
                     >
                       <td className="py-3 px-6 text-sm font-medium text-white whitespace-nowrap">
                         <div className="flex items-center">
-                          {iconSrc ? (
+                          {imageSrc ? (
                             <Image
-                              src={iconSrc}
+                              src={imageSrc}
                               alt={user.name}
                               width={20}
                               height={20}

@@ -125,7 +125,7 @@ export default function MempoolTable() {
               <tbody className="divide-y divide-divider">
                 {displayData.data.map((tx: MempoolTransaction) => {
                   const user = tx.user || 'Unknown';
-                  const iconSrc = getAttributionImageSrc(user);
+                  const userImageSrc = getAttributionImageSrc(user);
 
                   return (
                     <tr
@@ -159,9 +159,9 @@ export default function MempoolTable() {
                           )}
                         </div>
                         <div className="flex items-center text-xs text-[#8a93a5] mt-1 min-w-0">
-                          {iconSrc ? (
+                          {userImageSrc ? (
                             <Image
-                              src={iconSrc}
+                              src={userImageSrc}
                               alt={user}
                               width={16}
                               height={16}
