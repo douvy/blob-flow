@@ -6,13 +6,40 @@ import { api } from '../lib/api';
 import { MempoolResponse, MempoolTransaction } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
+import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
 
 export default function MempoolTable() {
   const { selectedNetwork } = useNetwork();
+  const { latestEvents } = useBlobWebSocket();
 
   const { data, isLoading, error } = useApiData<MempoolResponse>(
     () => api.getMempool(10, selectedNetwork.apiParam)
   );
+  const displayData = React.useMemo<MempoolResponse | undefined>(() => {
+    const liveEvent = latestEvents.mempool_update;
+    if (!liveEvent) {
+      return data;
+    }
+
+    if (liveEvent.data.action === 'remove') {
+      return {
+        data: (data?.data || [])
+          .filter((tx) => tx.txHash !== liveEvent.data.blob.tx_hash)
+          .map((tx, index) => ({ ...tx, id: index + 1 })),
+      };
+    }
+
+    const liveTransaction = transformBlobToMempoolTransaction(liveEvent.data.blob, 0);
+    return {
+      data: [
+        liveTransaction,
+        ...(data?.data || []).filter((tx) => tx.txHash !== liveTransaction.txHash),
+      ]
+        .slice(0, 10)
+        .map((tx, index) => ({ ...tx, id: index + 1 })),
+    };
+  }, [data, latestEvents.mempool_update]);
 
   // Loading state for the table
   const loadingComponent = (
@@ -70,11 +97,11 @@ export default function MempoolTable() {
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Mempool Attribution</h2>
 
       <DataStateWrapper
-        isLoading={isLoading}
-        error={error}
+        isLoading={isLoading && !displayData}
+        error={displayData ? null : error}
         loadingComponent={loadingComponent}
       >
-        {data && (
+        {displayData && (
           <div className="overflow-x-auto border border-divider rounded-lg">
             <table className="min-w-full overflow-hidden table-fixed">
               <thead>
@@ -88,7 +115,7 @@ export default function MempoolTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {data.data.map((tx: MempoolTransaction) => (
+                {displayData.data.map((tx: MempoolTransaction) => (
                   <tr key={tx.id} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
                     <td className="py-3 px-6 text-sm font-mono text-white">{truncateTxHash(tx.txHash)}</td>
                     <td className="py-3 px-6 text-sm font-mono text-white">{tx.fromAddress}</td>

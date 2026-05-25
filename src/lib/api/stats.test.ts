@@ -1,4 +1,4 @@
-import { getStats } from './stats';
+import { getStats, transformStatsResponse } from './stats';
 
 const originalFetch = global.fetch;
 
@@ -41,5 +41,21 @@ describe('api/stats', () => {
       lastIndexedBlock: 12345,
     });
     expect(result.data.averageBaseFee).toContain('Gwei');
+  });
+
+  it('formats websocket decimal average total cost as ETH', () => {
+    const result = transformStatsResponse({
+      total_blobs: 100,
+      total_confirmed_blobs: 80,
+      total_pending_blobs: 20,
+      average_base_fee: '5014755072.74762611',
+      average_tip: '2000000000',
+      average_total_cost: '0.001',
+      last_indexed_block: 12345,
+      last_indexed_time: '2026-01-01T00:00:00.000Z',
+    });
+
+    expect(result.data.averageBaseFee).toContain('Gwei');
+    expect(result.data.averageTotalCost).toBe('0.001 ETH');
   });
 });
