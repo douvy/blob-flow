@@ -154,6 +154,196 @@ export interface MempoolResponse {
   data: MempoolTransaction[];
 }
 
+export interface BackendFeeDistribution {
+  min: string;
+  avg: string;
+  median: string;
+  p95: string;
+  max: string;
+}
+
+export interface BackendPendingTransactionAge {
+  oldest_age_seconds: number;
+  newest_age_seconds: number;
+  average_age_seconds: number;
+  oldest_timestamp: string;
+  newest_timestamp: string;
+}
+
+export interface BackendMempoolIncludability {
+  latest_blob_base_fee: string;
+  pricing_available: boolean;
+  likely_includable_count: number;
+  underpriced_count: number;
+  unknown_pricing_count: number;
+}
+
+export interface BackendMempoolPressureResponse {
+  network_id: number;
+  network_name: string;
+  pending_blob_count: number;
+  pending_blob_gas: number;
+  pending_unique_senders: number;
+  max_fee_per_blob_gas: BackendFeeDistribution;
+  pending_tx_age: BackendPendingTransactionAge;
+  includability: BackendMempoolIncludability;
+  sample_limit: number;
+  sample_truncated: boolean;
+  generated_at: string;
+}
+
+export interface FeeDistribution {
+  min: string;
+  avg: string;
+  median: string;
+  p95: string;
+  max: string;
+}
+
+export interface PendingTransactionAge {
+  oldest: string;
+  newest: string;
+  average: string;
+  oldestSeconds: number;
+  newestSeconds: number;
+  averageSeconds: number;
+  oldestTimestamp: string;
+  newestTimestamp: string;
+}
+
+export interface MempoolIncludability {
+  latestBlobBaseFee: string;
+  pricingAvailable: boolean;
+  likelyIncludableCount: number;
+  underpricedCount: number;
+  unknownPricingCount: number;
+}
+
+export interface MempoolPressure {
+  networkId: number;
+  networkName: string;
+  pendingBlobCount: number;
+  pendingBlobGas: number;
+  pendingUniqueSenders: number;
+  feeDistribution: FeeDistribution;
+  pendingTransactionAge: PendingTransactionAge;
+  includability: MempoolIncludability;
+  sampleLimit: number;
+  sampleTruncated: boolean;
+  generatedAt: string;
+}
+
+export interface BlobPricingParams {
+  target: number;
+  max: number;
+  updateFraction: number;
+  targetGas: number;
+  maxGas: number;
+}
+
+export interface BackendBlobPricingParams {
+  target: number;
+  max: number;
+  update_fraction: number;
+  target_gas: number;
+  max_gas: number;
+}
+
+export interface BackendNextBlockFeeEstimate {
+  low: string;
+  high: string;
+}
+
+export interface BackendBlobMarketPressure {
+  recent_blocks_above_target: number;
+  consecutive_full_blocks: number;
+  percent_recent_blocks_at_max_blobs: number;
+  predicted_direction: string;
+  next_block_fee_estimate: BackendNextBlockFeeEstimate;
+}
+
+export interface BlobMarketPressure {
+  recentBlocksAboveTarget: number;
+  consecutiveFullBlocks: number;
+  percentRecentBlocksAtMaxBlobs: number;
+  predictedDirection: string;
+  nextBlockFeeEstimate: {
+    low: string;
+    high: string;
+  };
+}
+
+export interface BackendBlobPricingRecentBlock {
+  block_number: number;
+  block_timestamp: string;
+  blob_count: number;
+  blob_gas_used: number;
+  blob_gas_target: number;
+  blob_gas_limit: number;
+  excess_blob_gas: number;
+  blob_base_fee: string;
+  blob_base_fee_gwei: string;
+  utilization_ratio: string;
+  blob_params_target: number;
+  blob_params_max: number;
+  target_blobs: number;
+  max_blobs: number;
+  available_blobs: number;
+  utilization_percent: number;
+  is_full: boolean;
+  is_above_target: boolean;
+  update_fraction: number;
+}
+
+export interface BlobPricingRecentBlock {
+  blockNumber: number;
+  blockTimestamp: string;
+  blobCount: number;
+  blobGasUsed: number;
+  blobGasTarget: number;
+  blobGasLimit: number;
+  excessBlobGas: number;
+  blobBaseFee: string;
+  blobBaseFeeGwei: string;
+  utilizationRatio: number;
+  targetBlobs: number;
+  maxBlobs: number;
+  availableBlobs: number;
+  utilizationPercent: number;
+  isFull: boolean;
+  isAboveTarget: boolean;
+}
+
+export interface BackendBlobPricingResponse {
+  network_id: number;
+  network_name: string;
+  current_base_fee: string;
+  current_base_fee_gwei: string;
+  current_excess_gas: number;
+  current_utilization: string;
+  predicted_next_fee: string;
+  predicted_next_fee_gwei: string;
+  fork_stage: string;
+  blob_params: BackendBlobPricingParams;
+  market_pressure: BackendBlobMarketPressure;
+  recent_blocks: BackendBlobPricingRecentBlock[];
+}
+
+export interface BlobPricing {
+  networkId: number;
+  networkName: string;
+  currentBaseFee: string;
+  currentBaseFeeGwei: string;
+  currentExcessGas: number;
+  currentUtilization: number;
+  predictedNextFee: string;
+  predictedNextFeeGwei: string;
+  forkStage: string;
+  blobParams: BlobPricingParams;
+  marketPressure: BlobMarketPressure;
+  recentBlocks: BlobPricingRecentBlock[];
+}
+
 // Backend UserResponse - matches api.UserResponse from swagger
 export interface UserResponse {
   network_id: number;

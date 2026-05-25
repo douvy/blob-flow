@@ -3,6 +3,7 @@
 import React from 'react';
 import Header from '@/components/Header';
 import LiveMetrics from '@/components/LiveMetrics';
+import BlobMarketPanels from '@/components/BlobMarketPanels';
 import MetricsCharts from '@/components/MetricsCharts';
 import LatestBlocksTable from '@/components/LatestBlocksTable';
 import TopUsersTable from '@/components/TopUsersTable';
@@ -18,6 +19,10 @@ export default function Home() {
         {/* Full width LiveMetrics with 4 cards */}
         <div className="mb-12">
           <LiveMetrics />
+        </div>
+
+        <div className="mb-12">
+          <BlobMarketPanels />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
