@@ -1,4 +1,13 @@
-import { formatDate, formatNumber, formatWeiToReadable, truncateAddress } from './index';
+import {
+  formatDate,
+  formatDuration,
+  formatGwei,
+  formatNumber,
+  formatPercent,
+  formatWeiToGwei,
+  formatWeiToReadable,
+  truncateAddress
+} from './index';
 
 describe('utils', () => {
   it('formats numbers with locale separators', () => {
@@ -19,5 +28,18 @@ describe('utils', () => {
     expect(formatWeiToReadable('500')).toBe('500 Wei');
     expect(formatWeiToReadable('1000000000')).toContain('Gwei');
     expect(formatWeiToReadable('1000000000000000000')).toContain('ETH');
+  });
+
+  it('formats blob gas fees in gwei', () => {
+    expect(formatWeiToGwei('9389122')).toBe('0.009389 Gwei');
+    expect(formatWeiToGwei('1000000000')).toBe('1 Gwei');
+    expect(formatGwei('0.008487503')).toBe('0.008488 Gwei');
+  });
+
+  it('formats durations and percentages compactly', () => {
+    expect(formatDuration(20.7)).toBe('21 sec');
+    expect(formatDuration(314.03)).toBe('5 min');
+    expect(formatDuration(5400)).toBe('1.5 hr');
+    expect(formatPercent(35.7143)).toBe('35.7%');
   });
 });

@@ -46,3 +46,54 @@ export function formatWeiToReadable(weiValue: string | number): string {
     return `${wei.toString()} Wei`;
   }
 }
+
+export function formatWeiToGwei(weiValue: string | number, maximumFractionDigits = 6): string {
+  const numericWei = Number(weiValue);
+  if (!Number.isFinite(numericWei)) {
+    return `${weiValue} Wei`;
+  }
+
+  const gwei = numericWei / 1_000_000_000;
+  return `${formatCompactDecimal(gwei, maximumFractionDigits)} Gwei`;
+}
+
+export function formatGwei(gweiValue: string | number, maximumFractionDigits = 6): string {
+  const numericGwei = Number(gweiValue);
+  if (!Number.isFinite(numericGwei)) {
+    return `${gweiValue} Gwei`;
+  }
+
+  return `${formatCompactDecimal(numericGwei, maximumFractionDigits)} Gwei`;
+}
+
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return '0 sec';
+  }
+
+  if (seconds < 60) {
+    return `${Math.round(seconds)} sec`;
+  }
+
+  if (seconds < 3600) {
+    const minutes = Math.round(seconds / 60);
+    return `${minutes} min`;
+  }
+
+  const hours = seconds / 3600;
+  return `${formatCompactDecimal(hours, 1)} hr`;
+}
+
+export function formatPercent(value: number, maximumFractionDigits = 1): string {
+  if (!Number.isFinite(value)) {
+    return '0%';
+  }
+
+  return `${formatCompactDecimal(value, maximumFractionDigits)}%`;
+}
+
+function formatCompactDecimal(value: number, maximumFractionDigits: number): string {
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits,
+  }).format(value);
+}
