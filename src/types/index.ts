@@ -131,6 +131,7 @@ export interface Block {
   blobCount: number;
   timestamp: string;
   attribution: string[];
+  blobs: BlobResponse[];
 }
 
 // Latest blocks response (frontend-shaped)
