@@ -75,4 +75,5 @@ describe('api/blobs', () => {
       expect.any(Object)
     );
   });
+
 });

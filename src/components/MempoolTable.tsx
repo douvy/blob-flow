@@ -10,10 +10,12 @@ import { useNetwork } from '../hooks/useNetwork';
 import { getAttributionImageSrc, getAttributionInitial } from '../utils';
 import { useBlobWebSocket } from '../contexts/LiveDataContext';
 import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
+import MempoolBlobDetailsModal from './MempoolBlobDetailsModal';
 
 export default function MempoolTable() {
   const { selectedNetwork } = useNetwork();
   const { latestEvents } = useBlobWebSocket();
+  const [selectedTransaction, setSelectedTransaction] = React.useState<MempoolTransaction | null>(null);
 
   const { data, isLoading, error } = useApiData<MempoolResponse>(
     () => api.getMempool(10, selectedNetwork.apiParam),
@@ -123,8 +125,17 @@ export default function MempoolTable() {
                   const userImageSrc = tx.user ? getAttributionImageSrc(tx.user) : null;
 
                   return (
-                    <tr key={tx.id} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
-                      <td className="py-3 px-6 text-sm font-mono text-white">{truncateTxHash(tx.txHash)}</td>
+                    <tr key={`${tx.txHash}-${tx.rawBlob.blob_index}`} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
+                      <td className="py-3 px-6 text-sm font-mono text-white">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTransaction(tx)}
+                          className="cursor-pointer rounded text-left text-white underline decoration-[#3B55E6]/50 underline-offset-4 transition-colors hover:text-[#9ac4fd] focus:outline-none focus:ring-2 focus:ring-[#3B55E6] focus:ring-offset-2 focus:ring-offset-[#161a29]"
+                          aria-label={`View pending blob details for transaction ${tx.txHash}`}
+                        >
+                          {truncateTxHash(tx.txHash)}
+                        </button>
+                      </td>
                       <td className="py-3 px-6 text-sm font-mono text-white">{tx.fromAddress}</td>
                       <td className="py-3 px-6 text-sm text-white">
                         {tx.user ? (
@@ -162,6 +173,10 @@ export default function MempoolTable() {
           </div>
         )}
       </DataStateWrapper>
+      <MempoolBlobDetailsModal
+        transaction={selectedTransaction}
+        onClose={() => setSelectedTransaction(null)}
+      />
     </section>
   );
 }

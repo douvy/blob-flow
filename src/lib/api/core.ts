@@ -6,6 +6,8 @@ import { API_BASE_URL } from '../../constants';
 export const DEFAULT_TIMEOUT_MS = 10000;
 export const MAX_RETRIES = 2;
 
+const inFlightGetRequests = new Map<string, Promise<unknown>>();
+
 /**
  * Helper function to format relative time
  */
@@ -54,7 +56,34 @@ export async function fetchApi<T>(
     // Add network parameter to the endpoint if provided
     const networkParam = network ? `${endpoint.includes('?') ? '&' : '?'}network=${network}` : '';
     const url = `${API_BASE_URL}${endpoint}${networkParam}`;
+    const requestKey = retries === 0 ? getInFlightGetRequestKey(url, options) : null;
+    const inFlightRequest = requestKey ? inFlightGetRequests.get(requestKey) : undefined;
 
+    if (inFlightRequest) {
+        return inFlightRequest as Promise<T>;
+    }
+
+    const request = performFetchApi<T>(url, endpoint, network, options, timeoutMs, retries);
+
+    if (requestKey) {
+        inFlightGetRequests.set(requestKey, request);
+        request.then(
+            () => clearInFlightGetRequest(requestKey, request),
+            () => clearInFlightGetRequest(requestKey, request)
+        );
+    }
+
+    return request;
+}
+
+async function performFetchApi<T>(
+    url: string,
+    endpoint: string,
+    network?: string,
+    options?: RequestInit,
+    timeoutMs: number = DEFAULT_TIMEOUT_MS,
+    retries: number = 0
+): Promise<T> {
     // Create abort controller for timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -91,4 +120,31 @@ export async function fetchApi<T>(
         console.error('API fetch error:', error);
         throw new Error('API request failed');
     }
+}
+
+function getInFlightGetRequestKey(url: string, options?: RequestInit): string | null {
+    const method = (options?.method || 'GET').toUpperCase();
+    if (method !== 'GET') {
+        return null;
+    }
+
+    if (hasRequestOptionsThatAffectResponse(options)) {
+        return null;
+    }
+
+    return `${method}:${url}`;
+}
+
+function clearInFlightGetRequest(key: string, request: Promise<unknown>) {
+    if (inFlightGetRequests.get(key) === request) {
+        inFlightGetRequests.delete(key);
+    }
+}
+
+function hasRequestOptionsThatAffectResponse(options?: RequestInit): boolean {
+    if (!options) {
+        return false;
+    }
+
+    return Object.keys(options).some((key) => key !== 'method');
 }

@@ -50,6 +50,63 @@ describe('api/core', () => {
     );
   });
 
+  it('deduplicates matching concurrent GET requests', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const [firstResult, secondResult] = await Promise.all([
+      fetchApi<{ success: boolean }>('/stats', 'mainnet'),
+      fetchApi<{ success: boolean }>('/stats', 'mainnet'),
+    ]);
+
+    expect(firstResult).toEqual({ success: true });
+    expect(secondResult).toEqual({ success: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache completed GET requests', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await fetchApi<{ success: boolean }>('/stats', 'mainnet');
+    await fetchApi<{ success: boolean }>('/stats', 'mainnet');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not deduplicate GET requests with custom options', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user: 'first' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ user: 'second' }),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const [firstResult, secondResult] = await Promise.all([
+      fetchApi<{ user: string }>('/stats', 'mainnet', {
+        headers: { Authorization: 'Bearer first' },
+      }),
+      fetchApi<{ user: string }>('/stats', 'mainnet', {
+        headers: { Authorization: 'Bearer second' },
+      }),
+    ]);
+
+    expect(firstResult).toEqual({ user: 'first' });
+    expect(secondResult).toEqual({ user: 'second' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('retries on 5xx and eventually succeeds', async () => {
     vi.useFakeTimers();
     const fetchMock = vi

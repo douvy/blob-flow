@@ -10,19 +10,20 @@ import { useNetwork } from '../hooks/useNetwork';
 import { getAttributionImageSrc, getAttributionInitial } from '../utils';
 import { useBlobWebSocket } from '../contexts/LiveDataContext';
 import { transformNewBlockData } from '../lib/api/blocks';
+import { DASHBOARD_LATEST_BLOB_LIMIT, LATEST_BLOCK_ROWS } from '../constants';
 
 export default function LatestBlocksTable() {
   const { selectedNetwork } = useNetwork();
   const { latestEvents } = useBlobWebSocket();
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
-    () => api.getLatestBlocks(20, selectedNetwork.apiParam),
+    () => api.getLatestBlocks(DASHBOARD_LATEST_BLOB_LIMIT, selectedNetwork.apiParam),
     undefined,
     selectedNetwork.apiParam
   );
   const displayData = React.useMemo<LatestBlocksResponse | undefined>(() => {
     if (!latestEvents.new_block) {
-      return data;
+      return data ? { data: data.data.slice(0, LATEST_BLOCK_ROWS) } : undefined;
     }
 
     const liveBlock = transformNewBlockData(latestEvents.new_block.data);
@@ -30,7 +31,7 @@ export default function LatestBlocksTable() {
       data: [
         liveBlock,
         ...(data?.data || []).filter((block) => block.number !== liveBlock.number),
-      ].slice(0, 20),
+      ].slice(0, LATEST_BLOCK_ROWS),
     };
   }, [data, latestEvents.new_block]);
 
