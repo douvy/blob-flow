@@ -1,6 +1,7 @@
 import { getLatestBlocks, getBlobByTxHash } from './blocks';
-import { getBlobPricing, getRawBlobs } from './blobs';
-import { getMempool } from './mempool';
+import { getRawBlobs } from './blobs';
+import { getMempool, getMempoolPressure } from './mempool';
+import { getBlobPricing } from './pricing';
 import { getStats, getStatsWindows } from './stats';
 import { getStatus } from './status';
 import { getTopUsers, getUserByAddress, getUserBlobs } from './users';
@@ -14,6 +15,7 @@ export const api = {
     getStatsWindows,
     getStatus,
     getMempool,
+    getMempoolPressure,
     getTopUsers,
     getUserByAddress,
     getUserBlobs,

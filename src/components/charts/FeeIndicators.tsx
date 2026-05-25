@@ -61,7 +61,7 @@ export default function FeeIndicators({ indicators, selectedWindow }: FeeIndicat
             {isHigh ? '\u25B2' : '\u25BC'} {((feeRatio - 1) * 100).toFixed(0)}% vs avg
           </span>
           <span className="text-[11px] text-[#6e7687]">
-            ({averageBaseFeeGwei.toFixed(2)} Gwei {comparisonLabel})
+            ({comparisonLabel}: {averageBaseFeeGwei.toFixed(2)} Gwei)
           </span>
         </div>
       </div>

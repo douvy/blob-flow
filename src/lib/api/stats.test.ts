@@ -18,7 +18,7 @@ describe('api/stats', () => {
           total_pending_blobs: 20,
           average_base_fee: '1000000000',
           average_tip: '2000000000',
-          average_total_cost: '3000000000',
+          average_total_cost: '500000000000000',
           last_indexed_block: 12345,
           last_indexed_time: '2026-01-01T00:00:00.000Z',
         },
@@ -41,22 +41,23 @@ describe('api/stats', () => {
       lastIndexedBlock: 12345,
     });
     expect(result.data.averageBaseFee).toContain('Gwei');
+    expect(result.data.averageTotalCost).toBe('0.0005 ETH');
   });
 
-  it('formats websocket decimal average total cost as ETH', () => {
+  it('formats websocket fractional wei average total cost as ETH', () => {
     const result = transformStatsResponse({
       total_blobs: 100,
       total_confirmed_blobs: 80,
       total_pending_blobs: 20,
       average_base_fee: '5014755072.74762611',
       average_tip: '2000000000',
-      average_total_cost: '0.001',
+      average_total_cost: '2203603226459001.927',
       last_indexed_block: 12345,
       last_indexed_time: '2026-01-01T00:00:00.000Z',
     });
 
     expect(result.data.averageBaseFee).toContain('Gwei');
-    expect(result.data.averageTotalCost).toBe('0.001 ETH');
+    expect(result.data.averageTotalCost).toBe('0.002203603226459001927 ETH');
   });
 
   it('fetches rolling stats windows with typed response data', async () => {

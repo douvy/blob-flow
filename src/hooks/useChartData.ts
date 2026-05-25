@@ -8,7 +8,7 @@ import { api } from '../lib/api';
 import { buildChartDataset } from '../lib/chartAggregation';
 import type {
   BackendStatsWindowsResponse,
-  BlobPricingResponse,
+  BlobPricing,
   ChartDataset,
   StatsResponse,
 } from '../types';
@@ -21,7 +21,7 @@ export function useChartData() {
   const network = selectedNetwork.apiParam;
 
   const fetchPricing = useCallback(
-    () => api.getBlobPricing(RECENT_PRICING_BLOCKS, network),
+    () => api.getBlobPricing(network, RECENT_PRICING_BLOCKS),
     [network]
   );
 
@@ -40,7 +40,7 @@ export function useChartData() {
     isLoading: pricingLoading,
     error: pricingError,
     refetch: refetchPricing,
-  } = useApiData<BlobPricingResponse>(fetchPricing, undefined, network);
+  } = useApiData<BlobPricing>(fetchPricing, undefined, network);
 
   const {
     data: statsWindows,

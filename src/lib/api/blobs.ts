@@ -1,4 +1,4 @@
-import { ApiResponse, BlobPricingResponse, BlobResponse } from '../../types';
+import { ApiResponse, BlobResponse } from '../../types';
 import { fetchApi } from './core';
 
 /**
@@ -13,20 +13,5 @@ export async function getRawBlobs(
     `/blob/latest?limit=${limit}`,
     network
   );
-  return response.data;
-}
-
-/**
- * Fetch current blob fee-market pricing and recent block utilization.
- */
-export async function getBlobPricing(
-  blocks = 120,
-  network?: string
-): Promise<BlobPricingResponse> {
-  const response = await fetchApi<ApiResponse<BlobPricingResponse>>(
-    `/blob/pricing?blocks=${blocks}`,
-    network
-  );
-
   return response.data;
 }

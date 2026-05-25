@@ -3,7 +3,7 @@ import type { TimeRange } from '../contexts/TimeRangeContext';
 import type {
   BackendStatsWindowsResponse,
   BaseFeeDataPoint,
-  BlobPricingResponse,
+  BlobPricing,
   ChartDataset,
   GasUtilizationDataPoint,
   NetworkStats,
@@ -38,11 +38,16 @@ function decimalWeiToGwei(value: string | undefined): number {
 function weiToEth(value: string | undefined): number {
   if (!value) return 0;
 
-  if (/^\d+$/.test(value)) {
-    return Number(formatUnits(BigInt(value), 18));
+  const normalized = value.trim();
+  if (normalized.includes('.')) {
+    return parseFiniteNumber(normalized);
   }
 
-  return parseFiniteNumber(value) / 1e18;
+  if (/^\d+$/.test(normalized)) {
+    return Number(formatUnits(BigInt(normalized), 18));
+  }
+
+  return 0;
 }
 
 function isoTimestamp(value: string): number {
@@ -57,8 +62,8 @@ function formatWindowLabel(window: string): string {
   return window;
 }
 
-function getCurrentBaseFeeGwei(pricing: BlobPricingResponse, baseFee: BaseFeeDataPoint[]): number {
-  const current = parseFiniteNumber(pricing.current_base_fee_gwei);
+function getCurrentBaseFeeGwei(pricing: BlobPricing, baseFee: BaseFeeDataPoint[]): number {
+  const current = parseFiniteNumber(pricing.currentBaseFeeGwei);
   if (current > 0) return roundTo(current, 6);
 
   const latest = baseFee[baseFee.length - 1];
@@ -128,39 +133,36 @@ export function selectRollingWindow(
   return windows[windows.length - 1] ?? null;
 }
 
-export function transformPricingBlocks(pricing: BlobPricingResponse): {
+export function transformPricingBlocks(pricing: BlobPricing): {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
 } {
-  const sortedBlocks = [...pricing.recent_blocks].sort((a, b) => {
-    const timestampDiff = isoTimestamp(a.block_timestamp) - isoTimestamp(b.block_timestamp);
-    return timestampDiff !== 0 ? timestampDiff : a.block_number - b.block_number;
+  const sortedBlocks = [...pricing.recentBlocks].sort((a, b) => {
+    const timestampDiff = isoTimestamp(a.blockTimestamp) - isoTimestamp(b.blockTimestamp);
+    return timestampDiff !== 0 ? timestampDiff : a.blockNumber - b.blockNumber;
   });
 
   const baseFee = sortedBlocks.map((block) => ({
-    timestamp: isoTimestamp(block.block_timestamp),
-    label: `#${block.block_number}`,
-    baseFeeGwei: roundTo(
-      parseFiniteNumber(block.blob_base_fee_gwei) || decimalWeiToGwei(block.blob_base_fee),
-      6
-    ),
-    blockNumber: block.block_number,
+    timestamp: isoTimestamp(block.blockTimestamp),
+    label: `#${block.blockNumber}`,
+    baseFeeGwei: roundTo(parseFiniteNumber(block.blobBaseFeeGwei), 6),
+    blockNumber: block.blockNumber,
   }));
 
   const gasUtilization = sortedBlocks.map((block) => {
-    const targetGas = block.blob_gas_target || pricing.blob_params.target_gas;
+    const targetGas = block.blobGasTarget || pricing.blobParams.targetGas;
     const utilizationPct =
       targetGas > 0
-        ? roundTo((block.blob_gas_used / targetGas) * 100, 0)
-        : roundTo(parseFiniteNumber(block.utilization_ratio) * 100, 0);
+        ? roundTo((block.blobGasUsed / targetGas) * 100, 0)
+        : roundTo(block.utilizationRatio * 100, 0);
 
     return {
-      timestamp: isoTimestamp(block.block_timestamp),
-      label: `#${block.block_number}`,
-      blockNumber: block.block_number,
-      blobGasUsed: block.blob_gas_used,
+      timestamp: isoTimestamp(block.blockTimestamp),
+      label: `#${block.blockNumber}`,
+      blockNumber: block.blockNumber,
+      blobGasUsed: block.blobGasUsed,
       targetGas,
-      blobCount: block.blob_count,
+      blobCount: block.blobCount,
       utilizationPct,
     };
   });
@@ -170,7 +172,7 @@ export function transformPricingBlocks(pricing: BlobPricingResponse): {
 
 export function buildChartDataset(
   statsWindows: BackendStatsWindowsResponse,
-  pricing: BlobPricingResponse,
+  pricing: BlobPricing,
   timeRange: TimeRange,
   stats?: NetworkStats
 ): ChartDataset {
@@ -184,7 +186,7 @@ export function buildChartDataset(
       ? baseFee.reduce((sum, point) => sum + point.baseFeeGwei, 0) / baseFee.length
       : 0);
   const rollingCoverageLabel = formatRollingCoverage(timeRange, selectedWindow);
-  const blockCoverageLabel = formatBlockCoverage(pricing.recent_blocks.length);
+  const blockCoverageLabel = formatBlockCoverage(pricing.recentBlocks.length);
 
   return {
     baseFee,
@@ -204,7 +206,7 @@ export function buildChartDataset(
       recentBaseFeeSparkline: baseFee.slice(-12).map((point) => point.baseFeeGwei),
     },
     granularity: 'block',
-    recentBlockCount: pricing.recent_blocks.length,
+    recentBlockCount: pricing.recentBlocks.length,
     rollingCoverageLabel,
     blockCoverageLabel,
     coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show the ${blockCoverageLabel}.`,
