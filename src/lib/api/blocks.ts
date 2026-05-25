@@ -1,19 +1,62 @@
-import { Block, LatestBlocksResponse, ApiResponse, BlobResponse, NewBlockData } from '../../types';
+import {
+    ApiResponse,
+    BackendBlobPricingRecentBlock,
+    BackendBlobPricingResponse,
+    BlobResponse,
+    Block,
+    LatestBlocksResponse,
+    NewBlockData,
+} from '../../types';
 import { fetchApi, formatRelativeTime } from './core';
 
-export function transformNewBlockData(blockData: NewBlockData): Block {
+function getAttributions(blobs: BlobResponse[]): string[] {
     const attributions: string[] = Array.from(new Set(
-        blockData.blobs
+        blobs
             .map(blob => blob.user_attribution)
             .filter((attr): attr is string => Boolean(attr))
     ));
 
+    return attributions.length > 0 ? attributions : ['Unknown'];
+}
+
+function getBlockUrl(blobs: BlobResponse[]): string | undefined {
+    return blobs.find(blob => Boolean(blob.block_url))?.block_url;
+}
+
+function getBlockBaseFeeGwei(blobs: BlobResponse[]): string {
+    return blobs.find(blob => Boolean(blob.base_fee_per_blob_gas_gwei))
+        ?.base_fee_per_blob_gas_gwei || '0';
+}
+
+function getBlobGasUsed(blobs: BlobResponse[]): number {
+    return blobs.reduce((total, blob) => total + (blob.blob_gas_used || 0), 0);
+}
+
+export function transformNewBlockData(
+    blockData: NewBlockData,
+    pricingBlock?: BackendBlobPricingRecentBlock
+): Block {
+    const maxBlobs = pricingBlock?.max_blobs ?? 0;
+    const targetBlobs = pricingBlock?.target_blobs || 0;
+    const utilizationPercent = pricingBlock?.utilization_percent ?? 0;
+
     return {
         id: blockData.block_number,
         number: blockData.block_number.toString(),
-        blobCount: blockData.blob_count,
+        blockUrl: getBlockUrl(blockData.blobs),
+        blobCount: pricingBlock?.blob_count ?? blockData.blob_count,
+        blobGasUsed: pricingBlock?.blob_gas_used ?? getBlobGasUsed(blockData.blobs),
+        blobGasTarget: pricingBlock?.blob_gas_target ?? 0,
+        blobGasLimit: pricingBlock?.blob_gas_limit ?? 0,
+        targetBlobs,
+        maxBlobs,
+        availableBlobs: pricingBlock?.available_blobs ?? 0,
+        baseFeeGwei: pricingBlock?.blob_base_fee_gwei ?? getBlockBaseFeeGwei(blockData.blobs),
+        utilizationPercent,
+        isFull: pricingBlock?.is_full ?? false,
+        isAboveTarget: pricingBlock?.is_above_target ?? false,
         timestamp: formatRelativeTime(blockData.timestamp),
-        attribution: attributions.length > 0 ? attributions : ['Unknown'],
+        attribution: getAttributions(blockData.blobs),
         blobs: blockData.blobs
     };
 }
@@ -43,14 +86,42 @@ export function transformBlobResponsesToBlocks(blobsResponse: BlobResponse[]): L
 }
 
 /**
- * Get latest confirmed blobs and group them by block
- * @param limit - Number of blobs to fetch
+ * Get latest blocks with pricing and capacity details.
+ * @param limit - Number of blocks to fetch
  * @param network - Optional network parameter
  */
 export async function getLatestBlocks(limit = 20, network?: string): Promise<LatestBlocksResponse> {
-    const response = await fetchApi<ApiResponse<BlobResponse[]>>(`/blob/latest?limit=${limit}`, network);
+    const pricingResponse = await fetchApi<ApiResponse<BackendBlobPricingResponse>>(
+        `/blob/pricing?blocks=${limit}`,
+        network
+    );
+    const blobLimit = Math.max(limit * pricingResponse.data.blob_params.max, limit);
+    const latestBlobsResponse = await fetchApi<ApiResponse<BlobResponse[]>>(
+        `/blob/latest?limit=${blobLimit}`,
+        network
+    );
 
-    return transformBlobResponsesToBlocks(response.data);
+    const blobsByBlock = new Map<number, BlobResponse[]>();
+    for (const blob of latestBlobsResponse.data) {
+        if (blob.block_number < 0) continue;
+
+        const blobs = blobsByBlock.get(blob.block_number) || [];
+        blobs.push(blob);
+        blobsByBlock.set(blob.block_number, blobs);
+    }
+
+    const blocks: Block[] = pricingResponse.data.recent_blocks.slice(0, limit).map((block) => {
+        const blobs = blobsByBlock.get(block.block_number) || [];
+
+        return transformNewBlockData({
+            block_number: block.block_number,
+            blob_count: block.blob_count,
+            timestamp: block.block_timestamp,
+            blobs
+        }, block);
+    });
+
+    return { data: blocks };
 }
 
 /**

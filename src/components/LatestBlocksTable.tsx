@@ -8,8 +8,13 @@ import { Block, BlobResponse, LatestBlocksResponse } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import {
-  formatCostEthOrWei,
-  formatWeiToReadable,
+  formatBlobFee,
+  formatBlobCount,
+  formatBlobSize,
+  formatFeeHeadroom,
+  formatBlobTotalCost,
+  formatBlobWeiCost,
+  formatUtilizationPercent,
   getAttributionImageSrc,
   getAttributionInitial,
   truncateAddress,
@@ -28,22 +33,24 @@ function truncateTxHash(hash: string): string {
   return `${hash.substring(0, 10)}...${hash.substring(hash.length - 4)}`;
 }
 
-function formatBlobSize(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '-';
-  return `${(bytes / 1024).toFixed(1)} KB`;
+function formatBlockBaseFee(block: Block): string {
+  if (!block.baseFeeGwei || block.baseFeeGwei === '0') return '-';
+  return formatBlobFee(block.baseFeeGwei);
 }
 
-function formatNumericValue(
-  value: string | number | undefined,
-  formatter: (rawValue: string | number) => string
-): string {
-  if (value === undefined || value === '') return '-';
+function formatBlockOpenCapacity(block: Block): string {
+  if (block.maxBlobs <= 0) return '-';
+  return `${block.availableBlobs}/${block.maxBlobs} open`;
+}
 
-  try {
-    return formatter(value);
-  } catch {
-    return '-';
-  }
+function formatBlockUtilization(block: Block): string {
+  if (block.maxBlobs <= 0) return '-';
+  return formatUtilizationPercent(block.utilizationPercent);
+}
+
+function formatBlockTarget(block: Block): string {
+  if (block.targetBlobs <= 0) return '-';
+  return block.targetBlobs.toString();
 }
 
 function AttributionDisplay({ attribution }: { attribution: string[] }) {
@@ -51,27 +58,27 @@ function AttributionDisplay({ attribution }: { attribution: string[] }) {
     const imageSrc = getAttributionImageSrc(attribution[0]);
 
     return (
-      <div className="flex items-center">
+      <div className="flex items-center min-w-0">
         {imageSrc ? (
           <Image
             src={imageSrc}
             alt={attribution[0]}
             width={20}
             height={20}
-            className="inline-block w-5 h-5 mr-2"
+            className="inline-block w-5 h-5 mr-2 shrink-0"
           />
         ) : (
-          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 bg-gray-500 text-[10px] text-white font-medium">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 bg-gray-500 text-[10px] text-white font-medium shrink-0">
             {getAttributionInitial(attribution[0])}
           </span>
         )}
-        <span className="whitespace-nowrap">{attribution[0]}</span>
+        <span className="truncate">{attribution[0]}</span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center">
+    <div className="flex items-center min-w-0">
       <div className="flex -space-x-2">
         {attribution.map((attr) => {
           const imageSrc = getAttributionImageSrc(attr);
@@ -97,7 +104,7 @@ function AttributionDisplay({ attribution }: { attribution: string[] }) {
           );
         })}
       </div>
-      <span className="whitespace-nowrap text-sm text-white ml-6">
+      <span className="whitespace-nowrap text-sm text-white ml-5">
         {attribution.length} networks
       </span>
     </div>
@@ -155,8 +162,8 @@ function BlobDetailField({
 function BlobDetailsRow({ block }: { block: Block }) {
   return (
     <tr id={getBlockDetailsId(block.id)} className="bg-[#111522]">
-      <td colSpan={4} className="p-0">
-        <div className="px-6 py-4 border-t border-dividerBlue/50">
+      <td colSpan={5} className="p-0">
+        <div className="px-4 sm:px-6 py-4 border-t border-dividerBlue/50">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <h3 className="text-sm font-medium text-white">Blob details</h3>
             <span className="text-xs text-[#6e7787]">
@@ -169,9 +176,14 @@ function BlobDetailsRow({ block }: { block: Block }) {
           ) : (
             <div className="mt-3 divide-y divide-divider/80">
               {block.blobs.map((blob) => {
-                const formattedCost = formatNumericValue(blob.total_cost_eth, formatCostEthOrWei);
-                const formattedBaseFee = formatNumericValue(blob.base_fee_per_blob_gas, formatWeiToReadable);
-                const formattedTip = formatNumericValue(blob.tip_per_blob_gas, formatWeiToReadable);
+                const realizedCost = blob.realized_cost_wei
+                  ? formatBlobWeiCost(blob.realized_cost_wei)
+                  : formatBlobTotalCost(blob.total_cost_eth);
+                const maxCost = formatBlobWeiCost(blob.max_cost_wei);
+                const baseFee = formatBlobFee(blob.base_fee_per_blob_gas_gwei, blob.base_fee_per_blob_gas);
+                const tip = formatBlobFee(blob.tip_per_blob_gas_gwei, blob.tip_per_blob_gas);
+                const maxFee = formatBlobFee(blob.max_fee_per_blob_gas_gwei, blob.max_fee_per_blob_gas);
+                const headroom = formatFeeHeadroom(blob.fee_cap_headroom_percent);
 
                 return (
                   <div key={`${blob.tx_hash}-${blob.blob_index}`} className="py-3">
@@ -181,22 +193,53 @@ function BlobDetailsRow({ block }: { block: Block }) {
                     </div>
                     <dl className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-3">
                       <BlobDetailField label="Tx Hash" title={blob.tx_hash} monospace>
-                        {truncateTxHash(blob.tx_hash)}
+                        {blob.transaction_url ? (
+                          <a
+                            href={blob.transaction_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue hover:underline"
+                          >
+                            {truncateTxHash(blob.tx_hash)}
+                          </a>
+                        ) : (
+                          truncateTxHash(blob.tx_hash)
+                        )}
                       </BlobDetailField>
                       <BlobDetailField label="From" title={blob.from_address} monospace>
-                        {truncateAddress(blob.from_address)}
+                        {blob.from_address_url ? (
+                          <a
+                            href={blob.from_address_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue hover:underline"
+                          >
+                            {truncateAddress(blob.from_address)}
+                          </a>
+                        ) : (
+                          truncateAddress(blob.from_address)
+                        )}
                       </BlobDetailField>
                       <BlobDetailField label="Size">
                         {formatBlobSize(blob.blob_size_bytes)}
                       </BlobDetailField>
-                      <BlobDetailField label="Cost" title={formattedCost}>
-                        {formattedCost}
+                      <BlobDetailField label="Cost" title={realizedCost}>
+                        {realizedCost}
                       </BlobDetailField>
-                      <BlobDetailField label="Base Fee" title={formattedBaseFee}>
-                        {formattedBaseFee}
+                      <BlobDetailField label="Max Cost" title={maxCost}>
+                        {maxCost}
                       </BlobDetailField>
-                      <BlobDetailField label="Tip" title={formattedTip}>
-                        {formattedTip}
+                      <BlobDetailField label="Base Fee" title={baseFee}>
+                        {baseFee}
+                      </BlobDetailField>
+                      <BlobDetailField label="Tip" title={tip}>
+                        {tip}
+                      </BlobDetailField>
+                      <BlobDetailField label="Max Fee" title={maxFee}>
+                        {maxFee}
+                      </BlobDetailField>
+                      <BlobDetailField label="Headroom">
+                        {headroom}
                       </BlobDetailField>
                       <BlobDetailField label="Time">
                         {formatRelativeTime(blob.timestamp)}
@@ -267,41 +310,37 @@ export default function LatestBlocksTable() {
     }
   }, [displayData, expandedBlockId]);
 
-  // Loading state for the table
   const loadingComponent = (
     <div className="overflow-x-auto border border-divider rounded-lg">
       <table className="min-w-full overflow-hidden table-fixed">
         <thead>
           <tr className="border-b border-divider bg-gradient-to-b from-[#22252c] to-[#16171b]">
-            <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-1/5">Block</th>
-            <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-1/6">Blobs</th>
-            <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-1/4 whitespace-nowrap">Time</th>
-            <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-2/5">Attribution</th>
+            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[28%]">Block</th>
+            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[18%]">Blobs</th>
+            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[26%]">Util.</th>
+            <th className="hidden sm:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%] whitespace-nowrap">Base Fee</th>
+            <th className="hidden lg:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%]">Users</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-divider">
           {[...Array(5)].map((_, index) => (
             <tr key={index} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
-              <td className="py-3 px-6">
-                <div className="h-5 bg-[#202538] rounded w-24 animate-pulse"></div>
+              <td className="py-3 px-3 sm:px-4">
+                <div className="h-5 bg-[#202538] rounded w-20 animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#202538] rounded w-16 animate-pulse sm:hidden"></div>
               </td>
-              <td className="py-3 px-6">
+              <td className="py-3 px-3 sm:px-4">
                 <div className="h-5 bg-[#202538] rounded w-8 animate-pulse"></div>
               </td>
-              <td className="py-3 px-6">
-                <div className="h-5 bg-[#202538] rounded w-20 animate-pulse"></div>
+              <td className="py-3 px-3 sm:px-4">
+                <div className="h-5 bg-[#202538] rounded w-12 animate-pulse mb-2"></div>
+                <div className="h-2 bg-[#202538] rounded w-24 animate-pulse"></div>
               </td>
-              <td className="py-3 px-6">
-                <div className="flex items-center">
-                  <div className="flex -space-x-2">
-                    {[...Array(3)].map((_, idx) => (
-                      <div
-                        key={idx}
-                        className="inline-block w-5 h-5 rounded-full bg-[#202538] animate-pulse"
-                      />
-                    ))}
-                  </div>
-                </div>
+              <td className="hidden sm:table-cell py-3 px-3 sm:px-4">
+                <div className="h-5 bg-[#202538] rounded w-16 animate-pulse"></div>
+              </td>
+              <td className="hidden lg:table-cell py-3 px-3 sm:px-4">
+                <div className="h-5 bg-[#202538] rounded w-20 animate-pulse"></div>
               </td>
             </tr>
           ))}
@@ -324,16 +363,19 @@ export default function LatestBlocksTable() {
             <table className="min-w-full overflow-hidden table-fixed">
               <thead>
                 <tr className="border-b border-divider bg-gradient-to-b from-[#22252c] to-[#16171b]">
-                  <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-1/5">Block</th>
-                  <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-1/6">Blobs</th>
-                  <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-1/4 whitespace-nowrap">Time</th>
-                  <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-2/5">Attribution</th>
+                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[28%]">Block</th>
+                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[18%]">Blobs</th>
+                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[26%]">Util.</th>
+                  <th className="hidden sm:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%] whitespace-nowrap">Base Fee</th>
+                  <th className="hidden lg:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%]">Users</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
                 {displayData.data.map((block: Block) => {
                   const isExpanded = expandedBlockId === block.id;
                   const detailsId = getBlockDetailsId(block.id);
+                  const baseFee = formatBlockBaseFee(block);
+                  const hasCapacity = block.maxBlobs > 0;
 
                   return (
                     <React.Fragment key={block.id}>
@@ -351,20 +393,54 @@ export default function LatestBlocksTable() {
                         aria-controls={detailsId}
                         aria-label={`View blob details for block ${block.number}`}
                       >
-                        <td className="py-3 px-6 text-sm font-medium text-white">
-                          <div className="flex items-center gap-2">
+                        <td className="py-3 px-3 sm:px-4 text-sm font-medium text-white">
+                          <div className="flex items-center gap-2 min-w-0">
                             <i
                               className={`fa-regular fa-chevron-right text-[10px] text-[#6e7787] transition-transform ${
                                 isExpanded ? 'rotate-90' : ''
                               }`}
                               aria-hidden="true"
                             />
-                            <span>{block.number}</span>
+                            {block.blockUrl ? (
+                              <a
+                                href={block.blockUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue hover:underline"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                {Number(block.number).toLocaleString()}
+                              </a>
+                            ) : (
+                              <span>{Number(block.number).toLocaleString()}</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-[#8a93a5] mt-1 font-normal whitespace-nowrap">{block.timestamp}</div>
+                          <div className="text-xs text-[#8a93a5] mt-1 font-normal sm:hidden">{baseFee}</div>
+                        </td>
+                        <td className="py-3 px-3 sm:px-4 text-sm text-white">
+                          <div className="whitespace-nowrap">{formatBlobCount(block.blobCount)}</div>
+                          <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">
+                            {formatBlockOpenCapacity(block)}
                           </div>
                         </td>
-                        <td className="py-3 px-6 text-sm text-white">{block.blobCount}</td>
-                        <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{block.timestamp}</td>
-                        <td className="py-3 px-6 text-sm text-white">
+                        <td className="py-3 px-3 sm:px-4 text-sm text-white">
+                          <div className="flex items-center gap-2">
+                            <span className="whitespace-nowrap">{formatBlockUtilization(block)}</span>
+                            {block.isFull && (
+                              <span className="text-[10px] uppercase tracking-wider text-[#ff8f8f]">Full</span>
+                            )}
+                          </div>
+                          <div className="mt-2 h-1.5 w-full rounded-full bg-[#2a2f37] overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${block.isAboveTarget ? 'bg-[#ffb86b]' : 'bg-blue'}`}
+                              style={{ width: hasCapacity ? `${Math.min(block.utilizationPercent, 100)}%` : '0%' }}
+                            />
+                          </div>
+                          <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">target {formatBlockTarget(block)}</div>
+                        </td>
+                        <td className="hidden sm:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap">{baseFee}</td>
+                        <td className="hidden lg:table-cell py-3 px-3 sm:px-4 text-sm text-white">
                           <AttributionDisplay attribution={block.attribution} />
                         </td>
                       </tr>

@@ -21,16 +21,26 @@ export interface BlobResponse {
   block_number: number;
   blob_index: number;
   tx_hash: string;
+  transaction_url?: string;
   from_address: string;
+  from_address_url?: string;
+  block_url?: string;
   blob_size_bytes: number;
   base_fee_per_blob_gas: string;
+  base_fee_per_blob_gas_gwei?: string;
   tip_per_blob_gas: string;
+  tip_per_blob_gas_gwei?: string;
   total_cost_eth: string;
   timestamp: string;
   confirmed: boolean;
   user_attribution?: string;
   max_fee_per_blob_gas?: string;
+  max_fee_per_blob_gas_gwei?: string;
   blob_gas_used?: number;
+  realized_cost_wei?: string;
+  max_cost_wei?: string;
+  fee_cap_headroom_wei?: string;
+  fee_cap_headroom_percent?: string;
 }
 
 // ---- WebSocket Live Data Types ----
@@ -128,7 +138,18 @@ export interface BlobWebSocketSubscribeMessage {
 export interface Block {
   id: number;
   number: string;
+  blockUrl?: string;
   blobCount: number;
+  blobGasUsed: number;
+  blobGasTarget: number;
+  blobGasLimit: number;
+  targetBlobs: number;
+  maxBlobs: number;
+  availableBlobs: number;
+  baseFeeGwei: string;
+  utilizationPercent: number;
+  isFull: boolean;
+  isAboveTarget: boolean;
   timestamp: string;
   attribution: string[];
   blobs: BlobResponse[];
@@ -143,9 +164,19 @@ export interface LatestBlocksResponse {
 export interface MempoolTransaction {
   id: number;
   txHash: string;
+  transactionUrl?: string;
   fromAddress: string;
+  fromAddressFull: string;
+  fromAddressUrl?: string;
   user: string | null;
   blobCount: number;
+  blobSizeBytes: number;
+  baseFeeGwei: string;
+  tipGwei: string;
+  maxFeeGwei: string;
+  feeHeadroom: string;
+  realizedCost: string;
+  maxCost: string;
   estimatedCost: string;
   timeInMempool: string;
   rawBlob: BlobResponse;

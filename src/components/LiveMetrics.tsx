@@ -48,7 +48,6 @@ export default function LiveMetrics() {
     [network]
   );
 
-  // Fetch stats data from API
   const {
     data,
     isLoading: statsLoading,
@@ -76,7 +75,6 @@ export default function LiveMetrics() {
     : undefined;
   const displayData = liveStatsData || data;
 
-  // Transform API data into metrics format
   const getMetricsFromData = (
     statsData: StatsResponse,
     window: RollingWindowDataPoint
@@ -118,7 +116,6 @@ export default function LiveMetrics() {
   const isLoading = statsLoading || windowsLoading;
   const error = statsError || windowsError;
 
-  // Loading state component specifically for metrics cards
   const loadingComponent = (
     <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {[...Array(4)].map((_, index) => (

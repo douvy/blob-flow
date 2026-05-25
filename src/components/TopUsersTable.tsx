@@ -1,8 +1,8 @@
 "use client";
 
+import Image from 'next/image';
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { TopUsersResponse, User } from '../types';
@@ -27,7 +27,6 @@ export default function TopUsersTable() {
     : data;
 
   useEffect(() => {
-    // Function to set up event listeners for tooltips
     const setupTooltips = () => {
       const tooltipElements = document.querySelectorAll('[data-tooltip]');
 
@@ -35,17 +34,14 @@ export default function TopUsersTable() {
         const target = e.currentTarget as HTMLElement;
         const tooltipText = target.getAttribute('data-tooltip');
 
-        // Get or create tooltip
         let tooltip = document.getElementById('custom-tooltip');
         if (!tooltip) {
           tooltip = document.createElement('div');
           tooltip.id = 'custom-tooltip';
 
-          // Create a small arrow element for the tooltip
           const arrow = document.createElement('div');
           tooltip.appendChild(arrow);
 
-          // Style the tooltip - VERY high z-index, fixed position
           Object.assign(tooltip.style, {
             position: 'fixed',
             backgroundColor: '#14161a',
@@ -63,7 +59,6 @@ export default function TopUsersTable() {
             fontFamily: 'inherit'
           });
 
-          // Style the arrow
           Object.assign(arrow.style, {
             position: 'absolute',
             bottom: '-4px',
@@ -76,21 +71,15 @@ export default function TopUsersTable() {
             borderTop: '4px solid #14161a'
           });
 
-          // Create a text container to hold the text
           const textContainer = document.createElement('div');
           textContainer.textContent = tooltipText;
           tooltip.insertBefore(textContainer, arrow);
 
-          // Add to body
           document.body.appendChild(tooltip);
-        } else {
-          // Update text if tooltip already exists
-          if (tooltip.firstChild) {
-            (tooltip.firstChild as HTMLElement).textContent = tooltipText;
-          }
+        } else if (tooltip.firstChild) {
+          (tooltip.firstChild as HTMLElement).textContent = tooltipText;
         }
 
-        // Position above the target element
         const rect = target.getBoundingClientRect();
         tooltip.style.left = (rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2)) + 'px';
         tooltip.style.top = (rect.top - tooltip.offsetHeight - 8) + 'px';
@@ -103,14 +92,12 @@ export default function TopUsersTable() {
         }
       };
 
-      // Add event listeners
       tooltipElements.forEach(el => {
         el.addEventListener('mouseenter', handleMouseEnter);
         el.addEventListener('mouseleave', handleMouseLeave);
       });
 
       return () => {
-        // Cleanup
         tooltipElements.forEach(el => {
           el.removeEventListener('mouseenter', handleMouseEnter);
           el.removeEventListener('mouseleave', handleMouseLeave);
@@ -123,13 +110,9 @@ export default function TopUsersTable() {
       };
     };
 
-    // Setup tooltips
-    const cleanup = setupTooltips();
-
-    return cleanup;
+    return setupTooltips();
   }, []);
 
-  // Loading state for the table
   const loadingComponent = (
     <div className="overflow-x-auto border border-divider rounded-lg">
       <table className="min-w-full overflow-hidden table-fixed">
@@ -174,7 +157,6 @@ export default function TopUsersTable() {
     </div>
   );
 
-  // Helper function to determine user's color for the progress bar
   const getUserColor = (userName: string): string => {
     switch (userName.toLowerCase()) {
       case 'arbitrum':
