@@ -10,7 +10,7 @@ import { useApiData } from '@/hooks/useApiData';
 import { api } from '@/lib/api';
 import { useNetwork } from '@/hooks/useNetwork';
 import { UserResponse, BlobResponse } from '@/types';
-import { formatWeiToReadable, truncateAddress } from '@/utils';
+import { formatWeiToReadable, getAttributionImageSrc, getAttributionInitial, truncateAddress } from '@/utils';
 import { formatRelativeTime } from '@/lib/api/core';
 
 function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boolean }) {
@@ -67,15 +67,21 @@ export default function UserDetailPage() {
   const { selectedNetwork } = useNetwork();
 
   const { data: user, isLoading: userLoading, error: userError } = useApiData<UserResponse>(
-    () => api.getUserByAddress(address, selectedNetwork.apiParam)
+    () => api.getUserByAddress(address, selectedNetwork.apiParam),
+    undefined,
+    `${selectedNetwork.apiParam}:${address}`
   );
 
   const { data: confirmedBlobs, isLoading: blobsLoading, error: blobsError } = useApiData<BlobResponse[]>(
-    () => api.getUserBlobs(address, true, 20, selectedNetwork.apiParam)
+    () => api.getUserBlobs(address, true, 20, selectedNetwork.apiParam),
+    undefined,
+    `${selectedNetwork.apiParam}:${address}`
   );
 
   const { data: mempoolBlobs, isLoading: mempoolLoading, error: mempoolError } = useApiData<BlobResponse[]>(
-    () => api.getUserBlobs(address, false, 20, selectedNetwork.apiParam)
+    () => api.getUserBlobs(address, false, 20, selectedNetwork.apiParam),
+    undefined,
+    `${selectedNetwork.apiParam}:${address}`
   );
 
   const userName = user?.name || truncateAddress(address);
@@ -140,10 +146,12 @@ export default function UserDetailPage() {
           {user && (
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
-                {user.name && !user.name.includes('...') ? (
-                  <img src={`/images/${user.name.toLowerCase()}.png`} alt={user.name} className="w-8 h-8" />
+                {user.name && getAttributionImageSrc(user.name) ? (
+                  <img src={getAttributionImageSrc(user.name) || ''} alt={user.name} className="w-8 h-8" />
                 ) : (
-                  <span className="w-8 h-8 rounded-full bg-gray-500 inline-block" />
+                  <span className="w-8 h-8 rounded-full bg-gray-500 inline-flex items-center justify-center text-sm text-white font-medium">
+                    {getAttributionInitial(userName)}
+                  </span>
                 )}
                 <h1 className="text-3xl font-windsor-bold text-white">{userName}</h1>
               </div>

@@ -13,7 +13,9 @@ export default function LiveMetrics() {
 
   // Fetch stats data from API
   const { data, isLoading, error } = useApiData<StatsResponse>(
-    () => api.getStats(selectedNetwork.apiParam)
+    () => api.getStats(selectedNetwork.apiParam),
+    undefined,
+    selectedNetwork.apiParam
   );
 
   // Transform API data into metrics format

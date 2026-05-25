@@ -1,4 +1,11 @@
-import { formatDate, formatNumber, formatWeiToReadable, truncateAddress } from './index';
+import {
+  formatDate,
+  formatNumber,
+  formatWeiToReadable,
+  getAttributionImageSrc,
+  getAttributionInitial,
+  truncateAddress,
+} from './index';
 
 describe('utils', () => {
   it('formats numbers with locale separators', () => {
@@ -19,5 +26,13 @@ describe('utils', () => {
     expect(formatWeiToReadable('500')).toBe('500 Wei');
     expect(formatWeiToReadable('1000000000')).toContain('Gwei');
     expect(formatWeiToReadable('1000000000000000000')).toContain('ETH');
+    expect(formatWeiToReadable('4878649006.97818347')).toBe('4.878649006 Gwei');
+  });
+
+  it('maps known attribution names to local images', () => {
+    expect(getAttributionImageSrc('OP Mainnet')).toBe('/images/optimism.png');
+    expect(getAttributionImageSrc('Arbitrum One')).toBe('/images/arbitrum.png');
+    expect(getAttributionImageSrc('Taiko')).toBeNull();
+    expect(getAttributionInitial('Taiko')).toBe('T');
   });
 });

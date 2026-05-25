@@ -6,12 +6,15 @@ import { api } from '../lib/api';
 import { MempoolResponse, MempoolTransaction } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
+import { getAttributionImageSrc, getAttributionInitial } from '../utils';
 
 export default function MempoolTable() {
   const { selectedNetwork } = useNetwork();
 
   const { data, isLoading, error } = useApiData<MempoolResponse>(
-    () => api.getMempool(10, selectedNetwork.apiParam)
+    () => api.getMempool(10, selectedNetwork.apiParam),
+    undefined,
+    selectedNetwork.apiParam
   );
 
   // Loading state for the table
@@ -95,11 +98,17 @@ export default function MempoolTable() {
                     <td className="py-3 px-6 text-sm text-white">
                       {tx.user ? (
                         <div className="flex items-center">
-                          <img
-                            src={`/images/${tx.user.toLowerCase()}.png`}
-                            alt={tx.user}
-                            className="inline-block w-5 h-5 mr-3"
-                          />
+                          {getAttributionImageSrc(tx.user) ? (
+                            <img
+                              src={getAttributionImageSrc(tx.user) || ''}
+                              alt={tx.user}
+                              className="inline-block w-5 h-5 mr-3"
+                            />
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-3 bg-gray-500 text-[10px] text-white font-medium">
+                              {getAttributionInitial(tx.user)}
+                            </span>
+                          )}
                           {tx.user}
                         </div>
                       ) : (

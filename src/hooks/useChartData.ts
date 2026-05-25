@@ -30,7 +30,9 @@ export function useChartData() {
     error: blobsError,
     refetch: refetchBlobs,
   } = useApiData<BlobResponse[]>(
-    () => api.getRawBlobs(limit, selectedNetwork.apiParam)
+    () => api.getRawBlobs(limit, selectedNetwork.apiParam),
+    undefined,
+    `${selectedNetwork.apiParam}:${limit}`
   );
 
   const {
@@ -38,7 +40,9 @@ export function useChartData() {
     isLoading: statsLoading,
     error: statsError,
   } = useApiData<StatsResponse>(
-    () => api.getStats(selectedNetwork.apiParam)
+    () => api.getStats(selectedNetwork.apiParam),
+    undefined,
+    selectedNetwork.apiParam
   );
 
   const chartData: ChartDataset | null = useMemo(() => {

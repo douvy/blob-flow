@@ -37,6 +37,28 @@ describe('useApiData', () => {
 
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
+
+  it('does not refetch when an inline fetch callback is recreated without a key change', async () => {
+    const fetchFn = vi.fn().mockResolvedValue('ok');
+
+    const { rerender } = renderHook(
+      ({ refetchKey }) => useApiData(() => fetchFn(refetchKey), undefined, refetchKey),
+      { initialProps: { refetchKey: 'mainnet' } }
+    );
+
+    await waitFor(() => expect(fetchFn).toHaveBeenCalledTimes(1));
+
+    rerender({ refetchKey: 'mainnet' });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+
+    rerender({ refetchKey: 'sepolia' });
+    await waitFor(() => expect(fetchFn).toHaveBeenCalledTimes(2));
+    expect(fetchFn).toHaveBeenLastCalledWith('sepolia');
+  });
 });
 
 describe('usePaginatedApiData', () => {

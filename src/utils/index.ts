@@ -3,6 +3,16 @@
  */
 import { formatUnits } from 'viem';
 
+const ATTRIBUTION_IMAGE_NAMES: Record<string, string> = {
+  arbitrum: 'arbitrum',
+  'arbitrum one': 'arbitrum',
+  base: 'base',
+  optimism: 'optimism',
+  'op mainnet': 'optimism',
+  zksync: 'zksync',
+  'zksync era': 'zksync',
+};
+
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
 }
@@ -10,6 +20,15 @@ export function formatNumber(num: number): string {
 export function truncateAddress(address: string, length: number = 6): string {
   if (!address) return '';
   return `${address.substring(0, length)}...${address.substring(address.length - 4)}`;
+}
+
+export function getAttributionImageSrc(name: string): string | null {
+  const imageName = ATTRIBUTION_IMAGE_NAMES[name.trim().toLowerCase()];
+  return imageName ? `/images/${imageName}.png` : null;
+}
+
+export function getAttributionInitial(name: string): string {
+  return name.trim().charAt(0).toUpperCase() || '?';
 }
 
 export function formatDate(date: Date): string {
@@ -27,8 +46,8 @@ export function formatDate(date: Date): string {
  * @returns Formatted string with appropriate unit
  */
 export function formatWeiToReadable(weiValue: string | number): string {
-  // Convert string to bigint if needed
-  const wei = typeof weiValue === 'string' ? BigInt(weiValue) : BigInt(weiValue.toString());
+  const integerWeiValue = weiValue.toString().split('.')[0] || '0';
+  const wei = BigInt(integerWeiValue);
 
   // Define thresholds for different units
   const GWEI_THRESHOLD = BigInt(1_000_000_000); // 10^9
