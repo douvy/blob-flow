@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Clock3, Globe, Menu, RadioTower, Search, TrendingUp } from 'lucide-react';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
@@ -11,6 +12,14 @@ import { DEFAULT_NETWORK } from '../constants';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import { useBlobWebSocket } from '../contexts/LiveDataContext';
 import { BlobWebSocketConnectionState } from '../types';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 
 const LIVE_STATUS_STYLES: Record<BlobWebSocketConnectionState, { label: string; color: string }> = {
   connecting: { label: 'Connecting', color: 'bg-yellow-400' },
@@ -60,7 +69,6 @@ export default function Header() {
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
   const { connectionState, activitySequence } = useBlobWebSocket();
   const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
-  const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -71,7 +79,13 @@ export default function Header() {
 
   const handleNetworkChange = (network: typeof DEFAULT_NETWORK) => {
     setSelectedNetwork(network);
-    setIsNetworkDropdownOpen(false);
+  };
+
+  const handleNetworkValueChange = (apiParam: string) => {
+    const network = networkOptions.find((option) => option.apiParam === apiParam);
+    if (network) {
+      handleNetworkChange(network);
+    }
   };
 
   const handleTimeRangeChange = (range: TimeRange) => {
@@ -138,44 +152,24 @@ export default function Header() {
               aria-label="Toggle mobile menu"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
-              <i className="fa-regular fa-bars" aria-hidden="true"></i>
+              <Menu className="h-4 w-4" aria-hidden="true" />
             </button>
 
             {/* Network Selector - hidden on mobile */}
-            <div className="relative hidden md:block">
-              <button
-                type="button"
-                className="flex items-center space-x-1 px-3 py-1 text-sm rounded-md transition-none bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2 ml-6"
-                onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
-              >
-                <span>{selectedNetwork.name}</span>
-                {isMounted ? (
-                  <i className={`fa-regular fa-chevron-${isNetworkDropdownOpen ? 'up' : 'down'} text-xs`} aria-hidden="true"></i>
-                ) : (
-                  <i className="fa-regular fa-chevron-down text-xs" aria-hidden="true"></i>
-                )}
-              </button>
-
-              {isMounted && isNetworkDropdownOpen && (
-                <div className="absolute mt-1 w-40 bg-container border border-background/50 rounded-md shadow-lg z-10">
-                  <ul className="py-1">
-                    {networkOptions.map((network) => (
-                      <li key={network.name}>
-                        <button
-                          className={`block w-full text-left px-4 py-2 text-sm ${selectedNetwork.name === network.name
-                            ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
-                            : 'text-bodyText hover:bg-[#23252a]'
-                            }`}
-                          onClick={() => handleNetworkChange(network)}
-                        >
-                          {network.name}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+            <Select value={selectedNetwork.apiParam} onValueChange={handleNetworkValueChange}>
+              <SelectTrigger className="ml-6 hidden w-36 md:flex" aria-label="Select network">
+                <SelectValue placeholder="Network" />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectGroup>
+                  {networkOptions.map((network) => (
+                    <SelectItem key={network.apiParam} value={network.apiParam}>
+                      {network.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
 
             {/* Empty flex-grow div to push elements to the right */}
             <div className="flex-grow order-last md:order-none mt-2 md:mt-0"></div>
@@ -185,7 +179,7 @@ export default function Header() {
               <button
                 onClick={toggleSearchModal}
                 className="group select-none text-sm tracking-tight rounded-sm flex gap-2 items-center justify-center text-nowrap border transition-colors duration-75 text-bodyText border-transparent hover:bg-offgray-100/50 dark:hover:bg-offgray-500/10 h-8 px-2.5 hover:bg-[#202327]">
-                <i className="fa-regular fa-magnifying-glass" aria-hidden="true"></i>
+                <Search className="h-4 w-4" aria-hidden="true" />
                 <span className="h-5 px-1.5 max-w-max rounded-xs flex items-center gap-0.5 text-[.6875rem] font-bold text-gray-500 dark:text-gray-300 border border-gray-500/20 dark:border-offgray-400/10 dark:bg-cream-900/10 !px-1">&nbsp;/&nbsp;</span>
               </button>
 
@@ -324,61 +318,45 @@ export default function Header() {
             </div>
             <div className="p-5 space-y-5">
               {/* Network Selector */}
-              <div className="flex items-center justify-between relative">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <i className="fa-regular fa-globe text-blue" aria-hidden="true"></i>
+                  <Globe className="h-4 w-4 text-blue" aria-hidden="true" />
                   <span className="text-bodyText">Network</span>
                 </div>
-                <button
-                  type="button"
-                  className="flex items-center space-x-1 px-3 py-1 text-sm rounded-md transition-none bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2"
-                  onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
-                >
-                  <span>{selectedNetwork.name}</span>
-                  <i className={`fa-regular fa-chevron-${isNetworkDropdownOpen ? 'up' : 'down'} text-xs ml-1`} aria-hidden="true"></i>
-                </button>
-
-                {isNetworkDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-40 bg-[#1a1c22] border border-divider rounded-md shadow-lg z-10">
-                    <ul className="py-1">
+                <Select value={selectedNetwork.apiParam} onValueChange={handleNetworkValueChange}>
+                  <SelectTrigger className="w-36" aria-label="Select network">
+                    <SelectValue placeholder="Network" />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectGroup>
                       {networkOptions.map((network) => (
-                        <li key={network.name}>
-                          <button
-                            className={`block w-full text-left px-4 py-2 text-sm ${selectedNetwork.name === network.name
-                              ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
-                              : 'text-bodyText hover:bg-[#23252a]'
-                              }`}
-                            onClick={() => {
-                              handleNetworkChange(network);
-                              setIsNetworkDropdownOpen(false);
-                            }}
-                          >
-                            {network.name}
-                          </button>
-                        </li>
+                        <SelectItem key={network.apiParam} value={network.apiParam}>
+                          {network.name}
+                        </SelectItem>
                       ))}
-                    </ul>
-                  </div>
-                )}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Search Button */}
-              <div
-                className="flex items-center justify-between cursor-pointer"
+              <button
+                type="button"
+                className="flex w-full items-center justify-between"
                 onClick={toggleSearchModal}
               >
                 <div className="flex items-center gap-3">
-                  <i className="fa-regular fa-magnifying-glass text-blue" aria-hidden="true"></i>
+                  <Search className="h-4 w-4 text-blue" aria-hidden="true" />
                   <span className="text-bodyText">Search</span>
                 </div>
                 <div className="h-5 px-1.5 max-w-max rounded-sm flex items-center gap-0.5 text-[.6875rem] font-bold text-gray-500 border border-gray-500/20 bg-gray-50/5">
                   /
                 </div>
-              </div>
+              </button>
 
               {/* Connection Status */}
               <div className="flex items-center gap-3">
-                <i className="fa-regular fa-signal-stream text-blue" aria-hidden="true"></i>
+                <RadioTower className="h-4 w-4 text-blue" aria-hidden="true" />
                 <LiveStatusIndicator
                   connectionState={connectionState}
                   activitySequence={activitySequence}
@@ -388,7 +366,7 @@ export default function Header() {
 
               {/* Base Fee */}
               <div className="flex items-center gap-3">
-                <i className="fa-regular fa-arrow-trend-up text-blue" aria-hidden="true"></i>
+                <TrendingUp className="h-4 w-4 text-blue" aria-hidden="true" />
                 <div className="flex items-center space-x-1">
                   <span className="text-base text-bodyText">Base Fee:</span>
                   <span className="font-medium text-base text-titleText">0.00042 ETH</span>
@@ -398,7 +376,7 @@ export default function Header() {
               {/* Time Period Selector */}
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <i className="fa-regular fa-timer text-blue" aria-hidden="true"></i>
+                  <Clock3 className="h-4 w-4 text-blue" aria-hidden="true" />
                   <span className="text-bodyText">Time Period</span>
                 </div>
                 <div className="flex items-center space-x-1 bg-background/30 border border-divider rounded-md p-0.5">

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import { ChevronRight } from 'lucide-react';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { Block, BlobResponse, LatestBlocksResponse } from '../types';
@@ -219,7 +220,7 @@ function BlobDetailsRow({ block }: { block: Block }) {
 export default function LatestBlocksTable() {
   const { selectedNetwork } = useNetwork();
   const { latestEvents } = useBlobWebSocket();
-  const [expandedBlockId, setExpandedBlockId] = React.useState<number | null>(null);
+  const [expandedBlock, setExpandedBlock] = React.useState<{ network: string; id: number } | null>(null);
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
     () => api.getLatestBlocks(DASHBOARD_LATEST_BLOB_LIMIT, selectedNetwork.apiParam),
@@ -240,9 +241,23 @@ export default function LatestBlocksTable() {
     };
   }, [data, latestEvents.new_block]);
 
+  const expandedBlockId = React.useMemo(() => {
+    if (expandedBlock?.network !== selectedNetwork.apiParam || !displayData) {
+      return null;
+    }
+
+    return displayData.data.some((block) => block.id === expandedBlock.id)
+      ? expandedBlock.id
+      : null;
+  }, [displayData, expandedBlock, selectedNetwork.apiParam]);
+
   const toggleBlock = React.useCallback((blockId: number) => {
-    setExpandedBlockId((currentBlockId) => currentBlockId === blockId ? null : blockId);
-  }, []);
+    setExpandedBlock((currentBlock) => (
+      currentBlock?.network === selectedNetwork.apiParam && currentBlock.id === blockId
+        ? null
+        : { network: selectedNetwork.apiParam, id: blockId }
+    ));
+  }, [selectedNetwork.apiParam]);
 
   const handleBlockRowKeyDown = React.useCallback((
     event: React.KeyboardEvent<HTMLTableRowElement>,
@@ -253,19 +268,6 @@ export default function LatestBlocksTable() {
       toggleBlock(blockId);
     }
   }, [toggleBlock]);
-
-  React.useEffect(() => {
-    setExpandedBlockId(null);
-  }, [selectedNetwork.apiParam]);
-
-  React.useEffect(() => {
-    if (expandedBlockId === null || !displayData) return;
-
-    const expandedBlockExists = displayData.data.some((block) => block.id === expandedBlockId);
-    if (!expandedBlockExists) {
-      setExpandedBlockId(null);
-    }
-  }, [displayData, expandedBlockId]);
 
   // Loading state for the table
   const loadingComponent = (
@@ -353,8 +355,8 @@ export default function LatestBlocksTable() {
                       >
                         <td className="py-3 px-6 text-sm font-medium text-white">
                           <div className="flex items-center gap-2">
-                            <i
-                              className={`fa-regular fa-chevron-right text-[10px] text-[#6e7787] transition-transform ${
+                            <ChevronRight
+                              className={`h-3 w-3 text-[#6e7787] transition-transform ${
                                 isExpanded ? 'rotate-90' : ''
                               }`}
                               aria-hidden="true"

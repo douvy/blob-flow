@@ -16,23 +16,38 @@ interface MarketSnapshot {
   pressure: MempoolPressure;
 }
 
+interface NetworkSnapshot {
+  network: string;
+  snapshot: MarketSnapshot;
+}
+
+interface NetworkError {
+  network: string;
+  error: Error;
+}
+
 export default function BlobMarketPanels() {
   const { selectedNetwork } = useNetwork();
+  const activeNetwork = selectedNetwork.apiParam;
   const { connectionState } = useBlobWebSocket();
-  const [snapshot, setSnapshot] = useState<MarketSnapshot | undefined>();
+  const [snapshotState, setSnapshotState] = useState<NetworkSnapshot | undefined>();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const [errorState, setErrorState] = useState<NetworkError | null>(null);
+  const [lastUpdatedAtState, setLastUpdatedAtState] = useState<{ network: string; value: number } | null>(null);
+  const [now, setNow] = useState(0);
 
   const isMountedRef = useRef(false);
   const inFlightNetworkRef = useRef<string | null>(null);
-  const snapshotRef = useRef<MarketSnapshot | undefined>(undefined);
+  const snapshotRef = useRef<NetworkSnapshot | undefined>(undefined);
   const requestIdRef = useRef(0);
 
+  const snapshot = snapshotState?.network === activeNetwork ? snapshotState.snapshot : undefined;
+  const error = errorState?.network === activeNetwork ? errorState.error : null;
+  const lastUpdatedAt = lastUpdatedAtState?.network === activeNetwork ? lastUpdatedAtState.value : null;
+
   const fetchMarketData = useCallback(async () => {
-    const network = selectedNetwork.apiParam;
+    const network = activeNetwork;
     if (inFlightNetworkRef.current === network) {
       return;
     }
@@ -40,7 +55,7 @@ export default function BlobMarketPanels() {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     inFlightNetworkRef.current = network;
-    const hasSnapshot = Boolean(snapshotRef.current);
+    const hasSnapshot = snapshotRef.current?.network === network;
 
     if (hasSnapshot) {
       setIsRefreshing(true);
@@ -58,17 +73,20 @@ export default function BlobMarketPanels() {
         return;
       }
 
-      const nextSnapshot = { pricing, pressure };
+      const nextSnapshot = { network, snapshot: { pricing, pressure } };
       snapshotRef.current = nextSnapshot;
-      setSnapshot(nextSnapshot);
-      setLastUpdatedAt(Date.now());
-      setError(null);
+      setSnapshotState(nextSnapshot);
+      setLastUpdatedAtState({ network, value: Date.now() });
+      setErrorState(null);
     } catch (err) {
       if (!isMountedRef.current || requestId !== requestIdRef.current) {
         return;
       }
 
-      setError(err instanceof Error ? err : new Error('Unable to load market data'));
+      setErrorState({
+        network,
+        error: err instanceof Error ? err : new Error('Unable to load market data'),
+      });
     } finally {
       if (isMountedRef.current && requestId === requestIdRef.current) {
         inFlightNetworkRef.current = null;
@@ -76,19 +94,17 @@ export default function BlobMarketPanels() {
         setIsRefreshing(false);
       }
     }
-  }, [selectedNetwork.apiParam]);
+  }, [activeNetwork]);
 
   useEffect(() => {
     isMountedRef.current = true;
     inFlightNetworkRef.current = null;
-    snapshotRef.current = undefined;
-    setSnapshot(undefined);
-    setError(null);
-    setLastUpdatedAt(null);
-    setIsLoading(true);
-    void fetchMarketData();
+    const initialFetchTimer = window.setTimeout(() => {
+      void fetchMarketData();
+    }, 0);
 
     return () => {
+      window.clearTimeout(initialFetchTimer);
       isMountedRef.current = false;
     };
   }, [fetchMarketData]);
@@ -132,7 +148,7 @@ export default function BlobMarketPanels() {
       </div>
 
       <DataStateWrapper
-        isLoading={isLoading && !snapshot}
+        isLoading={!snapshot && !initialError && isLoading}
         error={initialError}
         loadingComponent={<BlobMarketSkeleton />}
       >

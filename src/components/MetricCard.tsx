@@ -1,16 +1,19 @@
 "use client";
 
 import React from 'react';
+import { ArrowDownRight, ArrowUpRight, type LucideIcon } from 'lucide-react';
 
 interface MetricCardProps {
   title: string;
   value: string;
   trend?: 'up' | 'down' | 'neutral';
   description?: string;
-  icon?: string;
+  icon?: LucideIcon;
 }
 
 export default function MetricCard({ title, value, trend = 'neutral', description, icon }: MetricCardProps) {
+  const Icon = icon;
+
   return (
     <div className="relative h-full">
       {/* Blue outer glow/border */}
@@ -22,14 +25,14 @@ export default function MetricCard({ title, value, trend = 'neutral', descriptio
            }}>
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-[#b8bdc7] font-medium text-xs uppercase tracking-wider flex items-center mb-1">
-            {icon && <i className={`${icon} text-blue mr-2`} aria-hidden="true"></i>}
+            {Icon && <Icon className="mr-2 h-4 w-4 text-blue" aria-hidden="true" />}
             {title}
           </h3>
           {trend === 'up' && (
-            <i className="fa-regular fa-arrow-up-right text-[#b8bdc7]" aria-hidden="true"></i>
+            <ArrowUpRight className="h-4 w-4 text-[#b8bdc7]" aria-hidden="true" />
           )}
           {trend === 'down' && (
-            <i className="fa-regular fa-arrow-down-right text-[#b8bdc7]" aria-hidden="true"></i>
+            <ArrowDownRight className="h-4 w-4 text-[#b8bdc7]" aria-hidden="true" />
           )}
         </div>
         <div>

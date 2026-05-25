@@ -2,12 +2,15 @@ import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { useChartData } from './useChartData';
 import { TimeRangeProvider } from '../contexts/TimeRangeContext';
+import { createQueryWrapper } from '../test/queryClient';
 
 const originalFetch = global.fetch;
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return React.createElement(TimeRangeProvider, null, children);
 }
+
+const queryWrapper = createQueryWrapper(wrapper);
 
 const mockPricing = {
   success: true,
@@ -180,7 +183,7 @@ describe('useChartData', () => {
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { result } = renderHook(() => useChartData(), { wrapper });
+    const { result } = renderHook(() => useChartData(), { wrapper: queryWrapper });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -212,7 +215,7 @@ describe('useChartData', () => {
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { result } = renderHook(() => useChartData(), { wrapper });
+    const { result } = renderHook(() => useChartData(), { wrapper: queryWrapper });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -229,7 +232,7 @@ describe('useChartData', () => {
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { result } = renderHook(() => useChartData(), { wrapper });
+    const { result } = renderHook(() => useChartData(), { wrapper: queryWrapper });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);

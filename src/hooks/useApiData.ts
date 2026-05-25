@@ -1,6 +1,20 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQuery, type QueryKey } from '@tanstack/react-query';
+
+interface UseApiDataOptions {
+  enabled?: boolean;
+  queryKey?: QueryKey;
+  refetchInterval?: number;
+  staleTime?: number;
+}
+
+let queryInstanceId = 0;
+
+function normalizeError(error: unknown): Error {
+  return error instanceof Error ? error : new Error('Unknown error occurred');
+}
 
 /**
  * Generic hook for fetching data from API with loading and error states
@@ -12,39 +26,47 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 export function useApiData<T>(
   fetchFunction: () => Promise<T>,
   initialData?: T,
-  refetchKey?: unknown
+  refetchKey?: unknown,
+  options: UseApiDataOptions = {}
 ) {
-  const [data, setData] = useState<T | undefined>(initialData);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [instanceKey] = useState(() => {
+    queryInstanceId += 1;
+    return `api-data-${queryInstanceId}`;
+  });
   const fetchFunctionRef = useRef(fetchFunction);
 
   useEffect(() => {
     fetchFunctionRef.current = fetchFunction;
   }, [fetchFunction]);
 
-  const refetch = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
+  const queryFn = useCallback(async () => {
     try {
-      const result = await fetchFunctionRef.current();
-      setData(result);
-      return result;
+      return await fetchFunctionRef.current();
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error occurred');
-      setError(error);
-      return undefined;
-    } finally {
-      setIsLoading(false);
+      throw normalizeError(err);
     }
   }, []);
 
-  useEffect(() => {
-    refetch();
-  }, [refetch, refetchKey]);
+  const query = useQuery<T, Error>({
+    queryKey: options.queryKey ?? ['api-data', instanceKey, refetchKey],
+    queryFn,
+    enabled: options.enabled,
+    initialData,
+    refetchInterval: options.refetchInterval,
+    staleTime: options.staleTime,
+  });
 
-  return { data, isLoading, error, refetch };
+  const refetch = useCallback(async () => {
+    const result = await query.refetch();
+    return result.data;
+  }, [query]);
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch,
+  };
 }
 
 /**

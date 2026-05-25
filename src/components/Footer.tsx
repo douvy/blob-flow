@@ -3,6 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Star } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -45,7 +46,7 @@ export default function Footer() {
                 className="inline-flex items-center"
               >
                 <span className="decoration-[#f8f8f8] underline underline-offset-2 hover:text-[#d9d9d9] hover:decoration-[#d9d9d9]">
-                  Star on <i className="fa-brands fa-github" aria-hidden="true"></i>
+                  Star on GitHub <Star className="inline h-4 w-4 align-[-2px]" aria-hidden="true" />
                 </span>
               </Link>
             </div>
@@ -59,7 +60,7 @@ export default function Footer() {
                 className="inline-flex items-center"
               >
                 <span className="decoration-[#f8f8f8] underline underline-offset-2 hover:text-[#d9d9d9] hover:decoration-[#d9d9d9]">
-                  Star on <i className="fa-brands fa-github" aria-hidden="true"></i>
+                  Star on GitHub <Star className="inline h-4 w-4 align-[-2px]" aria-hidden="true" />
                 </span>
               </Link>
             </div>

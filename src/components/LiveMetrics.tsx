@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo } from 'react';
+import { Banknote, Box, Scale, Users } from 'lucide-react';
 import MetricCard from './MetricCard';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
@@ -89,28 +90,28 @@ export default function LiveMetrics() {
         value: formatGwei(window.averageBaseFeeGwei),
         trend: 'neutral' as const,
         description: `Median ${formatGwei(window.medianBaseFeeGwei)} / p95 ${formatGwei(window.p95BaseFeeGwei)}`,
-        icon: 'fa-regular fa-money-bills'
+        icon: Banknote
       },
       {
         title: 'Rolling Blobs',
         value: formatCompactNumber(window.totalBlobs),
         trend: 'neutral' as const,
         description: `${window.label} rolling window`,
-        icon: 'fa-regular fa-cube'
+        icon: Box
       },
       {
         title: 'Unique Senders',
         value: formatCompactNumber(window.uniqueSenders),
         trend: 'neutral' as const,
         description: `Avg util ${window.averageUtilizationPct.toFixed(1)}%`,
-        icon: 'fa-regular fa-users'
+        icon: Users
       },
       {
         title: 'Total Blob Cost',
         value: formatEth(window.totalCostEth),
         trend: 'neutral' as const,
         description: `Pending: ${stats.pendingBlobsCount.toLocaleString()} blobs`,
-        icon: 'fa-regular fa-scale-unbalanced-flip'
+        icon: Scale
       }
     ];
   };

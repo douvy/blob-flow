@@ -4,6 +4,7 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ArrowLeft } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import DataStateWrapper from '@/components/DataStateWrapper';
@@ -139,7 +140,7 @@ export default function UserDetailPage() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Back link */}
         <Link href="/" className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2">
-          <i className="fa-regular fa-arrow-left" aria-hidden="true" />
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to Dashboard
         </Link>
 

@@ -1,11 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useApiData, usePaginatedApiData } from './useApiData';
+import { createQueryWrapper } from '../test/queryClient';
 
 describe('useApiData', () => {
   it('fetches data and updates state on success', async () => {
     const fetchFn = vi.fn().mockResolvedValue({ value: 42 });
 
-    const { result } = renderHook(() => useApiData(fetchFn));
+    const { result } = renderHook(() => useApiData(fetchFn), { wrapper: createQueryWrapper() });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -17,7 +18,7 @@ describe('useApiData', () => {
   it('stores errors when fetch fails', async () => {
     const fetchFn = vi.fn().mockRejectedValue('boom');
 
-    const { result } = renderHook(() => useApiData(fetchFn));
+    const { result } = renderHook(() => useApiData(fetchFn), { wrapper: createQueryWrapper() });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -28,7 +29,7 @@ describe('useApiData', () => {
   it('supports manual refetch', async () => {
     const fetchFn = vi.fn().mockResolvedValue('ok');
 
-    const { result } = renderHook(() => useApiData(fetchFn));
+    const { result } = renderHook(() => useApiData(fetchFn), { wrapper: createQueryWrapper() });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
@@ -43,7 +44,7 @@ describe('useApiData', () => {
 
     const { rerender } = renderHook(
       ({ refetchKey }) => useApiData(() => fetchFn(refetchKey), undefined, refetchKey),
-      { initialProps: { refetchKey: 'mainnet' } }
+      { initialProps: { refetchKey: 'mainnet' }, wrapper: createQueryWrapper() }
     );
 
     await waitFor(() => expect(fetchFn).toHaveBeenCalledTimes(1));
@@ -65,7 +66,9 @@ describe('usePaginatedApiData', () => {
   it('fetches with page and limit and supports pagination controls', async () => {
     const fetchFn = vi.fn().mockResolvedValue({ items: [] });
 
-    const { result } = renderHook(() => usePaginatedApiData(fetchFn, 'mainnet'));
+    const { result } = renderHook(() => usePaginatedApiData(fetchFn, 'mainnet'), {
+      wrapper: createQueryWrapper(),
+    });
 
     await waitFor(() => expect(fetchFn).toHaveBeenCalledWith(1, 10, 'mainnet'));
 

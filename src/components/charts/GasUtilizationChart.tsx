@@ -59,9 +59,12 @@ export default function GasUtilizationChart({ data }: GasUtilizationChartProps) 
         <Tooltip
           contentStyle={CHART_TOOLTIP_STYLE}
           labelStyle={CHART_LABEL_STYLE}
-          formatter={(value: number, name: string) => {
-            if (name === 'blobGasUsed') return [formatGas(value), 'Gas Used'];
-            return [value, name];
+          formatter={(value, name) => {
+            const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+            const dataName = String(name ?? '');
+
+            if (dataName === 'blobGasUsed') return [formatGas(numericValue), 'Gas Used'];
+            return [Number.isFinite(numericValue) ? numericValue : String(value ?? ''), dataName];
           }}
           content={({ active, payload, label }) => {
             if (!active || !payload || payload.length === 0) return null;
