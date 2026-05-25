@@ -33,6 +33,8 @@ function formatGas(value: number): string {
 }
 
 export default function GasUtilizationChart({ data }: GasUtilizationChartProps) {
+  const targetGas = data.find((entry) => entry.targetGas > 0)?.targetGas ?? 0;
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
@@ -80,13 +82,15 @@ export default function GasUtilizationChart({ data }: GasUtilizationChartProps) 
             );
           }}
         />
-        <ReferenceLine
-          y={393216}
-          stroke={COLORS.purple}
-          strokeDasharray="5 5"
-          strokeOpacity={0.7}
-          label={{ value: 'Target', fill: '#6e7687', fontSize: 10, position: 'right' }}
-        />
+        {targetGas > 0 && (
+          <ReferenceLine
+            y={targetGas}
+            stroke={COLORS.purple}
+            strokeDasharray="5 5"
+            strokeOpacity={0.7}
+            label={{ value: 'Target', fill: '#6e7687', fontSize: 10, position: 'right' }}
+          />
+        )}
         <Bar dataKey="blobGasUsed" radius={[2, 2, 0, 0]} maxBarSize={20}>
           {data.map((entry, index) => (
             <Cell

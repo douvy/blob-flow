@@ -5,13 +5,12 @@ import { useChartData } from '../hooks/useChartData';
 import DataStateWrapper from './DataStateWrapper';
 import BaseFeeChart from './charts/BaseFeeChart';
 import GasUtilizationChart from './charts/GasUtilizationChart';
-import L2UsageChart from './charts/L2UsageChart';
-import CostComparisonChart from './charts/CostComparisonChart';
 import FeeIndicators from './charts/FeeIndicators';
+import RollingWindowStats from './charts/RollingWindowStats';
 import { CHART_CARD_CLASS } from '../constants/chartTheme';
 
 export default function MetricsCharts() {
-  const { chartData, isLoading, error, dataPoints } = useChartData();
+  const { chartData, isLoading, error } = useChartData();
 
   const loadingComponent = (
     <div className="flex flex-col space-y-6">
@@ -31,12 +30,15 @@ export default function MetricsCharts() {
         {chartData && (
           <div className="flex flex-col space-y-6">
             {/* Fee Market Indicators */}
-            <FeeIndicators indicators={chartData.indicators} />
+            <FeeIndicators
+              indicators={chartData.indicators}
+              selectedWindow={chartData.selectedWindow}
+            />
 
-            {/* Base Fee over Time */}
+            {/* Base Fee over Recent Blocks */}
             <div className={CHART_CARD_CLASS}>
               <h3 className="text-md font-medium mb-4 text-white">
-                Base Fee over Time (Gwei)
+                Base Fee over Recent Blocks (Gwei)
               </h3>
               <div className="h-56 relative">
                 <BaseFeeChart data={chartData.baseFee} />
@@ -46,36 +48,29 @@ export default function MetricsCharts() {
             {/* Blob Gas Utilization */}
             <div className={CHART_CARD_CLASS}>
               <h3 className="text-md font-medium mb-4 text-white">
-                Blob Gas Utilization vs Target
+                Blob Gas Utilization vs Current Target
               </h3>
               <div className="h-56 relative">
                 <GasUtilizationChart data={chartData.gasUtilization} />
               </div>
             </div>
 
-            {/* L2 Usage Breakdown */}
+            {/* Rolling Window Stats */}
             <div className={CHART_CARD_CLASS}>
               <h3 className="text-md font-medium mb-4 text-white">
-                Usage by L2 Network
+                Rolling Market Stats
               </h3>
-              <div className="h-56 relative">
-                <L2UsageChart data={chartData.l2Usage} />
-              </div>
-            </div>
-
-            {/* Cost Comparison */}
-            <div className={CHART_CARD_CLASS}>
-              <h3 className="text-md font-medium mb-4 text-white">
-                Cost: Blob vs Calldata Equivalent (ETH)
-              </h3>
-              <div className="h-56 relative">
-                <CostComparisonChart data={chartData.costComparison} />
+              <div className="relative">
+                <RollingWindowStats
+                  windows={chartData.rollingWindows}
+                  selectedWindow={chartData.selectedWindow}
+                />
               </div>
             </div>
 
             {/* Data coverage note */}
             <p className="text-xs text-[#6e7687] text-center">
-              Based on {dataPoints.toLocaleString()} recent blob transactions
+              {chartData.coverageLabel}
             </p>
           </div>
         )}

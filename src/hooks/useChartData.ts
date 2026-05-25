@@ -1,66 +1,80 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useApiData } from './useApiData';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { useNetwork } from './useNetwork';
 import { api } from '../lib/api';
-import { aggregateChartData } from '../lib/chartAggregation';
-import { DASHBOARD_LATEST_BLOB_LIMIT } from '../constants';
-import type { BlobResponse, ChartDataset, StatsResponse } from '../types';
+import { buildChartDataset } from '../lib/chartAggregation';
+import type {
+  BackendStatsWindowsResponse,
+  BlobPricing,
+  ChartDataset,
+  StatsResponse,
+} from '../types';
 
-function getLimitForRange(range: string): number {
-  switch (range) {
-    case '24h': return DASHBOARD_LATEST_BLOB_LIMIT;
-    case '7d': return 500;
-    case '30d': return 1000;
-    case 'All': return 1000;
-    default: return DASHBOARD_LATEST_BLOB_LIMIT;
-  }
-}
+const RECENT_PRICING_BLOCKS = 120;
 
 export function useChartData() {
   const { timeRange } = useTimeRange();
   const { selectedNetwork } = useNetwork();
+  const network = selectedNetwork.apiParam;
 
-  const limit = getLimitForRange(timeRange);
+  const fetchPricing = useCallback(
+    () => api.getBlobPricing(network, RECENT_PRICING_BLOCKS),
+    [network]
+  );
+
+  const fetchStatsWindows = useCallback(
+    () => api.getStatsWindows(undefined, network),
+    [network]
+  );
+
+  const fetchStats = useCallback(
+    () => api.getStats(network),
+    [network]
+  );
 
   const {
-    data: rawBlobs,
-    isLoading: blobsLoading,
-    error: blobsError,
-    refetch: refetchBlobs,
-  } = useApiData<BlobResponse[]>(
-    () => api.getRawBlobs(limit, selectedNetwork.apiParam),
-    undefined,
-    `${selectedNetwork.apiParam}:${limit}`
-  );
+    data: pricing,
+    isLoading: pricingLoading,
+    error: pricingError,
+    refetch: refetchPricing,
+  } = useApiData<BlobPricing>(fetchPricing, undefined, network);
+
+  const {
+    data: statsWindows,
+    isLoading: windowsLoading,
+    error: windowsError,
+    refetch: refetchStatsWindows,
+  } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, undefined, network);
 
   const {
     data: stats,
     isLoading: statsLoading,
     error: statsError,
-  } = useApiData<StatsResponse>(
-    () => api.getStats(selectedNetwork.apiParam),
-    undefined,
-    selectedNetwork.apiParam
-  );
+    refetch: refetchStats,
+  } = useApiData<StatsResponse>(fetchStats, undefined, network);
 
   const chartData: ChartDataset | null = useMemo(() => {
-    if (!rawBlobs || rawBlobs.length === 0) return null;
-    const data = aggregateChartData(rawBlobs, timeRange);
-    if (stats) {
-      data.indicators.pendingBlobCount = stats.data.pendingBlobsCount;
-    }
-    return data;
-  }, [rawBlobs, timeRange, stats]);
+    if (!pricing || !statsWindows) return null;
+    return buildChartDataset(statsWindows, pricing, timeRange, stats?.data);
+  }, [pricing, statsWindows, timeRange, stats]);
+
+  const refetch = useCallback(async () => {
+    await Promise.all([
+      refetchPricing(),
+      refetchStatsWindows(),
+      refetchStats(),
+    ]);
+  }, [refetchPricing, refetchStatsWindows, refetchStats]);
 
   return {
     chartData,
-    isLoading: blobsLoading || statsLoading,
-    error: blobsError || statsError,
-    refetch: refetchBlobs,
+    isLoading: pricingLoading || windowsLoading || statsLoading,
+    error: pricingError || windowsError || statsError,
+    refetch,
     timeRange,
-    dataPoints: rawBlobs?.length ?? 0,
+    dataPoints: chartData?.recentBlockCount ?? 0,
   };
 }

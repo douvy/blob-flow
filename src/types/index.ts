@@ -407,6 +407,31 @@ export interface StatsResponse {
   data: NetworkStats;
 }
 
+// Rolling stats response from /stats/windows
+export type RollingWindowKey = '5m' | '1h' | '24h' | '7d' | '30d';
+
+export interface BackendStatsWindow {
+  window: RollingWindowKey | string;
+  duration_seconds: number;
+  start_time: string;
+  end_time: string;
+  average_blob_base_fee: string;
+  median_blob_base_fee: string;
+  p95_blob_base_fee: string;
+  total_blobs: number;
+  total_blob_gas_used: number;
+  average_utilization: string;
+  total_cost_eth: string;
+  unique_senders: number;
+}
+
+export interface BackendStatsWindowsResponse {
+  network_id: number;
+  network_name: string;
+  generated_at: string;
+  windows: BackendStatsWindow[];
+}
+
 // Backend StatusResponse - matches api.StatusResponse from swagger
 export interface StatusResponse {
   network_id: number;
@@ -465,11 +490,33 @@ export interface FeeMarketIndicators {
 
 export type Granularity = 'block' | 'hourly' | 'daily';
 
+export interface RollingWindowDataPoint {
+  window: RollingWindowKey | string;
+  label: string;
+  durationSeconds: number;
+  startTimestamp: number;
+  endTimestamp: number;
+  averageBaseFeeGwei: number;
+  medianBaseFeeGwei: number;
+  p95BaseFeeGwei: number;
+  totalBlobs: number;
+  totalBlobGasUsed: number;
+  averageUtilizationPct: number;
+  totalCostEth: number;
+  uniqueSenders: number;
+}
+
 export interface ChartDataset {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
   l2Usage: L2UsageDataPoint[];
   costComparison: CostComparisonDataPoint[];
+  rollingWindows: RollingWindowDataPoint[];
+  selectedWindow: RollingWindowDataPoint | null;
   indicators: FeeMarketIndicators;
   granularity: Granularity;
+  recentBlockCount: number;
+  coverageLabel: string;
+  rollingCoverageLabel: string;
+  blockCoverageLabel: string;
 }
