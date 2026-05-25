@@ -66,6 +66,11 @@ export function formatWeiToReadable(weiValue: string | number): string {
   }
 }
 
+export function formatWeiToEth(weiValue: string | number): string {
+  const rawWeiValue = normalizeDecimalString(weiValue);
+  return `${formatDecimalUnits(rawWeiValue, 18)} ETH`;
+}
+
 export function formatCostEthOrWei(costEthOrWei: string | number): string {
   const rawCost = normalizeDecimalString(costEthOrWei);
 
