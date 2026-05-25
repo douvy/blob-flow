@@ -67,22 +67,14 @@ export function formatWeiToReadable(weiValue: string | number): string {
 }
 
 export function formatWeiToGwei(weiValue: string | number, maximumFractionDigits = 6): string {
-  const numericWei = Number(weiValue);
-  if (!Number.isFinite(numericWei)) {
-    return `${weiValue} Wei`;
-  }
-
-  const gwei = numericWei / 1_000_000_000;
-  return `${formatCompactDecimal(gwei, maximumFractionDigits)} Gwei`;
+  const rawWeiValue = normalizeDecimalString(weiValue);
+  const gweiValue = formatDecimalUnits(rawWeiValue, 9);
+  return `${formatDecimalString(gweiValue, maximumFractionDigits)} Gwei`;
 }
 
 export function formatGwei(gweiValue: string | number, maximumFractionDigits = 6): string {
-  const numericGwei = Number(gweiValue);
-  if (!Number.isFinite(numericGwei)) {
-    return `${gweiValue} Gwei`;
-  }
-
-  return `${formatCompactDecimal(numericGwei, maximumFractionDigits)} Gwei`;
+  const rawGweiValue = normalizeDecimalString(gweiValue);
+  return `${formatDecimalString(rawGweiValue, maximumFractionDigits)} Gwei`;
 }
 
 export function formatDuration(seconds: number): string {
@@ -156,8 +148,78 @@ function trimTrailingZeros(value: string): string {
   return trimmedValue || '0';
 }
 
+function formatDecimalString(value: string, maximumFractionDigits: number): string {
+  const normalizedValue = normalizeDecimalString(value);
+  const [wholePart, fractionalPart = ''] = normalizedValue.split('.');
+  const fractionDigits = Math.max(0, Math.floor(maximumFractionDigits));
+
+  if (fractionDigits === 0) {
+    return groupIntegerPart(
+      shouldRoundUp(fractionalPart.charAt(0))
+        ? incrementIntegerString(wholePart)
+        : wholePart
+    );
+  }
+
+  let roundedWholePart = wholePart;
+  let roundedFractionalPart = fractionalPart.slice(0, fractionDigits);
+  const nextDigit = fractionalPart.charAt(fractionDigits);
+
+  if (shouldRoundUp(nextDigit)) {
+    const rounded = incrementFractionString(
+      roundedWholePart,
+      roundedFractionalPart.padEnd(fractionDigits, '0')
+    );
+    roundedWholePart = rounded.wholePart;
+    roundedFractionalPart = rounded.fractionalPart;
+  }
+
+  const trimmedFractionalPart = roundedFractionalPart.replace(/0+$/, '');
+  const formattedWholePart = groupIntegerPart(roundedWholePart);
+
+  if (!trimmedFractionalPart) {
+    return formattedWholePart;
+  }
+
+  return `${formattedWholePart}.${trimmedFractionalPart}`;
+}
+
 function formatCompactDecimal(value: number, maximumFractionDigits: number): string {
   return new Intl.NumberFormat('en-US', {
     maximumFractionDigits,
   }).format(value);
+}
+
+function incrementFractionString(wholePart: string, fractionalPart: string) {
+  const digits = fractionalPart.split('');
+
+  for (let index = digits.length - 1; index >= 0; index -= 1) {
+    const nextDigit = Number(digits[index]) + 1;
+    if (nextDigit < 10) {
+      digits[index] = nextDigit.toString();
+      return {
+        wholePart,
+        fractionalPart: digits.join(''),
+      };
+    }
+
+    digits[index] = '0';
+  }
+
+  return {
+    wholePart: incrementIntegerString(wholePart),
+    fractionalPart: digits.join(''),
+  };
+}
+
+function incrementIntegerString(value: string): string {
+  return (BigInt(value) + BigInt(1)).toString();
+}
+
+function groupIntegerPart(value: string): string {
+  return value.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function shouldRoundUp(value: string): boolean {
+  return value >= '5' && value <= '9';
 }

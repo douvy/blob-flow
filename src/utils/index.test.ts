@@ -55,6 +55,9 @@ describe('utils', () => {
   it('formats blob gas fees in gwei', () => {
     expect(formatWeiToGwei('9389122')).toBe('0.009389 Gwei');
     expect(formatWeiToGwei('1000000000')).toBe('1 Gwei');
+    expect(formatWeiToGwei('123456789012345678901234567890')).toBe(
+      '123,456,789,012,345,678,901.234568 Gwei'
+    );
     expect(formatGwei('0.008487503')).toBe('0.008488 Gwei');
   });
 

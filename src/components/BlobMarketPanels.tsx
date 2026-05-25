@@ -1,44 +1,45 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { API_BASE_URL } from '@/constants';
+import { useBlobWebSocket, useLiveBlobEvent } from '@/contexts/LiveDataContext';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
-import { BlobPricing, MempoolPressure } from '@/types';
+import { BlobPricing, BlobWebSocketConnectionState, MempoolPressure } from '@/types';
 import { formatNumber, formatPercent } from '@/utils';
 import DataStateWrapper from './DataStateWrapper';
 
 const FALLBACK_REFRESH_MS = 60000;
 const STALE_AFTER_MS = 90000;
 
-type RealtimeStatus = 'connecting' | 'connected' | 'disconnected';
-
 interface MarketSnapshot {
   pricing: BlobPricing;
   pressure: MempoolPressure;
 }
 
-interface NewBlockMessage {
-  type: 'new_block';
-}
-
 export default function BlobMarketPanels() {
   const { selectedNetwork } = useNetwork();
+  const { connectionState } = useBlobWebSocket();
   const [snapshot, setSnapshot] = useState<MarketSnapshot | undefined>();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('connecting');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
 
   const isMountedRef = useRef(false);
+  const inFlightNetworkRef = useRef<string | null>(null);
   const snapshotRef = useRef<MarketSnapshot | undefined>(undefined);
   const requestIdRef = useRef(0);
 
   const fetchMarketData = useCallback(async () => {
+    const network = selectedNetwork.apiParam;
+    if (inFlightNetworkRef.current === network) {
+      return;
+    }
+
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
+    inFlightNetworkRef.current = network;
     const hasSnapshot = Boolean(snapshotRef.current);
 
     if (hasSnapshot) {
@@ -49,8 +50,8 @@ export default function BlobMarketPanels() {
 
     try {
       const [pricing, pressure] = await Promise.all([
-        api.getBlobPricing(selectedNetwork.apiParam, 20),
-        api.getMempoolPressure(selectedNetwork.apiParam),
+        api.getBlobPricing(network, 20),
+        api.getMempoolPressure(network),
       ]);
 
       if (!isMountedRef.current || requestId !== requestIdRef.current) {
@@ -70,6 +71,7 @@ export default function BlobMarketPanels() {
       setError(err instanceof Error ? err : new Error('Unable to load market data'));
     } finally {
       if (isMountedRef.current && requestId === requestIdRef.current) {
+        inFlightNetworkRef.current = null;
         setIsLoading(false);
         setIsRefreshing(false);
       }
@@ -78,6 +80,7 @@ export default function BlobMarketPanels() {
 
   useEffect(() => {
     isMountedRef.current = true;
+    inFlightNetworkRef.current = null;
     snapshotRef.current = undefined;
     setSnapshot(undefined);
     setError(null);
@@ -90,57 +93,19 @@ export default function BlobMarketPanels() {
     };
   }, [fetchMarketData]);
 
+  useLiveBlobEvent('new_block', () => {
+    void fetchMarketData();
+  });
+
   useEffect(() => {
-    let isClosed = false;
-    let socket: WebSocket | null = null;
-    setRealtimeStatus('connecting');
-
-    try {
-      socket = new WebSocket(getMarketWebSocketUrl(selectedNetwork.apiParam));
-      socket.addEventListener('open', () => {
-        if (!isClosed) {
-          setRealtimeStatus('connected');
-        }
-      });
-      socket.addEventListener('message', (event: MessageEvent) => {
-        if (isClosed || typeof event.data !== 'string') {
-          return;
-        }
-
-        try {
-          const message: unknown = JSON.parse(event.data);
-          if (isNewBlockMessage(message)) {
-            setRealtimeStatus('connected');
-            void fetchMarketData();
-          }
-        } catch {
-          // Ignore malformed realtime messages; interval refresh is still active.
-        }
-      });
-      socket.addEventListener('error', () => {
-        if (!isClosed) {
-          setRealtimeStatus('disconnected');
-        }
-      });
-      socket.addEventListener('close', () => {
-        if (!isClosed) {
-          setRealtimeStatus('disconnected');
-        }
-      });
-    } catch {
-      setRealtimeStatus('disconnected');
-    }
-
     const fallbackTimer = window.setInterval(() => {
       void fetchMarketData();
     }, FALLBACK_REFRESH_MS);
 
     return () => {
-      isClosed = true;
       window.clearInterval(fallbackTimer);
-      socket?.close();
     };
-  }, [fetchMarketData, selectedNetwork.apiParam]);
+  }, [fetchMarketData]);
 
   useEffect(() => {
     const staleTimer = window.setInterval(() => {
@@ -152,7 +117,7 @@ export default function BlobMarketPanels() {
     };
   }, []);
 
-  const isStale = lastUpdatedAt !== null && now - lastUpdatedAt > STALE_AFTER_MS;
+  const isStale = connectionState === 'stale' || (lastUpdatedAt !== null && now - lastUpdatedAt > STALE_AFTER_MS);
   const initialError = snapshot ? null : error;
 
   return (
@@ -160,7 +125,7 @@ export default function BlobMarketPanels() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h2 className="text-2xl font-windsor-bold text-white">Blob Market</h2>
         <div className="flex flex-wrap items-center gap-3 text-xs text-[#8f9aad]">
-          <MarketStatusPill status={realtimeStatus} isStale={isStale} />
+          <MarketStatusPill status={connectionState} isStale={isStale} />
           {isRefreshing && <span className="text-blue">Refreshing</span>}
           <span>{lastUpdatedAt ? `Updated ${formatUpdatedAt(lastUpdatedAt)}` : 'Waiting for data'}</span>
         </div>
@@ -360,7 +325,7 @@ function InclusionBar({
   );
 }
 
-function MarketStatusPill({ status, isStale }: { status: RealtimeStatus; isStale: boolean }) {
+function MarketStatusPill({ status, isStale }: { status: BlobWebSocketConnectionState; isStale: boolean }) {
   const config = getStatusConfig(status, isStale);
 
   return (
@@ -388,26 +353,8 @@ function BlobMarketSkeleton() {
   );
 }
 
-function getMarketWebSocketUrl(network: string): string {
-  const origin = typeof window === 'undefined' ? 'http://localhost' : window.location.origin;
-  const url = new URL(API_BASE_URL, origin);
-  url.pathname = `${url.pathname.replace(/\/$/, '')}/ws`;
-  url.search = '';
-  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-  url.searchParams.set('network', network);
-  return url.toString();
-}
-
-function isNewBlockMessage(value: unknown): value is NewBlockMessage {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  return (value as { type?: unknown }).type === 'new_block';
-}
-
-function getStatusConfig(status: RealtimeStatus, isStale: boolean) {
-  if (isStale) {
+function getStatusConfig(status: BlobWebSocketConnectionState, isStale: boolean) {
+  if (isStale || status === 'stale') {
     return {
       label: 'Stale',
       className: 'border-amber-300/40 bg-amber-300/10 text-amber-200',
@@ -420,6 +367,14 @@ function getStatusConfig(status: RealtimeStatus, isStale: boolean) {
       label: 'Live',
       className: 'border-green-400/40 bg-green-400/10 text-green-300',
       dotClassName: 'bg-green-400',
+    };
+  }
+
+  if (status === 'reconnecting') {
+    return {
+      label: 'Reconnecting',
+      className: 'border-blue/40 bg-blue/10 text-blue',
+      dotClassName: 'bg-blue',
     };
   }
 
