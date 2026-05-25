@@ -1,6 +1,16 @@
 /**
  * Utility functions for the application
  */
+const ATTRIBUTION_IMAGE_NAMES: Record<string, string> = {
+  arbitrum: 'arbitrum',
+  'arbitrum one': 'arbitrum',
+  base: 'base',
+  optimism: 'optimism',
+  'op mainnet': 'optimism',
+  zksync: 'zksync',
+  'zksync era': 'zksync',
+};
+
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
 }
@@ -8,6 +18,15 @@ export function formatNumber(num: number): string {
 export function truncateAddress(address: string, length: number = 6): string {
   if (!address) return '';
   return `${address.substring(0, length)}...${address.substring(address.length - 4)}`;
+}
+
+export function getAttributionImageSrc(name: string): string | null {
+  const imageName = ATTRIBUTION_IMAGE_NAMES[name.trim().toLowerCase()];
+  return imageName ? `/images/${imageName}.png` : null;
+}
+
+export function getAttributionInitial(name: string): string {
+  return name.trim().charAt(0).toUpperCase() || '?';
 }
 
 export function formatDate(date: Date): string {

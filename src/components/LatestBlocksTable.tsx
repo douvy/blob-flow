@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { Block, LatestBlocksResponse } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
+import { getAttributionImageSrc, getAttributionInitial } from '../utils';
 import { useBlobWebSocket } from '../contexts/LiveDataContext';
 import { transformNewBlockData } from '../lib/api/blocks';
 
@@ -14,7 +15,9 @@ export default function LatestBlocksTable() {
   const { latestEvents } = useBlobWebSocket();
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
-    () => api.getLatestBlocks(20, selectedNetwork.apiParam)
+    () => api.getLatestBlocks(20, selectedNetwork.apiParam),
+    undefined,
+    selectedNetwork.apiParam
   );
   const displayData = React.useMemo<LatestBlocksResponse | undefined>(() => {
     if (!latestEvents.new_block) {
@@ -102,25 +105,43 @@ export default function LatestBlocksTable() {
                     <td className="py-3 px-6 text-sm text-white">
                       {block.attribution.length === 1 ? (
                         <div className="flex items-center">
-                          <img
-                            src={`/images/${block.attribution[0].toLowerCase()}.png`}
-                            alt={block.attribution[0]}
-                            className="inline-block w-5 h-5 mr-2"
-                          />
+                          {getAttributionImageSrc(block.attribution[0]) ? (
+                            <img
+                              src={getAttributionImageSrc(block.attribution[0]) || ''}
+                              alt={block.attribution[0]}
+                              className="inline-block w-5 h-5 mr-2"
+                            />
+                          ) : (
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 bg-gray-500 text-[10px] text-white font-medium">
+                              {getAttributionInitial(block.attribution[0])}
+                            </span>
+                          )}
                           <span className="whitespace-nowrap">{block.attribution[0]}</span>
                         </div>
                       ) : (
                         <div className="flex items-center">
                           <div className="flex -space-x-2">
-                            {block.attribution.map((attr, idx) => (
-                              <img
-                                key={idx}
-                                src={`/images/${attr.toLowerCase()}.png`}
-                                alt={attr}
-                                className="inline-block w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem]"
-                                title={attr}
-                              />
-                            ))}
+                            {block.attribution.map((attr, idx) => {
+                              const imageSrc = getAttributionImageSrc(attr);
+
+                              return imageSrc ? (
+                                <img
+                                  key={idx}
+                                  src={imageSrc}
+                                  alt={attr}
+                                  className="inline-block w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem]"
+                                  title={attr}
+                                />
+                              ) : (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center justify-center w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem] bg-gray-500 text-[10px] text-white font-medium"
+                                  title={attr}
+                                >
+                                  {getAttributionInitial(attr)}
+                                </span>
+                              );
+                            })}
                           </div>
                           <span className="whitespace-nowrap text-sm text-white ml-6">
                             {block.attribution.length} networks
