@@ -307,6 +307,35 @@ function getDirectionClass(direction: string): string {
   return 'border-[#8f9aad]/40 bg-[#8f9aad]/10 text-[#d7dde8]';
 }
 
+function isPlainDecimal(value: string): boolean {
+  return /^\d+(?:\.\d+)?$/.test(value);
+}
+
+function comparePlainDecimals(left: string, right: string): number {
+  const [leftWholeRaw, leftFraction = ''] = left.split('.');
+  const [rightWholeRaw, rightFraction = ''] = right.split('.');
+  const leftWhole = leftWholeRaw.replace(/^0+(?=\d)/, '');
+  const rightWhole = rightWholeRaw.replace(/^0+(?=\d)/, '');
+
+  if (leftWhole.length !== rightWhole.length) {
+    return leftWhole.length - rightWhole.length;
+  }
+
+  if (leftWhole !== rightWhole) {
+    return leftWhole < rightWhole ? -1 : 1;
+  }
+
+  const fractionLength = Math.max(leftFraction.length, rightFraction.length);
+  const normalizedLeftFraction = leftFraction.padEnd(fractionLength, '0');
+  const normalizedRightFraction = rightFraction.padEnd(fractionLength, '0');
+
+  if (normalizedLeftFraction === normalizedRightFraction) {
+    return 0;
+  }
+
+  return normalizedLeftFraction < normalizedRightFraction ? -1 : 1;
+}
+
 function getRecentBlockStats(blocks: BlobPricingRecentBlock[]) {
   if (blocks.length === 0) {
     return {
@@ -317,8 +346,8 @@ function getRecentBlockStats(blocks: BlobPricingRecentBlock[]) {
 
   const averageFill = blocks.reduce((sum, block) => sum + block.utilizationPercent, 0) / blocks.length;
   const fees = blocks
-    .map((block) => Number(block.blobBaseFeeGwei))
-    .filter((fee) => Number.isFinite(fee));
+    .map((block) => block.blobBaseFeeGwei)
+    .filter(isPlainDecimal);
 
   if (fees.length === 0) {
     return {
@@ -327,13 +356,13 @@ function getRecentBlockStats(blocks: BlobPricingRecentBlock[]) {
     };
   }
 
-  const minFee = Math.min(...fees);
-  const maxFee = Math.max(...fees);
+  const minFee = fees.reduce((min, fee) => comparePlainDecimals(fee, min) < 0 ? fee : min);
+  const maxFee = fees.reduce((max, fee) => comparePlainDecimals(fee, max) > 0 ? fee : max);
 
   return {
     averageFill: formatPercent(averageFill),
-    feeRange: minFee === maxFee
-      ? formatGwei(minFee.toString())
-      : `${formatGwei(minFee.toString())} - ${formatGwei(maxFee.toString())}`,
+    feeRange: comparePlainDecimals(minFee, maxFee) === 0
+      ? formatGwei(minFee)
+      : `${formatGwei(minFee)} - ${formatGwei(maxFee)}`,
   };
 }

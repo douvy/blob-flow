@@ -356,6 +356,7 @@ export default function LatestBlocksTable() {
 
     const expandedBlockExists = displayData.data.some((block) => block.id === expandedBlockId);
     if (!expandedBlockExists) {
+      hasUserSelectedBlockRef.current = false;
       setExpandedBlockId(null);
     }
   }, [displayData, expandedBlockId]);
