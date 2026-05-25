@@ -147,6 +147,7 @@ export interface MempoolTransaction {
   blobCount: number;
   estimatedCost: string;
   timeInMempool: string;
+  rawBlob: BlobResponse;
 }
 
 // Mempool response (frontend-shaped)

@@ -17,7 +17,8 @@ export function transformBlobToMempoolTransaction(blob: BlobResponse, index: num
         user: blob.user_attribution || null,
         blobCount: 1,
         estimatedCost: formatCostEthOrWei(blob.total_cost_eth),
-        timeInMempool: formatRelativeTime(blob.timestamp)
+        timeInMempool: formatRelativeTime(blob.timestamp),
+        rawBlob: blob,
     };
 }
 
