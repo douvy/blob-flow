@@ -57,7 +57,14 @@ export function LiveDataProvider({
     useState<BlobWebSocketConnectionState>('connecting');
   const [lastEvent, setLastEvent] = useState<LiveBlobWebSocketEvent | null>(null);
   const [latestEvents, setLatestEvents] = useState<LatestBlobWebSocketEvents>({});
-  const subscriptionKey = subscriptions.join(',');
+  const subscriptionKey = normalizeSubscriptions(subscriptions).join(',');
+  const normalizedSubscriptions = useMemo<SubscribableBlobEventType[]>(() => {
+    if (!subscriptionKey) {
+      return [];
+    }
+
+    return subscriptionKey.split(',') as SubscribableBlobEventType[];
+  }, [subscriptionKey]);
 
   const subscribe = useCallback((handler: LiveBlobEventHandler) => {
     handlersRef.current.add(handler);
@@ -70,7 +77,7 @@ export function LiveDataProvider({
   useEffect(() => {
     const client = new BlobWebSocketClient({
       url: buildBlobWebSocketUrl(network),
-      subscriptions,
+      subscriptions: normalizedSubscriptions,
       onConnectionStateChange: setConnectionState,
       onEvent: (event) => {
         setLastEvent(event);
@@ -94,7 +101,7 @@ export function LiveDataProvider({
     return () => {
       client.disconnect();
     };
-  }, [network, subscriptionKey, subscriptions]);
+  }, [network, normalizedSubscriptions]);
 
   const value = useMemo<LiveDataContextValue>(
     () => ({
@@ -131,4 +138,8 @@ export function useLiveBlobEvent<EventType extends SubscribableBlobEventType>(
       }
     });
   }, [eventType, subscribe]);
+}
+
+function normalizeSubscriptions(subscriptions: SubscribableBlobEventType[]) {
+  return Array.from(new Set(subscriptions)).sort();
 }

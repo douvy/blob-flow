@@ -215,7 +215,7 @@ export default function TopUsersTable() {
               <tbody className="divide-y divide-divider">
                 {displayData.data.map((user: User) => (
                   <tr
-                    key={user.id}
+                    key={user.address}
                     className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors cursor-pointer"
                     onClick={() => router.push(`/user/${user.address}`)}
                   >

@@ -1,6 +1,6 @@
 import { MempoolResponse, MempoolTransaction, ApiResponse, BlobResponse } from '../../types';
 import { fetchApi, formatRelativeTime, truncateAddress } from './core';
-import { formatWeiToReadable } from '../../utils';
+import { formatCostEthOrWei } from '../../utils';
 
 export function transformBlobToMempoolTransaction(blob: BlobResponse, index: number): MempoolTransaction {
     return {
@@ -9,7 +9,7 @@ export function transformBlobToMempoolTransaction(blob: BlobResponse, index: num
         fromAddress: truncateAddress(blob.from_address),
         user: blob.user_attribution || null,
         blobCount: 1,
-        estimatedCost: formatBlobCost(blob.total_cost_eth),
+        estimatedCost: formatCostEthOrWei(blob.total_cost_eth),
         timeInMempool: formatRelativeTime(blob.timestamp)
     };
 }
@@ -19,14 +19,6 @@ export function transformBlobResponsesToMempool(blobsResponse: BlobResponse[]): 
     const transactions: MempoolTransaction[] = blobsResponse.map(transformBlobToMempoolTransaction);
 
     return { data: transactions };
-}
-
-function formatBlobCost(costEthOrWei: string) {
-    if (costEthOrWei.includes('.')) {
-        return `${costEthOrWei} ETH`;
-    }
-
-    return formatWeiToReadable(costEthOrWei);
 }
 
 /**
