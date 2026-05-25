@@ -7,13 +7,18 @@ import { api } from '../lib/api';
 import { TopUsersResponse, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
+import { getNetworkIconSrc } from '../utils';
 
 export default function TopUsersTable() {
   const router = useRouter();
   const { selectedNetwork } = useNetwork();
+  const fetchTopUsers = React.useCallback(
+    () => api.getTopUsers(10, selectedNetwork.apiParam),
+    [selectedNetwork.apiParam]
+  );
 
   const { data, isLoading, error } = useApiData<TopUsersResponse>(
-    () => api.getTopUsers(10, selectedNetwork.apiParam)
+    fetchTopUsers
   );
 
   useEffect(() => {
@@ -207,40 +212,44 @@ export default function TopUsersTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {data.data.map((user: User) => (
-                  <tr
-                    key={user.id}
-                    className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors cursor-pointer"
-                    onClick={() => router.push(`/user/${user.address}`)}
-                  >
-                    <td className="py-3 px-6 text-sm font-medium text-white whitespace-nowrap">
-                      <div className="flex items-center">
-                        {user.name === 'Unknown' || user.name.includes('...') ? (
-                          <span className="inline-block w-5 h-5 rounded-full mr-3 bg-gray-500"></span>
-                        ) : (
-                          <img
-                            src={`/images/${user.name.toLowerCase()}.png`}
-                            alt={user.name}
-                            className="inline-block w-5 h-5 mr-3"
-                          />
-                        )}
-                        {user.name}
-                      </div>
-                    </td>
-                    <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{user.dataCount}</td>
-                    <td className="py-3 px-6 text-sm text-white whitespace-nowrap">
-                      <div className="flex items-center">
-                        <span className="mr-3">{user.percentage}%</span>
-                        <div className="w-32 bg-[#2a2f37] rounded-full h-2.5">
-                          <div
-                            className={`h-2.5 rounded-full ${getUserColor(user.name)}`}
-                            style={{ width: `${user.percentage}%` }}
-                          ></div>
+                {data.data.map((user: User) => {
+                  const iconSrc = getNetworkIconSrc(user.name);
+
+                  return (
+                    <tr
+                      key={user.id}
+                      className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/user/${user.address}`)}
+                    >
+                      <td className="py-3 px-6 text-sm font-medium text-white whitespace-nowrap">
+                        <div className="flex items-center">
+                          {iconSrc ? (
+                            <img
+                              src={iconSrc}
+                              alt={user.name}
+                              className="inline-block w-5 h-5 mr-3"
+                            />
+                          ) : (
+                            <span className="inline-block w-5 h-5 rounded-full mr-3 bg-gray-500"></span>
+                          )}
+                          {user.name}
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-3 px-6 text-sm text-white whitespace-nowrap">{user.dataCount}</td>
+                      <td className="py-3 px-6 text-sm text-white whitespace-nowrap">
+                        <div className="flex items-center">
+                          <span className="mr-3">{user.percentage}%</span>
+                          <div className="w-32 bg-[#2a2f37] rounded-full h-2.5">
+                            <div
+                              className={`h-2.5 rounded-full ${getUserColor(user.name)}`}
+                              style={{ width: `${user.percentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -10,10 +10,14 @@ import { useNetwork } from '../hooks/useNetwork';
 
 export default function LiveMetrics() {
   const { selectedNetwork } = useNetwork();
+  const fetchStats = React.useCallback(
+    () => api.getStats(selectedNetwork.apiParam),
+    [selectedNetwork.apiParam]
+  );
 
   // Fetch stats data from API
   const { data, isLoading, error } = useApiData<StatsResponse>(
-    () => api.getStats(selectedNetwork.apiParam)
+    fetchStats
   );
 
   // Transform API data into metrics format

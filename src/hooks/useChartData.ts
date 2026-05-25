@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useApiData } from './useApiData';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { useNetwork } from './useNetwork';
@@ -23,6 +23,14 @@ export function useChartData() {
   const { selectedNetwork } = useNetwork();
 
   const limit = getLimitForRange(timeRange);
+  const fetchRawBlobs = useCallback(
+    () => api.getRawBlobs(limit, selectedNetwork.apiParam),
+    [limit, selectedNetwork.apiParam]
+  );
+  const fetchStats = useCallback(
+    () => api.getStats(selectedNetwork.apiParam),
+    [selectedNetwork.apiParam]
+  );
 
   const {
     data: rawBlobs,
@@ -30,7 +38,7 @@ export function useChartData() {
     error: blobsError,
     refetch: refetchBlobs,
   } = useApiData<BlobResponse[]>(
-    () => api.getRawBlobs(limit, selectedNetwork.apiParam)
+    fetchRawBlobs
   );
 
   const {
@@ -38,7 +46,7 @@ export function useChartData() {
     isLoading: statsLoading,
     error: statsError,
   } = useApiData<StatsResponse>(
-    () => api.getStats(selectedNetwork.apiParam)
+    fetchStats
   );
 
   const chartData: ChartDataset | null = useMemo(() => {
