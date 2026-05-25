@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import Script from 'next/script';
+import AppProviders from '@/components/AppProviders';
 
 // Removed Inter font
 
@@ -27,7 +28,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        {children}
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

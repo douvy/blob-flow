@@ -7,14 +7,23 @@ import { api } from '../lib/api';
 import { StatsResponse } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
+import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { transformStatsResponse } from '../lib/api/stats';
 
 export default function LiveMetrics() {
   const { selectedNetwork } = useNetwork();
+  const { latestEvents } = useBlobWebSocket();
 
   // Fetch stats data from API
   const { data, isLoading, error } = useApiData<StatsResponse>(
-    () => api.getStats(selectedNetwork.apiParam)
+    () => api.getStats(selectedNetwork.apiParam),
+    undefined,
+    selectedNetwork.apiParam
   );
+  const liveStatsData = latestEvents.stats_update
+    ? transformStatsResponse(latestEvents.stats_update.data)
+    : undefined;
+  const displayData = liveStatsData || data;
 
   // Transform API data into metrics format
   const getMetricsFromData = (statsData: StatsResponse) => {
@@ -70,13 +79,13 @@ export default function LiveMetrics() {
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Live Metrics</h2>
 
       <DataStateWrapper
-        isLoading={isLoading}
-        error={error}
+        isLoading={isLoading && !displayData}
+        error={displayData ? null : error}
         loadingComponent={loadingComponent}
       >
-        {data && (
+        {displayData && (
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {getMetricsFromData(data).map((metric, index) => (
+            {getMetricsFromData(displayData).map((metric, index) => (
               <MetricCard
                 key={index}
                 title={metric.title}

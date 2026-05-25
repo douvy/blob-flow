@@ -7,7 +7,26 @@ import {
     MempoolTransaction
 } from '../../types';
 import { fetchApi, formatRelativeTime, truncateAddress } from './core';
-import { formatDuration, formatWeiToGwei, formatWeiToReadable } from '../../utils';
+import { formatCostEthOrWei, formatDuration, formatWeiToGwei } from '../../utils';
+
+export function transformBlobToMempoolTransaction(blob: BlobResponse, index: number): MempoolTransaction {
+    return {
+        id: index + 1,
+        txHash: blob.tx_hash,
+        fromAddress: truncateAddress(blob.from_address),
+        user: blob.user_attribution || null,
+        blobCount: 1,
+        estimatedCost: formatCostEthOrWei(blob.total_cost_eth),
+        timeInMempool: formatRelativeTime(blob.timestamp)
+    };
+}
+
+export function transformBlobResponsesToMempool(blobsResponse: BlobResponse[]): MempoolResponse {
+    // Map the API response to our expected format
+    const transactions: MempoolTransaction[] = blobsResponse.map(transformBlobToMempoolTransaction);
+
+    return { data: transactions };
+}
 
 /**
  * Get mempool data (pending blob transactions)
@@ -17,20 +36,7 @@ import { formatDuration, formatWeiToGwei, formatWeiToReadable } from '../../util
 export async function getMempool(limit = 10, network?: string): Promise<MempoolResponse> {
     const response = await fetchApi<ApiResponse<BlobResponse[]>>(`/blob/mempool?limit=${limit}`, network);
 
-    // Map the API response to our expected format
-    const transactions: MempoolTransaction[] = response.data.map((blob: BlobResponse, index: number) => {
-        return {
-            id: index + 1,
-            txHash: blob.tx_hash,
-            fromAddress: truncateAddress(blob.from_address),
-            user: blob.user_attribution || null,
-            blobCount: 1,
-            estimatedCost: formatWeiToReadable(blob.total_cost_eth),
-            timeInMempool: formatRelativeTime(blob.timestamp)
-        };
-    });
-
-    return { data: transactions };
+    return transformBlobResponsesToMempool(response.data);
 }
 
 /**

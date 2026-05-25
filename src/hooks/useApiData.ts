@@ -1,27 +1,34 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 /**
  * Generic hook for fetching data from API with loading and error states
  *
  * @param fetchFunction - Function that returns a promise with data
  * @param initialData - Optional initial data
+ * @param refetchKey - Optional key that triggers automatic refetch when changed
  */
 export function useApiData<T>(
   fetchFunction: () => Promise<T>,
-  initialData?: T
+  initialData?: T,
+  refetchKey?: unknown
 ) {
   const [data, setData] = useState<T | undefined>(initialData);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  const fetchFunctionRef = useRef(fetchFunction);
+
+  useEffect(() => {
+    fetchFunctionRef.current = fetchFunction;
+  }, [fetchFunction]);
 
   const refetch = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await fetchFunction();
+      const result = await fetchFunctionRef.current();
       setData(result);
       return result;
     } catch (err) {
@@ -31,11 +38,11 @@ export function useApiData<T>(
     } finally {
       setIsLoading(false);
     }
-  }, [fetchFunction]);
+  }, []);
 
   useEffect(() => {
     refetch();
-  }, [refetch]);
+  }, [refetch, refetchKey]);
 
   return { data, isLoading, error, refetch };
 }
@@ -59,7 +66,11 @@ export function usePaginatedApiData<T>(
   }, [fetchFunction, page, limit, network]);
 
   // Use the base hook
-  const { data, isLoading, error, refetch } = useApiData<T>(fetchData);
+  const { data, isLoading, error, refetch } = useApiData<T>(
+    fetchData,
+    undefined,
+    `${network || ''}:${page}:${limit}`
+  );
 
   // Navigation functions
   const nextPage = useCallback(() => {

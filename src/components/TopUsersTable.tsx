@@ -7,14 +7,23 @@ import { api } from '../lib/api';
 import { TopUsersResponse, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
+import { getAttributionImageSrc, getAttributionInitial } from '../utils';
+import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { transformUserResponses } from '../lib/api/users';
 
 export default function TopUsersTable() {
   const router = useRouter();
   const { selectedNetwork } = useNetwork();
+  const { latestEvents } = useBlobWebSocket();
 
   const { data, isLoading, error } = useApiData<TopUsersResponse>(
-    () => api.getTopUsers(10, selectedNetwork.apiParam)
+    () => api.getTopUsers(10, selectedNetwork.apiParam),
+    undefined,
+    selectedNetwork.apiParam
   );
+  const displayData = latestEvents.users_update
+    ? transformUserResponses(latestEvents.users_update.data)
+    : data;
 
   useEffect(() => {
     // Function to set up event listeners for tooltips
@@ -185,11 +194,11 @@ export default function TopUsersTable() {
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Top Blob Users</h2>
 
       <DataStateWrapper
-        isLoading={isLoading}
-        error={error}
+        isLoading={isLoading && !displayData}
+        error={displayData ? null : error}
         loadingComponent={loadingComponent}
       >
-        {data && (
+        {displayData && (
           <div className="overflow-x-auto border border-divider rounded-lg">
             <table className="min-w-full overflow-hidden table-fixed">
               <thead>
@@ -207,22 +216,24 @@ export default function TopUsersTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {data.data.map((user: User) => (
+                {displayData.data.map((user: User) => (
                   <tr
-                    key={user.id}
+                    key={user.address}
                     className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors cursor-pointer"
                     onClick={() => router.push(`/user/${user.address}`)}
                   >
                     <td className="py-3 px-6 text-sm font-medium text-white whitespace-nowrap">
                       <div className="flex items-center">
-                        {user.name === 'Unknown' || user.name.includes('...') ? (
-                          <span className="inline-block w-5 h-5 rounded-full mr-3 bg-gray-500"></span>
-                        ) : (
+                        {getAttributionImageSrc(user.name) ? (
                           <img
-                            src={`/images/${user.name.toLowerCase()}.png`}
+                            src={getAttributionImageSrc(user.name) || ''}
                             alt={user.name}
                             className="inline-block w-5 h-5 mr-3"
                           />
+                        ) : (
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-3 bg-gray-500 text-[10px] text-white font-medium">
+                            {getAttributionInitial(user.name)}
+                          </span>
                         )}
                         {user.name}
                       </div>

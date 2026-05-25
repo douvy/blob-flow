@@ -33,6 +33,91 @@ export interface BlobResponse {
   blob_gas_used?: number;
 }
 
+// ---- WebSocket Live Data Types ----
+
+export type BlobWebSocketConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'stale'
+  | 'reconnecting'
+  | 'disconnected';
+
+export type SubscribableBlobEventType =
+  | 'new_block'
+  | 'mempool_update'
+  | 'stats_update'
+  | 'users_update';
+
+export type BlobWebSocketEventType = SubscribableBlobEventType | 'ping';
+
+export interface NewBlockData {
+  block_number: number;
+  blob_count: number;
+  timestamp: string;
+  blobs: BlobResponse[];
+}
+
+export interface NewBlockEvent {
+  type: 'new_block';
+  data: NewBlockData;
+}
+
+export type MempoolUpdateData =
+  | {
+      action: 'add';
+      blob: BlobResponse;
+    }
+  | {
+      action: 'remove';
+      blob: Pick<BlobResponse, 'network_id' | 'network_name' | 'tx_hash'>;
+    };
+
+export interface MempoolUpdateEvent {
+  type: 'mempool_update';
+  data: MempoolUpdateData;
+}
+
+export type WebSocketStatsResponse = Omit<BackendStatsResponse, 'network_id' | 'network_name'> &
+  Partial<Pick<BackendStatsResponse, 'network_id' | 'network_name'>>;
+
+export interface StatsUpdateEvent {
+  type: 'stats_update';
+  data: WebSocketStatsResponse;
+}
+
+export interface UsersUpdateEvent {
+  type: 'users_update';
+  data: UserResponse[];
+}
+
+export interface PingEvent {
+  type: 'ping';
+}
+
+export type BlobWebSocketEvent =
+  | NewBlockEvent
+  | MempoolUpdateEvent
+  | StatsUpdateEvent
+  | UsersUpdateEvent
+  | PingEvent;
+
+export type LiveBlobWebSocketEvent = Exclude<BlobWebSocketEvent, PingEvent>;
+
+export interface BlobWebSocketEventMap {
+  new_block: NewBlockEvent;
+  mempool_update: MempoolUpdateEvent;
+  stats_update: StatsUpdateEvent;
+  users_update: UsersUpdateEvent;
+}
+
+export type LatestBlobWebSocketEvents = {
+  [EventType in SubscribableBlobEventType]?: BlobWebSocketEventMap[EventType];
+};
+
+export interface BlobWebSocketSubscribeMessage {
+  subscribe: SubscribableBlobEventType[];
+}
+
 // Frontend Block type (transformed from BlobResponse for display)
 export interface Block {
   id: number;
@@ -256,12 +341,15 @@ export interface BlobPricing {
 // Backend UserResponse - matches api.UserResponse from swagger
 export interface UserResponse {
   network_id: number;
-  network_name: string;
+  network_name?: string;
   address: string;
   name?: string;
+  category?: string;
   blob_count: number;
   total_cost_eth: string;
   last_timestamp: string;
+  blob_share_percent?: number;
+  spend_share_percent?: number;
 }
 
 // Frontend User type (transformed for display)

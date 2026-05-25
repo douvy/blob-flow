@@ -1,4 +1,4 @@
-import { getMempool, getMempoolPressure } from './mempool';
+import { getMempool, getMempoolPressure, transformBlobToMempoolTransaction } from './mempool';
 
 const originalFetch = global.fetch;
 
@@ -123,5 +123,27 @@ describe('api/mempool', () => {
         unknownPricingCount: 0,
       },
     });
+  });
+
+  it('formats decimal total_cost_eth values as ETH', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:05:00.000Z'));
+
+    const result = transformBlobToMempoolTransaction({
+      network_id: 1,
+      network_name: 'mainnet',
+      block_number: 0,
+      blob_index: 0,
+      tx_hash: '0xabc',
+      from_address: '0x1234567890abcdef',
+      blob_size_bytes: 131072,
+      base_fee_per_blob_gas: '1000000000',
+      tip_per_blob_gas: '0',
+      total_cost_eth: '0.001',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      confirmed: false,
+    }, 0);
+
+    expect(result.estimatedCost).toBe('0.001 ETH');
   });
 });
