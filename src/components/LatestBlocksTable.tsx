@@ -7,15 +7,31 @@ import { Block, LatestBlocksResponse } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import { getAttributionImageSrc, getAttributionInitial } from '../utils';
+import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { transformNewBlockData } from '../lib/api/blocks';
 
 export default function LatestBlocksTable() {
   const { selectedNetwork } = useNetwork();
+  const { latestEvents } = useBlobWebSocket();
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
     () => api.getLatestBlocks(20, selectedNetwork.apiParam),
     undefined,
     selectedNetwork.apiParam
   );
+  const displayData = React.useMemo<LatestBlocksResponse | undefined>(() => {
+    if (!latestEvents.new_block) {
+      return data;
+    }
+
+    const liveBlock = transformNewBlockData(latestEvents.new_block.data);
+    return {
+      data: [
+        liveBlock,
+        ...(data?.data || []).filter((block) => block.number !== liveBlock.number),
+      ].slice(0, 20),
+    };
+  }, [data, latestEvents.new_block]);
 
   // Loading state for the table
   const loadingComponent = (
@@ -65,11 +81,11 @@ export default function LatestBlocksTable() {
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Latest Blocks</h2>
 
       <DataStateWrapper
-        isLoading={isLoading}
-        error={error}
+        isLoading={isLoading && !displayData}
+        error={displayData ? null : error}
         loadingComponent={loadingComponent}
       >
-        {data && (
+        {displayData && (
           <div className="overflow-x-auto border border-divider rounded-lg">
             <table className="min-w-full overflow-hidden table-fixed">
               <thead>
@@ -81,7 +97,7 @@ export default function LatestBlocksTable() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
-                {data.data.map((block: Block) => (
+                {displayData.data.map((block: Block) => (
                   <tr key={block.id} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
                     <td className="py-3 px-6 text-sm font-medium text-white">{block.number}</td>
                     <td className="py-3 px-6 text-sm text-white">{block.blobCount}</td>
