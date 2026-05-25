@@ -50,6 +50,7 @@ interface BlobWebSocketClientOptions {
   maxReconnectDelayMs?: number;
   staleTimeoutMs?: number;
   onConnectionStateChange?: (state: BlobWebSocketConnectionState) => void;
+  onActivity?: () => void;
   onEvent?: (event: LiveBlobWebSocketEvent) => void;
   onError?: (event: Event) => void;
 }
@@ -86,9 +87,14 @@ export function createBlobWebSocketSubscribeMessage(
 
 export function parseBlobWebSocketEvent(message: string): BlobWebSocketEvent | null {
   let payload: unknown;
+  const trimmedMessage = message.trim();
+
+  if (trimmedMessage === 'ping' || trimmedMessage === 'pong') {
+    return { type: trimmedMessage };
+  }
 
   try {
-    payload = JSON.parse(message);
+    payload = JSON.parse(trimmedMessage);
   } catch {
     return null;
   }
@@ -100,6 +106,8 @@ export function parseBlobWebSocketEvent(message: string): BlobWebSocketEvent | n
   switch (payload.type) {
     case 'ping':
       return { type: 'ping' };
+    case 'pong':
+      return { type: 'pong' };
     case 'new_block':
       if (isRecord(payload.data)) {
         return { type: 'new_block', data: payload.data as unknown as NewBlockData };
@@ -172,7 +180,12 @@ export class BlobWebSocketClient {
 
       this.resetStaleTimer();
       const parsedEvent = parseBlobWebSocketEvent(event.data);
-      if (!parsedEvent || parsedEvent.type === 'ping') {
+      if (!parsedEvent) {
+        return;
+      }
+
+      this.options.onActivity?.();
+      if (parsedEvent.type === 'ping' || parsedEvent.type === 'pong') {
         return;
       }
 

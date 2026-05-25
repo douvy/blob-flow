@@ -96,7 +96,10 @@ describe('blobWebSocket', () => {
   it('parses known events and ignores invalid messages', () => {
     expect(parseBlobWebSocketEvent('not json')).toBeNull();
     expect(parseBlobWebSocketEvent(JSON.stringify({ type: 'unknown' }))).toBeNull();
+    expect(parseBlobWebSocketEvent('ping')).toEqual({ type: 'ping' });
+    expect(parseBlobWebSocketEvent('pong')).toEqual({ type: 'pong' });
     expect(parseBlobWebSocketEvent(JSON.stringify({ type: 'ping' }))).toEqual({ type: 'ping' });
+    expect(parseBlobWebSocketEvent(JSON.stringify({ type: 'pong' }))).toEqual({ type: 'pong' });
 
     const parsed = parseBlobWebSocketEvent(
       JSON.stringify({
@@ -139,17 +142,22 @@ describe('blobWebSocket', () => {
     ]);
   });
 
-  it('does not surface ping events to consumers', () => {
+  it('tracks activity but does not surface heartbeat events to consumers', () => {
+    let activityCount = 0;
     const events: LiveBlobWebSocketEvent[] = [];
     const client = new BlobWebSocketClient({
       url: 'wss://example.test/api/v1/ws?network=mainnet',
       WebSocketImpl: MockWebSocket,
+      onActivity: () => {
+        activityCount += 1;
+      },
       onEvent: (event) => events.push(event),
     });
 
     client.connect();
     MockWebSocket.instances[0].open();
     MockWebSocket.instances[0].receive(JSON.stringify({ type: 'ping' }));
+    MockWebSocket.instances[0].receive(JSON.stringify({ type: 'pong' }));
     MockWebSocket.instances[0].receive(
       JSON.stringify({
         type: 'stats_update',
@@ -166,6 +174,7 @@ describe('blobWebSocket', () => {
       })
     );
 
+    expect(activityCount).toBe(3);
     expect(events).toHaveLength(1);
     expect(events[0].type).toBe('stats_update');
   });

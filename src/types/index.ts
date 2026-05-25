@@ -48,7 +48,7 @@ export type SubscribableBlobEventType =
   | 'stats_update'
   | 'users_update';
 
-export type BlobWebSocketEventType = SubscribableBlobEventType | 'ping';
+export type BlobWebSocketEventType = SubscribableBlobEventType | 'ping' | 'pong';
 
 export interface NewBlockData {
   block_number: number;
@@ -94,14 +94,20 @@ export interface PingEvent {
   type: 'ping';
 }
 
+export interface PongEvent {
+  type: 'pong';
+}
+
+export type HeartbeatEvent = PingEvent | PongEvent;
+
 export type BlobWebSocketEvent =
   | NewBlockEvent
   | MempoolUpdateEvent
   | StatsUpdateEvent
   | UsersUpdateEvent
-  | PingEvent;
+  | HeartbeatEvent;
 
-export type LiveBlobWebSocketEvent = Exclude<BlobWebSocketEvent, PingEvent>;
+export type LiveBlobWebSocketEvent = Exclude<BlobWebSocketEvent, HeartbeatEvent>;
 
 export interface BlobWebSocketEventMap {
   new_block: NewBlockEvent;
