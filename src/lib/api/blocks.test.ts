@@ -1,4 +1,4 @@
-import { getBlobByTxHash, getLatestBlocks } from './blocks';
+import { getBlobByTxHash, getLatestBlocks, transformNewBlockData } from './blocks';
 
 const originalFetch = global.fetch;
 
@@ -144,5 +144,45 @@ describe('api/blocks', () => {
       expect.any(Object)
     );
     expect(result.success).toBe(true);
+  });
+
+  it('does not infer capacity for live blocks without pricing data', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:01:00.000Z'));
+
+    const block = transformNewBlockData({
+      block_number: 102,
+      blob_count: 2,
+      timestamp: '2026-01-01T00:00:30.000Z',
+      blobs: [
+        {
+          network_id: 1,
+          network_name: 'mainnet',
+          block_number: 102,
+          blob_index: 0,
+          tx_hash: '0xabc',
+          from_address: '0x1234567890abcdef',
+          blob_size_bytes: 131072,
+          base_fee_per_blob_gas: '1000000000',
+          base_fee_per_blob_gas_gwei: '1',
+          tip_per_blob_gas: '0',
+          total_cost_eth: '0.001',
+          timestamp: '2026-01-01T00:00:30.000Z',
+          confirmed: true,
+          user_attribution: 'Base',
+        },
+      ],
+    });
+
+    expect(block).toMatchObject({
+      blobCount: 2,
+      maxBlobs: 0,
+      availableBlobs: 0,
+      utilizationPercent: 0,
+      isFull: false,
+      isAboveTarget: false,
+      attribution: ['Base'],
+      baseFeeGwei: '1',
+    });
   });
 });

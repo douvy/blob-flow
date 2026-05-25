@@ -149,7 +149,7 @@ export default function MempoolTable() {
                             <a
                               href={tx.fromAddressUrl}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               className="text-blue hover:underline"
                             >
                               {tx.fromAddress}

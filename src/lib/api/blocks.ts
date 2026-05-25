@@ -36,10 +36,9 @@ export function transformNewBlockData(
     blockData: NewBlockData,
     pricingBlock?: BackendBlobPricingRecentBlock
 ): Block {
-    const maxBlobs = pricingBlock?.max_blobs || blockData.blob_count;
+    const maxBlobs = pricingBlock?.max_blobs ?? 0;
     const targetBlobs = pricingBlock?.target_blobs || 0;
-    const utilizationPercent = pricingBlock?.utilization_percent
-        ?? (maxBlobs > 0 ? (blockData.blob_count / maxBlobs) * 100 : 0);
+    const utilizationPercent = pricingBlock?.utilization_percent ?? 0;
 
     return {
         id: blockData.block_number,
@@ -51,11 +50,11 @@ export function transformNewBlockData(
         blobGasLimit: pricingBlock?.blob_gas_limit ?? 0,
         targetBlobs,
         maxBlobs,
-        availableBlobs: pricingBlock?.available_blobs ?? Math.max(0, maxBlobs - blockData.blob_count),
+        availableBlobs: pricingBlock?.available_blobs ?? 0,
         baseFeeGwei: pricingBlock?.blob_base_fee_gwei ?? getBlockBaseFeeGwei(blockData.blobs),
         utilizationPercent,
-        isFull: pricingBlock?.is_full ?? (maxBlobs > 0 && blockData.blob_count >= maxBlobs),
-        isAboveTarget: pricingBlock?.is_above_target ?? (targetBlobs > 0 && blockData.blob_count > targetBlobs),
+        isFull: pricingBlock?.is_full ?? false,
+        isAboveTarget: pricingBlock?.is_above_target ?? false,
         timestamp: formatRelativeTime(blockData.timestamp),
         attribution: getAttributions(blockData.blobs),
         blobs: blockData.blobs

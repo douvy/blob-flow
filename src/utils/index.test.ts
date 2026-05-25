@@ -1,6 +1,9 @@
 import {
   formatBlobCount,
+  formatBlobFee,
   formatBlobSize,
+  formatBlobTotalCost,
+  formatBlobWeiCost,
   formatCostEthOrWei,
   formatDate,
   formatDuration,
@@ -88,10 +91,21 @@ describe('utils', () => {
   });
 
   it('formats blob sizes, counts, utilization, and fee headroom', () => {
-    expect(formatBlobSize(16777216)).toBe('16 MB');
-    expect(getBlobCount(262144, 16777216)).toBe(2);
+    expect(formatBlobSize(131072)).toBe('128 KB');
+    expect(getBlobCount(262144)).toBe(2);
+    expect(getBlobCount(undefined, 262144)).toBe(2);
+    expect(getBlobCount(131073)).toBe(2);
+    expect(getBlobCount(undefined, 131073)).toBe(2);
     expect(formatBlobCount(2)).toBe('2 blobs');
     expect(formatUtilizationPercent(9.52)).toBe('9.52%');
     expect(formatFeeHeadroom('93.083922')).toBe('93.1%');
+  });
+
+  it('formats enriched blob fees and costs', () => {
+    expect(formatBlobFee('0.008487503')).toBe('0.008488 Gwei');
+    expect(formatBlobFee(undefined, '1000000000')).toBe('1 Gwei');
+    expect(formatBlobWeiCost('9065041362944')).toBe('0.000009 ETH');
+    expect(formatBlobTotalCost('0.001')).toBe('0.001 ETH');
+    expect(formatBlobTotalCost('9065041362944')).toBe('0.000009 ETH');
   });
 });

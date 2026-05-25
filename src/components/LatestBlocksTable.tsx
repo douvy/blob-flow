@@ -8,14 +8,13 @@ import { Block, BlobResponse, LatestBlocksResponse } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import {
+  formatBlobFee,
   formatBlobCount,
   formatBlobSize,
-  formatCostEthOrWei,
   formatFeeHeadroom,
-  formatGwei,
+  formatBlobTotalCost,
+  formatBlobWeiCost,
   formatUtilizationPercent,
-  formatWeiToEth,
-  formatWeiToGwei,
   getAttributionImageSrc,
   getAttributionInitial,
   truncateAddress,
@@ -34,34 +33,24 @@ function truncateTxHash(hash: string): string {
   return `${hash.substring(0, 10)}...${hash.substring(hash.length - 4)}`;
 }
 
-function safeFormat(formatter: () => string): string {
-  try {
-    return formatter();
-  } catch {
-    return '-';
-  }
-}
-
-function formatBlobFee(gweiValue?: string, weiValue?: string): string {
-  if (gweiValue) return safeFormat(() => formatGwei(gweiValue));
-  if (weiValue) return safeFormat(() => formatWeiToGwei(weiValue));
-  return '-';
-}
-
-function formatBlobWeiCost(weiValue?: string): string {
-  if (!weiValue) return '-';
-  return safeFormat(() => formatWeiToEth(weiValue, true));
-}
-
-function formatBlobTotalCost(totalCost?: string): string {
-  if (!totalCost) return '-';
-  if (totalCost.includes('.')) return safeFormat(() => formatCostEthOrWei(totalCost));
-  return formatBlobWeiCost(totalCost);
-}
-
 function formatBlockBaseFee(block: Block): string {
   if (!block.baseFeeGwei || block.baseFeeGwei === '0') return '-';
-  return safeFormat(() => formatGwei(block.baseFeeGwei));
+  return formatBlobFee(block.baseFeeGwei);
+}
+
+function formatBlockOpenCapacity(block: Block): string {
+  if (block.maxBlobs <= 0) return '-';
+  return `${block.availableBlobs}/${block.maxBlobs} open`;
+}
+
+function formatBlockUtilization(block: Block): string {
+  if (block.maxBlobs <= 0) return '-';
+  return formatUtilizationPercent(block.utilizationPercent);
+}
+
+function formatBlockTarget(block: Block): string {
+  if (block.targetBlobs <= 0) return '-';
+  return block.targetBlobs.toString();
 }
 
 function AttributionDisplay({ attribution }: { attribution: string[] }) {
@@ -208,7 +197,7 @@ function BlobDetailsRow({ block }: { block: Block }) {
                           <a
                             href={blob.transaction_url}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className="text-blue hover:underline"
                           >
                             {truncateTxHash(blob.tx_hash)}
@@ -222,7 +211,7 @@ function BlobDetailsRow({ block }: { block: Block }) {
                           <a
                             href={blob.from_address_url}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                             className="text-blue hover:underline"
                           >
                             {truncateAddress(blob.from_address)}
@@ -386,6 +375,7 @@ export default function LatestBlocksTable() {
                   const isExpanded = expandedBlockId === block.id;
                   const detailsId = getBlockDetailsId(block.id);
                   const baseFee = formatBlockBaseFee(block);
+                  const hasCapacity = block.maxBlobs > 0;
 
                   return (
                     <React.Fragment key={block.id}>
@@ -415,7 +405,7 @@ export default function LatestBlocksTable() {
                               <a
                                 href={block.blockUrl}
                                 target="_blank"
-                                rel="noreferrer"
+                                rel="noopener noreferrer"
                                 className="text-blue hover:underline"
                                 onClick={(event) => event.stopPropagation()}
                               >
@@ -431,12 +421,12 @@ export default function LatestBlocksTable() {
                         <td className="py-3 px-3 sm:px-4 text-sm text-white">
                           <div className="whitespace-nowrap">{formatBlobCount(block.blobCount)}</div>
                           <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">
-                            {block.availableBlobs}/{block.maxBlobs} open
+                            {formatBlockOpenCapacity(block)}
                           </div>
                         </td>
                         <td className="py-3 px-3 sm:px-4 text-sm text-white">
                           <div className="flex items-center gap-2">
-                            <span className="whitespace-nowrap">{formatUtilizationPercent(block.utilizationPercent)}</span>
+                            <span className="whitespace-nowrap">{formatBlockUtilization(block)}</span>
                             {block.isFull && (
                               <span className="text-[10px] uppercase tracking-wider text-[#ff8f8f]">Full</span>
                             )}
@@ -444,10 +434,10 @@ export default function LatestBlocksTable() {
                           <div className="mt-2 h-1.5 w-full rounded-full bg-[#2a2f37] overflow-hidden">
                             <div
                               className={`h-full rounded-full ${block.isAboveTarget ? 'bg-[#ffb86b]' : 'bg-blue'}`}
-                              style={{ width: `${Math.min(block.utilizationPercent, 100)}%` }}
+                              style={{ width: hasCapacity ? `${Math.min(block.utilizationPercent, 100)}%` : '0%' }}
                             />
                           </div>
-                          <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">target {block.targetBlobs}</div>
+                          <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">target {formatBlockTarget(block)}</div>
                         </td>
                         <td className="hidden sm:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap">{baseFee}</td>
                         <td className="hidden lg:table-cell py-3 px-3 sm:px-4 text-sm text-white">

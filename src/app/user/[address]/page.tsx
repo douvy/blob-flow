@@ -12,12 +12,12 @@ import { useNetwork } from '@/hooks/useNetwork';
 import { UserResponse, BlobResponse } from '@/types';
 import {
   formatBlobCount,
+  formatBlobFee,
   formatBlobSize,
+  formatBlobTotalCost,
+  formatBlobWeiCost,
   formatCostEthOrWei,
   formatFeeHeadroom,
-  formatGwei,
-  formatWeiToEth,
-  formatWeiToGwei,
   getAttributionImageSrc,
   getAttributionInitial,
   getBlobCount,
@@ -28,31 +28,6 @@ import { formatRelativeTime } from '@/lib/api/core';
 function truncateTxHash(hash: string): string {
   if (hash.length <= 14) return hash;
   return `${hash.substring(0, 10)}...${hash.substring(hash.length - 4)}`;
-}
-
-function safeFormat(formatter: () => string): string {
-  try {
-    return formatter();
-  } catch {
-    return '-';
-  }
-}
-
-function formatBlobFee(gweiValue?: string, weiValue?: string): string {
-  if (gweiValue) return safeFormat(() => formatGwei(gweiValue));
-  if (weiValue) return safeFormat(() => formatWeiToGwei(weiValue));
-  return '-';
-}
-
-function formatWeiCost(weiValue?: string): string {
-  if (!weiValue) return '-';
-  return safeFormat(() => formatWeiToEth(weiValue, true));
-}
-
-function formatTotalCost(totalCost?: string): string {
-  if (!totalCost) return '-';
-  if (totalCost.includes('.')) return safeFormat(() => formatCostEthOrWei(totalCost));
-  return formatWeiCost(totalCost);
 }
 
 function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boolean }) {
@@ -92,9 +67,9 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
             const tip = formatBlobFee(blob.tip_per_blob_gas_gwei, blob.tip_per_blob_gas);
             const maxFee = formatBlobFee(blob.max_fee_per_blob_gas_gwei, blob.max_fee_per_blob_gas);
             const realizedCost = blob.realized_cost_wei
-              ? formatWeiCost(blob.realized_cost_wei)
-              : formatTotalCost(blob.total_cost_eth);
-            const maxCost = formatWeiCost(blob.max_cost_wei);
+              ? formatBlobWeiCost(blob.realized_cost_wei)
+              : formatBlobTotalCost(blob.total_cost_eth);
+            const maxCost = formatBlobWeiCost(blob.max_cost_wei);
             const headroom = formatFeeHeadroom(blob.fee_cap_headroom_percent);
 
             return (
@@ -104,7 +79,7 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
                     <a
                       href={blob.transaction_url}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="text-blue hover:underline"
                     >
                       {truncateTxHash(blob.tx_hash)}
@@ -126,7 +101,7 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
                       <a
                         href={blob.block_url}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="text-blue hover:underline"
                       >
                         {blob.block_number}

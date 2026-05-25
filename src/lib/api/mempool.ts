@@ -8,49 +8,14 @@ import {
 } from '../../types';
 import { fetchApi, formatRelativeTime, truncateAddress } from './core';
 import {
+    formatBlobFee,
+    formatBlobTotalCost,
+    formatBlobWeiCost,
     formatDuration,
     formatFeeHeadroom,
-    formatGwei,
-    formatCostEthOrWei,
-    formatWeiToEth,
     formatWeiToGwei,
     getBlobCount,
 } from '../../utils';
-
-function safeFormat(formatter: () => string): string {
-    try {
-        return formatter();
-    } catch {
-        return '-';
-    }
-}
-
-function formatBlobFee(gweiValue?: string, weiValue?: string): string {
-    if (gweiValue) {
-        return safeFormat(() => formatGwei(gweiValue));
-    }
-
-    if (weiValue) {
-        return safeFormat(() => formatWeiToGwei(weiValue));
-    }
-
-    return '-';
-}
-
-function formatBlobWeiCost(weiValue?: string): string {
-    if (!weiValue) return '-';
-
-    return safeFormat(() => formatWeiToEth(weiValue, true));
-}
-
-function formatBlobTotalCost(totalCost?: string): string {
-    if (!totalCost) return '-';
-    if (totalCost.includes('.')) {
-        return safeFormat(() => formatCostEthOrWei(totalCost));
-    }
-
-    return formatBlobWeiCost(totalCost);
-}
 
 export function transformBlobToMempoolTransaction(blob: BlobResponse, index: number): MempoolTransaction {
     const realizedCost = blob.realized_cost_wei

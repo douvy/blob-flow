@@ -14,7 +14,7 @@ const ATTRIBUTION_IMAGE_NAMES: Record<string, string> = {
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * 1024;
 const BLOB_GAS_PER_BLOB = 131072;
-const BYTES_PER_BLOB = 16777216;
+const BYTES_PER_BLOB = 131072;
 
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
@@ -152,11 +152,11 @@ export function formatBlobSize(bytes?: number): string {
 
 export function getBlobCount(blobGasUsed?: number, blobSizeBytes?: number): number {
   if (blobGasUsed && blobGasUsed > 0) {
-    return Math.max(1, Math.round(blobGasUsed / BLOB_GAS_PER_BLOB));
+    return Math.max(1, Math.ceil(blobGasUsed / BLOB_GAS_PER_BLOB));
   }
 
   if (blobSizeBytes && blobSizeBytes > 0) {
-    return Math.max(1, Math.round(blobSizeBytes / BYTES_PER_BLOB));
+    return Math.max(1, Math.ceil(blobSizeBytes / BYTES_PER_BLOB));
   }
 
   return 1;
@@ -179,6 +179,31 @@ export function formatFeeHeadroom(value?: string | number): string {
   if (value === undefined || value === null || value === '') return '-';
 
   return formatUtilizationPercent(value);
+}
+
+export function formatBlobFee(gweiValue?: string, weiValue?: string): string {
+  if (gweiValue) return safeFormat(() => formatGwei(gweiValue));
+  if (weiValue) return safeFormat(() => formatWeiToGwei(weiValue));
+  return '-';
+}
+
+export function formatBlobWeiCost(weiValue?: string): string {
+  if (!weiValue) return '-';
+  return safeFormat(() => formatWeiToEth(weiValue, true));
+}
+
+export function formatBlobTotalCost(totalCost?: string): string {
+  if (!totalCost) return '-';
+  if (totalCost.includes('.')) return safeFormat(() => formatCostEthOrWei(totalCost));
+  return formatBlobWeiCost(totalCost);
+}
+
+function safeFormat(formatter: () => string): string {
+  try {
+    return formatter();
+  } catch {
+    return '-';
+  }
 }
 
 function normalizeDecimalString(value: string | number): string {
