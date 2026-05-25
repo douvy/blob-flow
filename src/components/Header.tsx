@@ -20,14 +20,47 @@ const LIVE_STATUS_STYLES: Record<BlobWebSocketConnectionState, { label: string; 
   disconnected: { label: 'Disconnected', color: 'bg-red' },
 };
 
+interface LiveStatusIndicatorProps {
+  connectionState: BlobWebSocketConnectionState;
+  activitySequence: number;
+  className?: string;
+  labelClassName: string;
+}
+
+function LiveStatusIndicator({
+  connectionState,
+  activitySequence,
+  className,
+  labelClassName,
+}: LiveStatusIndicatorProps) {
+  const liveStatus = LIVE_STATUS_STYLES[connectionState];
+  const containerClassName = className
+    ? `flex items-center space-x-2 ${className}`
+    : 'flex items-center space-x-2';
+  const shouldPulse = connectionState === 'connected' && activitySequence > 0;
+
+  return (
+    <div className={containerClassName}>
+      <div className="relative">
+        <div className={`h-2.5 w-2.5 rounded-full ${liveStatus.color}`}></div>
+        {shouldPulse && (
+          <div
+            key={activitySequence}
+            className={`absolute inset-0 rounded-full ${liveStatus.color} animate-[live-activity-pulse_800ms_ease-out_forwards]`}
+          ></div>
+        )}
+      </div>
+      <span className={labelClassName}>{liveStatus.label}</span>
+    </div>
+  );
+}
+
 export default function Header() {
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
-  const { connectionState } = useBlobWebSocket();
+  const { connectionState, activitySequence } = useBlobWebSocket();
   const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
-  const liveStatus = LIVE_STATUS_STYLES[connectionState];
-  const shouldAnimateLiveStatus = connectionState !== 'disconnected';
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -157,15 +190,12 @@ export default function Header() {
               </button>
 
               {/* Connection Status */}
-              <div className="flex items-center space-x-2 mr-4 ml-1">
-                <div className="relative">
-                  <div className={`h-2.5 w-2.5 rounded-full ${liveStatus.color}`}></div>
-                  {shouldAnimateLiveStatus && (
-                    <div className={`absolute inset-0 rounded-full ${liveStatus.color} opacity-75 animate-ping`}></div>
-                  )}
-                </div>
-                <span className="text-sm text-bodyText">{liveStatus.label}</span>
-              </div>
+              <LiveStatusIndicator
+                connectionState={connectionState}
+                activitySequence={activitySequence}
+                className="mr-4 ml-1"
+                labelClassName="text-sm text-bodyText"
+              />
             </div>
 
             {/* Network Stats */}
@@ -349,15 +379,11 @@ export default function Header() {
               {/* Connection Status */}
               <div className="flex items-center gap-3">
                 <i className="fa-regular fa-signal-stream text-blue" aria-hidden="true"></i>
-                <div className="flex items-center space-x-2">
-                  <div className="relative">
-                    <div className={`h-2.5 w-2.5 rounded-full ${liveStatus.color}`}></div>
-                    {shouldAnimateLiveStatus && (
-                      <div className={`absolute inset-0 rounded-full ${liveStatus.color} opacity-75 animate-ping`}></div>
-                    )}
-                  </div>
-                  <span className="text-base text-bodyText">{liveStatus.label}</span>
-                </div>
+                <LiveStatusIndicator
+                  connectionState={connectionState}
+                  activitySequence={activitySequence}
+                  labelClassName="text-base text-bodyText"
+                />
               </div>
 
               {/* Base Fee */}

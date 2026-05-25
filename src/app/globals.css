@@ -40,3 +40,15 @@
     background-size: 20px 20px;
   }
 }
+
+@keyframes live-activity-pulse {
+  0% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
