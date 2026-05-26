@@ -102,4 +102,26 @@ describe('LatestBlocksTable', () => {
     expect(screen.getByText('Blob details')).toBeInTheDocument();
     expect(screen.getByText('Blob #0')).toBeInTheDocument();
   });
+
+  it('falls back to total_cost_eth when total_cost_wei is invalid', () => {
+    vi.mocked(useApiData<LatestBlocksResponse>).mockReturnValue({
+      data: {
+        data: [
+          makeBlock(200, [{
+            ...blob,
+            realized_cost_wei: undefined,
+            total_cost_wei: 'not-wei',
+            total_cost_eth: '0.001',
+          }]),
+        ],
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<LatestBlocksTable />);
+
+    expect(screen.getAllByText('0.001 ETH')).toHaveLength(2);
+  });
 });

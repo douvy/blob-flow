@@ -85,7 +85,7 @@ export function BlobDetailsContent({ block }: { block: Block }) {
           {block.blobs.map((blob) => {
             const realizedCost = blob.realized_cost_wei
               ? formatBlobWeiCost(blob.realized_cost_wei)
-              : formatBlobTotalCost(blob.total_cost_eth);
+              : formatBlobTotalCost(blob.total_cost_wei || blob.total_cost_eth);
             const maxCost = formatBlobWeiCost(blob.max_cost_wei);
             const baseFee = formatBlobFee(blob.base_fee_per_blob_gas_gwei, blob.base_fee_per_blob_gas);
             const tip = formatBlobFee(blob.tip_per_blob_gas_gwei, blob.tip_per_blob_gas);

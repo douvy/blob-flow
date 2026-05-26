@@ -30,6 +30,7 @@ export interface BlobResponse {
   base_fee_per_blob_gas_gwei?: string;
   tip_per_blob_gas: string;
   tip_per_blob_gas_gwei?: string;
+  total_cost_wei?: string;
   total_cost_eth: string;
   timestamp: string;
   confirmed: boolean;
@@ -65,6 +66,7 @@ export interface NewBlockData {
   blob_count: number;
   timestamp: string;
   blobs: BlobResponse[];
+  pricing?: BackendBlobPricingRecentBlock;
 }
 
 export interface NewBlockEvent {
@@ -387,6 +389,7 @@ export interface UserResponse {
   name?: string;
   category?: string;
   blob_count: number;
+  total_cost_wei?: string;
   total_cost_eth: string;
   last_timestamp: string;
   blob_share_percent?: number;
@@ -401,6 +404,7 @@ export interface User {
   dataCount: number;
   percentage: number;
   totalCostEth: string;
+  totalCostWei?: string;
   lastTimestamp: string;
 }
 
@@ -416,6 +420,9 @@ export interface BackendStatsResponse {
   total_blobs: number;
   total_confirmed_blobs: number;
   total_pending_blobs: number;
+  average_base_fee_per_blob_gas_wei?: string;
+  average_tip_per_blob_gas_wei?: string;
+  average_total_cost_wei?: string;
   average_base_fee: string;
   average_tip: string;
   average_total_cost: string;

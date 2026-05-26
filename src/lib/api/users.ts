@@ -2,6 +2,8 @@ import { TopUsersResponse, User, ApiResponse, UserResponse, BlobResponse } from 
 import { fetchApi } from './core';
 import { truncateAddress } from '../../utils';
 
+const WEI_PER_ETH = BigInt('1000000000000000000');
+
 export function transformUserResponses(usersResponse: UserResponse[]): TopUsersResponse {
     // Calculate total blobs across all returned users for percentage calculation
     const totalBlobs = usersResponse.reduce((sum, user) => sum + user.blob_count, 0) || 1;
@@ -16,7 +18,8 @@ export function transformUserResponses(usersResponse: UserResponse[]): TopUsersR
             address: user.address,
             dataCount: user.blob_count,
             percentage,
-            totalCostEth: user.total_cost_eth,
+            totalCostEth: formatTotalCostEth(user.total_cost_wei, user.total_cost_eth),
+            totalCostWei: user.total_cost_wei,
             lastTimestamp: user.last_timestamp
         };
     });
@@ -57,3 +60,16 @@ export const getUserBlobs = async (address: string, confirmed: boolean, limit = 
     const response = await fetchApi<ApiResponse<BlobResponse[]>>(`${endpoint}?from=${address}&limit=${limit}`, network);
     return response.data;
 };
+
+function formatTotalCostEth(totalCostWei: string | undefined, fallbackTotalCostEth: string): string {
+    if (!totalCostWei || !/^\d+$/.test(totalCostWei)) {
+        return fallbackTotalCostEth;
+    }
+
+    const wei = BigInt(totalCostWei);
+    const wholeEth = wei / WEI_PER_ETH;
+    const fractionalWei = wei % WEI_PER_ETH;
+    const fractionalEth = fractionalWei.toString().padStart(18, '0').replace(/0+$/, '');
+
+    return fractionalEth ? `${wholeEth}.${fractionalEth}` : wholeEth.toString();
+}

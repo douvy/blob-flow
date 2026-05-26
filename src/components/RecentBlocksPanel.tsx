@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { useNetwork } from '../hooks/useNetwork';
-import { useLatestBlobEvent } from '../contexts/LiveDataContext';
+import { useLiveBlobEvent } from '../contexts/LiveDataContext';
 import { transformNewBlockData } from '../lib/api/blocks';
 import DataStateWrapper from './DataStateWrapper';
 import { BlobDetailsContent } from './BlobDetailsContent';
@@ -149,6 +149,73 @@ function addCapacityFallback(block: Block, fallbackBlock: Block | undefined): Bl
   };
 }
 
+function mergeBlocks(blocks: Block[], nextBlock: Block): Block[] {
+  return [
+    nextBlock,
+    ...blocks.filter((block) => block.number !== nextBlock.number),
+  ].slice(0, HOMEPAGE_BLOCK_ROWS);
+}
+
+function mergeLiveAndFetchedBlocks(liveBlocks: Block[], fetchedBlocks: Block[]): Block[] {
+  const mergedBlocks = new Map<string, Block>();
+  const fallbackBlock = fetchedBlocks[0];
+
+  for (const block of fetchedBlocks) {
+    mergedBlocks.set(block.number, block);
+  }
+
+  for (const block of liveBlocks) {
+    const fetchedBlock = mergedBlocks.get(block.number);
+    const liveBlock = addCapacityFallback(block, fetchedBlock ?? fallbackBlock);
+    mergedBlocks.set(
+      liveBlock.number,
+      fetchedBlock ? mergeBlockDetails(liveBlock, fetchedBlock) : liveBlock
+    );
+  }
+
+  return Array.from(mergedBlocks.values())
+    .sort((left, right) => Number(right.number) - Number(left.number))
+    .slice(0, HOMEPAGE_BLOCK_ROWS);
+}
+
+function mergeBlockDetails(liveBlock: Block, fetchedBlock: Block): Block {
+  const maxBlobs = liveBlock.maxBlobs || fetchedBlock.maxBlobs;
+  const targetBlobs = liveBlock.targetBlobs || fetchedBlock.targetBlobs;
+  const utilizationPercent = liveBlock.utilizationPercent || (
+    maxBlobs > 0 ? (liveBlock.blobCount / maxBlobs) * 100 : fetchedBlock.utilizationPercent
+  );
+
+  return {
+    ...fetchedBlock,
+    ...liveBlock,
+    blockUrl: liveBlock.blockUrl || fetchedBlock.blockUrl,
+    blobGasUsed: liveBlock.blobGasUsed || fetchedBlock.blobGasUsed,
+    blobGasTarget: liveBlock.blobGasTarget || fetchedBlock.blobGasTarget,
+    blobGasLimit: liveBlock.blobGasLimit || fetchedBlock.blobGasLimit,
+    targetBlobs,
+    maxBlobs,
+    availableBlobs: liveBlock.maxBlobs > 0
+      ? liveBlock.availableBlobs
+      : maxBlobs > 0
+        ? Math.max(0, maxBlobs - liveBlock.blobCount)
+        : fetchedBlock.availableBlobs,
+    baseFeeGwei: liveBlock.baseFeeGwei !== '0' ? liveBlock.baseFeeGwei : fetchedBlock.baseFeeGwei,
+    utilizationPercent,
+    isFull: maxBlobs > 0 ? liveBlock.blobCount >= maxBlobs : liveBlock.isFull || fetchedBlock.isFull,
+    isAboveTarget: targetBlobs > 0
+      ? liveBlock.blobCount > targetBlobs
+      : liveBlock.isAboveTarget || fetchedBlock.isAboveTarget,
+    attribution: hasKnownAttribution(liveBlock.attribution)
+      ? liveBlock.attribution
+      : fetchedBlock.attribution,
+    blobs: liveBlock.blobs.length > 0 ? liveBlock.blobs : fetchedBlock.blobs,
+  };
+}
+
+function hasKnownAttribution(attribution: string[]): boolean {
+  return attribution.some((name) => name !== 'Unknown');
+}
+
 function BlockRow({
   block,
   isExpanded,
@@ -234,37 +301,51 @@ function BlockRow({
 
 export default function RecentBlocksPanel() {
   const { selectedNetwork } = useNetwork();
-  const liveBlockEvent = useLatestBlobEvent('new_block');
-  const [expandedBlockId, setExpandedBlockId] = React.useState<number | null>(null);
-  const [networkKey, setNetworkKey] = React.useState(selectedNetwork.apiParam);
+  const network = selectedNetwork.apiParam;
+  const [liveBlockState, setLiveBlockState] = React.useState<{
+    network: string;
+    blocks: Block[];
+  }>({ network, blocks: [] });
+  const [expandedBlockState, setExpandedBlockState] = React.useState<{
+    network: string;
+    blockId: number | null;
+  }>({ network, blockId: null });
+  const expandedBlockId = expandedBlockState.network === network
+    ? expandedBlockState.blockId
+    : null;
 
-  if (networkKey !== selectedNetwork.apiParam) {
-    setNetworkKey(selectedNetwork.apiParam);
-    setExpandedBlockId(null);
-  }
+  useLiveBlobEvent('new_block', (event) => {
+    const liveBlock = transformNewBlockData(event.data);
+    setLiveBlockState((currentState) => ({
+      network,
+      blocks: mergeBlocks(
+        currentState.network === network ? currentState.blocks : [],
+        liveBlock
+      ),
+    }));
+  });
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
-    () => api.getLatestBlocks(HOMEPAGE_BLOCK_ROWS, selectedNetwork.apiParam),
-    ['latest-blocks-home', selectedNetwork.apiParam, HOMEPAGE_BLOCK_ROWS]
+    () => api.getLatestBlocks(HOMEPAGE_BLOCK_ROWS, network),
+    ['latest-blocks-home', network, HOMEPAGE_BLOCK_ROWS]
   );
 
   const displayBlocks = React.useMemo<Block[]>(() => {
     const baseBlocks = data?.data ?? [];
-    if (!liveBlockEvent) return baseBlocks.slice(0, HOMEPAGE_BLOCK_ROWS);
-
-    const liveBlock = addCapacityFallback(
-      transformNewBlockData(liveBlockEvent.data),
-      baseBlocks[0]
-    );
-    return [
-      liveBlock,
-      ...baseBlocks.filter((block) => block.number !== liveBlock.number),
-    ].slice(0, HOMEPAGE_BLOCK_ROWS);
-  }, [data, liveBlockEvent]);
+    const currentLiveBlocks = liveBlockState.network === network ? liveBlockState.blocks : [];
+    return mergeLiveAndFetchedBlocks(currentLiveBlocks, baseBlocks);
+  }, [data, liveBlockState, network]);
 
   const toggleBlock = React.useCallback((blockId: number) => {
-    setExpandedBlockId((current) => (current === blockId ? null : blockId));
-  }, []);
+    setExpandedBlockState((currentState) => {
+      const currentBlockId = currentState.network === network ? currentState.blockId : null;
+
+      return {
+        network,
+        blockId: currentBlockId === blockId ? null : blockId,
+      };
+    });
+  }, [network]);
 
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>, blockId: number) => {

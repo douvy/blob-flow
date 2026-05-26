@@ -109,6 +109,27 @@ describe('blobWebSocket', () => {
           blob_count: 1,
           timestamp: '2026-03-09T14:00:00Z',
           blobs: [blobResponse],
+          pricing: {
+            block_number: 123,
+            block_timestamp: '2026-03-09T14:00:00Z',
+            blob_count: 1,
+            blob_gas_used: 131072,
+            blob_gas_target: 393216,
+            blob_gas_limit: 786432,
+            excess_blob_gas: 0,
+            blob_base_fee: '1000000000',
+            blob_base_fee_gwei: '1',
+            utilization_ratio: '0.1667',
+            blob_params_target: 3,
+            blob_params_max: 6,
+            target_blobs: 3,
+            max_blobs: 6,
+            available_blobs: 5,
+            utilization_percent: 16.67,
+            is_full: false,
+            is_above_target: false,
+            update_fraction: 3338477,
+          },
         },
       })
     );
@@ -117,6 +138,7 @@ describe('blobWebSocket', () => {
     if (parsed?.type === 'new_block') {
       expect(parsed.data.blob_count).toBe(1);
       expect(parsed.data.blobs[0].tx_hash).toBe('0xabc123');
+      expect(parsed.data.pricing?.max_blobs).toBe(6);
     }
   });
 
