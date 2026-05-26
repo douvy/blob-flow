@@ -5,10 +5,12 @@ import { useApiData } from './useApiData';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { useNetwork } from './useNetwork';
 import { api } from '../lib/api';
-import { buildChartDataset, getPricingBlockRequestLimit } from '../lib/chartAggregation';
+import { buildChartDatasetFromResponses, getBackendChartRange } from '../lib/chartAggregation';
 import type {
+  BackendAttributionUsageChartResponse,
+  BackendBlobMarketChartResponse,
+  BackendCostComparisonChartResponse,
   BackendStatsWindowsResponse,
-  BlobPricing,
   ChartDataset,
   StatsResponse,
 } from '../types';
@@ -17,15 +19,25 @@ export function useChartData() {
   const { timeRange } = useTimeRange();
   const { selectedNetwork } = useNetwork();
   const network = selectedNetwork.apiParam;
-  const pricingBlockLimit = getPricingBlockRequestLimit(timeRange);
+  const backendRange = getBackendChartRange(timeRange);
 
-  const fetchPricing = useCallback(
-    () => api.getBlobPricing(network, pricingBlockLimit),
-    [network, pricingBlockLimit]
+  const fetchMarket = useCallback(
+    () => api.getBlobMarketChart(backendRange, network),
+    [backendRange, network]
   );
 
-  const fetchStatsWindows = useCallback(
-    () => api.getStatsWindows(undefined, network),
+  const fetchAttribution = useCallback(
+    () => api.getAttributionUsageChart(backendRange, network),
+    [backendRange, network]
+  );
+
+  const fetchCostComparison = useCallback(
+    () => api.getCostComparisonChart(backendRange, network),
+    [backendRange, network]
+  );
+
+  const fetchRollingStats = useCallback(
+    () => api.getRollingStatsChart(undefined, network),
     [network]
   );
 
@@ -35,18 +47,30 @@ export function useChartData() {
   );
 
   const {
-    data: pricing,
-    isLoading: pricingLoading,
-    error: pricingError,
-    refetch: refetchPricing,
-  } = useApiData<BlobPricing>(fetchPricing, ['blob-pricing', network, pricingBlockLimit]);
+    data: market,
+    isLoading: marketLoading,
+    error: marketError,
+    refetch: refetchMarket,
+  } = useApiData<BackendBlobMarketChartResponse>(fetchMarket, ['chart-market', network, backendRange]);
 
   const {
-    data: statsWindows,
-    isLoading: windowsLoading,
-    error: windowsError,
-    refetch: refetchStatsWindows,
-  } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, ['stats-windows', network]);
+    data: attribution,
+    isLoading: attributionLoading,
+    error: attributionError,
+    refetch: refetchAttribution,
+  } = useApiData<BackendAttributionUsageChartResponse>(fetchAttribution, ['chart-attribution', network, backendRange]);
+
+  const {
+    data: costComparison,
+    isLoading: costComparisonLoading,
+    error: costComparisonError,
+    refetch: refetchCostComparison,
+  } = useApiData<BackendCostComparisonChartResponse>(fetchCostComparison, ['chart-cost-comparison', network, backendRange]);
+
+  const {
+    data: rollingStats,
+    refetch: refetchRollingStats,
+  } = useApiData<BackendStatsWindowsResponse>(fetchRollingStats, ['chart-rolling-stats', network]);
 
   const {
     data: stats,
@@ -56,22 +80,31 @@ export function useChartData() {
   } = useApiData<StatsResponse>(fetchStats, ['stats', network]);
 
   const chartData: ChartDataset | null = useMemo(() => {
-    if (!pricing || !statsWindows) return null;
-    return buildChartDataset(statsWindows, pricing, timeRange, stats?.data);
-  }, [pricing, statsWindows, timeRange, stats]);
+    if (!market || !attribution || !costComparison) return null;
+    return buildChartDatasetFromResponses(
+      market,
+      attribution,
+      costComparison,
+      timeRange,
+      stats?.data,
+      rollingStats
+    );
+  }, [market, attribution, costComparison, timeRange, stats, rollingStats]);
 
   const refetch = useCallback(async () => {
     await Promise.all([
-      refetchPricing(),
-      refetchStatsWindows(),
+      refetchMarket(),
+      refetchAttribution(),
+      refetchCostComparison(),
+      refetchRollingStats(),
       refetchStats(),
     ]);
-  }, [refetchPricing, refetchStatsWindows, refetchStats]);
+  }, [refetchMarket, refetchAttribution, refetchCostComparison, refetchRollingStats, refetchStats]);
 
   return {
     chartData,
-    isLoading: pricingLoading || windowsLoading || statsLoading,
-    error: pricingError || windowsError || statsError,
+    isLoading: marketLoading || attributionLoading || costComparisonLoading || statsLoading,
+    error: marketError || attributionError || costComparisonError || statsError,
     refetch,
     timeRange,
     dataPoints: chartData?.recentBlockCount ?? 0,

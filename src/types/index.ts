@@ -456,13 +456,17 @@ export interface BackendStatsWindow {
   duration_seconds: number;
   start_time: string;
   end_time: string;
-  average_blob_base_fee: string;
-  median_blob_base_fee: string;
-  p95_blob_base_fee: string;
+  average_blob_base_fee?: string;
+  average_blob_base_fee_wei?: string;
+  median_blob_base_fee?: string;
+  median_blob_base_fee_wei?: string;
+  p95_blob_base_fee?: string;
+  p95_blob_base_fee_wei?: string;
   total_blobs: number;
   total_blob_gas_used: number;
   average_utilization: string;
-  total_cost_eth: string;
+  total_cost_eth?: string;
+  total_cost_wei?: string;
   unique_senders: number;
 }
 
@@ -485,6 +489,138 @@ export interface StatusResponse {
 
 // ---- Chart Data Types ----
 
+export type BackendChartRange = '1h' | '24h' | '7d' | '30d' | 'all';
+export type BackendChartGranularity = 'auto' | 'block' | 'minute' | 'hour' | 'day';
+
+export interface BackendBlobMarketChartPoint {
+  timestamp: string;
+  label?: string;
+  start_block?: number;
+  end_block?: number;
+  average_blob_base_fee_gwei: string;
+  median_blob_base_fee_gwei: string;
+  p95_blob_base_fee_gwei: string;
+  blob_count: number;
+  blob_gas_used: number;
+  blob_gas_target: number;
+  average_utilization: string;
+  total_cost_wei: string;
+  unique_senders: number;
+}
+
+export interface BackendBlobMarketChartSummary {
+  current_base_fee_gwei: string;
+  average_blob_base_fee_gwei: string;
+  median_blob_base_fee_gwei: string;
+  p95_blob_base_fee_gwei: string;
+  total_blobs: number;
+  total_blob_gas_used: number;
+  average_utilization: string;
+  total_cost_wei: string;
+  unique_senders: number;
+}
+
+export interface BackendBlobMarketChartResponse {
+  network_id: number;
+  network_name: string;
+  range: BackendChartRange | string;
+  granularity: Exclude<BackendChartGranularity, 'auto'> | string;
+  bucket_seconds: number;
+  start_time: string;
+  end_time: string;
+  generated_at: string;
+  points: BackendBlobMarketChartPoint[];
+  summary: BackendBlobMarketChartSummary;
+}
+
+export interface BackendAttributionUsageSeries {
+  key: string;
+  name: string;
+  category: string;
+  address?: string;
+}
+
+export interface BackendAttributionUsageValue {
+  blob_count: number;
+  total_cost_wei: string;
+  blob_gas_used: number;
+}
+
+export interface BackendAttributionUsagePoint {
+  timestamp: string;
+  start_block?: number;
+  end_block?: number;
+  values: Record<string, BackendAttributionUsageValue>;
+}
+
+export interface BackendAttributionUsageShare {
+  key: string;
+  name: string;
+  category: string;
+  blob_count: number;
+  total_cost_wei: string;
+  blob_share_percent: number;
+  spend_share_percent: number;
+}
+
+export interface BackendAttributionUsageSummary {
+  total_blobs: number;
+  total_cost_wei: string;
+  shares: BackendAttributionUsageShare[];
+}
+
+export interface BackendAttributionUsageChartResponse {
+  network_id: number;
+  network_name: string;
+  range: BackendChartRange | string;
+  granularity: Exclude<BackendChartGranularity, 'auto'> | string;
+  bucket_seconds: number;
+  start_time: string;
+  end_time: string;
+  generated_at: string;
+  series: BackendAttributionUsageSeries[];
+  points: BackendAttributionUsagePoint[];
+  summary: BackendAttributionUsageSummary;
+}
+
+export interface BackendCostComparisonChartPoint {
+  timestamp: string;
+  blob_count: number;
+  blob_bytes: number;
+  blob_cost_wei: string;
+  calldata_equivalent_cost_wei: string;
+  savings_wei: string;
+  savings_percent: number;
+  average_execution_base_fee_wei?: string;
+}
+
+export interface BackendCostComparisonModel {
+  calldata_gas_per_byte: number;
+  blob_size_bytes: number;
+  description: string;
+}
+
+export interface BackendCostComparisonSummary {
+  blob_cost_wei: string;
+  calldata_equivalent_cost_wei: string;
+  savings_wei: string;
+  savings_percent: number;
+}
+
+export interface BackendCostComparisonChartResponse {
+  network_id: number;
+  network_name: string;
+  range: BackendChartRange | string;
+  granularity: Exclude<BackendChartGranularity, 'auto'> | string;
+  bucket_seconds: number;
+  start_time: string;
+  end_time: string;
+  generated_at: string;
+  model: BackendCostComparisonModel;
+  points: BackendCostComparisonChartPoint[];
+  summary: BackendCostComparisonSummary;
+}
+
 export interface BaseFeeDataPoint {
   timestamp: number;
   label: string;
@@ -505,12 +641,15 @@ export interface GasUtilizationDataPoint {
 export interface L2UsageDataPoint {
   timestamp: number;
   label: string;
-  arbitrum: number;
-  optimism: number;
-  base: number;
-  zksync: number;
-  unknown: number;
   total: number;
+  [seriesKey: string]: string | number;
+}
+
+export interface L2UsageSeries {
+  key: string;
+  name: string;
+  category: string;
+  address?: string;
 }
 
 export interface CostComparisonDataPoint {
@@ -529,7 +668,7 @@ export interface FeeMarketIndicators {
   recentBaseFeeSparkline: number[];
 }
 
-export type Granularity = 'block' | 'hourly' | 'daily';
+export type Granularity = 'block' | 'minute' | 'hour' | 'day';
 
 export interface RollingWindowDataPoint {
   window: RollingWindowKey | string;
@@ -551,6 +690,7 @@ export interface ChartDataset {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
   l2Usage: L2UsageDataPoint[];
+  l2UsageSeries: L2UsageSeries[];
   costComparison: CostComparisonDataPoint[];
   rollingWindows: RollingWindowDataPoint[];
   selectedWindow: RollingWindowDataPoint | null;

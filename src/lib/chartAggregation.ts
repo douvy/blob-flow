@@ -1,11 +1,19 @@
 import { formatUnits } from 'viem';
 import type { TimeRange } from '../contexts/TimeRangeContext';
 import type {
+  BackendAttributionUsageChartResponse,
+  BackendBlobMarketChartResponse,
+  BackendChartRange,
+  BackendCostComparisonChartResponse,
   BackendStatsWindowsResponse,
   BaseFeeDataPoint,
   BlobPricing,
   ChartDataset,
+  CostComparisonDataPoint,
   GasUtilizationDataPoint,
+  Granularity,
+  L2UsageDataPoint,
+  L2UsageSeries,
   NetworkStats,
   RollingWindowDataPoint,
   RollingWindowKey,
@@ -58,9 +66,39 @@ function weiToEth(value: string | undefined): number {
   return 0;
 }
 
+function weiIntegerToEth(value: string | undefined): number {
+  if (!value) return 0;
+
+  const normalized = value.trim();
+  if (/^\d+$/.test(normalized)) {
+    return Number(formatUnits(BigInt(normalized), 18));
+  }
+
+  return parseFiniteNumber(normalized) / 1e18;
+}
+
 function isoTimestamp(value: string): number {
   const timestamp = new Date(value).getTime();
   return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function formatTwoDigit(value: number): string {
+  return value.toString().padStart(2, '0');
+}
+
+function formatBucketLabel(timestamp: string, granularity: string): string {
+  const date = new Date(timestamp);
+  const time = date.getTime();
+  if (!Number.isFinite(time)) return timestamp;
+
+  const month = date.getUTCMonth() + 1;
+  const day = date.getUTCDate();
+  const hour = formatTwoDigit(date.getUTCHours());
+  const minute = formatTwoDigit(date.getUTCMinutes());
+
+  if (granularity === 'day') return `${month}/${day}`;
+  if (granularity === 'hour') return `${hour}:00`;
+  return `${hour}:${minute}`;
 }
 
 function formatWindowLabel(window: string): string {
@@ -117,25 +155,36 @@ export function getPricingBlockRequestLimit(timeRange: TimeRange): number {
   return Math.min(ESTIMATED_BLOCKS_PER_RANGE[timeRange], PRICING_API_MAX_BLOCKS);
 }
 
+export function getBackendChartRange(timeRange: TimeRange): BackendChartRange {
+  return timeRange === 'All' ? '30d' : timeRange;
+}
+
 export function transformStatsWindows(
   statsWindows: BackendStatsWindowsResponse
 ): RollingWindowDataPoint[] {
   return statsWindows.windows
-    .map((window) => ({
-      window: window.window,
-      label: formatWindowLabel(window.window),
-      durationSeconds: window.duration_seconds,
-      startTimestamp: isoTimestamp(window.start_time),
-      endTimestamp: isoTimestamp(window.end_time),
-      averageBaseFeeGwei: decimalWeiToGwei(window.average_blob_base_fee),
-      medianBaseFeeGwei: decimalWeiToGwei(window.median_blob_base_fee),
-      p95BaseFeeGwei: decimalWeiToGwei(window.p95_blob_base_fee),
-      totalBlobs: window.total_blobs,
-      totalBlobGasUsed: window.total_blob_gas_used,
-      averageUtilizationPct: roundTo(parseFiniteNumber(window.average_utilization) * 100, 2),
-      totalCostEth: weiToEth(window.total_cost_eth),
-      uniqueSenders: window.unique_senders,
-    }))
+    .map((window) => {
+      const averageBaseFeeWei = window.average_blob_base_fee_wei ?? window.average_blob_base_fee;
+      const medianBaseFeeWei = window.median_blob_base_fee_wei ?? window.median_blob_base_fee;
+      const p95BaseFeeWei = window.p95_blob_base_fee_wei ?? window.p95_blob_base_fee;
+      const totalCostWei = window.total_cost_wei ?? window.total_cost_eth;
+
+      return {
+        window: window.window,
+        label: formatWindowLabel(window.window),
+        durationSeconds: window.duration_seconds,
+        startTimestamp: isoTimestamp(window.start_time),
+        endTimestamp: isoTimestamp(window.end_time),
+        averageBaseFeeGwei: decimalWeiToGwei(averageBaseFeeWei),
+        medianBaseFeeGwei: decimalWeiToGwei(medianBaseFeeWei),
+        p95BaseFeeGwei: decimalWeiToGwei(p95BaseFeeWei),
+        totalBlobs: window.total_blobs,
+        totalBlobGasUsed: window.total_blob_gas_used,
+        averageUtilizationPct: roundTo(parseFiniteNumber(window.average_utilization) * 100, 2),
+        totalCostEth: weiToEth(totalCostWei),
+        uniqueSenders: window.unique_senders,
+      };
+    })
     .sort((a, b) => a.durationSeconds - b.durationSeconds);
 }
 
@@ -213,9 +262,196 @@ function formatChartRangeLabel(
   timeRange: TimeRange,
   selectedWindow: RollingWindowDataPoint | null
 ): string {
-  if (timeRange === 'All') return 'all available pricing blocks';
+  if (timeRange === 'All' && selectedWindow?.window === '30d') return '30d view';
+  if (timeRange === 'All') return 'all available history';
   if (selectedWindow) return `${selectedWindow.label} view`;
   return `${timeRange} view`;
+}
+
+function normalizeGranularity(granularity: string): Granularity {
+  if (
+    granularity === 'block' ||
+    granularity === 'minute' ||
+    granularity === 'hour' ||
+    granularity === 'day'
+  ) {
+    return granularity;
+  }
+
+  return 'minute';
+}
+
+function formatMarketCoverage(market: BackendBlobMarketChartResponse, timeRange: TimeRange): string {
+  const pointCount = market.points.length;
+  if (pointCount === 0) return 'no chart buckets in this view';
+
+  const bucketLabel = pointCount === 1
+    ? `1 ${market.granularity} bucket`
+    : `${pointCount.toLocaleString()} ${market.granularity} buckets`;
+  const rangeLabel = timeRange === 'All' && market.range === '30d'
+    ? '30d view'
+    : timeRange === 'All'
+      ? 'all available history'
+      : `${timeRange} view`;
+
+  return `${bucketLabel} over the ${rangeLabel}`;
+}
+
+function buildSelectedWindowFromMarket(
+  market: BackendBlobMarketChartResponse,
+  timeRange: TimeRange
+): RollingWindowDataPoint {
+  const durationSeconds = Math.max(
+    0,
+    Math.round((isoTimestamp(market.end_time) - isoTimestamp(market.start_time)) / 1000)
+  );
+
+  const label = timeRange === 'All' && market.range === '30d' ? '30d' : timeRange;
+
+  return {
+    window: market.range,
+    label,
+    durationSeconds,
+    startTimestamp: isoTimestamp(market.start_time),
+    endTimestamp: isoTimestamp(market.end_time),
+    averageBaseFeeGwei: roundTo(parseFiniteNumber(market.summary.average_blob_base_fee_gwei), 6),
+    medianBaseFeeGwei: roundTo(parseFiniteNumber(market.summary.median_blob_base_fee_gwei), 6),
+    p95BaseFeeGwei: roundTo(parseFiniteNumber(market.summary.p95_blob_base_fee_gwei), 6),
+    totalBlobs: market.summary.total_blobs,
+    totalBlobGasUsed: market.summary.total_blob_gas_used,
+    averageUtilizationPct: roundTo(parseFiniteNumber(market.summary.average_utilization) * 100, 2),
+    totalCostEth: weiIntegerToEth(market.summary.total_cost_wei),
+    uniqueSenders: market.summary.unique_senders,
+  };
+}
+
+function transformMarketPoints(market: BackendBlobMarketChartResponse): {
+  baseFee: BaseFeeDataPoint[];
+  gasUtilization: GasUtilizationDataPoint[];
+} {
+  const sortedPoints = [...market.points].sort((a, b) => {
+    const timestampDiff = isoTimestamp(a.timestamp) - isoTimestamp(b.timestamp);
+    return timestampDiff !== 0 ? timestampDiff : (a.end_block ?? 0) - (b.end_block ?? 0);
+  });
+
+  const baseFee = sortedPoints.map((point) => ({
+    timestamp: isoTimestamp(point.timestamp),
+    label: point.label ?? (
+      market.granularity === 'block' && point.end_block
+        ? `#${point.end_block}`
+        : formatBucketLabel(point.timestamp, market.granularity)
+    ),
+    baseFeeGwei: roundTo(parseFiniteNumber(point.average_blob_base_fee_gwei), 6),
+    blockNumber: point.end_block,
+  }));
+
+  const gasUtilization = sortedPoints.map((point) => ({
+    timestamp: isoTimestamp(point.timestamp),
+    label: point.label ?? (
+      market.granularity === 'block' && point.end_block
+        ? `#${point.end_block}`
+        : formatBucketLabel(point.timestamp, market.granularity)
+    ),
+    blockNumber: point.end_block ?? point.start_block ?? 0,
+    blobGasUsed: point.blob_gas_used,
+    targetGas: point.blob_gas_target,
+    blobCount: point.blob_count,
+    utilizationPct: roundTo(parseFiniteNumber(point.average_utilization) * 100, 0),
+  }));
+
+  return { baseFee, gasUtilization };
+}
+
+function transformAttributionUsage(
+  attribution: BackendAttributionUsageChartResponse
+): {
+  l2Usage: L2UsageDataPoint[];
+  l2UsageSeries: L2UsageSeries[];
+} {
+  const l2UsageSeries = attribution.series.map((series) => ({
+    key: series.key,
+    name: series.name,
+    category: series.category,
+    address: series.address,
+  }));
+
+  const l2Usage = attribution.points.map((point) => {
+    const row: L2UsageDataPoint = {
+      timestamp: isoTimestamp(point.timestamp),
+      label: formatBucketLabel(point.timestamp, attribution.granularity),
+      total: 0,
+    };
+
+    for (const series of l2UsageSeries) {
+      const blobCount = point.values[series.key]?.blob_count ?? 0;
+      row[series.key] = blobCount;
+      row.total += blobCount;
+    }
+
+    return row;
+  });
+
+  return { l2Usage, l2UsageSeries };
+}
+
+function transformCostComparison(costComparison: BackendCostComparisonChartResponse): CostComparisonDataPoint[] {
+  return costComparison.points.map((point) => ({
+    timestamp: isoTimestamp(point.timestamp),
+    label: formatBucketLabel(point.timestamp, costComparison.granularity),
+    blobCostEth: weiIntegerToEth(point.blob_cost_wei),
+    calldataEquivEth: weiIntegerToEth(point.calldata_equivalent_cost_wei),
+    savingsPct: roundTo(point.savings_percent, 2),
+  }));
+}
+
+export function buildChartDatasetFromResponses(
+  market: BackendBlobMarketChartResponse,
+  attribution: BackendAttributionUsageChartResponse,
+  costComparison: BackendCostComparisonChartResponse,
+  timeRange: TimeRange,
+  stats?: NetworkStats,
+  statsWindows?: BackendStatsWindowsResponse
+): ChartDataset {
+  const rollingWindows = statsWindows ? transformStatsWindows(statsWindows) : [];
+  const selectedWindow =
+    selectRollingWindow(rollingWindows, timeRange) ??
+    buildSelectedWindowFromMarket(market, timeRange);
+  const { baseFee, gasUtilization } = transformMarketPoints(market);
+  const { l2Usage, l2UsageSeries } = transformAttributionUsage(attribution);
+  const costComparisonData = transformCostComparison(costComparison);
+  const currentBaseFeeGwei = roundTo(parseFiniteNumber(market.summary.current_base_fee_gwei), 6);
+  const averageBaseFeeGwei = selectedWindow.averageBaseFeeGwei;
+  const rollingCoverageLabel = statsWindows
+    ? formatRollingCoverage(timeRange, selectedWindow)
+    : `${selectedWindow.label} chart summary`;
+  const blockCoverageLabel = formatMarketCoverage(market, timeRange);
+  const chartRangeLabel = formatChartRangeLabel(timeRange, selectedWindow);
+
+  return {
+    baseFee,
+    gasUtilization,
+    l2Usage,
+    l2UsageSeries,
+    costComparison: costComparisonData,
+    rollingWindows: rollingWindows.length > 0 ? rollingWindows : [selectedWindow],
+    selectedWindow,
+    indicators: {
+      currentBaseFeeGwei,
+      averageBaseFeeGwei,
+      feeRatio:
+        averageBaseFeeGwei > 0
+          ? roundTo(currentBaseFeeGwei / averageBaseFeeGwei, 2)
+          : 1,
+      pendingBlobCount: stats?.pendingBlobsCount ?? 0,
+      recentBaseFeeSparkline: baseFee.slice(-12).map((point) => point.baseFeeGwei),
+    },
+    granularity: normalizeGranularity(market.granularity),
+    recentBlockCount: market.points.length,
+    chartRangeLabel,
+    rollingCoverageLabel,
+    blockCoverageLabel,
+    coverageLabel: `${rollingCoverageLabel}; charts show ${blockCoverageLabel}.`,
+  };
 }
 
 export function buildChartDataset(
@@ -242,6 +478,7 @@ export function buildChartDataset(
     baseFee,
     gasUtilization,
     l2Usage: [],
+    l2UsageSeries: [],
     costComparison: [],
     rollingWindows,
     selectedWindow,
