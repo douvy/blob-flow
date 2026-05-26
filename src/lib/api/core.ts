@@ -11,10 +11,9 @@ const inFlightGetRequests = new Map<string, Promise<unknown>>();
 /**
  * Helper function to format relative time
  */
-export function formatRelativeTime(timestamp: string): string {
+export function formatRelativeTime(timestamp: string, now: Date = new Date()): string {
     const date = new Date(timestamp);
-    const now = new Date();
-    const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    const diffSeconds = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
 
     if (diffSeconds < 60) {
         return `${diffSeconds} sec ago`;

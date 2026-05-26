@@ -18,6 +18,8 @@ import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { useLatestBlobEvent, useLiveBlobEvent } from '../contexts/LiveDataContext';
+import { useNow } from '../hooks/useNow';
+import { formatRelativeTime } from '../lib/api/core';
 
 const LATEST_BLOCKS_SAMPLE = 30;
 
@@ -165,6 +167,8 @@ export default function LiveMetrics() {
     [latestBlocks]
   );
 
+  const now = useNow();
+
   const getMetrics = (
     stats: StatsResponse,
     window: RollingWindowDataPoint,
@@ -183,7 +187,7 @@ export default function LiveMetrics() {
       value: block ? `#${block.id.toLocaleString()}` : '—',
       trend: 'neutral' as const,
       description: block
-        ? `${block.blobCount}${block.maxBlobs ? `/${block.maxBlobs}` : ''} blobs · ${block.timestamp}`
+        ? `${block.blobCount}${block.maxBlobs ? `/${block.maxBlobs}` : ''} blobs · ${formatRelativeTime(block.timestamp, new Date(now))}`
         : 'Waiting for next block',
       icon: 'fa-regular fa-cube',
     },

@@ -10,6 +10,7 @@ import {
   getAttributionImageSrc,
   getAttributionInitial,
 } from '../utils';
+import { RelativeTime } from './RelativeTime';
 
 interface MempoolBlobDetailsModalProps {
   transaction: MempoolTransaction | null;
@@ -90,7 +91,7 @@ export default function MempoolBlobDetailsModal({
             <span className="text-sm text-[#b8bdc7]">
               {blob.network_name || `Network ${blob.network_id}`}
             </span>
-            <span className="text-sm text-[#6e7687]">{transaction.timeInMempool}</span>
+            <span className="text-sm text-[#6e7687]"><RelativeTime timestamp={transaction.timeInMempool} /></span>
           </div>
 
           <div className="mb-6 flex items-center gap-3 border-b border-divider pb-5">
