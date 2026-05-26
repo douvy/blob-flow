@@ -13,10 +13,9 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import type { L2UsageDataPoint } from '../../types';
+import type { L2UsageDataPoint, L2UsageSeries } from '../../types';
 import {
   CHART_TOOLTIP_STYLE,
-  CHART_LABEL_STYLE,
   AXIS_STROKE,
   AXIS_LINE,
   AXIS_TICK,
@@ -25,36 +24,61 @@ import {
 
 interface L2UsageChartProps {
   data: L2UsageDataPoint[];
+  series: L2UsageSeries[];
 }
 
-const L2_KEYS = ['arbitrum', 'optimism', 'base', 'zksync', 'unknown'] as const;
+const FALLBACK_COLORS = [
+  '#12aaff',
+  '#1652f0',
+  '#ff0420',
+  '#66CC99',
+  '#F0C040',
+  '#8B8DFC',
+  '#6e7687',
+  '#f97316',
+];
 
-const L2_LABELS: Record<string, string> = {
-  arbitrum: 'Arbitrum',
-  optimism: 'Optimism',
-  base: 'Base',
-  zksync: 'zkSync',
-  unknown: 'Unknown',
-};
+function getSeriesColor(key: string, index: number): string {
+  return L2_COLORS[key] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
+}
 
-export default function L2UsageChart({ data }: L2UsageChartProps) {
-  // Use pie chart when too few data points for meaningful time-series
+function getNumericValue(point: L2UsageDataPoint, key: string): number {
+  const value = point[key];
+  return typeof value === 'number' ? value : 0;
+}
+
+export default function L2UsageChart({ data, series }: L2UsageChartProps) {
   const usePie = data.length <= 3;
 
   const pieData = useMemo(() => {
     if (!usePie) return [];
-    const totals: Record<string, number> = {};
-    for (const key of L2_KEYS) {
-      totals[key] = data.reduce((sum, d) => sum + d[key], 0);
-    }
-    return L2_KEYS
-      .filter(key => totals[key] > 0)
-      .map(key => ({
-        name: L2_LABELS[key],
-        value: totals[key],
-        color: L2_COLORS[key],
-      }));
-  }, [data, usePie]);
+    return series
+      .map((entry, index) => ({
+        name: entry.name,
+        value: data.reduce((sum, point) => sum + getNumericValue(point, entry.key), 0),
+        color: getSeriesColor(entry.key, index),
+      }))
+      .filter((entry) => entry.value > 0);
+  }, [data, series, usePie]);
+
+  const legendEntries = useMemo(
+    () => series
+      .map((entry, index) => ({
+        ...entry,
+        color: getSeriesColor(entry.key, index),
+        total: data.reduce((sum, point) => sum + getNumericValue(point, entry.key), 0),
+      }))
+      .filter((entry) => entry.total > 0),
+    [data, series]
+  );
+
+  if (series.length === 0) {
+    return (
+      <div className="h-full flex items-center justify-center text-sm text-[#6e7687]">
+        Attribution data unavailable
+      </div>
+    );
+  }
 
   if (usePie && pieData.length > 0) {
     const total = pieData.reduce((s, d) => s + d.value, 0);
@@ -72,8 +96,8 @@ export default function L2UsageChart({ data }: L2UsageChartProps) {
               outerRadius={65}
               paddingAngle={2}
             >
-              {pieData.map((entry, index) => (
-                <Cell key={index} fill={entry.color} />
+              {pieData.map((entry) => (
+                <Cell key={entry.name} fill={entry.color} />
               ))}
             </Pie>
             <Tooltip
@@ -104,42 +128,69 @@ export default function L2UsageChart({ data }: L2UsageChartProps) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.3} />
-        <XAxis
-          dataKey="label"
-          stroke={AXIS_STROKE}
-          tick={AXIS_TICK}
-          axisLine={AXIS_LINE}
-          tickLine={AXIS_LINE}
-          interval="preserveStartEnd"
-          minTickGap={30}
-        />
-        <YAxis
-          stroke={AXIS_STROKE}
-          tick={AXIS_TICK}
-          axisLine={AXIS_LINE}
-          tickLine={AXIS_LINE}
-          width={35}
-        />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          labelStyle={CHART_LABEL_STYLE}
-        />
-        {L2_KEYS.map(key => (
-          <Area
-            key={key}
-            type="monotone"
-            dataKey={key}
-            stackId="1"
-            stroke={L2_COLORS[key]}
-            fill={L2_COLORS[key]}
-            fillOpacity={0.6}
-            name={L2_LABELS[key]}
+    <>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 32 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.3} />
+          <XAxis
+            dataKey="label"
+            stroke={AXIS_STROKE}
+            tick={AXIS_TICK}
+            axisLine={AXIS_LINE}
+            tickLine={AXIS_LINE}
+            interval="preserveStartEnd"
+            minTickGap={30}
           />
+          <YAxis
+            stroke={AXIS_STROKE}
+            tick={AXIS_TICK}
+            axisLine={AXIS_LINE}
+            tickLine={AXIS_LINE}
+            width={35}
+          />
+          <Tooltip
+            contentStyle={CHART_TOOLTIP_STYLE}
+            content={({ active, payload, label }) => {
+              if (!active || !payload || payload.length === 0) return null;
+              return (
+                <div style={CHART_TOOLTIP_STYLE}>
+                  <p style={{ color: '#fff', fontSize: '12px', marginBottom: 4 }}>{label}</p>
+                  {payload
+                    .filter((entry) => typeof entry.value === 'number' && entry.value > 0)
+                    .map((entry) => (
+                      <p key={entry.dataKey?.toString()} style={{ color: entry.color, fontSize: '12px' }}>
+                        {entry.name}: {entry.value}
+                      </p>
+                    ))}
+                </div>
+              );
+            }}
+          />
+          {series.map((entry, index) => (
+            <Area
+              key={entry.key}
+              type="monotone"
+              dataKey={entry.key}
+              stackId="1"
+              stroke={getSeriesColor(entry.key, index)}
+              fill={getSeriesColor(entry.key, index)}
+              fillOpacity={0.6}
+              name={entry.name}
+            />
+          ))}
+        </AreaChart>
+      </ResponsiveContainer>
+      <div className="absolute bottom-0 left-0 right-0 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-[#6e7687]">
+        {legendEntries.slice(0, 6).map((entry) => (
+          <span key={entry.key} className="inline-flex items-center">
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-sm mr-1"
+              style={{ backgroundColor: entry.color }}
+            />
+            {entry.name}
+          </span>
         ))}
-      </AreaChart>
-    </ResponsiveContainer>
+      </div>
+    </>
   );
 }
