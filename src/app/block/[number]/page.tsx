@@ -18,9 +18,9 @@ function formatBaseFee(block: Block): string {
   return formatBlobFee(block.baseFeeGwei);
 }
 
-function formatOpenCapacity(block: Block): string {
+function formatBlobCapacity(block: Block): string {
   if (block.maxBlobs <= 0) return '-';
-  return `${block.availableBlobs}/${block.maxBlobs} open`;
+  return `${block.blobCount}/${block.maxBlobs} used`;
 }
 
 function formatUtilization(block: Block): string {
@@ -151,7 +151,7 @@ export default function BlockDetailPage() {
                     <StatCard label="Blobs" value={block.blobCount.toLocaleString()} />
                     <StatCard label="Utilization" value={formatUtilization(block)} />
                     <StatCard label="Base Fee" value={formatBaseFee(block)} />
-                    <StatCard label="Open Capacity" value={formatOpenCapacity(block)} />
+                    <StatCard label="Blob Capacity" value={formatBlobCapacity(block)} />
                   </div>
                 </div>
 
