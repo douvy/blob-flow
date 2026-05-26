@@ -9,7 +9,6 @@ import { formatGwei, formatNumber, formatPercent } from '@/utils';
 import DataStateWrapper from './DataStateWrapper';
 
 const FALLBACK_REFRESH_MS = 60000;
-const RECENT_BLOCK_ROWS = 8;
 
 export default function BlobMarketPanels() {
   const { selectedNetwork } = useNetwork();
@@ -102,12 +101,7 @@ export default function BlobMarketPanels() {
         error={initialError}
         loadingComponent={<BlobMarketSkeleton />}
       >
-        {pricing && (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <CurrentMarketPanel pricing={pricing} />
-            <RecentFeeBlocksPanel pricing={pricing} />
-          </div>
-        )}
+        {pricing && <CurrentMarketPanel pricing={pricing} />}
       </DataStateWrapper>
 
       {pricing && error && (
@@ -193,57 +187,6 @@ function CurrentMarketPanel({ pricing }: { pricing: BlobPricing }) {
   );
 }
 
-function RecentFeeBlocksPanel({ pricing }: { pricing: BlobPricing }) {
-  return (
-    <article className="rounded-lg border border-divider bg-[#161a29]/80 p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-medium text-white">Recent Block Fees</h3>
-          <p className="text-sm text-[#8f9aad]">{pricing.recentBlocks.length} block pricing window</p>
-        </div>
-        <span className="rounded-full border border-[#8f9aad]/40 bg-[#8f9aad]/10 px-3 py-1 text-xs text-[#d7dde8]">
-          {pricing.forkStage}
-        </span>
-      </div>
-
-      <div className="mt-5 space-y-3">
-        {pricing.recentBlocks.slice(0, RECENT_BLOCK_ROWS).map((block) => (
-          <RecentFeeBlockRow key={block.blockNumber} block={block} />
-        ))}
-      </div>
-    </article>
-  );
-}
-
-function RecentFeeBlockRow({ block }: { block: BlobPricingRecentBlock }) {
-  const fillLabel = `${block.blobCount}/${block.maxBlobs}`;
-  const status = block.isFull ? 'Full' : block.isAboveTarget ? 'Above target' : 'Under target';
-
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3 rounded-md border border-divider/70 bg-[#111522]/70 px-3 py-2">
-      <div className="min-w-0">
-        <div className="text-[11px] text-[#8f9aad]">Block</div>
-        <div className="truncate text-sm font-medium text-white">{block.blockNumber.toLocaleString()}</div>
-      </div>
-      <div className="min-w-0">
-        <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-[#8f9aad]">
-          <span>{fillLabel} blobs</span>
-          <span>{formatPercent(block.utilizationPercent, 0)}</span>
-        </div>
-        <FullnessBar percent={block.utilizationPercent} isAboveTarget={block.isAboveTarget} />
-      </div>
-      <div className="min-w-0">
-        <div className="text-[11px] text-[#8f9aad]">Base fee</div>
-        <div className="truncate text-sm font-medium text-white">{block.blobBaseFee}</div>
-      </div>
-      <div className="min-w-0">
-        <div className="text-[11px] text-[#8f9aad]">State</div>
-        <div className="truncate text-sm font-medium text-white">{status}</div>
-      </div>
-    </div>
-  );
-}
-
 function MetricBlock({ label, value, compact = false }: { label: string; value: string; compact?: boolean }) {
   return (
     <div>
@@ -280,17 +223,13 @@ function FullnessBar({ percent, isAboveTarget }: { percent: number; isAboveTarge
 
 function BlobMarketSkeleton() {
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      {[...Array(2)].map((_, index) => (
-        <div key={index} className="animate-pulse rounded-lg border border-divider bg-[#161a29]/80 p-5">
-          <div className="h-6 w-1/3 rounded bg-[#202538] mb-5" />
-          <div className="grid grid-cols-2 gap-5">
-            <div className="h-20 rounded bg-[#202538]" />
-            <div className="h-20 rounded bg-[#202538]" />
-          </div>
-          <div className="mt-5 h-28 rounded bg-[#202538]" />
-        </div>
-      ))}
+    <div className="animate-pulse rounded-lg border border-divider bg-[#161a29]/80 p-5">
+      <div className="h-6 w-1/3 rounded bg-[#202538] mb-5" />
+      <div className="grid grid-cols-2 gap-5">
+        <div className="h-20 rounded bg-[#202538]" />
+        <div className="h-20 rounded bg-[#202538]" />
+      </div>
+      <div className="mt-5 h-28 rounded bg-[#202538]" />
     </div>
   );
 }
