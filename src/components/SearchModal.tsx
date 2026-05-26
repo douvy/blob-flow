@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, FormEvent } from 'react';
+import React, { memo, useState, useEffect, useRef, FormEvent } from 'react';
 import useScrollLock from '../hooks/useScrollLock';
 
 interface SearchModalProps {
@@ -10,24 +10,24 @@ interface SearchModalProps {
 
 type SearchType = 'blocks' | 'blobs' | 'transactions' | 'rollups' | null;
 
-export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
+function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<SearchType>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-  
+
   // Lock scrolling when the modal is open
   useScrollLock(isOpen);
 
   // Reset search query and selected type when modal opens, then focus input
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => {
-        setSearchQuery('');
-        setSelectedType(null);
-        searchInputRef.current?.focus();
-      }, 100);
-    }
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      setSearchQuery('');
+      setSelectedType(null);
+      searchInputRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
   }, [isOpen]);
 
   // Close modal when clicking outside
@@ -217,3 +217,5 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     </div>
   );
 }
+
+export default memo(SearchModal);
