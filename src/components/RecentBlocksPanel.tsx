@@ -120,17 +120,15 @@ function BlockRow({
   );
 }
 
-type SelectionState = { kind: 'default' } | { kind: 'explicit'; blockId: number | null };
-
 export default function RecentBlocksPanel() {
   const { selectedNetwork } = useNetwork();
   const liveBlockEvent = useLatestBlobEvent('new_block');
-  const [selection, setSelection] = React.useState<SelectionState>({ kind: 'default' });
+  const [expandedBlockId, setExpandedBlockId] = React.useState<number | null>(null);
   const [networkKey, setNetworkKey] = React.useState(selectedNetwork.apiParam);
 
   if (networkKey !== selectedNetwork.apiParam) {
     setNetworkKey(selectedNetwork.apiParam);
-    setSelection({ kind: 'default' });
+    setExpandedBlockId(null);
   }
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
@@ -150,30 +148,8 @@ export default function RecentBlocksPanel() {
     ].slice(0, HOMEPAGE_BLOCK_ROWS);
   }, [data, liveBlockEvent]);
 
-  const defaultExpandedId =
-    displayBlocks.find((block) => block.blobs.length > 0)?.id ?? displayBlocks[0]?.id ?? null;
-
-  let expandedBlockId: number | null;
-  if (selection.kind === 'default') {
-    expandedBlockId = defaultExpandedId;
-  } else if (selection.blockId === null) {
-    // user explicitly collapsed the row — keep it closed
-    expandedBlockId = null;
-  } else if (displayBlocks.some((block) => block.id === selection.blockId)) {
-    expandedBlockId = selection.blockId;
-  } else {
-    // explicit selection points at a block that's no longer visible (e.g. after
-    // a network switch or paged-out block) — fall back to the default
-    expandedBlockId = defaultExpandedId;
-  }
-
   const toggleBlock = React.useCallback((blockId: number) => {
-    setSelection((current) => {
-      if (current.kind === 'explicit' && current.blockId === blockId) {
-        return { kind: 'explicit', blockId: null };
-      }
-      return { kind: 'explicit', blockId };
-    });
+    setExpandedBlockId((current) => (current === blockId ? null : blockId));
   }, []);
 
   const handleKeyDown = React.useCallback(
