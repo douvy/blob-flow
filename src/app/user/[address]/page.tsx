@@ -69,7 +69,7 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
             const maxFee = formatBlobFee(blob.max_fee_per_blob_gas_gwei, blob.max_fee_per_blob_gas);
             const realizedCost = blob.realized_cost_wei
               ? formatBlobWeiCost(blob.realized_cost_wei)
-              : formatBlobTotalCost(blob.total_cost_eth);
+              : formatBlobTotalCost(blob.total_cost_wei || blob.total_cost_eth);
             const maxCost = formatBlobWeiCost(blob.max_cost_wei);
             const headroom = formatFeeHeadroom(blob.fee_cap_headroom_percent);
 
@@ -244,7 +244,7 @@ export default function UserDetailPage() {
                 </div>
                 <div className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
                   <div className="text-xs text-[#6e7787] uppercase tracking-wider mb-1">Total Cost</div>
-                  <div className="text-xl text-white font-medium">{formatCostEthOrWei(user.total_cost_eth)}</div>
+                  <div className="text-xl text-white font-medium">{formatCostEthOrWei(user.total_cost_wei || user.total_cost_eth)}</div>
                 </div>
                 <div className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
                   <div className="text-xs text-[#6e7787] uppercase tracking-wider mb-1">Last Active</div>

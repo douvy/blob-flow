@@ -65,6 +65,9 @@ function getBlobPaidWei(blob: BlobResponse): bigint | null {
   const realizedCost = parseWeiString(blob.realized_cost_wei);
   if (realizedCost !== null) return realizedCost;
 
+  const totalCostWei = parseWeiString(blob.total_cost_wei);
+  if (totalCostWei !== null) return totalCostWei;
+
   if (!blob.total_cost_eth) return null;
   if (blob.total_cost_eth.includes('.')) return parseEthToWei(blob.total_cost_eth);
   return parseWeiString(blob.total_cost_eth);

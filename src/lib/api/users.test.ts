@@ -20,7 +20,8 @@ describe('api/users', () => {
             address: '0x1234567890abcdef',
             name: '',
             blob_count: 3,
-            total_cost_eth: '1.2',
+            total_cost_wei: '1200000000000000000',
+            total_cost_eth: '99',
             last_timestamp: '2026-01-01T00:00:00.000Z',
           },
           {
@@ -47,6 +48,8 @@ describe('api/users', () => {
       name: '0x1234...cdef',
       dataCount: 3,
       percentage: 75,
+      totalCostEth: '1.2',
+      totalCostWei: '1200000000000000000',
     });
     expect(result.data[1].name).toBe('Known User');
   });

@@ -118,7 +118,7 @@ export default function MempoolBlobDetailsModal({
             <DetailItem label="Base Fee" value={safeFormatWei(blob.base_fee_per_blob_gas)} />
             <DetailItem label="Tip" value={safeFormatWei(blob.tip_per_blob_gas)} />
             <DetailItem label="Max Fee" value={safeFormatWei(blob.max_fee_per_blob_gas)} />
-            <DetailItem label="Estimated Cost" value={safeFormatCost(blob.total_cost_eth)} />
+            <DetailItem label="Estimated Cost" value={safeFormatCost(blob.total_cost_wei || blob.total_cost_eth)} />
             <DetailItem label="First Seen" value={formatTimestamp(blob.timestamp)} full />
           </dl>
         </div>

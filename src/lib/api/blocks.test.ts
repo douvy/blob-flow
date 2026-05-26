@@ -185,4 +185,45 @@ describe('api/blocks', () => {
       baseFeeGwei: '1',
     });
   });
+
+  it('uses websocket block pricing when present on live block data', () => {
+    const block = transformNewBlockData({
+      block_number: 103,
+      blob_count: 2,
+      timestamp: '2026-01-01T00:00:30.000Z',
+      blobs: [],
+      pricing: {
+        block_number: 103,
+        block_timestamp: '2026-01-01T00:00:30.000Z',
+        blob_count: 2,
+        blob_gas_used: 262144,
+        blob_gas_target: 393216,
+        blob_gas_limit: 786432,
+        excess_blob_gas: 0,
+        blob_base_fee: '250000000',
+        blob_base_fee_gwei: '0.25',
+        utilization_ratio: '0.3333',
+        blob_params_target: 3,
+        blob_params_max: 6,
+        target_blobs: 3,
+        max_blobs: 6,
+        available_blobs: 4,
+        utilization_percent: 33.33,
+        is_full: false,
+        is_above_target: false,
+        update_fraction: 3338477,
+      },
+    });
+
+    expect(block).toMatchObject({
+      blobCount: 2,
+      blobGasUsed: 262144,
+      blobGasTarget: 393216,
+      maxBlobs: 6,
+      targetBlobs: 3,
+      availableBlobs: 4,
+      utilizationPercent: 33.33,
+      baseFeeGwei: '0.25',
+    });
+  });
 });

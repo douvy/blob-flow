@@ -60,6 +60,26 @@ describe('api/stats', () => {
     expect(result.data.averageTotalCost).toBe('0.002203603226459001927 ETH');
   });
 
+  it('prefers primary websocket stats fields over deprecated aliases', () => {
+    const result = transformStatsResponse({
+      total_blobs: 100,
+      total_confirmed_blobs: 80,
+      total_pending_blobs: 20,
+      average_base_fee_per_blob_gas_wei: '3000000000',
+      average_tip_per_blob_gas_wei: '4000000000',
+      average_total_cost_wei: '900000000000000',
+      average_base_fee: '1000000000',
+      average_tip: '2000000000',
+      average_total_cost: '500000000000000',
+      last_indexed_block: 12345,
+      last_indexed_time: '2026-01-01T00:00:00.000Z',
+    });
+
+    expect(result.data.averageBaseFee).toBe('3 Gwei');
+    expect(result.data.averageTip).toBe('4 Gwei');
+    expect(result.data.averageTotalCost).toBe('0.0009 ETH');
+  });
+
   it('fetches rolling stats windows with typed response data', async () => {
     const mockWindows = [
       {
