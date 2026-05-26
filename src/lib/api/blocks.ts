@@ -132,3 +132,20 @@ export async function getLatestBlocks(limit = 20, network?: string): Promise<Lat
 export async function getBlobByTxHash(txHash: string, network?: string): Promise<ApiResponse<BlobResponse>> {
     return fetchApi<ApiResponse<BlobResponse>>(`/blob/${txHash}`, network);
 }
+
+/**
+ * Get a single block by number. The backend has no per-block endpoint, so this
+ * walks the latest pricing window and returns the matching block (with blob
+ * details) if it falls within the most recent {@link limit} blocks.
+ * @param blockNumber - Block number to retrieve
+ * @param network - Optional network parameter
+ * @param limit - How many recent blocks to scan
+ */
+export async function getBlockByNumber(
+    blockNumber: number,
+    network?: string,
+    limit = 100,
+): Promise<Block | null> {
+    const { data } = await getLatestBlocks(limit, network);
+    return data.find((block) => block.number === blockNumber.toString()) ?? null;
+}
