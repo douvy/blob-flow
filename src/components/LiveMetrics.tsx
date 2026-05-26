@@ -10,7 +10,7 @@ import { BackendStatsWindowsResponse, RollingWindowDataPoint, StatsResponse } fr
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import { useTimeRange } from '../contexts/TimeRangeContext';
-import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 
 function formatCompactNumber(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -35,7 +35,7 @@ function formatEth(value: number): string {
 export default function LiveMetrics() {
   const { selectedNetwork } = useNetwork();
   const { timeRange } = useTimeRange();
-  const { latestEvents } = useBlobWebSocket();
+  const statsUpdateEvent = useLatestBlobEvent('stats_update');
   const network = selectedNetwork.apiParam;
 
   const fetchStats = useCallback(
@@ -70,8 +70,8 @@ export default function LiveMetrics() {
     [rollingWindows, timeRange]
   );
 
-  const liveStatsData = latestEvents.stats_update
-    ? transformStatsResponse(latestEvents.stats_update.data)
+  const liveStatsData = statsUpdateEvent
+    ? transformStatsResponse(statsUpdateEvent.data)
     : undefined;
   const displayData = liveStatsData || data;
 

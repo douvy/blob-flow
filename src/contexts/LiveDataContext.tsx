@@ -13,7 +13,6 @@ import React, {
 import {
   BlobWebSocketConnectionState,
   BlobWebSocketEventMap,
-  LatestBlobWebSocketEvents,
   LiveBlobWebSocketEvent,
   SubscribableBlobEventType,
 } from '@/types';
@@ -27,8 +26,6 @@ type LiveBlobEventHandler = (event: LiveBlobWebSocketEvent) => void;
 
 interface LiveDataContextValue {
   connectionState: BlobWebSocketConnectionState;
-  lastEvent: LiveBlobWebSocketEvent | null;
-  latestEvents: LatestBlobWebSocketEvents;
   subscribe: (handler: LiveBlobEventHandler) => () => void;
 }
 
@@ -40,8 +37,6 @@ interface LiveDataProviderProps {
 
 const defaultContextValue: LiveDataContextValue = {
   connectionState: 'disconnected',
-  lastEvent: null,
-  latestEvents: {},
   subscribe: () => () => {},
 };
 
@@ -55,8 +50,6 @@ export function LiveDataProvider({
   const handlersRef = useRef(new Set<LiveBlobEventHandler>());
   const [connectionState, setConnectionState] =
     useState<BlobWebSocketConnectionState>('connecting');
-  const [lastEvent, setLastEvent] = useState<LiveBlobWebSocketEvent | null>(null);
-  const [latestEvents, setLatestEvents] = useState<LatestBlobWebSocketEvents>({});
   const subscriptionKey = normalizeSubscriptions(subscriptions).join(',');
   const normalizedSubscriptions = useMemo<SubscribableBlobEventType[]>(() => {
     if (!subscriptionKey) {
@@ -80,11 +73,6 @@ export function LiveDataProvider({
       subscriptions: normalizedSubscriptions,
       onConnectionStateChange: setConnectionState,
       onEvent: (event) => {
-        setLastEvent(event);
-        setLatestEvents((currentEvents) => ({
-          ...currentEvents,
-          [event.type]: event,
-        }));
         handlersRef.current.forEach((handler) => {
           handler(event);
         });
@@ -106,11 +94,9 @@ export function LiveDataProvider({
   const value = useMemo<LiveDataContextValue>(
     () => ({
       connectionState,
-      lastEvent,
-      latestEvents,
       subscribe,
     }),
-    [connectionState, lastEvent, latestEvents, subscribe]
+    [connectionState, subscribe]
   );
 
   return <LiveDataContext.Provider value={value}>{children}</LiveDataContext.Provider>;
@@ -138,6 +124,14 @@ export function useLiveBlobEvent<EventType extends SubscribableBlobEventType>(
       }
     });
   }, [eventType, subscribe]);
+}
+
+export function useLatestBlobEvent<EventType extends SubscribableBlobEventType>(
+  eventType: EventType
+): BlobWebSocketEventMap[EventType] | null {
+  const [event, setEvent] = useState<BlobWebSocketEventMap[EventType] | null>(null);
+  useLiveBlobEvent(eventType, setEvent);
+  return event;
 }
 
 function normalizeSubscriptions(subscriptions: SubscribableBlobEventType[]) {

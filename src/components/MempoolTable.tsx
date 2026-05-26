@@ -13,13 +13,13 @@ import {
   getAttributionImageSrc,
   getAttributionInitial,
 } from '../utils';
-import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
 import MempoolBlobDetailsModal from './MempoolBlobDetailsModal';
 
 export default function MempoolTable() {
   const { selectedNetwork } = useNetwork();
-  const { latestEvents } = useBlobWebSocket();
+  const liveEvent = useLatestBlobEvent('mempool_update');
   const [selectedTransaction, setSelectedTransaction] = React.useState<MempoolTransaction | null>(null);
 
   const { data, isLoading, error } = useApiData<MempoolResponse>(
@@ -29,7 +29,6 @@ export default function MempoolTable() {
   );
 
   const displayData = React.useMemo<MempoolResponse | undefined>(() => {
-    const liveEvent = latestEvents.mempool_update;
     if (!liveEvent) {
       return data;
     }
@@ -51,7 +50,7 @@ export default function MempoolTable() {
         .slice(0, 10)
         .map((tx, index) => ({ ...tx, id: index + 1 })),
     };
-  }, [data, latestEvents.mempool_update]);
+  }, [data, liveEvent]);
 
   const loadingComponent = (
     <div className="overflow-x-auto border border-divider rounded-lg">

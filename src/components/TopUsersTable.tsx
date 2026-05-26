@@ -9,21 +9,21 @@ import { TopUsersResponse, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import { getAttributionImageSrc, getAttributionInitial } from '../utils';
-import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { transformUserResponses } from '../lib/api/users';
 
 export default function TopUsersTable() {
   const router = useRouter();
   const { selectedNetwork } = useNetwork();
-  const { latestEvents } = useBlobWebSocket();
+  const usersUpdateEvent = useLatestBlobEvent('users_update');
 
   const { data, isLoading, error } = useApiData<TopUsersResponse>(
     () => api.getTopUsers(10, selectedNetwork.apiParam),
     undefined,
     selectedNetwork.apiParam
   );
-  const displayData = latestEvents.users_update
-    ? transformUserResponses(latestEvents.users_update.data)
+  const displayData = usersUpdateEvent
+    ? transformUserResponses(usersUpdateEvent.data)
     : data;
 
   useEffect(() => {
