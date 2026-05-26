@@ -90,10 +90,12 @@ export default function Header() {
 
   const toggleSearchModal = useCallback(() => {
     setIsSearchModalOpen(prev => !prev);
-    if (isMobileMenuOpen) {
-      setIsMobileMenuOpen(false);
-    }
-  }, [isMobileMenuOpen]);
+    setIsMobileMenuOpen(false);
+  }, []);
+
+  const closeSearchModal = useCallback(() => {
+    setIsSearchModalOpen(false);
+  }, []);
 
   // Close mobile menu when clicking outside
   // Remove the existing click outside handler as it may be interfering
@@ -441,7 +443,7 @@ export default function Header() {
       {/* Search Modal */}
       <SearchModal
         isOpen={isSearchModalOpen}
-        onClose={() => setIsSearchModalOpen(false)}
+        onClose={closeSearchModal}
       />
     </>
   );

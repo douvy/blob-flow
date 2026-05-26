@@ -11,6 +11,7 @@ import { useNetwork } from '../hooks/useNetwork';
 import { getAttributionImageSrc, getAttributionInitial } from '../utils';
 import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { transformUserResponses } from '../lib/api/users';
+import { useFlipRows } from '../hooks/useFlipRows';
 
 export default function TopUsersTable() {
   const router = useRouter();
@@ -25,6 +26,8 @@ export default function TopUsersTable() {
   const displayData = usersUpdateEvent
     ? transformUserResponses(usersUpdateEvent.data)
     : data;
+  const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
+  useFlipRows(tbodyRef, selectedNetwork.apiParam);
 
   useEffect(() => {
     const setupTooltips = () => {
@@ -198,13 +201,14 @@ export default function TopUsersTable() {
                   <th className="py-3 px-6 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-1/3">% of Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-divider">
+              <tbody ref={tbodyRef} className="divide-y divide-divider">
                 {displayData.data.map((user: User) => {
                   const imageSrc = getAttributionImageSrc(user.name);
 
                   return (
                     <tr
                       key={user.address}
+                      data-row-key={user.address}
                       className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors cursor-pointer"
                       onClick={() => router.push(`/user/${user.address}`)}
                     >

@@ -15,12 +15,15 @@ import {
 } from '../utils';
 import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
+import { useFlipRows } from '../hooks/useFlipRows';
 import MempoolBlobDetailsModal from './MempoolBlobDetailsModal';
 
 export default function MempoolTable() {
   const { selectedNetwork } = useNetwork();
   const liveEvent = useLatestBlobEvent('mempool_update');
   const [selectedTransaction, setSelectedTransaction] = React.useState<MempoolTransaction | null>(null);
+  const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
+  useFlipRows(tbodyRef, selectedNetwork.apiParam);
 
   const { data, isLoading, error } = useApiData<MempoolResponse>(
     () => api.getMempool(10, selectedNetwork.apiParam),
@@ -121,14 +124,16 @@ export default function MempoolTable() {
                   <th className="hidden md:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%] whitespace-nowrap">Time</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-divider">
+              <tbody ref={tbodyRef} className="divide-y divide-divider">
                 {displayData.data.map((tx: MempoolTransaction) => {
                   const user = tx.user || 'Unknown';
                   const userImageSrc = getAttributionImageSrc(user);
+                  const rowKey = `${tx.txHash}-${tx.rawBlob.blob_index}`;
 
                   return (
                     <tr
-                      key={`${tx.txHash}-${tx.rawBlob.blob_index}`}
+                      key={rowKey}
+                      data-row-key={rowKey}
                       className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors"
                     >
                       <td className="py-3 px-3 sm:px-4 text-sm font-mono text-white">
