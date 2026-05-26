@@ -13,16 +13,119 @@ import { Block, LatestBlocksResponse } from '../types';
 import { formatBlobFee, formatPercent } from '../utils';
 import { HOMEPAGE_BLOCK_ROWS } from '../constants';
 
-function FullnessBar({ percent, isAboveTarget }: { percent: number; isAboveTarget: boolean }) {
+interface UsageState {
+  label: 'Above target' | 'Under target';
+  fillClass: string;
+  textClass: string;
+}
+
+interface BlockUsage {
+  usedBlobs: number;
+  maxBlobs: number;
+  targetPercent: number | null;
+  utilizationPercent: number;
+  state: UsageState;
+}
+
+const ABOVE_TARGET_STATE: UsageState = {
+  label: 'Above target',
+  fillClass: 'bg-amber-300',
+  textClass: 'text-amber-300',
+};
+
+const UNDER_TARGET_STATE: UsageState = {
+  label: 'Under target',
+  fillClass: 'bg-green-400',
+  textClass: 'text-green-400',
+};
+
+function getGasPerBlob(block: Block): number {
+  if (block.blobGasTarget > 0 && block.targetBlobs > 0) {
+    return block.blobGasTarget / block.targetBlobs;
+  }
+
+  if (block.blobGasLimit > 0 && block.maxBlobs > 0) {
+    return block.blobGasLimit / block.maxBlobs;
+  }
+
+  return 0;
+}
+
+function getUsedBlobCount(block: Block): number {
+  const gasPerBlob = getGasPerBlob(block);
+  if (block.blobGasUsed > 0 && gasPerBlob > 0) {
+    return Math.ceil(block.blobGasUsed / gasPerBlob);
+  }
+
+  return block.blobCount;
+}
+
+function getBlockUsage(block: Block): BlockUsage {
+  const usedBlobs = getUsedBlobCount(block);
+  const maxBlobs = block.maxBlobs;
+  const utilizationPercent = block.blobGasLimit > 0
+    ? (block.blobGasUsed / block.blobGasLimit) * 100
+    : block.utilizationPercent;
+  const targetPercent = block.blobGasLimit > 0 && block.blobGasTarget > 0
+    ? (block.blobGasTarget / block.blobGasLimit) * 100
+    : block.maxBlobs > 0 && block.targetBlobs > 0
+      ? (block.targetBlobs / block.maxBlobs) * 100
+      : null;
+  const isAboveTarget = block.blobGasTarget > 0
+    ? block.blobGasUsed > block.blobGasTarget
+    : block.targetBlobs > 0
+      ? usedBlobs > block.targetBlobs
+      : block.isAboveTarget;
+
+  return {
+    usedBlobs,
+    maxBlobs,
+    targetPercent,
+    utilizationPercent,
+    state: isAboveTarget ? ABOVE_TARGET_STATE : UNDER_TARGET_STATE,
+  };
+}
+
+function FullnessBar({
+  percent,
+  targetPercent,
+  state,
+}: {
+  percent: number;
+  targetPercent: number | null;
+  state: UsageState;
+}) {
   const boundedPercent = Math.min(100, Math.max(0, percent));
-  const fillClass = isAboveTarget ? 'bg-amber-300' : 'bg-green-400';
+  const boundedTargetPercent = targetPercent === null
+    ? null
+    : Math.min(100, Math.max(0, targetPercent));
 
   return (
-    <div className="h-2 overflow-hidden rounded-full bg-[#202538]">
+    <div
+      className="relative h-2 overflow-hidden rounded-full bg-[#202538]"
+      role="meter"
+      aria-label={state.label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(boundedPercent)}
+      aria-valuetext={
+        boundedTargetPercent === null
+          ? state.label
+          : `${state.label}; target at ${Math.round(boundedTargetPercent)}%`
+      }
+    >
       <div
-        className={`h-full rounded-full ${fillClass}`}
+        className={`h-full rounded-full ${state.fillClass}`}
         style={{ width: `${boundedPercent}%` }}
       />
+      {boundedTargetPercent !== null && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-0 w-0.5 -translate-x-1/2 rounded-full bg-white/90 shadow-[0_0_0_1px_rgba(15,19,34,0.85)]"
+          style={{ left: `${boundedTargetPercent}%` }}
+          title="Target"
+        />
+      )}
     </div>
   );
 }
@@ -32,10 +135,18 @@ function formatBaseFee(block: Block): string {
   return formatBlobFee(block.baseFeeGwei);
 }
 
-function getBlockState(block: Block): string {
-  if (block.isFull) return 'Full';
-  if (block.isAboveTarget) return 'Above target';
-  return 'Under target';
+function addCapacityFallback(block: Block, fallbackBlock: Block | undefined): Block {
+  if (block.maxBlobs > 0 || !fallbackBlock || fallbackBlock.maxBlobs <= 0) {
+    return block;
+  }
+
+  return {
+    ...block,
+    blobGasTarget: fallbackBlock.blobGasTarget,
+    blobGasLimit: fallbackBlock.blobGasLimit,
+    targetBlobs: fallbackBlock.targetBlobs,
+    maxBlobs: fallbackBlock.maxBlobs,
+  };
 }
 
 function BlockRow({
@@ -50,8 +161,9 @@ function BlockRow({
   onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
 }) {
   const detailsId = `recent-block-${block.id}-details`;
-  const fillLabel = block.maxBlobs > 0 ? `${block.blobCount}/${block.maxBlobs}` : `${block.blobCount}`;
-  const utilization = block.maxBlobs > 0 ? formatPercent(block.utilizationPercent, 0) : '-';
+  const usage = getBlockUsage(block);
+  const fillLabel = usage.maxBlobs > 0 ? `${usage.usedBlobs}/${usage.maxBlobs}` : `${usage.usedBlobs}`;
+  const utilization = usage.maxBlobs > 0 ? formatPercent(usage.utilizationPercent, 0) : '-';
 
   return (
     <div
@@ -94,7 +206,11 @@ function BlockRow({
             <span>{fillLabel} blobs</span>
             <span>{utilization}</span>
           </div>
-          <FullnessBar percent={block.utilizationPercent} isAboveTarget={block.isAboveTarget} />
+          <FullnessBar
+            percent={usage.utilizationPercent}
+            targetPercent={usage.targetPercent}
+            state={usage.state}
+          />
         </div>
         <div className="min-w-0">
           <div className="text-[11px] text-[#8f9aad]">Base fee</div>
@@ -102,7 +218,9 @@ function BlockRow({
         </div>
         <div className="min-w-0">
           <div className="text-[11px] text-[#8f9aad]">State</div>
-          <div className="truncate text-sm font-medium text-white">{getBlockState(block)}</div>
+          <div className={`truncate text-sm font-medium ${usage.state.textClass}`}>
+            {usage.state.label}
+          </div>
         </div>
       </div>
       {isExpanded && (
@@ -134,7 +252,10 @@ export default function RecentBlocksPanel() {
     const baseBlocks = data?.data ?? [];
     if (!liveBlockEvent) return baseBlocks.slice(0, HOMEPAGE_BLOCK_ROWS);
 
-    const liveBlock = transformNewBlockData(liveBlockEvent.data);
+    const liveBlock = addCapacityFallback(
+      transformNewBlockData(liveBlockEvent.data),
+      baseBlocks[0]
+    );
     return [
       liveBlock,
       ...baseBlocks.filter((block) => block.number !== liveBlock.number),
