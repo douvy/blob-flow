@@ -108,6 +108,20 @@ const mockStatsWindows = {
         unique_senders: 3,
       },
       {
+        window: '1h',
+        duration_seconds: 3600,
+        start_time: '2025-12-31T23:01:00.000Z',
+        end_time: '2026-01-01T00:01:00.000Z',
+        average_blob_base_fee: '1250000000',
+        median_blob_base_fee: '1000000000',
+        p95_blob_base_fee: '2000000000',
+        total_blobs: 10,
+        total_blob_gas_used: 1179648,
+        average_utilization: '0.25',
+        total_cost_eth: '10000000000000000',
+        unique_senders: 5,
+      },
+      {
         window: '24h',
         duration_seconds: 86400,
         start_time: '2025-12-31T00:01:00.000Z',
@@ -191,14 +205,14 @@ describe('useChartData', () => {
 
     expect(result.current.chartData).not.toBeNull();
     expect(result.current.dataPoints).toBe(2);
-    expect(result.current.timeRange).toBe('24h');
+    expect(result.current.timeRange).toBe('1h');
     expect(result.current.chartData!.baseFee.map((point) => point.blockNumber)).toEqual([100, 101]);
     expect(result.current.chartData!.gasUtilization[0].targetGas).toBe(1835008);
-    expect(result.current.chartData!.rollingWindows).toHaveLength(2);
-    expect(result.current.chartData!.selectedWindow?.window).toBe('24h');
+    expect(result.current.chartData!.rollingWindows).toHaveLength(3);
+    expect(result.current.chartData!.selectedWindow?.window).toBe('1h');
     expect(result.current.chartData!.indicators.pendingBlobCount).toBe(5);
     expect(urls.some((url) => url.includes('/blob/latest'))).toBe(false);
-    expect(urls.some((url) => url.includes('/blob/pricing?blocks=120'))).toBe(true);
+    expect(urls.some((url) => url.includes('/blob/pricing?blocks=100'))).toBe(true);
     expect(urls.some((url) => url.includes('/stats/windows?windows=5m,1h,24h,7d,30d'))).toBe(true);
   });
 
@@ -221,7 +235,7 @@ describe('useChartData', () => {
 
     expect(result.current.chartData).not.toBeNull();
     expect(result.current.chartData!.baseFee).toEqual([]);
-    expect(result.current.chartData!.selectedWindow?.totalBlobs).toBe(100);
+    expect(result.current.chartData!.selectedWindow?.totalBlobs).toBe(10);
     expect(result.current.dataPoints).toBe(0);
   });
 

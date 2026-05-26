@@ -10,12 +10,12 @@ interface TimeRangeContextValue {
 }
 
 const TimeRangeContext = createContext<TimeRangeContextValue>({
-  timeRange: '24h',
+  timeRange: '1h',
   setTimeRange: () => {},
 });
 
 export function TimeRangeProvider({ children }: { children: ReactNode }) {
-  const [timeRange, setTimeRange] = useState<TimeRange>('24h');
+  const [timeRange, setTimeRange] = useState<TimeRange>('1h');
   return (
     <TimeRangeContext.Provider value={{ timeRange, setTimeRange }}>
       {children}

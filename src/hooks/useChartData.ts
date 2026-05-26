@@ -5,7 +5,7 @@ import { useApiData } from './useApiData';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { useNetwork } from './useNetwork';
 import { api } from '../lib/api';
-import { buildChartDataset } from '../lib/chartAggregation';
+import { buildChartDataset, getPricingBlockRequestLimit } from '../lib/chartAggregation';
 import type {
   BackendStatsWindowsResponse,
   BlobPricing,
@@ -13,16 +13,15 @@ import type {
   StatsResponse,
 } from '../types';
 
-const RECENT_PRICING_BLOCKS = 120;
-
 export function useChartData() {
   const { timeRange } = useTimeRange();
   const { selectedNetwork } = useNetwork();
   const network = selectedNetwork.apiParam;
+  const pricingBlockLimit = getPricingBlockRequestLimit(timeRange);
 
   const fetchPricing = useCallback(
-    () => api.getBlobPricing(network, RECENT_PRICING_BLOCKS),
-    [network]
+    () => api.getBlobPricing(network, pricingBlockLimit),
+    [network, pricingBlockLimit]
   );
 
   const fetchStatsWindows = useCallback(
@@ -40,7 +39,7 @@ export function useChartData() {
     isLoading: pricingLoading,
     error: pricingError,
     refetch: refetchPricing,
-  } = useApiData<BlobPricing>(fetchPricing, ['blob-pricing', network, RECENT_PRICING_BLOCKS]);
+  } = useApiData<BlobPricing>(fetchPricing, ['blob-pricing', network, pricingBlockLimit]);
 
   const {
     data: statsWindows,

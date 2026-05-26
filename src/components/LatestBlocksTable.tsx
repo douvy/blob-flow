@@ -198,22 +198,16 @@ export default function LatestBlocksTable() {
     return { data: mergedBlocks.slice(pageStart, pageStart + BLOCKS_PAGE_SIZE) };
   }, [mergedBlocks, pageStart]);
 
-  // Derive the expanded block id from the user's selection (if it still applies
-  // to the current network) or fall back to the first block with blobs. Doing
-  // this in a memo rather than an effect avoids set-state-in-effect.
+  // Derive the expanded block id from the user's selection (if it still
+  // applies to the current network and the block is still on the page). Rows
+  // are collapsed by default — no auto-expand. Doing this in a memo rather
+  // than an effect avoids set-state-in-effect.
   const expandedBlockId = React.useMemo(() => {
     if (!displayData) return null;
-
-    if (userSelection && userSelection.network === selectedNetwork.apiParam) {
-      if (userSelection.id === null) return null;
-      if (displayData.data.some((block) => block.id === userSelection.id)) {
-        return userSelection.id;
-      }
-    }
-
-    const defaultExpandedBlock =
-      displayData.data.find((block) => block.blobs.length > 0) || displayData.data[0];
-    return defaultExpandedBlock?.id ?? null;
+    if (!userSelection || userSelection.network !== selectedNetwork.apiParam) return null;
+    if (userSelection.id === null) return null;
+    if (!displayData.data.some((block) => block.id === userSelection.id)) return null;
+    return userSelection.id;
   }, [displayData, userSelection, selectedNetwork.apiParam]);
 
   const toggleBlock = React.useCallback((blockId: number) => {

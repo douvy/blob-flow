@@ -1,5 +1,6 @@
 import {
   buildChartDataset,
+  getPricingBlockRequestLimit,
   getRequestedRollingWindow,
   selectRollingWindow,
   transformStatsWindows,
@@ -128,6 +129,7 @@ describe('chartAggregation', () => {
     expect(getRequestedRollingWindow('7d')).toBe('7d');
     expect(getRequestedRollingWindow('30d')).toBe('30d');
     expect(getRequestedRollingWindow('All')).toBe('30d');
+    expect(getPricingBlockRequestLimit('24h')).toBe(100);
 
     const windows = transformStatsWindows(makeStatsWindows([
       makeWindow('5m', 300),
@@ -192,5 +194,43 @@ describe('chartAggregation', () => {
       pendingBlobCount: 3,
     });
     expect(dataset.coverageLabel).toContain('latest 2 pricing blocks');
+  });
+
+  it('filters pricing chart series to the selected rolling window', () => {
+    const windowedPricing: BlobPricing = {
+      ...pricing,
+      recentBlocks: [
+        {
+          ...pricing.recentBlocks[0],
+          blockNumber: 3,
+          blockTimestamp: '2025-12-31T23:59:59.000Z',
+          blobBaseFeeGwei: '9',
+        },
+        {
+          ...pricing.recentBlocks[1],
+          blockNumber: 4,
+          blockTimestamp: '2026-01-01T00:30:00.000Z',
+          blobBaseFeeGwei: '2',
+        },
+      ],
+    };
+
+    const dataset = buildChartDataset(
+      makeStatsWindows([
+        makeWindow('1h', 3600, {
+          start_time: '2026-01-01T00:00:00.000Z',
+          end_time: '2026-01-01T01:00:00.000Z',
+        }),
+      ]),
+      windowedPricing,
+      '1h',
+      stats
+    );
+
+    expect(dataset.baseFee.map((point) => point.blockNumber)).toEqual([4]);
+    expect(dataset.gasUtilization.map((point) => point.blockNumber)).toEqual([4]);
+    expect(dataset.recentBlockCount).toBe(1);
+    expect(dataset.chartRangeLabel).toBe('1h view');
+    expect(dataset.blockCoverageLabel).toContain('within the 1h view');
   });
 });

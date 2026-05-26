@@ -550,6 +550,7 @@ export interface ChartDataset {
   indicators: FeeMarketIndicators;
   granularity: Granularity;
   recentBlockCount: number;
+  chartRangeLabel: string;
   coverageLabel: string;
   rollingCoverageLabel: string;
   blockCoverageLabel: string;

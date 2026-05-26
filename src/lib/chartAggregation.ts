@@ -20,6 +20,14 @@ const WINDOW_LABELS: Record<RollingWindowKey, string> = {
 };
 
 const WINDOW_FALLBACK_ORDER: RollingWindowKey[] = ['30d', '7d', '24h', '1h', '5m'];
+const PRICING_API_MAX_BLOCKS = 100;
+const ESTIMATED_BLOCKS_PER_RANGE: Record<TimeRange, number> = {
+  '1h': 300,
+  '24h': 7_200,
+  '7d': 50_400,
+  '30d': 216_000,
+  All: 216_000,
+};
 
 function roundTo(value: number, digits: number): number {
   const factor = 10 ** digits;
@@ -70,10 +78,20 @@ function getCurrentBaseFeeGwei(pricing: BlobPricing, baseFee: BaseFeeDataPoint[]
   return latest?.baseFeeGwei ?? 0;
 }
 
-function formatBlockCoverage(recentBlockCount: number): string {
-  if (recentBlockCount === 0) return 'no recent pricing blocks';
-  if (recentBlockCount === 1) return 'latest 1 pricing block';
-  return `latest ${recentBlockCount.toLocaleString()} pricing blocks`;
+function formatBlockCoverage(
+  recentBlockCount: number,
+  timeRange: TimeRange,
+  selectedWindow: RollingWindowDataPoint | null
+): string {
+  if (recentBlockCount === 0) return 'no pricing blocks in this view';
+
+  const blockLabel = recentBlockCount === 1
+    ? 'latest 1 pricing block'
+    : `latest ${recentBlockCount.toLocaleString()} pricing blocks`;
+
+  if (timeRange === 'All') return `${blockLabel} available from the pricing API`;
+  if (selectedWindow) return `${blockLabel} within the ${selectedWindow.label} view`;
+  return `${blockLabel} within the ${timeRange} view`;
 }
 
 function formatRollingCoverage(timeRange: TimeRange, selectedWindow: RollingWindowDataPoint | null): string {
@@ -93,6 +111,10 @@ function formatRollingCoverage(timeRange: TimeRange, selectedWindow: RollingWind
 export function getRequestedRollingWindow(timeRange: TimeRange): RollingWindowKey {
   if (timeRange === 'All') return '30d';
   return timeRange;
+}
+
+export function getPricingBlockRequestLimit(timeRange: TimeRange): number {
+  return Math.min(ESTIMATED_BLOCKS_PER_RANGE[timeRange], PRICING_API_MAX_BLOCKS);
 }
 
 export function transformStatsWindows(
@@ -133,6 +155,23 @@ export function selectRollingWindow(
   return windows[windows.length - 1] ?? null;
 }
 
+function filterPricingForTimeRange(
+  pricing: BlobPricing,
+  timeRange: TimeRange,
+  selectedWindow: RollingWindowDataPoint | null
+): BlobPricing {
+  if (timeRange === 'All' || !selectedWindow || selectedWindow.startTimestamp <= 0) {
+    return pricing;
+  }
+
+  return {
+    ...pricing,
+    recentBlocks: pricing.recentBlocks.filter((block) => (
+      isoTimestamp(block.blockTimestamp) >= selectedWindow.startTimestamp
+    )),
+  };
+}
+
 export function transformPricingBlocks(pricing: BlobPricing): {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
@@ -170,6 +209,15 @@ export function transformPricingBlocks(pricing: BlobPricing): {
   return { baseFee, gasUtilization };
 }
 
+function formatChartRangeLabel(
+  timeRange: TimeRange,
+  selectedWindow: RollingWindowDataPoint | null
+): string {
+  if (timeRange === 'All') return 'all available pricing blocks';
+  if (selectedWindow) return `${selectedWindow.label} view`;
+  return `${timeRange} view`;
+}
+
 export function buildChartDataset(
   statsWindows: BackendStatsWindowsResponse,
   pricing: BlobPricing,
@@ -178,7 +226,8 @@ export function buildChartDataset(
 ): ChartDataset {
   const rollingWindows = transformStatsWindows(statsWindows);
   const selectedWindow = selectRollingWindow(rollingWindows, timeRange);
-  const { baseFee, gasUtilization } = transformPricingBlocks(pricing);
+  const windowedPricing = filterPricingForTimeRange(pricing, timeRange, selectedWindow);
+  const { baseFee, gasUtilization } = transformPricingBlocks(windowedPricing);
   const currentBaseFeeGwei = getCurrentBaseFeeGwei(pricing, baseFee);
   const averageBaseFeeGwei =
     selectedWindow?.averageBaseFeeGwei ??
@@ -186,7 +235,8 @@ export function buildChartDataset(
       ? baseFee.reduce((sum, point) => sum + point.baseFeeGwei, 0) / baseFee.length
       : 0);
   const rollingCoverageLabel = formatRollingCoverage(timeRange, selectedWindow);
-  const blockCoverageLabel = formatBlockCoverage(pricing.recentBlocks.length);
+  const blockCoverageLabel = formatBlockCoverage(windowedPricing.recentBlocks.length, timeRange, selectedWindow);
+  const chartRangeLabel = formatChartRangeLabel(timeRange, selectedWindow);
 
   return {
     baseFee,
@@ -206,7 +256,8 @@ export function buildChartDataset(
       recentBaseFeeSparkline: baseFee.slice(-12).map((point) => point.baseFeeGwei),
     },
     granularity: 'block',
-    recentBlockCount: pricing.recentBlocks.length,
+    recentBlockCount: windowedPricing.recentBlocks.length,
+    chartRangeLabel,
     rollingCoverageLabel,
     blockCoverageLabel,
     coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show the ${blockCoverageLabel}.`,

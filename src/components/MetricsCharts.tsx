@@ -1,12 +1,11 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 import { useChartData } from '../hooks/useChartData';
 import DataStateWrapper from './DataStateWrapper';
-import BaseFeeChart from './charts/BaseFeeChart';
-import GasUtilizationChart from './charts/GasUtilizationChart';
 import FeeIndicators from './charts/FeeIndicators';
-import RollingWindowStats from './charts/RollingWindowStats';
+import { CHART_VIEWS } from './charts/chartViews';
 import { CHART_CARD_CLASS } from '../constants/chartTheme';
 
 export default function MetricsCharts() {
@@ -24,7 +23,7 @@ export default function MetricsCharts() {
   );
 
   return (
-    <section>
+    <section id="data-trends" className="scroll-mt-20">
       <h2 className="text-2xl font-windsor-bold text-white mb-3">Data Trends</h2>
       <DataStateWrapper isLoading={isLoading} error={error} loadingComponent={loadingComponent}>
         {chartData && (
@@ -35,38 +34,26 @@ export default function MetricsCharts() {
               selectedWindow={chartData.selectedWindow}
             />
 
-            {/* Base Fee over Recent Blocks */}
-            <div className={CHART_CARD_CLASS}>
-              <h3 className="text-md font-medium mb-4 text-white">
-                Base Fee over Recent Blocks (Gwei)
-              </h3>
-              <div className="h-56 relative">
-                <BaseFeeChart data={chartData.baseFee} />
+            {CHART_VIEWS.map((view) => (
+              <div key={view.id} className={CHART_CARD_CLASS}>
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <h3 className="text-md font-medium text-white">
+                    {view.getTitle(chartData)}
+                  </h3>
+                  <Link
+                    href={`/charts/${view.id}`}
+                    className="relative z-10 flex h-8 w-8 flex-none items-center justify-center rounded-md border border-divider bg-[#1d1f23] text-blue transition-colors hover:bg-[#252936] hover:text-lightBlue focus:outline-none focus:ring-2 focus:ring-blue/60"
+                    aria-label={`Open ${view.getTitle(chartData)} enlarged`}
+                    title="Enlarge graph"
+                  >
+                    <i className="fa-regular fa-expand" aria-hidden="true" />
+                  </Link>
+                </div>
+                <div className={view.dashboardFrameClassName}>
+                  {view.render(chartData)}
+                </div>
               </div>
-            </div>
-
-            {/* Blob Gas Utilization */}
-            <div className={CHART_CARD_CLASS}>
-              <h3 className="text-md font-medium mb-4 text-white">
-                Blob Gas Utilization vs Current Target
-              </h3>
-              <div className="h-56 relative">
-                <GasUtilizationChart data={chartData.gasUtilization} />
-              </div>
-            </div>
-
-            {/* Rolling Window Stats */}
-            <div className={CHART_CARD_CLASS}>
-              <h3 className="text-md font-medium mb-4 text-white">
-                Rolling Market Stats
-              </h3>
-              <div className="relative">
-                <RollingWindowStats
-                  windows={chartData.rollingWindows}
-                  selectedWindow={chartData.selectedWindow}
-                />
-              </div>
-            </div>
+            ))}
 
             {/* Data coverage note */}
             <p className="text-xs text-[#6e7687] text-center">
