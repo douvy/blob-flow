@@ -185,8 +185,9 @@ function BlockRow({
         className="flex items-center gap-3 px-3 py-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset rounded-md"
       >
         <ChevronRight
-          className="h-3 w-3 shrink-0 text-[#6e7787] transition-transform"
-          style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          className={`h-3 w-3 shrink-0 text-[#6e7787] transition-transform ${
+            isExpanded ? 'rotate-90' : ''
+          }`}
           aria-hidden="true"
         />
         <div className="grid min-w-0 flex-1 grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3">
