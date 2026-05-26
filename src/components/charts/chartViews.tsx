@@ -21,6 +21,7 @@ export interface ChartView {
   description: string;
   dashboardFrameClassName: string;
   detailFrameClassName: string;
+  getTitle: (chartData: ChartDataset) => string;
   getPointCount: (chartData: ChartDataset) => number;
   render: (chartData: ChartDataset) => React.ReactNode;
 }
@@ -33,8 +34,14 @@ export const CHART_VIEWS: readonly ChartView[] = [
     description: 'Blob base fee trend across the most recent indexed blocks.',
     dashboardFrameClassName: 'h-56 relative',
     detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
+    getTitle: (chartData) => `Base Fee over ${chartData.chartRangeLabel} (Gwei)`,
     getPointCount: (chartData) => chartData.baseFee.length,
-    render: (chartData) => <BaseFeeChart data={chartData.baseFee} />,
+    render: (chartData) => (
+      <BaseFeeChart
+        data={chartData.baseFee}
+        referenceBaseFeeGwei={chartData.selectedWindow?.averageBaseFeeGwei}
+      />
+    ),
   },
   {
     id: 'gas-utilization',
@@ -43,8 +50,14 @@ export const CHART_VIEWS: readonly ChartView[] = [
     description: 'Blob gas used per block against the current target.',
     dashboardFrameClassName: 'h-56 relative',
     detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
+    getTitle: (chartData) => `Blob Gas Utilization over ${chartData.chartRangeLabel}`,
     getPointCount: (chartData) => chartData.gasUtilization.length,
-    render: (chartData) => <GasUtilizationChart data={chartData.gasUtilization} />,
+    render: (chartData) => (
+      <GasUtilizationChart
+        data={chartData.gasUtilization}
+        averageUtilizationPct={chartData.selectedWindow?.averageUtilizationPct}
+      />
+    ),
   },
   {
     id: 'rolling-market-stats',
@@ -53,6 +66,7 @@ export const CHART_VIEWS: readonly ChartView[] = [
     description: 'Windowed fee, utilization, cost, and sender totals.',
     dashboardFrameClassName: 'relative',
     detailFrameClassName: 'relative',
+    getTitle: () => 'Rolling Market Stats',
     getPointCount: (chartData) => chartData.rollingWindows.length,
     render: (chartData) => (
       <RollingWindowStats

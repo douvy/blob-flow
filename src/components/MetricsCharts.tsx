@@ -38,12 +38,12 @@ export default function MetricsCharts() {
               <div key={view.id} className={CHART_CARD_CLASS}>
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <h3 className="text-md font-medium text-white">
-                    {view.title}
+                    {view.getTitle(chartData)}
                   </h3>
                   <Link
                     href={`/charts/${view.id}`}
                     className="relative z-10 flex h-8 w-8 flex-none items-center justify-center rounded-md border border-divider bg-[#1d1f23] text-blue transition-colors hover:bg-[#252936] hover:text-lightBlue focus:outline-none focus:ring-2 focus:ring-blue/60"
-                    aria-label={`Open ${view.title} enlarged`}
+                    aria-label={`Open ${view.getTitle(chartData)} enlarged`}
                     title="Enlarge graph"
                   >
                     <i className="fa-regular fa-expand" aria-hidden="true" />

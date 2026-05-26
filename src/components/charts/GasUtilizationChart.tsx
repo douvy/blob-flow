@@ -24,6 +24,7 @@ import {
 
 interface GasUtilizationChartProps {
   data: GasUtilizationDataPoint[];
+  averageUtilizationPct?: number;
 }
 
 function formatGas(value: number): string {
@@ -32,8 +33,11 @@ function formatGas(value: number): string {
   return value.toString();
 }
 
-export default function GasUtilizationChart({ data }: GasUtilizationChartProps) {
+export default function GasUtilizationChart({ data, averageUtilizationPct }: GasUtilizationChartProps) {
   const targetGas = data.find((entry) => entry.targetGas > 0)?.targetGas ?? 0;
+  const averageGasUsed = targetGas > 0 && averageUtilizationPct !== undefined
+    ? Math.round((targetGas * averageUtilizationPct) / 100)
+    : 0;
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -89,6 +93,15 @@ export default function GasUtilizationChart({ data }: GasUtilizationChartProps) 
             strokeDasharray="5 5"
             strokeOpacity={0.7}
             label={{ value: 'Target', fill: '#6e7687', fontSize: 10, position: 'right' }}
+          />
+        )}
+        {averageGasUsed > 0 && (
+          <ReferenceLine
+            y={averageGasUsed}
+            stroke={COLORS.yellow}
+            strokeDasharray="3 4"
+            strokeOpacity={0.65}
+            label={{ value: 'Avg', fill: '#6e7687', fontSize: 10, position: 'insideRight' }}
           />
         )}
         <Bar dataKey="blobGasUsed" radius={[2, 2, 0, 0]} maxBarSize={20}>

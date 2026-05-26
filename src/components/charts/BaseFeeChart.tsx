@@ -24,6 +24,7 @@ import {
 
 interface BaseFeeChartProps {
   data: BaseFeeDataPoint[];
+  referenceBaseFeeGwei?: number;
 }
 
 function formatGweiTick(value: number): string {
@@ -33,13 +34,14 @@ function formatGweiTick(value: number): string {
   return value.toFixed(1);
 }
 
-export default function BaseFeeChart({ data }: BaseFeeChartProps) {
+export default function BaseFeeChart({ data, referenceBaseFeeGwei }: BaseFeeChartProps) {
   const avgBaseFee = useMemo(() => {
     if (data.length === 0) return 0;
     return Math.round(
       (data.reduce((sum, d) => sum + d.baseFeeGwei, 0) / data.length) * 1000
     ) / 1000;
   }, [data]);
+  const referenceBaseFee = referenceBaseFeeGwei ?? avgBaseFee;
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -74,12 +76,14 @@ export default function BaseFeeChart({ data }: BaseFeeChartProps) {
           itemStyle={CHART_ITEM_STYLE}
           formatter={(value: number) => [`${value.toFixed(3)} Gwei`, 'Base Fee']}
         />
-        <ReferenceLine
-          y={avgBaseFee}
-          stroke={COLORS.purple}
-          strokeDasharray="5 5"
-          strokeOpacity={0.7}
-        />
+        {referenceBaseFee > 0 && (
+          <ReferenceLine
+            y={referenceBaseFee}
+            stroke={COLORS.purple}
+            strokeDasharray="5 5"
+            strokeOpacity={0.7}
+          />
+        )}
         <Area
           type="monotone"
           dataKey="baseFeeGwei"

@@ -82,7 +82,7 @@ function ChartDetail({ view }: { view: ChartView }) {
         <div className={CHART_CARD_CLASS}>
           <div className="relative z-10 mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <h2 className="text-xl font-medium text-white">{view.title}</h2>
+              <h2 className="text-xl font-medium text-white">{view.getTitle(chartData)}</h2>
               <p className="mt-1 text-sm text-[#6e7687]">
                 {getCoverageLabel(view, chartData)}
               </p>
