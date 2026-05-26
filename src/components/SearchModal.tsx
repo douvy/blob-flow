@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeftRight,
   ArrowUpRight,
@@ -36,9 +36,9 @@ const typeOptions = [
   { type: 'rollups' as const, prefix: 'rollup:', label: 'Rollups', icon: Layers3 },
 ];
 
-export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [selectedType, setSelectedType] = React.useState<SearchType>(null);
+function SearchModal({ isOpen, onClose }: SearchModalProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedType, setSelectedType] = useState<SearchType>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -160,3 +160,5 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     </Dialog>
   );
 }
+
+export default memo(SearchModal);

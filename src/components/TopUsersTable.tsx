@@ -24,7 +24,7 @@ import { TopUsersResponse, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import { getAttributionImageSrc, getAttributionInitial } from '../utils';
-import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { transformUserResponses } from '../lib/api/users';
 import {
   Table,
@@ -36,6 +36,7 @@ import {
 } from './ui/table';
 import { Skeleton } from './ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { useFlipRows } from '../hooks/useFlipRows';
 
 const COLUMN_WIDTHS: Record<string, string> = {
   name: 'w-1/3',
@@ -58,6 +59,12 @@ function getUserColor(userName: string): string {
   }
 }
 
+function sortLabel(direction: false | 'asc' | 'desc'): string {
+  if (direction === 'asc') return ', sorted ascending';
+  if (direction === 'desc') return ', sorted descending';
+  return '';
+}
+
 function SortableHeader<TData, TValue>({
   column,
   children,
@@ -73,11 +80,18 @@ function SortableHeader<TData, TValue>({
       type="button"
       className="inline-flex items-center gap-1.5 whitespace-nowrap text-left"
       onClick={column.getToggleSortingHandler()}
+      aria-label={`${typeof children === 'string' ? children : column.id}${sortLabel(sortDirection)}`}
     >
       {children}
       <SortIcon className="h-3.5 w-3.5 text-[#6e7787]" aria-hidden="true" />
     </button>
   );
+}
+
+function ariaSort(direction: false | 'asc' | 'desc'): 'ascending' | 'descending' | 'none' {
+  if (direction === 'asc') return 'ascending';
+  if (direction === 'desc') return 'descending';
+  return 'none';
 }
 
 function UserIdentity({ user }: { user: User }) {
@@ -106,7 +120,7 @@ function UserIdentity({ user }: { user: User }) {
 export default function TopUsersTable() {
   const router = useRouter();
   const { selectedNetwork } = useNetwork();
-  const { latestEvents } = useBlobWebSocket();
+  const usersUpdateEvent = useLatestBlobEvent('users_update');
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: 'dataCount', desc: true },
   ]);
@@ -115,9 +129,11 @@ export default function TopUsersTable() {
     () => api.getTopUsers(10, selectedNetwork.apiParam),
     ['top-users', selectedNetwork.apiParam, 10]
   );
-  const displayData = latestEvents.users_update
-    ? transformUserResponses(latestEvents.users_update.data)
+  const displayData = usersUpdateEvent
+    ? transformUserResponses(usersUpdateEvent.data)
     : data;
+  const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
+  useFlipRows(tbodyRef, selectedNetwork.apiParam);
 
   const columns = React.useMemo<ColumnDef<User>[]>(
     () => [
@@ -185,6 +201,23 @@ export default function TopUsersTable() {
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const goToUser = React.useCallback(
+    (address: string) => {
+      router.push(`/user/${address}`);
+    },
+    [router]
+  );
+
+  const handleRowKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLTableRowElement>, address: string) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        goToUser(address);
+      }
+    },
+    [goToUser]
+  );
+
   const loadingComponent = (
     <div className="overflow-x-auto rounded-lg border border-divider">
       <Table className="min-w-full table-fixed overflow-hidden">
@@ -240,25 +273,34 @@ export default function TopUsersTable() {
                     key={headerGroup.id}
                     className="bg-gradient-to-b from-[#22252c] to-[#16171b]"
                   >
-                    {headerGroup.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        className={COLUMN_WIDTHS[header.column.id]}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
+                    {headerGroup.headers.map((header) => {
+                      const canSort = header.column.getCanSort();
+                      return (
+                        <TableHead
+                          key={header.id}
+                          className={COLUMN_WIDTHS[header.column.id]}
+                          aria-sort={canSort ? ariaSort(header.column.getIsSorted()) : undefined}
+                        >
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
+                      );
+                    })}
                   </TableRow>
                 ))}
               </TableHeader>
-              <TableBody className="divide-y divide-divider">
+              <TableBody ref={tbodyRef} className="divide-y divide-divider">
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.original.address}
-                    className="cursor-pointer bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70"
-                    onClick={() => router.push(`/user/${row.original.address}`)}
+                    data-row-key={row.original.address}
+                    className="cursor-pointer bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
+                    onClick={() => goToUser(row.original.address)}
+                    onKeyDown={(event) => handleRowKeyDown(event, row.original.address)}
+                    tabIndex={0}
+                    role="link"
+                    aria-label={`View activity for ${row.original.name}`}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell

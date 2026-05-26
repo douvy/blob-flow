@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Clock3, Globe, Menu, RadioTower, Search, TrendingUp } from 'lucide-react';
@@ -30,23 +30,34 @@ const LIVE_STATUS_STYLES: Record<BlobWebSocketConnectionState, { label: string; 
 };
 
 interface LiveStatusIndicatorProps {
-  connectionState: BlobWebSocketConnectionState;
-  activitySequence: number;
   className?: string;
   labelClassName: string;
 }
 
+const PULSE_DURATION_MS = 800;
+
 function LiveStatusIndicator({
-  connectionState,
-  activitySequence,
   className,
   labelClassName,
 }: LiveStatusIndicatorProps) {
+  const { connectionState, subscribe } = useBlobWebSocket();
+  const [pulseKey, setPulseKey] = useState(0);
+  const lastPulseRef = useRef(0);
+
+  useEffect(() => {
+    return subscribe(() => {
+      const now = Date.now();
+      if (now - lastPulseRef.current < PULSE_DURATION_MS) return;
+      lastPulseRef.current = now;
+      setPulseKey((current) => current + 1);
+    });
+  }, [subscribe]);
+
   const liveStatus = LIVE_STATUS_STYLES[connectionState];
   const containerClassName = className
     ? `flex items-center space-x-2 ${className}`
     : 'flex items-center space-x-2';
-  const shouldPulse = connectionState === 'connected' && activitySequence > 0;
+  const shouldPulse = connectionState === 'connected' && pulseKey > 0;
 
   return (
     <div className={containerClassName}>
@@ -54,7 +65,7 @@ function LiveStatusIndicator({
         <div className={`h-2.5 w-2.5 rounded-full ${liveStatus.color}`}></div>
         {shouldPulse && (
           <div
-            key={activitySequence}
+            key={pulseKey}
             className={`absolute inset-0 rounded-full ${liveStatus.color} animate-[live-activity-pulse_800ms_ease-out_forwards]`}
           ></div>
         )}
@@ -67,7 +78,6 @@ function LiveStatusIndicator({
 export default function Header() {
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
-  const { connectionState, activitySequence } = useBlobWebSocket();
   const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -94,10 +104,12 @@ export default function Header() {
 
   const toggleSearchModal = useCallback(() => {
     setIsSearchModalOpen(prev => !prev);
-    if (isMobileMenuOpen) {
-      setIsMobileMenuOpen(false);
-    }
-  }, [isMobileMenuOpen]);
+    setIsMobileMenuOpen(false);
+  }, []);
+
+  const closeSearchModal = useCallback(() => {
+    setIsSearchModalOpen(false);
+  }, []);
 
   // Close mobile menu when clicking outside
   // Remove the existing click outside handler as it may be interfering
@@ -185,8 +197,6 @@ export default function Header() {
 
               {/* Connection Status */}
               <LiveStatusIndicator
-                connectionState={connectionState}
-                activitySequence={activitySequence}
                 className="mr-4 ml-1"
                 labelClassName="text-sm text-bodyText"
               />
@@ -358,8 +368,6 @@ export default function Header() {
               <div className="flex items-center gap-3">
                 <RadioTower className="h-4 w-4 text-blue" aria-hidden="true" />
                 <LiveStatusIndicator
-                  connectionState={connectionState}
-                  activitySequence={activitySequence}
                   labelClassName="text-base text-bodyText"
                 />
               </div>
@@ -413,7 +421,7 @@ export default function Header() {
       {/* Search Modal */}
       <SearchModal
         isOpen={isSearchModalOpen}
-        onClose={() => setIsSearchModalOpen(false)}
+        onClose={closeSearchModal}
       />
     </>
   );
