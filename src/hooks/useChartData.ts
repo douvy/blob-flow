@@ -10,6 +10,7 @@ import type {
   BackendAttributionUsageChartResponse,
   BackendBlobMarketChartResponse,
   BackendCostComparisonChartResponse,
+  BackendStatsWindowsResponse,
   ChartDataset,
   StatsResponse,
 } from '../types';
@@ -33,6 +34,11 @@ export function useChartData() {
   const fetchCostComparison = useCallback(
     () => api.getCostComparisonChart(backendRange, network),
     [backendRange, network]
+  );
+
+  const fetchRollingStats = useCallback(
+    () => api.getRollingStatsChart(undefined, network),
+    [network]
   );
 
   const fetchStats = useCallback(
@@ -62,28 +68,43 @@ export function useChartData() {
   } = useApiData<BackendCostComparisonChartResponse>(fetchCostComparison, ['chart-cost-comparison', network, backendRange]);
 
   const {
+    data: rollingStats,
+    refetch: refetchRollingStats,
+  } = useApiData<BackendStatsWindowsResponse>(fetchRollingStats, ['chart-rolling-stats', network]);
+
+  const {
     data: stats,
+    isLoading: statsLoading,
+    error: statsError,
     refetch: refetchStats,
   } = useApiData<StatsResponse>(fetchStats, ['stats', network]);
 
   const chartData: ChartDataset | null = useMemo(() => {
     if (!market || !attribution || !costComparison) return null;
-    return buildChartDatasetFromResponses(market, attribution, costComparison, timeRange, stats?.data);
-  }, [market, attribution, costComparison, timeRange, stats]);
+    return buildChartDatasetFromResponses(
+      market,
+      attribution,
+      costComparison,
+      timeRange,
+      stats?.data,
+      rollingStats
+    );
+  }, [market, attribution, costComparison, timeRange, stats, rollingStats]);
 
   const refetch = useCallback(async () => {
     await Promise.all([
       refetchMarket(),
       refetchAttribution(),
       refetchCostComparison(),
+      refetchRollingStats(),
       refetchStats(),
     ]);
-  }, [refetchMarket, refetchAttribution, refetchCostComparison, refetchStats]);
+  }, [refetchMarket, refetchAttribution, refetchCostComparison, refetchRollingStats, refetchStats]);
 
   return {
     chartData,
-    isLoading: marketLoading || attributionLoading || costComparisonLoading,
-    error: marketError || attributionError || costComparisonError,
+    isLoading: marketLoading || attributionLoading || costComparisonLoading || statsLoading,
+    error: marketError || attributionError || costComparisonError || statsError,
     refetch,
     timeRange,
     dataPoints: chartData?.recentBlockCount ?? 0,

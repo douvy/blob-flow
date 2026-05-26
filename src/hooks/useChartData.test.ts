@@ -159,6 +159,45 @@ const mockCostComparison = {
   },
 };
 
+const mockRollingStats = {
+  success: true,
+  data: {
+    network_id: 1,
+    network_name: 'mainnet',
+    generated_at: '2026-01-01T01:00:00.000Z',
+    windows: [
+      {
+        window: '5m',
+        duration_seconds: 300,
+        start_time: '2026-01-01T00:55:00.000Z',
+        end_time: '2026-01-01T01:00:00.000Z',
+        average_blob_base_fee_wei: '1000000000',
+        median_blob_base_fee_wei: '1000000000',
+        p95_blob_base_fee_wei: '2000000000',
+        total_blobs: 5,
+        total_blob_gas_used: 655360,
+        average_utilization: '0.1',
+        total_cost_wei: '1000000000000000',
+        unique_senders: 3,
+      },
+      {
+        window: '1h',
+        duration_seconds: 3600,
+        start_time: '2026-01-01T00:00:00.000Z',
+        end_time: '2026-01-01T01:00:00.000Z',
+        average_blob_base_fee_wei: '1250000000',
+        median_blob_base_fee_wei: '1000000000',
+        p95_blob_base_fee_wei: '2000000000',
+        total_blobs: 10,
+        total_blob_gas_used: 1179648,
+        average_utilization: '0.25',
+        total_cost_wei: '10000000000000000',
+        unique_senders: 5,
+      },
+    ],
+  },
+};
+
 const mockStats = {
   success: true,
   data: {
@@ -178,7 +217,8 @@ const mockStats = {
 function createFetchMock(
   marketResponse: typeof mockMarket = mockMarket,
   attributionResponse: typeof mockAttribution = mockAttribution,
-  costComparisonResponse: typeof mockCostComparison = mockCostComparison
+  costComparisonResponse: typeof mockCostComparison = mockCostComparison,
+  rollingStatsResponse: typeof mockRollingStats = mockRollingStats
 ) {
   return vi.fn().mockImplementation((url: string) => {
     if (url.includes('/charts/blob-market')) {
@@ -197,6 +237,12 @@ function createFetchMock(
       return Promise.resolve({
         ok: true,
         json: async () => costComparisonResponse,
+      });
+    }
+    if (url.includes('/charts/rolling-stats')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => rollingStatsResponse,
       });
     }
     if (url.includes('/stats')) {
@@ -238,12 +284,14 @@ describe('useChartData', () => {
     expect(result.current.chartData!.l2UsageSeries.map((series) => series.key)).toEqual(['base', 'unknown']);
     expect(result.current.chartData!.l2Usage[1].base).toBe(5);
     expect(result.current.chartData!.costComparison[0].savingsPct).toBe(99);
+    expect(result.current.chartData!.rollingWindows).toHaveLength(2);
     expect(result.current.chartData!.selectedWindow?.totalBlobs).toBe(10);
     expect(result.current.chartData!.indicators.pendingBlobCount).toBe(5);
     expect(urls.some((url) => url.includes('/blob/pricing'))).toBe(false);
     expect(urls.some((url) => url.includes('/charts/blob-market?range=1h&granularity=auto'))).toBe(true);
     expect(urls.some((url) => url.includes('/charts/attribution-usage?range=1h&granularity=auto'))).toBe(true);
     expect(urls.some((url) => url.includes('/charts/cost-comparison?range=1h&granularity=auto'))).toBe(true);
+    expect(urls.some((url) => url.includes('/charts/rolling-stats?windows=5m,1h,24h,7d,30d'))).toBe(true);
   });
 
   it('keeps chart summaries available when no market points are returned', async () => {
