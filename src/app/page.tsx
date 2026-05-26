@@ -21,11 +21,11 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start mb-12">
-          <RecentBlocksPanel />
           <div className="space-y-12">
-            <MetricsCharts />
+            <RecentBlocksPanel />
             <BlobMarketPanels />
           </div>
+          <MetricsCharts />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
