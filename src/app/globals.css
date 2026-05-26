@@ -1,6 +1,33 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --font-gt-flexa: 'GT Flexa', sans-serif;
+  --font-windsor-bold: 'Windsor Bold', serif;
+
+  --color-background: #131720;
+  --color-container: #141519;
+  --color-titleText: #f0f0f0;
+  --color-bodyText: #f1f2f4;
+  --color-secondaryText: #6e7687;
+  --color-divider: #23252a;
+  --color-dividerBlue: #27364e;
+  --color-blue: #3b55e6;
+  --color-darkBlue: #1e2747;
+  --color-lightBlue: #9ac4fd;
+  --color-purple: #6a5acd;
+  --color-green: #66cc99;
+  --color-red: #ff6b6b;
+  --color-yellow: #ffff00;
+}
+
+@utility bg-grid-pattern {
+  background-image: linear-gradient(rgba(50, 60, 80, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(50, 60, 80, 0.15) 1px, transparent 1px);
+}
+
+@utility bg-grid-size {
+  background-size: 20px 20px;
+}
 
 /* Font face declarations */
 @font-face {

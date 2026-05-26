@@ -102,10 +102,13 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
             </Pie>
             <Tooltip
               contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value: number, name: string) => [
-                `${value} (${Math.round((value / total) * 100)}%)`,
-                name,
-              ]}
+              formatter={(value, name) => {
+                const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+                return [
+                  `${numericValue} (${Math.round((numericValue / total) * 100)}%)`,
+                  String(name ?? ''),
+                ];
+              }}
             />
           </PieChart>
         </ResponsiveContainer>

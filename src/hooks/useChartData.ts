@@ -19,7 +19,6 @@ export function useChartData() {
   const { selectedNetwork } = useNetwork();
   const network = selectedNetwork.apiParam;
   const backendRange = getBackendChartRange(timeRange);
-  const chartRefetchKey = `${network ?? 'default'}:${backendRange}`;
 
   const fetchMarket = useCallback(
     () => api.getBlobMarketChart(backendRange, network),
@@ -46,26 +45,26 @@ export function useChartData() {
     isLoading: marketLoading,
     error: marketError,
     refetch: refetchMarket,
-  } = useApiData<BackendBlobMarketChartResponse>(fetchMarket, undefined, chartRefetchKey);
+  } = useApiData<BackendBlobMarketChartResponse>(fetchMarket, ['chart-market', network, backendRange]);
 
   const {
     data: attribution,
     isLoading: attributionLoading,
     error: attributionError,
     refetch: refetchAttribution,
-  } = useApiData<BackendAttributionUsageChartResponse>(fetchAttribution, undefined, chartRefetchKey);
+  } = useApiData<BackendAttributionUsageChartResponse>(fetchAttribution, ['chart-attribution', network, backendRange]);
 
   const {
     data: costComparison,
     isLoading: costComparisonLoading,
     error: costComparisonError,
     refetch: refetchCostComparison,
-  } = useApiData<BackendCostComparisonChartResponse>(fetchCostComparison, undefined, chartRefetchKey);
+  } = useApiData<BackendCostComparisonChartResponse>(fetchCostComparison, ['chart-cost-comparison', network, backendRange]);
 
   const {
     data: stats,
     refetch: refetchStats,
-  } = useApiData<StatsResponse>(fetchStats, undefined, network);
+  } = useApiData<StatsResponse>(fetchStats, ['stats', network]);
 
   const chartData: ChartDataset | null = useMemo(() => {
     if (!market || !attribution || !costComparison) return null;

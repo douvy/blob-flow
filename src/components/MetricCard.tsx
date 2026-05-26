@@ -2,13 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { ArrowDownRight, ArrowUpRight, type LucideIcon } from 'lucide-react';
 
 interface MetricCardProps {
   title: string;
   value: string;
   trend?: 'up' | 'down' | 'neutral';
   description?: string;
-  icon?: string;
+  icon?: LucideIcon;
   href?: string;
   ariaLabel?: string;
 }
@@ -22,6 +23,7 @@ export default function MetricCard({
   href,
   ariaLabel,
 }: MetricCardProps) {
+  const Icon = icon;
   const cardClassName = "relative block rounded-lg p-4 shadow-md transition-all hover:shadow-lg border border-divider h-full";
   const cardStyle = {
     background: `url('/images/subtle-pattern.png') repeat, #141519`,
@@ -30,14 +32,14 @@ export default function MetricCard({
     <>
       <div className="flex justify-between items-start mb-2">
         <h3 className="text-[#b8bdc7] font-medium text-xs uppercase tracking-wider flex items-center mb-1">
-          {icon && <i className={`${icon} text-blue mr-2`} aria-hidden="true"></i>}
+          {Icon && <Icon className="mr-2 h-4 w-4 text-blue" aria-hidden="true" />}
           {title}
         </h3>
         {trend === 'up' && (
-          <i className="fa-regular fa-arrow-up-right text-[#b8bdc7]" aria-hidden="true"></i>
+          <ArrowUpRight className="h-4 w-4 text-[#b8bdc7]" aria-hidden="true" />
         )}
         {trend === 'down' && (
-          <i className="fa-regular fa-arrow-down-right text-[#b8bdc7]" aria-hidden="true"></i>
+          <ArrowDownRight className="h-4 w-4 text-[#b8bdc7]" aria-hidden="true" />
         )}
       </div>
       <div>

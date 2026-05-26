@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import DataStateWrapper from '@/components/DataStateWrapper';
@@ -42,15 +43,13 @@ export default function BlockDetailPage() {
   const blockNumber = Number(rawNumber);
   const isValidNumber = Number.isFinite(blockNumber) && blockNumber > 0;
   const { selectedNetwork } = useNetwork();
-  const refetchKey = `${selectedNetwork.apiParam}:${rawNumber}`;
 
   const { data: block, isLoading, error } = useApiData<Block | null>(
     () =>
       isValidNumber
         ? api.getBlockByNumber(blockNumber, selectedNetwork.apiParam)
         : Promise.resolve(null),
-    undefined,
-    refetchKey
+    ['block-by-number', selectedNetwork.apiParam, rawNumber]
   );
 
   const loadingComponent = (
@@ -83,7 +82,7 @@ export default function BlockDetailPage() {
           href="/blocks"
           className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2"
         >
-          <i className="fa-regular fa-arrow-left" aria-hidden="true" />
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to Blocks
         </Link>
 
@@ -112,7 +111,7 @@ export default function BlockDetailPage() {
                   className="text-blue hover:underline text-sm inline-flex items-center gap-2"
                 >
                   View on Etherscan
-                  <i className="fa-regular fa-arrow-up-right-from-square text-xs" aria-hidden="true" />
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                 </a>
               </div>
             ) : block ? (
@@ -130,10 +129,7 @@ export default function BlockDetailPage() {
                         className="text-blue hover:underline text-sm inline-flex items-center gap-2"
                       >
                         View on Etherscan
-                        <i
-                          className="fa-regular fa-arrow-up-right-from-square text-xs"
-                          aria-hidden="true"
-                        />
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       </a>
                     )}
                   </div>

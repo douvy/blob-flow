@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { ArrowLeft, Minimize2 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import DataStateWrapper from '@/components/DataStateWrapper';
@@ -91,7 +92,7 @@ function ChartDetail({ view }: { view: ChartView }) {
               href="/#data-trends"
               className="inline-flex h-8 items-center justify-center gap-2 self-start rounded-md border border-divider bg-[#1d1f23] px-3 text-sm text-bodyText transition-colors hover:bg-[#252936] hover:text-white focus:outline-none focus:ring-2 focus:ring-blue/60"
             >
-              <i className="fa-regular fa-compress" aria-hidden="true" />
+              <Minimize2 className="h-4 w-4" aria-hidden="true" />
               Dashboard
             </Link>
           </div>
@@ -129,7 +130,7 @@ export default function ChartDetailPage() {
           href="/#data-trends"
           className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2"
         >
-          <i className="fa-regular fa-arrow-left" aria-hidden="true" />
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to Dashboard
         </Link>
 

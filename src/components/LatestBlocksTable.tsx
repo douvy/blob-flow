@@ -3,6 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { Block, BlobResponse, LatestBlocksResponse } from '../types';
@@ -160,13 +161,20 @@ function BlobDetailsRow({ block }: { block: Block }) {
 export default function LatestBlocksTable() {
   const { selectedNetwork } = useNetwork();
   const liveBlockEvent = useLatestBlobEvent('new_block');
-  const [expandedBlockId, setExpandedBlockId] = React.useState<number | null>(null);
+  // Tracks the user's most recent selection per-network: `id` is null when they
+  // collapsed the auto-expanded default, otherwise the id they expanded.
+  const [userSelection, setUserSelection] = React.useState<{ network: string; id: number | null } | null>(null);
   const [page, setPage] = React.useState(1);
+  const [pageNetwork, setPageNetwork] = React.useState(selectedNetwork.apiParam);
+
+  if (pageNetwork !== selectedNetwork.apiParam) {
+    setPageNetwork(selectedNetwork.apiParam);
+    setPage(1);
+  }
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
     () => api.getLatestBlocks(BLOCKS_PAGE_LIMIT, selectedNetwork.apiParam),
-    undefined,
-    selectedNetwork.apiParam
+    ['latest-blocks', selectedNetwork.apiParam, BLOCKS_PAGE_LIMIT]
   );
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   useFlipRows(tbodyRef, selectedNetwork.apiParam);
@@ -190,9 +198,25 @@ export default function LatestBlocksTable() {
     return { data: mergedBlocks.slice(pageStart, pageStart + BLOCKS_PAGE_SIZE) };
   }, [mergedBlocks, pageStart]);
 
+  // Derive the expanded block id from the user's selection (if it still
+  // applies to the current network and the block is still on the page). Rows
+  // are collapsed by default — no auto-expand. Doing this in a memo rather
+  // than an effect avoids set-state-in-effect.
+  const expandedBlockId = React.useMemo(() => {
+    if (!displayData) return null;
+    if (!userSelection || userSelection.network !== selectedNetwork.apiParam) return null;
+    if (userSelection.id === null) return null;
+    if (!displayData.data.some((block) => block.id === userSelection.id)) return null;
+    return userSelection.id;
+  }, [displayData, userSelection, selectedNetwork.apiParam]);
+
   const toggleBlock = React.useCallback((blockId: number) => {
-    setExpandedBlockId((currentBlockId) => currentBlockId === blockId ? null : blockId);
-  }, []);
+    setUserSelection((current) => {
+      const isOpen =
+        current?.network === selectedNetwork.apiParam && current.id === blockId;
+      return { network: selectedNetwork.apiParam, id: isOpen ? null : blockId };
+    });
+  }, [selectedNetwork.apiParam]);
 
   const handleBlockRowKeyDown = React.useCallback((
     event: React.KeyboardEvent<HTMLTableRowElement>,
@@ -203,20 +227,6 @@ export default function LatestBlocksTable() {
       toggleBlock(blockId);
     }
   }, [toggleBlock]);
-
-  React.useEffect(() => {
-    setExpandedBlockId(null);
-    setPage(1);
-  }, [selectedNetwork.apiParam]);
-
-  React.useEffect(() => {
-    if (expandedBlockId === null || !displayData) return;
-
-    const expandedBlockExists = displayData.data.some((block) => block.id === expandedBlockId);
-    if (!expandedBlockExists) {
-      setExpandedBlockId(null);
-    }
-  }, [displayData, expandedBlockId]);
 
   const loadingComponent = (
     <div className="overflow-x-auto border border-divider rounded-lg">
@@ -311,8 +321,8 @@ export default function LatestBlocksTable() {
                       >
                         <td className="py-3 px-3 sm:px-4 text-sm font-medium text-white">
                           <div className="flex items-center gap-2 min-w-0">
-                            <i
-                              className={`fa-regular fa-chevron-right text-[10px] text-[#6e7787] transition-transform ${
+                            <ChevronRight
+                              className={`h-3 w-3 text-[#6e7787] transition-transform ${
                                 isExpanded ? 'rotate-90' : ''
                               }`}
                               aria-hidden="true"
@@ -384,9 +394,9 @@ export default function LatestBlocksTable() {
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={safePage <= 1}
-              className="px-3 py-1 rounded-md border border-divider bg-[#1d1f23] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#23252a]"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md border border-divider bg-[#1d1f23] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#23252a]"
             >
-              <i className="fa-regular fa-chevron-left text-xs" aria-hidden="true" /> Prev
+              <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" /> Prev
             </button>
             <span className="px-2">
               Page <span className="text-white">{safePage}</span> of{' '}
@@ -396,9 +406,9 @@ export default function LatestBlocksTable() {
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={safePage >= totalPages}
-              className="px-3 py-1 rounded-md border border-divider bg-[#1d1f23] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#23252a]"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md border border-divider bg-[#1d1f23] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#23252a]"
             >
-              Next <i className="fa-regular fa-chevron-right text-xs" aria-hidden="true" />
+              Next <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>

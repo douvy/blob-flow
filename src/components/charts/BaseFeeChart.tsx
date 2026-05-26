@@ -74,7 +74,10 @@ export default function BaseFeeChart({ data, referenceBaseFeeGwei }: BaseFeeChar
           contentStyle={CHART_TOOLTIP_STYLE}
           labelStyle={CHART_LABEL_STYLE}
           itemStyle={CHART_ITEM_STYLE}
-          formatter={(value: number) => [`${value.toFixed(3)} Gwei`, 'Base Fee']}
+          formatter={(value) => {
+            const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+            return [`${numericValue.toFixed(3)} Gwei`, 'Base Fee'];
+          }}
         />
         {referenceBaseFee > 0 && (
           <ReferenceLine

@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useLiveBlobEvent } from '@/contexts/LiveDataContext';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
+import { useApiData } from '@/hooks/useApiData';
 import { BlobPricing, BlobPricingRecentBlock } from '@/types';
 import { formatGwei, formatNumber, formatPercent } from '@/utils';
 import DataStateWrapper from './DataStateWrapper';
@@ -13,81 +14,27 @@ const FALLBACK_REFRESH_MS = 60000;
 
 export default function BlobMarketPanels() {
   const { selectedNetwork } = useNetwork();
-  const [pricing, setPricing] = useState<BlobPricing | undefined>();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const activeNetwork = selectedNetwork.apiParam;
 
-  const isMountedRef = useRef(false);
-  const inFlightNetworkRef = useRef<string | null>(null);
-  const pricingRef = useRef<BlobPricing | undefined>(undefined);
-  const requestIdRef = useRef(0);
+  const fetchPricing = useCallback(
+    () => api.getBlobPricing(activeNetwork, 20),
+    [activeNetwork]
+  );
 
-  const fetchMarketData = useCallback(async () => {
-    const network = selectedNetwork.apiParam;
-    if (inFlightNetworkRef.current === network) {
-      return;
-    }
-
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
-    inFlightNetworkRef.current = network;
-    const hasPricing = Boolean(pricingRef.current);
-
-    if (!hasPricing) {
-      setIsLoading(true);
-    }
-
-    try {
-      const nextPricing = await api.getBlobPricing(network, 20);
-
-      if (!isMountedRef.current || requestId !== requestIdRef.current) {
-        return;
-      }
-
-      pricingRef.current = nextPricing;
-      setPricing(nextPricing);
-      setError(null);
-    } catch (err) {
-      if (!isMountedRef.current || requestId !== requestIdRef.current) {
-        return;
-      }
-
-      setError(err instanceof Error ? err : new Error('Unable to load market data'));
-    } finally {
-      if (isMountedRef.current && requestId === requestIdRef.current) {
-        inFlightNetworkRef.current = null;
-        setIsLoading(false);
-      }
-    }
-  }, [selectedNetwork.apiParam]);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    inFlightNetworkRef.current = null;
-    pricingRef.current = undefined;
-    setPricing(undefined);
-    setError(null);
-    setIsLoading(true);
-    void fetchMarketData();
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [fetchMarketData]);
+  const {
+    data: pricing,
+    isLoading,
+    error,
+    refetch: refetchPricing,
+  } = useApiData<BlobPricing>(
+    fetchPricing,
+    ['blob-pricing', activeNetwork, 20],
+    { refetchInterval: FALLBACK_REFRESH_MS }
+  );
 
   useLiveBlobEvent('new_block', () => {
-    void fetchMarketData();
+    void refetchPricing();
   });
-
-  useEffect(() => {
-    const fallbackTimer = window.setInterval(() => {
-      void fetchMarketData();
-    }, FALLBACK_REFRESH_MS);
-
-    return () => {
-      window.clearInterval(fallbackTimer);
-    };
-  }, [fetchMarketData]);
 
   const initialError = pricing ? null : error;
 

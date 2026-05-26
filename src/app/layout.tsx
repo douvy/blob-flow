@@ -1,6 +1,5 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import Script from 'next/script';
 import AppProviders from '@/components/AppProviders';
 
 // Removed Inter font
@@ -20,13 +19,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <Script
-          src="https://kit.fontawesome.com/7f8f63cf7a.js"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
-      </head>
       <body>
         <AppProviders>{children}</AppProviders>
       </body>

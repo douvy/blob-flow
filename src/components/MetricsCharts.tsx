@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { Maximize2 } from 'lucide-react';
 import { useChartData } from '../hooks/useChartData';
 import DataStateWrapper from './DataStateWrapper';
 import FeeIndicators from './charts/FeeIndicators';
@@ -46,7 +47,7 @@ export default function MetricsCharts() {
                     aria-label={`Open ${view.getTitle(chartData)} enlarged`}
                     title="Enlarge graph"
                   >
-                    <i className="fa-regular fa-expand" aria-hidden="true" />
+                    <Maximize2 className="h-4 w-4" aria-hidden="true" />
                   </Link>
                 </div>
                 <div className={view.dashboardFrameClassName}>
