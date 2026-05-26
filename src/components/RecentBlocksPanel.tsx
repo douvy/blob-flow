@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ArrowRight, ChevronRight } from 'lucide-react';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { useNetwork } from '../hooks/useNetwork';
@@ -312,9 +312,9 @@ export default function RecentBlocksPanel() {
         <h2 className="text-2xl font-windsor-bold text-white">Recent Block Fees</h2>
         <Link
           href="/blocks"
-          className="text-sm text-blue hover:underline whitespace-nowrap"
+          className="inline-flex items-center gap-1 text-sm text-blue hover:underline whitespace-nowrap"
         >
-          View all blocks <i className="fa-regular fa-arrow-right text-xs ml-1" aria-hidden="true" />
+          View all blocks <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
       </div>
 
