@@ -162,7 +162,6 @@ export default function LatestBlocksTable() {
   const liveBlockEvent = useLatestBlobEvent('new_block');
   const [expandedBlockId, setExpandedBlockId] = React.useState<number | null>(null);
   const [page, setPage] = React.useState(1);
-  const hasUserSelectedBlockRef = React.useRef(false);
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
     () => api.getLatestBlocks(BLOCKS_PAGE_LIMIT, selectedNetwork.apiParam),
@@ -192,7 +191,6 @@ export default function LatestBlocksTable() {
   }, [mergedBlocks, pageStart]);
 
   const toggleBlock = React.useCallback((blockId: number) => {
-    hasUserSelectedBlockRef.current = true;
     setExpandedBlockId((currentBlockId) => currentBlockId === blockId ? null : blockId);
   }, []);
 
@@ -207,26 +205,15 @@ export default function LatestBlocksTable() {
   }, [toggleBlock]);
 
   React.useEffect(() => {
-    hasUserSelectedBlockRef.current = false;
     setExpandedBlockId(null);
     setPage(1);
   }, [selectedNetwork.apiParam]);
-
-  React.useEffect(() => {
-    if (!displayData || hasUserSelectedBlockRef.current) return;
-
-    const defaultExpandedBlock = displayData.data.find((block) => block.blobs.length > 0) || displayData.data[0];
-    if (defaultExpandedBlock && expandedBlockId !== defaultExpandedBlock.id) {
-      setExpandedBlockId(defaultExpandedBlock.id);
-    }
-  }, [displayData, expandedBlockId]);
 
   React.useEffect(() => {
     if (expandedBlockId === null || !displayData) return;
 
     const expandedBlockExists = displayData.data.some((block) => block.id === expandedBlockId);
     if (!expandedBlockExists) {
-      hasUserSelectedBlockRef.current = false;
       setExpandedBlockId(null);
     }
   }, [displayData, expandedBlockId]);
