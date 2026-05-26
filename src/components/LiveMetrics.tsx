@@ -54,13 +54,13 @@ export default function LiveMetrics() {
     data,
     isLoading: statsLoading,
     error: statsError,
-  } = useApiData<StatsResponse>(fetchStats, undefined, network);
+  } = useApiData<StatsResponse>(fetchStats, ['stats', network]);
 
   const {
     data: statsWindows,
     isLoading: windowsLoading,
     error: windowsError,
-  } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, undefined, network);
+  } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, ['stats-windows', network]);
 
   const rollingWindows = useMemo(
     () => (statsWindows ? transformStatsWindows(statsWindows) : []),

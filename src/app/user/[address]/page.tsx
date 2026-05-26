@@ -70,20 +70,17 @@ export default function UserDetailPage() {
 
   const { data: user, isLoading: userLoading, error: userError } = useApiData<UserResponse>(
     () => api.getUserByAddress(address, selectedNetwork.apiParam),
-    undefined,
-    `${selectedNetwork.apiParam}:${address}`
+    ['user', selectedNetwork.apiParam, address]
   );
 
   const { data: confirmedBlobs, isLoading: blobsLoading, error: blobsError } = useApiData<BlobResponse[]>(
     () => api.getUserBlobs(address, true, 20, selectedNetwork.apiParam),
-    undefined,
-    `${selectedNetwork.apiParam}:${address}`
+    ['user-blobs', selectedNetwork.apiParam, address, 'confirmed', 20]
   );
 
   const { data: mempoolBlobs, isLoading: mempoolLoading, error: mempoolError } = useApiData<BlobResponse[]>(
     () => api.getUserBlobs(address, false, 20, selectedNetwork.apiParam),
-    undefined,
-    `${selectedNetwork.apiParam}:${address}`
+    ['user-blobs', selectedNetwork.apiParam, address, 'mempool', 20]
   );
 
   const userName = user?.name || truncateAddress(address);

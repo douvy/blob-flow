@@ -4,6 +4,7 @@ import React, { ReactNode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LiveDataProvider } from '@/contexts/LiveDataContext';
 import { TimeRangeProvider } from '@/contexts/TimeRangeContext';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { useNetwork } from '@/hooks/useNetwork';
 
 export default function AppProviders({ children }: { children: ReactNode }) {
@@ -23,11 +24,13 @@ export default function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TimeRangeProvider>
-        <LiveDataProvider key={selectedNetwork.apiParam} network={selectedNetwork.apiParam}>
-          {children}
-        </LiveDataProvider>
-      </TimeRangeProvider>
+      <TooltipProvider delayDuration={150}>
+        <TimeRangeProvider>
+          <LiveDataProvider key={selectedNetwork.apiParam} network={selectedNetwork.apiParam}>
+            {children}
+          </LiveDataProvider>
+        </TimeRangeProvider>
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

@@ -224,8 +224,7 @@ export default function LatestBlocksTable() {
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
     () => api.getLatestBlocks(DASHBOARD_LATEST_BLOB_LIMIT, selectedNetwork.apiParam),
-    undefined,
-    selectedNetwork.apiParam
+    ['latest-blocks', selectedNetwork.apiParam, DASHBOARD_LATEST_BLOB_LIMIT]
   );
   const displayData = React.useMemo<LatestBlocksResponse | undefined>(() => {
     if (!latestEvents.new_block) {

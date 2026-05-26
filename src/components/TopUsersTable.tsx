@@ -35,12 +35,7 @@ import {
   TableRow,
 } from './ui/table';
 import { Skeleton } from './ui/skeleton';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from './ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 const COLUMN_WIDTHS: Record<string, string> = {
   name: 'w-1/3',
@@ -118,8 +113,7 @@ export default function TopUsersTable() {
 
   const { data, isLoading, error } = useApiData<TopUsersResponse>(
     () => api.getTopUsers(10, selectedNetwork.apiParam),
-    undefined,
-    selectedNetwork.apiParam
+    ['top-users', selectedNetwork.apiParam, 10]
   );
   const displayData = latestEvents.users_update
     ? transformUserResponses(latestEvents.users_update.data)
@@ -139,20 +133,18 @@ export default function TopUsersTable() {
         header: ({ column }) => (
           <div className="flex items-center gap-1">
             <SortableHeader column={column}>Count</SortableHeader>
-            <TooltipProvider delayDuration={150}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex rounded-sm text-[#6e7787] hover:text-bodyText focus:outline-none focus:ring-2 focus:ring-blue"
-                    aria-label="Count window"
-                  >
-                    <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Last 100 blocks</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex rounded-sm text-[#6e7787] hover:text-bodyText focus:outline-none focus:ring-2 focus:ring-blue"
+                  aria-label="Count window"
+                >
+                  <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Last 100 blocks</TooltipContent>
+            </Tooltip>
           </div>
         ),
         cell: ({ row }) => row.original.dataCount,

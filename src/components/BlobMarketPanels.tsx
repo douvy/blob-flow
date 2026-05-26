@@ -1,140 +1,84 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useBlobWebSocket, useLiveBlobEvent } from '@/contexts/LiveDataContext';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
+import { useApiData } from '@/hooks/useApiData';
 import { BlobPricing, BlobWebSocketConnectionState, MempoolPressure } from '@/types';
 import { formatNumber, formatPercent } from '@/utils';
 import DataStateWrapper from './DataStateWrapper';
 
 const FALLBACK_REFRESH_MS = 60000;
 const STALE_AFTER_MS = 90000;
-
-interface MarketSnapshot {
-  pricing: BlobPricing;
-  pressure: MempoolPressure;
-}
-
-interface NetworkSnapshot {
-  network: string;
-  snapshot: MarketSnapshot;
-}
-
-interface NetworkError {
-  network: string;
-  error: Error;
-}
+const STALE_TICK_MS = 15000;
 
 export default function BlobMarketPanels() {
   const { selectedNetwork } = useNetwork();
   const activeNetwork = selectedNetwork.apiParam;
   const { connectionState } = useBlobWebSocket();
-  const [snapshotState, setSnapshotState] = useState<NetworkSnapshot | undefined>();
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [errorState, setErrorState] = useState<NetworkError | null>(null);
-  const [lastUpdatedAtState, setLastUpdatedAtState] = useState<{ network: string; value: number } | null>(null);
   const [now, setNow] = useState(0);
 
-  const isMountedRef = useRef(false);
-  const inFlightNetworkRef = useRef<string | null>(null);
-  const snapshotRef = useRef<NetworkSnapshot | undefined>(undefined);
-  const requestIdRef = useRef(0);
+  const fetchPricing = useCallback(
+    () => api.getBlobPricing(activeNetwork, 20),
+    [activeNetwork]
+  );
+  const fetchPressure = useCallback(
+    () => api.getMempoolPressure(activeNetwork),
+    [activeNetwork]
+  );
 
-  const snapshot = snapshotState?.network === activeNetwork ? snapshotState.snapshot : undefined;
-  const error = errorState?.network === activeNetwork ? errorState.error : null;
-  const lastUpdatedAt = lastUpdatedAtState?.network === activeNetwork ? lastUpdatedAtState.value : null;
+  const {
+    data: pricing,
+    isLoading: pricingLoading,
+    isFetching: pricingFetching,
+    error: pricingError,
+    dataUpdatedAt: pricingUpdatedAt,
+    refetch: refetchPricing,
+  } = useApiData<BlobPricing>(
+    fetchPricing,
+    ['blob-pricing', activeNetwork, 20],
+    { refetchInterval: FALLBACK_REFRESH_MS }
+  );
 
-  const fetchMarketData = useCallback(async () => {
-    const network = activeNetwork;
-    if (inFlightNetworkRef.current === network) {
-      return;
-    }
-
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
-    inFlightNetworkRef.current = network;
-    const hasSnapshot = snapshotRef.current?.network === network;
-
-    if (hasSnapshot) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
-
-    try {
-      const [pricing, pressure] = await Promise.all([
-        api.getBlobPricing(network, 20),
-        api.getMempoolPressure(network),
-      ]);
-
-      if (!isMountedRef.current || requestId !== requestIdRef.current) {
-        return;
-      }
-
-      const nextSnapshot = { network, snapshot: { pricing, pressure } };
-      snapshotRef.current = nextSnapshot;
-      setSnapshotState(nextSnapshot);
-      setLastUpdatedAtState({ network, value: Date.now() });
-      setErrorState(null);
-    } catch (err) {
-      if (!isMountedRef.current || requestId !== requestIdRef.current) {
-        return;
-      }
-
-      setErrorState({
-        network,
-        error: err instanceof Error ? err : new Error('Unable to load market data'),
-      });
-    } finally {
-      if (isMountedRef.current && requestId === requestIdRef.current) {
-        inFlightNetworkRef.current = null;
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
-    }
-  }, [activeNetwork]);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    inFlightNetworkRef.current = null;
-    const initialFetchTimer = window.setTimeout(() => {
-      void fetchMarketData();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(initialFetchTimer);
-      isMountedRef.current = false;
-    };
-  }, [fetchMarketData]);
+  const {
+    data: pressure,
+    isLoading: pressureLoading,
+    isFetching: pressureFetching,
+    error: pressureError,
+    dataUpdatedAt: pressureUpdatedAt,
+    refetch: refetchPressure,
+  } = useApiData<MempoolPressure>(
+    fetchPressure,
+    ['mempool-pressure', activeNetwork],
+    { refetchInterval: FALLBACK_REFRESH_MS }
+  );
 
   useLiveBlobEvent('new_block', () => {
-    void fetchMarketData();
+    void refetchPricing();
+    void refetchPressure();
   });
-
-  useEffect(() => {
-    const fallbackTimer = window.setInterval(() => {
-      void fetchMarketData();
-    }, FALLBACK_REFRESH_MS);
-
-    return () => {
-      window.clearInterval(fallbackTimer);
-    };
-  }, [fetchMarketData]);
 
   useEffect(() => {
     const staleTimer = window.setInterval(() => {
       setNow(Date.now());
-    }, 15000);
+    }, STALE_TICK_MS);
 
     return () => {
       window.clearInterval(staleTimer);
     };
   }, []);
 
+  const hasSnapshot = Boolean(pricing && pressure);
+  const isLoading = (pricingLoading || pressureLoading) && !hasSnapshot;
+  const isRefreshing = hasSnapshot && (pricingFetching || pressureFetching);
+  const error = pricingError ?? pressureError;
+  const lastUpdatedAt = hasSnapshot
+    ? Math.max(pricingUpdatedAt ?? 0, pressureUpdatedAt ?? 0)
+    : null;
+
   const isStale = connectionState === 'stale' || (lastUpdatedAt !== null && now - lastUpdatedAt > STALE_AFTER_MS);
-  const initialError = snapshot ? null : error;
+  const initialError = hasSnapshot ? null : error;
 
   return (
     <section>
@@ -148,19 +92,19 @@ export default function BlobMarketPanels() {
       </div>
 
       <DataStateWrapper
-        isLoading={!snapshot && !initialError && isLoading}
+        isLoading={isLoading}
         error={initialError}
         loadingComponent={<BlobMarketSkeleton />}
       >
-        {snapshot && (
+        {pricing && pressure && (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <PricingPanel pricing={snapshot.pricing} />
-            <PressurePanel pressure={snapshot.pressure} />
+            <PricingPanel pricing={pricing} />
+            <PressurePanel pressure={pressure} />
           </div>
         )}
       </DataStateWrapper>
 
-      {snapshot && error && (
+      {hasSnapshot && error && (
         <p className="mt-3 text-xs text-red-300">
           Refresh failed: {error.message}. Showing the latest available market data.
         </p>

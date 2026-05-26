@@ -19,8 +19,7 @@ export default function MempoolTable() {
 
   const { data, isLoading, error } = useApiData<MempoolResponse>(
     () => api.getMempool(10, selectedNetwork.apiParam),
-    undefined,
-    selectedNetwork.apiParam
+    ['mempool', selectedNetwork.apiParam, 10]
   );
   const displayData = React.useMemo<MempoolResponse | undefined>(() => {
     const liveEvent = latestEvents.mempool_update;
