@@ -38,20 +38,26 @@ export default function MetricsCharts() {
             {/* Base Fee over Recent Blocks */}
             <div className={CHART_CARD_CLASS}>
               <h3 className="text-md font-medium mb-4 text-white">
-                Base Fee over Recent Blocks (Gwei)
+                Base Fee over {chartData.chartRangeLabel} (Gwei)
               </h3>
               <div className="h-56 relative">
-                <BaseFeeChart data={chartData.baseFee} />
+                <BaseFeeChart
+                  data={chartData.baseFee}
+                  referenceBaseFeeGwei={chartData.selectedWindow?.averageBaseFeeGwei}
+                />
               </div>
             </div>
 
             {/* Blob Gas Utilization */}
             <div className={CHART_CARD_CLASS}>
               <h3 className="text-md font-medium mb-4 text-white">
-                Blob Gas Utilization vs Current Target
+                Blob Gas Utilization over {chartData.chartRangeLabel}
               </h3>
               <div className="h-56 relative">
-                <GasUtilizationChart data={chartData.gasUtilization} />
+                <GasUtilizationChart
+                  data={chartData.gasUtilization}
+                  averageUtilizationPct={chartData.selectedWindow?.averageUtilizationPct}
+                />
               </div>
             </div>
 
