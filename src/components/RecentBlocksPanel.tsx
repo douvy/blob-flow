@@ -152,10 +152,20 @@ export default function RecentBlocksPanel() {
 
   const defaultExpandedId =
     displayBlocks.find((block) => block.blobs.length > 0)?.id ?? displayBlocks[0]?.id ?? null;
-  const expandedBlockId =
-    selection.kind === 'explicit' && displayBlocks.some((block) => block.id === selection.blockId)
-      ? selection.blockId
-      : defaultExpandedId;
+
+  let expandedBlockId: number | null;
+  if (selection.kind === 'default') {
+    expandedBlockId = defaultExpandedId;
+  } else if (selection.blockId === null) {
+    // user explicitly collapsed the row — keep it closed
+    expandedBlockId = null;
+  } else if (displayBlocks.some((block) => block.id === selection.blockId)) {
+    expandedBlockId = selection.blockId;
+  } else {
+    // explicit selection points at a block that's no longer visible (e.g. after
+    // a network switch or paged-out block) — fall back to the default
+    expandedBlockId = defaultExpandedId;
+  }
 
   const toggleBlock = React.useCallback((blockId: number) => {
     setSelection((current) => {
@@ -168,6 +178,12 @@ export default function RecentBlocksPanel() {
 
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>, blockId: number) => {
+      // Only treat Enter/Space as a row toggle when the row itself is the
+      // event target. Without this, pressing Enter/Space while focused on a
+      // nested interactive element (e.g. the block-number link) bubbles up
+      // here, preventDefault swallows the link's activation, and the row
+      // toggles unexpectedly.
+      if (event.target !== event.currentTarget) return;
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         toggleBlock(blockId);
