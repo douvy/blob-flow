@@ -127,8 +127,7 @@ export default function RecentBlocksPanel() {
 
   const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
     () => api.getLatestBlocks(HOMEPAGE_BLOCK_ROWS, selectedNetwork.apiParam),
-    undefined,
-    selectedNetwork.apiParam
+    ['latest-blocks-home', selectedNetwork.apiParam, HOMEPAGE_BLOCK_ROWS]
   );
 
   const displayBlocks = React.useMemo<Block[]>(() => {

@@ -18,7 +18,6 @@ export function useChartData() {
   const { selectedNetwork } = useNetwork();
   const network = selectedNetwork.apiParam;
   const pricingBlockLimit = getPricingBlockRequestLimit(timeRange);
-  const pricingRefetchKey = `${network ?? 'default'}:${pricingBlockLimit}`;
 
   const fetchPricing = useCallback(
     () => api.getBlobPricing(network, pricingBlockLimit),
@@ -40,21 +39,21 @@ export function useChartData() {
     isLoading: pricingLoading,
     error: pricingError,
     refetch: refetchPricing,
-  } = useApiData<BlobPricing>(fetchPricing, undefined, pricingRefetchKey);
+  } = useApiData<BlobPricing>(fetchPricing, ['blob-pricing', network, pricingBlockLimit]);
 
   const {
     data: statsWindows,
     isLoading: windowsLoading,
     error: windowsError,
     refetch: refetchStatsWindows,
-  } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, undefined, network);
+  } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, ['stats-windows', network]);
 
   const {
     data: stats,
     isLoading: statsLoading,
     error: statsError,
     refetch: refetchStats,
-  } = useApiData<StatsResponse>(fetchStats, undefined, network);
+  } = useApiData<StatsResponse>(fetchStats, ['stats', network]);
 
   const chartData: ChartDataset | null = useMemo(() => {
     if (!pricing || !statsWindows) return null;

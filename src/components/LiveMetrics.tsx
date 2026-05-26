@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo } from 'react';
+import { Banknote, Box, Hourglass, User } from 'lucide-react';
 import MetricCard from './MetricCard';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
@@ -135,20 +136,20 @@ export default function LiveMetrics() {
     data: statsData,
     isLoading: statsLoading,
     error: statsError,
-  } = useApiData<StatsResponse>(fetchStats, undefined, network);
+  } = useApiData<StatsResponse>(fetchStats, ['stats', network]);
 
   const {
     data: statsWindows,
     isLoading: windowsLoading,
     error: windowsError,
-  } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, undefined, network);
+  } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, ['stats-windows', network]);
 
   const {
     data: latestBlocks,
     isLoading: blocksLoading,
     error: blocksError,
     refetch: refetchLatestBlocks,
-  } = useApiData<LatestBlocksResponse>(fetchLatestBlocks, undefined, network);
+  } = useApiData<LatestBlocksResponse>(fetchLatestBlocks, ['latest-blocks-metrics', network, LATEST_BLOCKS_SAMPLE]);
 
   // Refresh the rolling sample used for Top User whenever a new block lands.
   // The Latest Block card reads `newBlockEvent` directly (below) rather than
@@ -208,7 +209,7 @@ export default function LiveMetrics() {
       value: formatGwei(window.averageBaseFeeGwei),
       trend: 'neutral' as const,
       description: `Median ${formatGwei(window.medianBaseFeeGwei)} · p95 ${formatGwei(window.p95BaseFeeGwei)}`,
-      icon: 'fa-regular fa-money-bills',
+      icon: Banknote,
     },
     {
       title: 'Latest Block',
@@ -217,14 +218,14 @@ export default function LiveMetrics() {
       description: block
         ? `${block.blobCount}${block.maxBlobs ? `/${block.maxBlobs}` : ''} blobs · ${formatRelativeTime(block.timestamp, new Date(now))}`
         : 'Waiting for next block',
-      icon: 'fa-regular fa-cube',
+      icon: Box,
     },
     {
       title: 'Pending Blobs',
       value: formatCompactNumber(stats.data.pendingBlobsCount),
       trend: 'neutral' as const,
       description: `${formatCompactNumber(window.uniqueSenders)} senders · ${window.label}`,
-      icon: 'fa-regular fa-hourglass-half',
+      icon: Hourglass,
     },
     {
       title: 'Top User',
@@ -233,7 +234,7 @@ export default function LiveMetrics() {
       description: user
         ? `${user.share.toFixed(0)}% of last ${user.blocksSampled} blocks`
         : 'No user data yet',
-      icon: 'fa-regular fa-user',
+      icon: User,
       href: user ? `/user/${encodeURIComponent(user.address)}` : undefined,
       ariaLabel: user ? `View user ${user.name}` : undefined,
     },

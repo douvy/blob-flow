@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import DataStateWrapper from '@/components/DataStateWrapper';
@@ -140,24 +141,20 @@ export default function UserDetailPage() {
   const params = useParams();
   const address = params.address as string;
   const { selectedNetwork } = useNetwork();
-  const refetchKey = `${selectedNetwork.apiParam}:${address}`;
 
   const { data: user, isLoading: userLoading, error: userError } = useApiData<UserResponse>(
     () => api.getUserByAddress(address, selectedNetwork.apiParam),
-    undefined,
-    refetchKey
+    ['user', selectedNetwork.apiParam, address]
   );
 
   const { data: confirmedBlobs, isLoading: blobsLoading, error: blobsError } = useApiData<BlobResponse[]>(
     () => api.getUserBlobs(address, true, 20, selectedNetwork.apiParam),
-    undefined,
-    refetchKey
+    ['user-blobs', selectedNetwork.apiParam, address, 'confirmed', 20]
   );
 
   const { data: mempoolBlobs, isLoading: mempoolLoading, error: mempoolError } = useApiData<BlobResponse[]>(
     () => api.getUserBlobs(address, false, 20, selectedNetwork.apiParam),
-    undefined,
-    refetchKey
+    ['user-blobs', selectedNetwork.apiParam, address, 'mempool', 20]
   );
 
   const userName = user?.name || truncateAddress(address);
@@ -215,7 +212,7 @@ export default function UserDetailPage() {
       <Header />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <Link href="/" className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2">
-          <i className="fa-regular fa-arrow-left" aria-hidden="true" />
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to Dashboard
         </Link>
 

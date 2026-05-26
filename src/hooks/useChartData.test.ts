@@ -2,6 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { useChartData } from './useChartData';
 import { TimeRangeProvider } from '../contexts/TimeRangeContext';
+import { createQueryWrapper } from '../test/queryClient';
 
 const originalFetch = global.fetch;
 
@@ -194,7 +195,7 @@ describe('useChartData', () => {
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { result } = renderHook(() => useChartData(), { wrapper });
+    const { result } = renderHook(() => useChartData(), { wrapper: createQueryWrapper(wrapper) });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -226,7 +227,7 @@ describe('useChartData', () => {
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { result } = renderHook(() => useChartData(), { wrapper });
+    const { result } = renderHook(() => useChartData(), { wrapper: createQueryWrapper(wrapper) });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -243,7 +244,7 @@ describe('useChartData', () => {
 
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    const { result } = renderHook(() => useChartData(), { wrapper });
+    const { result } = renderHook(() => useChartData(), { wrapper: createQueryWrapper(wrapper) });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);

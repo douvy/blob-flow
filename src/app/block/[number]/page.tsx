@@ -42,15 +42,13 @@ export default function BlockDetailPage() {
   const blockNumber = Number(rawNumber);
   const isValidNumber = Number.isFinite(blockNumber) && blockNumber > 0;
   const { selectedNetwork } = useNetwork();
-  const refetchKey = `${selectedNetwork.apiParam}:${rawNumber}`;
 
   const { data: block, isLoading, error } = useApiData<Block | null>(
     () =>
       isValidNumber
         ? api.getBlockByNumber(blockNumber, selectedNetwork.apiParam)
         : Promise.resolve(null),
-    undefined,
-    refetchKey
+    ['block-by-number', selectedNetwork.apiParam, rawNumber]
   );
 
   const loadingComponent = (
