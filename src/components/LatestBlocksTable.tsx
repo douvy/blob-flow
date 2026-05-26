@@ -19,7 +19,7 @@ import {
   getAttributionInitial,
   truncateAddress,
 } from '../utils';
-import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { transformNewBlockData } from '../lib/api/blocks';
 import { formatRelativeTime } from '../lib/api/core';
 import { DASHBOARD_LATEST_BLOB_LIMIT, LATEST_BLOCK_ROWS } from '../constants';
@@ -304,7 +304,7 @@ function BlobDetailsRow({ block }: { block: Block }) {
 
 export default function LatestBlocksTable() {
   const { selectedNetwork } = useNetwork();
-  const { latestEvents } = useBlobWebSocket();
+  const liveBlockEvent = useLatestBlobEvent('new_block');
   const [expandedBlockId, setExpandedBlockId] = React.useState<number | null>(null);
   const hasUserSelectedBlockRef = React.useRef(false);
 
@@ -316,18 +316,18 @@ export default function LatestBlocksTable() {
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   useFlipRows(tbodyRef, selectedNetwork.apiParam);
   const displayData = React.useMemo<LatestBlocksResponse | undefined>(() => {
-    if (!latestEvents.new_block) {
+    if (!liveBlockEvent) {
       return data ? { data: data.data.slice(0, LATEST_BLOCK_ROWS) } : undefined;
     }
 
-    const liveBlock = transformNewBlockData(latestEvents.new_block.data);
+    const liveBlock = transformNewBlockData(liveBlockEvent.data);
     return {
       data: [
         liveBlock,
         ...(data?.data || []).filter((block) => block.number !== liveBlock.number),
       ].slice(0, LATEST_BLOCK_ROWS),
     };
-  }, [data, latestEvents.new_block]);
+  }, [data, liveBlockEvent]);
 
   const toggleBlock = React.useCallback((blockId: number) => {
     hasUserSelectedBlockRef.current = true;

@@ -35,9 +35,9 @@ function safeCancel(animation: Animation): void {
  * it FLIP-animates surviving rows from their previous position to the new one
  * and fade-slides any rows whose key is new.
  *
- * Important: live tables in this app re-render on every websocket tick (they
- * consume the `latestEvents` context), not just when their own row set
- * changes. We therefore:
+ * Important: live tables in this app re-render whenever their event type
+ * fires (e.g. every `mempool_update`), not just when their visible row set
+ * changes — many events leave the rendered rows identical. We therefore:
  *   1. Gate on a row-key signature, so unrelated re-renders are no-ops; and
  *   2. Finish any FLIP animations we previously started before re-measuring,
  *      so `getBoundingClientRect()` returns clean layout positions instead of
@@ -74,9 +74,9 @@ export function useFlipRows(
     const signature = rows.map((row) => row.dataset.rowKey ?? '').join('|');
 
     // Bail out when the row order/identity is unchanged. Tables in this app
-    // re-render on every `latestEvents` context update; without this gate we
-    // would re-measure (and re-baseline) during in-flight animations on every
-    // websocket tick, causing transforms to compound off-screen.
+    // re-render whenever their event type fires; without this gate we would
+    // re-measure (and re-baseline) during in-flight animations on every such
+    // tick, causing transforms to compound off-screen.
     if (signature === prevSignatureRef.current) return;
 
     // Finish FLIP animations from a previous pass so `getBoundingClientRect()`
