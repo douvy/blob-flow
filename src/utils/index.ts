@@ -11,6 +11,11 @@ const ATTRIBUTION_IMAGE_NAMES: Record<string, string> = {
   'zksync era': 'zksync',
 };
 
+const BYTES_PER_KIB = 1024;
+const BYTES_PER_MIB = BYTES_PER_KIB * 1024;
+const BLOB_GAS_PER_BLOB = 131072;
+const BYTES_PER_BLOB = 131072;
+
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
 }
@@ -29,6 +34,10 @@ export function getAttributionInitial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || '?';
 }
 
+export function getNetworkIconSrc(name?: string | null): string | null {
+  return name ? getAttributionImageSrc(name) : null;
+}
+
 export function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
@@ -38,32 +47,26 @@ export function formatDate(date: Date): string {
 }
 
 /**
- * Formats a wei value to a human-readable string with appropriate units
- * Automatically selects the best unit based on the value's size
+ * Formats a wei value to a human-readable string with appropriate units.
  * Fractional wei strings are preserved for aggregate values such as averages.
- * @param weiValue - The value in wei as a decimal string or number
- * @returns Formatted string with appropriate unit
  */
 export function formatWeiToReadable(weiValue: string | number): string {
   const rawWeiValue = normalizeDecimalString(weiValue);
   const wholeWeiValue = rawWeiValue.split('.')[0];
   const wholeWei = BigInt(wholeWeiValue);
 
-  // Define thresholds for different units
-  const GWEI_THRESHOLD = BigInt(1_000_000_000); // 10^9
-  const ETHER_THRESHOLD = BigInt(1_000_000_000_000_000_000); // 10^18
+  const gweiThreshold = BigInt(1_000_000_000);
+  const etherThreshold = BigInt(1_000_000_000_000_000_000);
 
-  // Choose the appropriate unit based on the value's size
-  if (wholeWei >= ETHER_THRESHOLD) {
-    // Format as ETH (10^18)
+  if (wholeWei >= etherThreshold) {
     return `${formatDecimalUnits(rawWeiValue, 18)} ETH`;
-  } else if (wholeWei >= GWEI_THRESHOLD) {
-    // Format as Gwei (10^9)
-    return `${formatDecimalUnits(rawWeiValue, 9)} Gwei`;
-  } else {
-    // Format as Wei
-    return `${rawWeiValue} Wei`;
   }
+
+  if (wholeWei >= gweiThreshold) {
+    return `${formatDecimalUnits(rawWeiValue, 9)} Gwei`;
+  }
+
+  return `${rawWeiValue} Wei`;
 }
 
 export function formatWeiToGwei(weiValue: string | number, maximumFractionDigits = 6): string {
@@ -103,9 +106,24 @@ export function formatPercent(value: number, maximumFractionDigits = 1): string 
   return `${formatCompactDecimal(value, maximumFractionDigits)}%`;
 }
 
-export function formatWeiToEth(weiValue: string | number): string {
+export function formatWeiToEth(
+  weiValue: string | number,
+  compact = false
+): string {
   const rawWeiValue = normalizeDecimalString(weiValue);
-  return `${formatDecimalUnits(rawWeiValue, 18)} ETH`;
+  const ethValue = formatDecimalUnits(rawWeiValue, 18);
+
+  if (!compact) {
+    return `${ethValue} ETH`;
+  }
+
+  const ethNumber = Number(ethValue);
+  if (ethNumber > 0 && ethNumber < 0.000001) {
+    return '<0.000001 ETH';
+  }
+
+  const maxDigits = ethNumber < 0.001 ? 6 : 4;
+  return `${formatDecimalString(ethValue, maxDigits)} ETH`;
 }
 
 export function formatCostEthOrWei(costEthOrWei: string | number): string {
@@ -116,6 +134,76 @@ export function formatCostEthOrWei(costEthOrWei: string | number): string {
   }
 
   return formatWeiToReadable(rawCost);
+}
+
+export function formatBlobSize(bytes?: number): string {
+  if (bytes === undefined || bytes === null || bytes <= 0) return '-';
+
+  if (bytes >= BYTES_PER_MIB) {
+    return `${formatCompactDecimal(bytes / BYTES_PER_MIB, 1)} MB`;
+  }
+
+  if (bytes >= BYTES_PER_KIB) {
+    return `${formatCompactDecimal(bytes / BYTES_PER_KIB, 1)} KB`;
+  }
+
+  return `${formatNumber(bytes)} B`;
+}
+
+export function getBlobCount(blobGasUsed?: number, blobSizeBytes?: number): number {
+  if (blobGasUsed && blobGasUsed > 0) {
+    return Math.max(1, Math.ceil(blobGasUsed / BLOB_GAS_PER_BLOB));
+  }
+
+  if (blobSizeBytes && blobSizeBytes > 0) {
+    return Math.max(1, Math.ceil(blobSizeBytes / BYTES_PER_BLOB));
+  }
+
+  return 1;
+}
+
+export function formatBlobCount(count: number): string {
+  return `${formatNumber(count)} blob${count === 1 ? '' : 's'}`;
+}
+
+export function formatUtilizationPercent(value?: string | number): string {
+  if (value === undefined || value === null || value === '') return '-';
+
+  const percent = Number(value);
+  if (!Number.isFinite(percent)) return '-';
+
+  return `${formatCompactDecimal(percent, percent < 10 ? 2 : 1)}%`;
+}
+
+export function formatFeeHeadroom(value?: string | number): string {
+  if (value === undefined || value === null || value === '') return '-';
+
+  return formatUtilizationPercent(value);
+}
+
+export function formatBlobFee(gweiValue?: string, weiValue?: string): string {
+  if (gweiValue) return safeFormat(() => formatGwei(gweiValue));
+  if (weiValue) return safeFormat(() => formatWeiToGwei(weiValue));
+  return '-';
+}
+
+export function formatBlobWeiCost(weiValue?: string): string {
+  if (!weiValue) return '-';
+  return safeFormat(() => formatWeiToEth(weiValue, true));
+}
+
+export function formatBlobTotalCost(totalCost?: string): string {
+  if (!totalCost) return '-';
+  if (totalCost.includes('.')) return safeFormat(() => formatCostEthOrWei(totalCost));
+  return formatBlobWeiCost(totalCost);
+}
+
+function safeFormat(formatter: () => string): string {
+  try {
+    return formatter();
+  } catch {
+    return '-';
+  }
 }
 
 function normalizeDecimalString(value: string | number): string {

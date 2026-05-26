@@ -1,15 +1,24 @@
 import {
+  formatBlobCount,
+  formatBlobFee,
+  formatBlobSize,
+  formatBlobTotalCost,
+  formatBlobWeiCost,
   formatCostEthOrWei,
   formatDate,
   formatDuration,
+  formatFeeHeadroom,
   formatGwei,
   formatNumber,
   formatPercent,
+  formatUtilizationPercent,
   formatWeiToGwei,
   formatWeiToEth,
   formatWeiToReadable,
   getAttributionImageSrc,
   getAttributionInitial,
+  getBlobCount,
+  getNetworkIconSrc,
   truncateAddress,
 } from './index';
 
@@ -21,6 +30,12 @@ describe('utils', () => {
   it('truncates addresses with default length', () => {
     expect(truncateAddress('0x1234567890abcdef')).toBe('0x1234...cdef');
     expect(truncateAddress('')).toBe('');
+  });
+
+  it('maps known network names to local icons', () => {
+    expect(getNetworkIconSrc('Arbitrum One')).toBe('/images/arbitrum.png');
+    expect(getNetworkIconSrc('OP Mainnet')).toBe('/images/optimism.png');
+    expect(getNetworkIconSrc('World Chain')).toBeNull();
   });
 
   it('formats dates in short US format', () => {
@@ -39,6 +54,7 @@ describe('utils', () => {
 
   it('formats wei values explicitly as ETH', () => {
     expect(formatWeiToEth('500000000000000')).toBe('0.0005 ETH');
+    expect(formatWeiToEth('9065041362944', true)).toBe('0.000009 ETH');
     expect(formatWeiToEth('2203603226459001.927')).toBe('0.002203603226459001927 ETH');
   });
 
@@ -72,5 +88,24 @@ describe('utils', () => {
     expect(formatDuration(314.03)).toBe('5 min');
     expect(formatDuration(5400)).toBe('1.5 hr');
     expect(formatPercent(35.7143)).toBe('35.7%');
+  });
+
+  it('formats blob sizes, counts, utilization, and fee headroom', () => {
+    expect(formatBlobSize(131072)).toBe('128 KB');
+    expect(getBlobCount(262144)).toBe(2);
+    expect(getBlobCount(undefined, 262144)).toBe(2);
+    expect(getBlobCount(131073)).toBe(2);
+    expect(getBlobCount(undefined, 131073)).toBe(2);
+    expect(formatBlobCount(2)).toBe('2 blobs');
+    expect(formatUtilizationPercent(9.52)).toBe('9.52%');
+    expect(formatFeeHeadroom('93.083922')).toBe('93.1%');
+  });
+
+  it('formats enriched blob fees and costs', () => {
+    expect(formatBlobFee('0.008487503')).toBe('0.008488 Gwei');
+    expect(formatBlobFee(undefined, '1000000000')).toBe('1 Gwei');
+    expect(formatBlobWeiCost('9065041362944')).toBe('0.000009 ETH');
+    expect(formatBlobTotalCost('0.001')).toBe('0.001 ETH');
+    expect(formatBlobTotalCost('9065041362944')).toBe('0.000009 ETH');
   });
 });
