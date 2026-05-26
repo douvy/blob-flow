@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-export type TimeRange = '24h' | '7d' | '30d' | 'All';
+export type TimeRange = '1h' | '24h' | '7d' | '30d' | 'All';
 
 interface TimeRangeContextValue {
   timeRange: TimeRange;
