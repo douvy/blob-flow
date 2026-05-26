@@ -17,7 +17,7 @@ import {
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import { useTimeRange } from '../contexts/TimeRangeContext';
-import { useBlobWebSocket, useLiveBlobEvent } from '../contexts/LiveDataContext';
+import { useLatestBlobEvent, useLiveBlobEvent } from '../contexts/LiveDataContext';
 
 const LATEST_BLOCKS_SAMPLE = 30;
 
@@ -87,7 +87,8 @@ function computeTopL2(blocks: Block[]): TopL2Stat | null {
 export default function LiveMetrics() {
   const { selectedNetwork } = useNetwork();
   const { timeRange } = useTimeRange();
-  const { latestEvents } = useBlobWebSocket();
+  const statsUpdateEvent = useLatestBlobEvent('stats_update');
+  const newBlockEvent = useLatestBlobEvent('new_block');
   const network = selectedNetwork.apiParam;
 
   const fetchStats = useCallback(() => api.getStats(network), [network]);
@@ -120,10 +121,10 @@ export default function LiveMetrics() {
   } = useApiData<LatestBlocksResponse>(fetchLatestBlocks, undefined, network);
 
   // Refresh the rolling sample used for Top L2 whenever a new block lands.
-  // The Latest Block card reads `latestEvents.new_block` directly (below)
-  // rather than relying on this refetch — fetchApi dedupes in-flight GETs,
-  // so an in-progress call started before the event would otherwise satisfy
-  // the refetch with stale data and leave the card a block behind.
+  // The Latest Block card reads `newBlockEvent` directly (below) rather than
+  // relying on this refetch — fetchApi dedupes in-flight GETs, so an
+  // in-progress call started before the event would otherwise satisfy the
+  // refetch with stale data and leave the card a block behind.
   useLiveBlobEvent('new_block', () => {
     void refetchLatestBlocks();
   });
@@ -138,8 +139,8 @@ export default function LiveMetrics() {
     [rollingWindows, timeRange]
   );
 
-  const liveStats = latestEvents.stats_update
-    ? transformStatsResponse(latestEvents.stats_update.data)
+  const liveStats = statsUpdateEvent
+    ? transformStatsResponse(statsUpdateEvent.data)
     : undefined;
   const displayStats = liveStats || statsData;
 
@@ -148,17 +149,16 @@ export default function LiveMetrics() {
   // back to the polled block's `maxBlobs` for the "X/Y blobs" descriptor.
   const fetchedLatest = latestBlocks?.data[0];
   const latestBlock = useMemo<Block | undefined>(() => {
-    const liveEvent = latestEvents.new_block;
-    if (!liveEvent) return fetchedLatest;
-    if (fetchedLatest && liveEvent.data.block_number < fetchedLatest.id) {
+    if (!newBlockEvent) return fetchedLatest;
+    if (fetchedLatest && newBlockEvent.data.block_number < fetchedLatest.id) {
       return fetchedLatest;
     }
-    const liveBlock = transformNewBlockData(liveEvent.data);
+    const liveBlock = transformNewBlockData(newBlockEvent.data);
     if (!liveBlock.maxBlobs && fetchedLatest?.maxBlobs) {
       return { ...liveBlock, maxBlobs: fetchedLatest.maxBlobs };
     }
     return liveBlock;
-  }, [latestEvents.new_block, fetchedLatest]);
+  }, [newBlockEvent, fetchedLatest]);
 
   const topL2 = useMemo(
     () => computeTopL2(latestBlocks?.data ?? []),

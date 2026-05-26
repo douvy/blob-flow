@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { useNetwork } from '../hooks/useNetwork';
-import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { transformNewBlockData } from '../lib/api/blocks';
 import DataStateWrapper from './DataStateWrapper';
 import { BlobDetailsContent } from './BlobDetailsContent';
@@ -124,7 +124,7 @@ type SelectionState = { kind: 'default' } | { kind: 'explicit'; blockId: number 
 
 export default function RecentBlocksPanel() {
   const { selectedNetwork } = useNetwork();
-  const { latestEvents } = useBlobWebSocket();
+  const liveBlockEvent = useLatestBlobEvent('new_block');
   const [selection, setSelection] = React.useState<SelectionState>({ kind: 'default' });
   const [networkKey, setNetworkKey] = React.useState(selectedNetwork.apiParam);
 
@@ -141,14 +141,14 @@ export default function RecentBlocksPanel() {
 
   const displayBlocks = React.useMemo<Block[]>(() => {
     const baseBlocks = data?.data ?? [];
-    if (!latestEvents.new_block) return baseBlocks.slice(0, HOMEPAGE_BLOCK_ROWS);
+    if (!liveBlockEvent) return baseBlocks.slice(0, HOMEPAGE_BLOCK_ROWS);
 
-    const liveBlock = transformNewBlockData(latestEvents.new_block.data);
+    const liveBlock = transformNewBlockData(liveBlockEvent.data);
     return [
       liveBlock,
       ...baseBlocks.filter((block) => block.number !== liveBlock.number),
     ].slice(0, HOMEPAGE_BLOCK_ROWS);
-  }, [data, latestEvents.new_block]);
+  }, [data, liveBlockEvent]);
 
   const defaultExpandedId =
     displayBlocks.find((block) => block.blobs.length > 0)?.id ?? displayBlocks[0]?.id ?? null;

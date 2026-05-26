@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { DEFAULT_NETWORK } from '../constants';
-import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { useApiData } from '../hooks/useApiData';
 import { useNetwork } from '../hooks/useNetwork';
 import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
@@ -17,7 +17,7 @@ vi.mock('../hooks/useNetwork', () => ({
 }));
 
 vi.mock('../contexts/LiveDataContext', () => ({
-  useBlobWebSocket: vi.fn(),
+  useLatestBlobEvent: vi.fn(),
 }));
 
 const blob: BlobResponse = {
@@ -49,12 +49,7 @@ describe('MempoolTable', () => {
       setSelectedNetwork: vi.fn(),
       networkOptions: [DEFAULT_NETWORK],
     });
-    vi.mocked(useBlobWebSocket).mockReturnValue({
-      connectionState: 'disconnected',
-      lastEvent: null,
-      latestEvents: {},
-      subscribe: () => () => {},
-    });
+    vi.mocked(useLatestBlobEvent).mockReturnValue(null);
     vi.mocked(useApiData<MempoolResponse>).mockReturnValue({
       data: {
         data: [transformBlobToMempoolTransaction(blob, 0)],

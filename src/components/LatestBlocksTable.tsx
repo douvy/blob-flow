@@ -15,7 +15,7 @@ import {
   getAttributionImageSrc,
   getAttributionInitial,
 } from '../utils';
-import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { transformNewBlockData } from '../lib/api/blocks';
 import { BlobDetailsContent } from './BlobDetailsContent';
 import { BLOCKS_PAGE_LIMIT, BLOCKS_PAGE_SIZE } from '../constants';
@@ -157,7 +157,7 @@ function BlobDetailsRow({ block }: { block: Block }) {
 
 export default function LatestBlocksTable() {
   const { selectedNetwork } = useNetwork();
-  const { latestEvents } = useBlobWebSocket();
+  const liveBlockEvent = useLatestBlobEvent('new_block');
   const [expandedBlockId, setExpandedBlockId] = React.useState<number | null>(null);
   const [page, setPage] = React.useState(1);
   const hasUserSelectedBlockRef = React.useRef(false);
@@ -172,14 +172,14 @@ export default function LatestBlocksTable() {
 
   const mergedBlocks = React.useMemo<Block[]>(() => {
     const baseBlocks = data?.data ?? [];
-    if (!latestEvents.new_block) return baseBlocks;
+    if (!liveBlockEvent) return baseBlocks;
 
-    const liveBlock = transformNewBlockData(latestEvents.new_block.data);
+    const liveBlock = transformNewBlockData(liveBlockEvent.data);
     return [
       liveBlock,
       ...baseBlocks.filter((block) => block.number !== liveBlock.number),
     ].slice(0, BLOCKS_PAGE_LIMIT);
-  }, [data, latestEvents.new_block]);
+  }, [data, liveBlockEvent]);
 
   const totalPages = Math.max(1, Math.ceil(mergedBlocks.length / BLOCKS_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
