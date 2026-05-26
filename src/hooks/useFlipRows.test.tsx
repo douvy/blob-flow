@@ -144,13 +144,23 @@ describe('useFlipRows', () => {
 
     const enterAnim = animations[0];
     const enterFrames = enterAnim.keyframes as Keyframe[];
-    expect(enterFrames[0]).toMatchObject({ opacity: 0, transform: 'translateY(-16px)' });
-    expect(enterFrames[1]).toMatchObject({ opacity: 1, transform: 'translateY(0)' });
+    expect(enterFrames[0]).toMatchObject({ opacity: 0, transform: 'translateY(-10px)' });
+    expect(enterFrames[1]).toMatchObject({ opacity: 0.65, transform: 'translateY(-3px)' });
+    expect(enterFrames[2]).toMatchObject({ opacity: 1, transform: 'translateY(0)' });
+    expect(enterAnim.options).toMatchObject({
+      duration: 1400,
+      easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
+      fill: 'backwards',
+    });
 
     const flipAnim = animations[1];
     const flipFrames = flipAnim.keyframes as Keyframe[];
     expect(flipFrames[0]).toMatchObject({ transform: 'translateY(-30px)' });
     expect(flipFrames[1]).toMatchObject({ transform: 'translateY(0)' });
+    expect(flipAnim.options).toMatchObject({
+      duration: 950,
+      easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
+    });
   });
 
   it('finishes prior FLIP animations before re-measuring', () => {
