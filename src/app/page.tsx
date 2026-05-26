@@ -25,7 +25,7 @@ export default function Home() {
           <MetricsCharts />
         </div>
 
-        <div className="mb-12">
+        <div className="mb-12 lg:w-1/2 lg:pr-6">
           <BlobMarketPanels />
         </div>
 
