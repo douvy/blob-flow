@@ -23,6 +23,7 @@ import { useBlobWebSocket } from '../contexts/LiveDataContext';
 import { transformNewBlockData } from '../lib/api/blocks';
 import { formatRelativeTime } from '../lib/api/core';
 import { DASHBOARD_LATEST_BLOB_LIMIT, LATEST_BLOCK_ROWS } from '../constants';
+import { useFlipRows } from '../hooks/useFlipRows';
 
 function getBlockDetailsId(blockId: number): string {
   return `block-${blockId}-blob-details`;
@@ -199,7 +200,11 @@ function BlobDetailField({
 
 function BlobDetailsRow({ block }: { block: Block }) {
   return (
-    <tr id={getBlockDetailsId(block.id)} className="bg-[#111522]">
+    <tr
+      id={getBlockDetailsId(block.id)}
+      data-row-key={`details-${block.id}`}
+      className="bg-[#111522]"
+    >
       <td colSpan={6} className="p-0">
         <div className="px-4 sm:px-6 py-4 border-t border-dividerBlue/50">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -308,6 +313,8 @@ export default function LatestBlocksTable() {
     undefined,
     selectedNetwork.apiParam
   );
+  const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
+  useFlipRows(tbodyRef, selectedNetwork.apiParam);
   const displayData = React.useMemo<LatestBlocksResponse | undefined>(() => {
     if (!latestEvents.new_block) {
       return data ? { data: data.data.slice(0, LATEST_BLOCK_ROWS) } : undefined;
@@ -426,7 +433,7 @@ export default function LatestBlocksTable() {
                   <th className="hidden lg:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%]">Users</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-divider">
+              <tbody ref={tbodyRef} className="divide-y divide-divider">
                 {displayData.data.map((block: Block) => {
                   const isExpanded = expandedBlockId === block.id;
                   const detailsId = getBlockDetailsId(block.id);
@@ -437,6 +444,7 @@ export default function LatestBlocksTable() {
                   return (
                     <React.Fragment key={block.id}>
                       <tr
+                        data-row-key={`block-${block.id}`}
                         className={`bg-gradient-to-r transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset ${
                           isExpanded
                             ? 'from-[#202538]/80 to-[#242731]/70'
