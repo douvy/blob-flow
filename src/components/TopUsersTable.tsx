@@ -43,6 +43,7 @@ const COLUMN_WIDTHS: Record<string, string> = {
   dataCount: 'w-1/3',
   percentage: 'w-1/3',
 };
+const EMPTY_USERS: User[] = [];
 
 function getUserColor(userName: string): string {
   switch (userName.toLowerCase()) {
@@ -129,9 +130,11 @@ export default function TopUsersTable() {
     () => api.getTopUsers(10, selectedNetwork.apiParam),
     ['top-users', selectedNetwork.apiParam, 10]
   );
-  const displayData = usersUpdateEvent
-    ? transformUserResponses(usersUpdateEvent.data)
-    : data;
+  const displayData = React.useMemo(
+    () => (usersUpdateEvent ? transformUserResponses(usersUpdateEvent.data) : data),
+    [data, usersUpdateEvent]
+  );
+  const tableData = displayData?.data ?? EMPTY_USERS;
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   useFlipRows(tbodyRef, selectedNetwork.apiParam);
 
@@ -191,7 +194,7 @@ export default function TopUsersTable() {
   );
 
   const table = useReactTable({
-    data: displayData?.data ?? [],
+    data: tableData,
     columns,
     state: {
       sorting,
