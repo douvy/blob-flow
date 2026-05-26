@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { ChevronRight } from 'lucide-react';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { useNetwork } from '../hooks/useNetwork';
@@ -181,45 +182,47 @@ function BlockRow({
         aria-label={`View blob details for block ${block.number}`}
         onClick={onToggle}
         onKeyDown={onKeyDown}
-        className="grid grid-cols-2 sm:grid-cols-[1.25rem_minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3 px-3 py-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset rounded-md"
+        className="flex items-center gap-3 px-3 py-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset rounded-md"
       >
-        <i
-          className={`hidden sm:inline fa-regular fa-chevron-right text-[10px] text-[#6e7787] transition-transform ${
+        <ChevronRight
+          className={`h-3 w-3 shrink-0 text-[#6e7787] transition-transform ${
             isExpanded ? 'rotate-90' : ''
           }`}
           aria-hidden="true"
         />
-        <div className="min-w-0">
-          <div className="text-[11px] text-[#8f9aad]">Block</div>
-          <div className="truncate text-sm font-medium text-white">
-            <Link
-              href={`/block/${block.number}`}
-              className="text-blue hover:underline"
-              onClick={(event) => event.stopPropagation()}
-            >
-              {Number(block.number).toLocaleString()}
-            </Link>
+        <div className="grid min-w-0 flex-1 grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] text-[#8f9aad]">Block</div>
+            <div className="truncate text-sm font-medium text-white">
+              <Link
+                href={`/block/${block.number}`}
+                className="text-blue hover:underline"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {Number(block.number).toLocaleString()}
+              </Link>
+            </div>
           </div>
-        </div>
-        <div className="min-w-0">
-          <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-[#8f9aad]">
-            <span>{fillLabel} blobs</span>
-            <span>{utilization}</span>
+          <div className="min-w-0">
+            <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-[#8f9aad]">
+              <span>{fillLabel} blobs</span>
+              <span>{utilization}</span>
+            </div>
+            <FullnessBar
+              percent={usage.utilizationPercent}
+              targetPercent={usage.targetPercent}
+              state={usage.state}
+            />
           </div>
-          <FullnessBar
-            percent={usage.utilizationPercent}
-            targetPercent={usage.targetPercent}
-            state={usage.state}
-          />
-        </div>
-        <div className="min-w-0">
-          <div className="text-[11px] text-[#8f9aad]">Base fee</div>
-          <div className="truncate text-sm font-medium text-white">{formatBaseFee(block)}</div>
-        </div>
-        <div className="min-w-0">
-          <div className="text-[11px] text-[#8f9aad]">State</div>
-          <div className={`truncate text-sm font-medium ${usage.state.textClass}`}>
-            {usage.state.label}
+          <div className="min-w-0">
+            <div className="text-[11px] text-[#8f9aad]">Base fee</div>
+            <div className="truncate text-sm font-medium text-white">{formatBaseFee(block)}</div>
+          </div>
+          <div className="min-w-0">
+            <div className="text-[11px] text-[#8f9aad]">State</div>
+            <div className={`truncate text-sm font-medium ${usage.state.textClass}`}>
+              {usage.state.label}
+            </div>
           </div>
         </div>
       </div>
@@ -288,12 +291,15 @@ export default function RecentBlocksPanel() {
         {[...Array(HOMEPAGE_BLOCK_ROWS)].map((_, index) => (
           <div
             key={index}
-            className="grid grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3 rounded-md border border-divider/70 bg-[#111522]/70 px-3 py-3 animate-pulse"
+            className="flex items-center gap-3 rounded-md border border-divider/70 bg-[#111522]/70 px-3 py-3 animate-pulse"
           >
-            <div className="h-5 bg-[#202538] rounded w-20" />
-            <div className="h-5 bg-[#202538] rounded" />
-            <div className="h-5 bg-[#202538] rounded w-24" />
-            <div className="h-5 bg-[#202538] rounded w-20" />
+            <div className="h-3 w-3 shrink-0 rounded bg-[#202538]" />
+            <div className="grid min-w-0 flex-1 grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3">
+              <div className="h-5 bg-[#202538] rounded w-20" />
+              <div className="h-5 bg-[#202538] rounded" />
+              <div className="h-5 bg-[#202538] rounded w-24" />
+              <div className="h-5 bg-[#202538] rounded w-20" />
+            </div>
           </div>
         ))}
       </div>
