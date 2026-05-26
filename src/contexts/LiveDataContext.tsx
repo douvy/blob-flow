@@ -27,7 +27,6 @@ type LiveBlobEventHandler = (event: LiveBlobWebSocketEvent) => void;
 
 interface LiveDataContextValue {
   connectionState: BlobWebSocketConnectionState;
-  activitySequence: number;
   lastEvent: LiveBlobWebSocketEvent | null;
   latestEvents: LatestBlobWebSocketEvents;
   subscribe: (handler: LiveBlobEventHandler) => () => void;
@@ -41,7 +40,6 @@ interface LiveDataProviderProps {
 
 const defaultContextValue: LiveDataContextValue = {
   connectionState: 'disconnected',
-  activitySequence: 0,
   lastEvent: null,
   latestEvents: {},
   subscribe: () => () => {},
@@ -57,7 +55,6 @@ export function LiveDataProvider({
   const handlersRef = useRef(new Set<LiveBlobEventHandler>());
   const [connectionState, setConnectionState] =
     useState<BlobWebSocketConnectionState>('connecting');
-  const [activitySequence, setActivitySequence] = useState(0);
   const [lastEvent, setLastEvent] = useState<LiveBlobWebSocketEvent | null>(null);
   const [latestEvents, setLatestEvents] = useState<LatestBlobWebSocketEvents>({});
   const subscriptionKey = normalizeSubscriptions(subscriptions).join(',');
@@ -82,9 +79,6 @@ export function LiveDataProvider({
       url: buildBlobWebSocketUrl(network),
       subscriptions: normalizedSubscriptions,
       onConnectionStateChange: setConnectionState,
-      onActivity: () => {
-        setActivitySequence((currentSequence) => currentSequence + 1);
-      },
       onEvent: (event) => {
         setLastEvent(event);
         setLatestEvents((currentEvents) => ({
@@ -112,12 +106,11 @@ export function LiveDataProvider({
   const value = useMemo<LiveDataContextValue>(
     () => ({
       connectionState,
-      activitySequence,
       lastEvent,
       latestEvents,
       subscribe,
     }),
-    [activitySequence, connectionState, lastEvent, latestEvents, subscribe]
+    [connectionState, lastEvent, latestEvents, subscribe]
   );
 
   return <LiveDataContext.Provider value={value}>{children}</LiveDataContext.Provider>;
