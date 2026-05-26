@@ -90,25 +90,25 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
                   <div className="text-xs text-[#8a93a5] mt-1 font-sans whitespace-nowrap">blob #{blob.blob_index}</div>
                   {showBlock && (
                     <div className="text-xs text-[#8a93a5] mt-1 font-sans sm:hidden">
-                      block {blob.block_number}
+                      block{' '}
+                      <Link
+                        href={`/block/${blob.block_number}`}
+                        className="text-blue hover:underline"
+                      >
+                        {blob.block_number}
+                      </Link>
                     </div>
                   )}
                   <div className="text-xs text-[#8a93a5] mt-1 font-sans whitespace-nowrap lg:hidden">{formatRelativeTime(blob.timestamp)}</div>
                 </td>
                 {showBlock && (
                   <td className={`hidden sm:table-cell py-3 px-3 sm:px-4 text-sm text-white ${blockWidth}`}>
-                    {blob.block_url ? (
-                      <a
-                        href={blob.block_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue hover:underline"
-                      >
-                        {blob.block_number}
-                      </a>
-                    ) : (
-                      <span>{blob.block_number}</span>
-                    )}
+                    <Link
+                      href={`/block/${blob.block_number}`}
+                      className="text-blue hover:underline"
+                    >
+                      {blob.block_number}
+                    </Link>
                   </td>
                 )}
                 <td className="py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap">

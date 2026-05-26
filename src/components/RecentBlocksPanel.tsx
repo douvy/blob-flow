@@ -80,19 +80,13 @@ function BlockRow({
         <div className="min-w-0">
           <div className="text-[11px] text-[#8f9aad]">Block</div>
           <div className="truncate text-sm font-medium text-white">
-            {block.blockUrl ? (
-              <a
-                href={block.blockUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue hover:underline"
-                onClick={(event) => event.stopPropagation()}
-              >
-                {Number(block.number).toLocaleString()}
-              </a>
-            ) : (
-              Number(block.number).toLocaleString()
-            )}
+            <Link
+              href={`/block/${block.number}`}
+              className="text-blue hover:underline"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {Number(block.number).toLocaleString()}
+            </Link>
           </div>
         </div>
         <div className="min-w-0">

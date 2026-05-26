@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { Block, BlobResponse, LatestBlocksResponse } from '../types';
@@ -328,19 +329,13 @@ export default function LatestBlocksTable() {
                               }`}
                               aria-hidden="true"
                             />
-                            {block.blockUrl ? (
-                              <a
-                                href={block.blockUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue hover:underline"
-                                onClick={(event) => event.stopPropagation()}
-                              >
-                                {Number(block.number).toLocaleString()}
-                              </a>
-                            ) : (
-                              <span>{Number(block.number).toLocaleString()}</span>
-                            )}
+                            <Link
+                              href={`/block/${block.number}`}
+                              className="text-blue hover:underline"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              {Number(block.number).toLocaleString()}
+                            </Link>
                           </div>
                           <div className="text-xs text-[#8a93a5] mt-1 font-normal whitespace-nowrap">{block.timestamp}</div>
                           <div className="text-xs text-[#8a93a5] mt-1 font-normal sm:hidden">{baseFee}</div>

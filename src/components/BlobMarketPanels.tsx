@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useLiveBlobEvent } from '@/contexts/LiveDataContext';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
@@ -147,7 +148,12 @@ function CurrentMarketPanel({ pricing }: { pricing: BlobPricing }) {
       {latestBlock && (
         <div className="mt-5 border-t border-divider pt-5">
           <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-            <span className="text-white">Block {latestBlock.blockNumber.toLocaleString()}</span>
+            <Link
+              href={`/block/${latestBlock.blockNumber}`}
+              className="text-blue hover:underline"
+            >
+              Block {latestBlock.blockNumber.toLocaleString()}
+            </Link>
             <span className="text-[#8f9aad]">{utilizationPercent} full</span>
           </div>
           <FullnessBar percent={latestBlock.utilizationPercent} isAboveTarget={latestBlock.isAboveTarget} />
