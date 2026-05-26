@@ -6,11 +6,20 @@ import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { selectRollingWindow, transformStatsWindows } from '../lib/chartAggregation';
 import { transformStatsResponse } from '../lib/api/stats';
-import { BackendStatsWindowsResponse, RollingWindowDataPoint, StatsResponse } from '../types';
+import { transformNewBlockData } from '../lib/api/blocks';
+import {
+  BackendStatsWindowsResponse,
+  Block,
+  LatestBlocksResponse,
+  RollingWindowDataPoint,
+  StatsResponse,
+} from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import { useTimeRange } from '../contexts/TimeRangeContext';
-import { useBlobWebSocket } from '../contexts/LiveDataContext';
+import { useBlobWebSocket, useLiveBlobEvent } from '../contexts/LiveDataContext';
+
+const LATEST_BLOCKS_SAMPLE = 30;
 
 function formatCompactNumber(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -25,11 +34,54 @@ function formatGwei(value: number): string {
   return `${value.toFixed(2)} Gwei`;
 }
 
-function formatEth(value: number): string {
-  if (value === 0) return '0 ETH';
-  if (value < 0.000001) return `${value.toExponential(1)} ETH`;
-  if (value < 0.001) return `${value.toFixed(6)} ETH`;
-  return `${value.toFixed(4)} ETH`;
+interface TopL2Stat {
+  name: string;
+  share: number;
+  blocksSampled: number;
+}
+
+/**
+ * Aggregate `user_attribution` across the supplied blocks to find the dominant L2.
+ *
+ * Only blocks whose joined blob detail covers the entire pricing `blobCount`
+ * are included — `/blob/latest` may return fewer records than the pricing
+ * block reports for that height, and counting that partial set would skew the
+ * share while still claiming to cover the full sample. Partial blocks are
+ * dropped from the sample count instead of being misrepresented.
+ */
+function computeTopL2(blocks: Block[]): TopL2Stat | null {
+  const completeBlocks = blocks.filter(
+    (block) => block.blobs.length >= block.blobCount
+  );
+  if (completeBlocks.length === 0) return null;
+
+  const counts = new Map<string, number>();
+  let total = 0;
+
+  for (const block of completeBlocks) {
+    for (const blob of block.blobs) {
+      const name = blob.user_attribution || 'Unknown';
+      counts.set(name, (counts.get(name) || 0) + 1);
+      total += 1;
+    }
+  }
+
+  if (total === 0) return null;
+
+  let topName = '';
+  let topCount = 0;
+  counts.forEach((count, name) => {
+    if (count > topCount) {
+      topCount = count;
+      topName = name;
+    }
+  });
+
+  return {
+    name: topName,
+    share: (topCount / total) * 100,
+    blocksSampled: completeBlocks.length,
+  };
 }
 
 export default function LiveMetrics() {
@@ -38,18 +90,18 @@ export default function LiveMetrics() {
   const { latestEvents } = useBlobWebSocket();
   const network = selectedNetwork.apiParam;
 
-  const fetchStats = useCallback(
-    () => api.getStats(network),
-    [network]
-  );
-
+  const fetchStats = useCallback(() => api.getStats(network), [network]);
   const fetchStatsWindows = useCallback(
     () => api.getStatsWindows(undefined, network),
     [network]
   );
+  const fetchLatestBlocks = useCallback(
+    () => api.getLatestBlocks(LATEST_BLOCKS_SAMPLE, network),
+    [network]
+  );
 
   const {
-    data,
+    data: statsData,
     isLoading: statsLoading,
     error: statsError,
   } = useApiData<StatsResponse>(fetchStats, undefined, network);
@@ -59,6 +111,22 @@ export default function LiveMetrics() {
     isLoading: windowsLoading,
     error: windowsError,
   } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, undefined, network);
+
+  const {
+    data: latestBlocks,
+    isLoading: blocksLoading,
+    error: blocksError,
+    refetch: refetchLatestBlocks,
+  } = useApiData<LatestBlocksResponse>(fetchLatestBlocks, undefined, network);
+
+  // Refresh the rolling sample used for Top L2 whenever a new block lands.
+  // The Latest Block card reads `latestEvents.new_block` directly (below)
+  // rather than relying on this refetch — fetchApi dedupes in-flight GETs,
+  // so an in-progress call started before the event would otherwise satisfy
+  // the refetch with stale data and leave the card a block behind.
+  useLiveBlobEvent('new_block', () => {
+    void refetchLatestBlocks();
+  });
 
   const rollingWindows = useMemo(
     () => (statsWindows ? transformStatsWindows(statsWindows) : []),
@@ -70,51 +138,76 @@ export default function LiveMetrics() {
     [rollingWindows, timeRange]
   );
 
-  const liveStatsData = latestEvents.stats_update
+  const liveStats = latestEvents.stats_update
     ? transformStatsResponse(latestEvents.stats_update.data)
     : undefined;
-  const displayData = liveStatsData || data;
+  const displayStats = liveStats || statsData;
 
-  const getMetricsFromData = (
-    statsData: StatsResponse,
-    window: RollingWindowDataPoint
-  ) => {
-    const stats = statsData.data;
+  // Prefer the WebSocket-delivered block when it is at least as new as the
+  // most recently fetched one. The WS payload omits pricing params, so fall
+  // back to the polled block's `maxBlobs` for the "X/Y blobs" descriptor.
+  const fetchedLatest = latestBlocks?.data[0];
+  const latestBlock = useMemo<Block | undefined>(() => {
+    const liveEvent = latestEvents.new_block;
+    if (!liveEvent) return fetchedLatest;
+    if (fetchedLatest && liveEvent.data.block_number < fetchedLatest.id) {
+      return fetchedLatest;
+    }
+    const liveBlock = transformNewBlockData(liveEvent.data);
+    if (!liveBlock.maxBlobs && fetchedLatest?.maxBlobs) {
+      return { ...liveBlock, maxBlobs: fetchedLatest.maxBlobs };
+    }
+    return liveBlock;
+  }, [latestEvents.new_block, fetchedLatest]);
 
-    return [
-      {
-        title: 'Avg Base Fee',
-        value: formatGwei(window.averageBaseFeeGwei),
-        trend: 'neutral' as const,
-        description: `Median ${formatGwei(window.medianBaseFeeGwei)} / p95 ${formatGwei(window.p95BaseFeeGwei)}`,
-        icon: 'fa-regular fa-money-bills'
-      },
-      {
-        title: 'Rolling Blobs',
-        value: formatCompactNumber(window.totalBlobs),
-        trend: 'neutral' as const,
-        description: `${window.label} rolling window`,
-        icon: 'fa-regular fa-cube'
-      },
-      {
-        title: 'Unique Senders',
-        value: formatCompactNumber(window.uniqueSenders),
-        trend: 'neutral' as const,
-        description: `Avg util ${window.averageUtilizationPct.toFixed(1)}%`,
-        icon: 'fa-regular fa-users'
-      },
-      {
-        title: 'Total Blob Cost',
-        value: formatEth(window.totalCostEth),
-        trend: 'neutral' as const,
-        description: `Pending: ${stats.pendingBlobsCount.toLocaleString()} blobs`,
-        icon: 'fa-regular fa-scale-unbalanced-flip'
-      }
-    ];
-  };
+  const topL2 = useMemo(
+    () => computeTopL2(latestBlocks?.data ?? []),
+    [latestBlocks]
+  );
 
-  const isLoading = statsLoading || windowsLoading;
-  const error = statsError || windowsError;
+  const getMetrics = (
+    stats: StatsResponse,
+    window: RollingWindowDataPoint,
+    block: Block | undefined,
+    l2: TopL2Stat | null,
+  ) => [
+    {
+      title: 'Avg Base Fee',
+      value: formatGwei(window.averageBaseFeeGwei),
+      trend: 'neutral' as const,
+      description: `Median ${formatGwei(window.medianBaseFeeGwei)} · p95 ${formatGwei(window.p95BaseFeeGwei)}`,
+      icon: 'fa-regular fa-money-bills',
+    },
+    {
+      title: 'Latest Block',
+      value: block ? `#${block.id.toLocaleString()}` : '—',
+      trend: 'neutral' as const,
+      description: block
+        ? `${block.blobCount}${block.maxBlobs ? `/${block.maxBlobs}` : ''} blobs · ${block.timestamp}`
+        : 'Waiting for next block',
+      icon: 'fa-regular fa-cube',
+    },
+    {
+      title: 'Pending Blobs',
+      value: formatCompactNumber(stats.data.pendingBlobsCount),
+      trend: 'neutral' as const,
+      description: `${formatCompactNumber(window.uniqueSenders)} senders · ${window.label}`,
+      icon: 'fa-regular fa-hourglass-half',
+    },
+    {
+      title: 'Top L2',
+      value: l2 ? l2.name : '—',
+      trend: 'neutral' as const,
+      description: l2
+        ? `${l2.share.toFixed(0)}% of last ${l2.blocksSampled} blocks`
+        : 'No attributed blobs yet',
+      icon: 'fa-regular fa-layer-group',
+    },
+  ];
+
+  const isLoading = statsLoading || windowsLoading || blocksLoading;
+  const headlineError = statsError || windowsError;
+  const haveHeadline = Boolean(displayStats && selectedWindow);
 
   const loadingComponent = (
     <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -133,13 +226,13 @@ export default function LiveMetrics() {
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Live Metrics</h2>
 
       <DataStateWrapper
-        isLoading={isLoading && (!displayData || !selectedWindow)}
-        error={displayData && selectedWindow ? null : error}
+        isLoading={isLoading && !haveHeadline}
+        error={haveHeadline ? null : headlineError || blocksError}
         loadingComponent={loadingComponent}
       >
-        {displayData && selectedWindow && (
+        {displayStats && selectedWindow && (
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {getMetricsFromData(displayData, selectedWindow).map((metric, index) => (
+            {getMetrics(displayStats, selectedWindow, latestBlock, topL2).map((metric, index) => (
               <MetricCard
                 key={index}
                 title={metric.title}
@@ -152,6 +245,14 @@ export default function LiveMetrics() {
           </div>
         )}
       </DataStateWrapper>
+
+      {haveHeadline && blocksError && (
+        <p className="mt-3 text-xs text-red-300">
+          Latest Block and Top L2 data unavailable:{' '}
+          {blocksError.message}
+          {latestBlocks ? '. Showing the last successful sample.' : '.'}
+        </p>
+      )}
     </section>
   );
 }
