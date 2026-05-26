@@ -13,7 +13,7 @@ import {
   getAttributionInitial,
   truncateAddress,
 } from '../utils';
-import { formatRelativeTime } from '../lib/api/core';
+import { RelativeTime } from './RelativeTime';
 
 function truncateTxHash(hash: string): string {
   if (hash.length <= 14) return hash;
@@ -144,7 +144,7 @@ export function BlobDetailsContent({ block }: { block: Block }) {
                     {maxFee}
                   </BlobDetailField>
                   <BlobDetailField label="Headroom">{headroom}</BlobDetailField>
-                  <BlobDetailField label="Time">{formatRelativeTime(blob.timestamp)}</BlobDetailField>
+                  <BlobDetailField label="Time"><RelativeTime timestamp={blob.timestamp} /></BlobDetailField>
                   <BlobDetailField label="Status">
                     {blob.confirmed ? 'Confirmed' : 'Pending'}
                   </BlobDetailField>

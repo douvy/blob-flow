@@ -17,6 +17,7 @@ import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
 import { useFlipRows } from '../hooks/useFlipRows';
 import MempoolBlobDetailsModal from './MempoolBlobDetailsModal';
+import { RelativeTime } from './RelativeTime';
 
 export default function MempoolTable() {
   const { selectedNetwork } = useNetwork();
@@ -144,7 +145,7 @@ export default function MempoolTable() {
                         >
                           {truncateTxHash(tx.txHash)}
                         </button>
-                        <div className="text-xs text-[#8a93a5] mt-1 font-sans md:hidden">{tx.timeInMempool}</div>
+                        <div className="text-xs text-[#8a93a5] mt-1 font-sans md:hidden"><RelativeTime timestamp={tx.timeInMempool} /></div>
                       </td>
                       <td className="py-3 px-3 sm:px-4 text-sm text-white min-w-0">
                         <div className="font-mono whitespace-nowrap" title={tx.fromAddressFull}>
@@ -191,7 +192,7 @@ export default function MempoolTable() {
                         <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">max {tx.maxCost}</div>
                         <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap sm:hidden">{tx.feeHeadroom} room</div>
                       </td>
-                      <td className="hidden md:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap">{tx.timeInMempool}</td>
+                      <td className="hidden md:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap"><RelativeTime timestamp={tx.timeInMempool} /></td>
                     </tr>
                   );
                 })}

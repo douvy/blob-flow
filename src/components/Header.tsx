@@ -85,7 +85,7 @@ export default function Header() {
   // Lock scrolling when the mobile menu is open
   useScrollLock(isMobileMenuOpen);
 
-  const timeRangeOptions: TimeRange[] = ['24h', '7d', '30d', 'All'];
+  const timeRangeOptions: TimeRange[] = ['1h', '24h', '7d', '30d', 'All'];
 
   const handleNetworkChange = (network: typeof DEFAULT_NETWORK) => {
     setSelectedNetwork(network);
