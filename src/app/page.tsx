@@ -16,6 +16,10 @@ export default function Home() {
     <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
       <Header />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="mb-12">
+          <LiveMetrics />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start mb-12">
           <RecentBlocksPanel />
           <MetricsCharts />
@@ -23,10 +27,6 @@ export default function Home() {
 
         <div className="mb-12">
           <BlobMarketPanels />
-        </div>
-
-        <div className="mb-12">
-          <LiveMetrics />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
