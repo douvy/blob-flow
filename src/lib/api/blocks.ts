@@ -7,7 +7,7 @@ import {
     LatestBlocksResponse,
     NewBlockData,
 } from '../../types';
-import { fetchApi, formatRelativeTime } from './core';
+import { fetchApi } from './core';
 
 function getAttributions(blobs: BlobResponse[]): string[] {
     const attributions: string[] = Array.from(new Set(
@@ -55,7 +55,7 @@ export function transformNewBlockData(
         utilizationPercent,
         isFull: pricingBlock?.is_full ?? false,
         isAboveTarget: pricingBlock?.is_above_target ?? false,
-        timestamp: formatRelativeTime(blockData.timestamp),
+        timestamp: blockData.timestamp,
         attribution: getAttributions(blockData.blobs),
         blobs: blockData.blobs
     };

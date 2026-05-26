@@ -20,6 +20,7 @@ import { transformNewBlockData } from '../lib/api/blocks';
 import { BlobDetailsContent } from './BlobDetailsContent';
 import { BLOCKS_PAGE_LIMIT, BLOCKS_PAGE_SIZE } from '../constants';
 import { useFlipRows } from '../hooks/useFlipRows';
+import { RelativeTime } from './RelativeTime';
 
 function getBlockDetailsId(blockId: number): string {
   return `block-${blockId}-blob-details`;
@@ -342,7 +343,7 @@ export default function LatestBlocksTable() {
                               <span>{Number(block.number).toLocaleString()}</span>
                             )}
                           </div>
-                          <div className="text-xs text-[#8a93a5] mt-1 font-normal whitespace-nowrap">{block.timestamp}</div>
+                          <div className="text-xs text-[#8a93a5] mt-1 font-normal whitespace-nowrap"><RelativeTime timestamp={block.timestamp} /></div>
                           <div className="text-xs text-[#8a93a5] mt-1 font-normal sm:hidden">{baseFee}</div>
                         </td>
                         <td className="py-3 px-3 sm:px-4 text-sm text-white">

@@ -117,7 +117,7 @@ describe('api/blocks', () => {
     expect(result.data[0]).toMatchObject({
       number: '100',
       blobCount: 2,
-      timestamp: '1 min ago',
+      timestamp: '2026-01-01T00:00:00.000Z',
       blockUrl: 'https://etherscan.io/block/100',
       baseFeeGwei: '0.25',
       utilizationPercent: 33.33,

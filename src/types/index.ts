@@ -150,6 +150,7 @@ export interface Block {
   utilizationPercent: number;
   isFull: boolean;
   isAboveTarget: boolean;
+  /** ISO-8601 timestamp; formatted for display via `<RelativeTime>`. */
   timestamp: string;
   attribution: string[];
   blobs: BlobResponse[];
@@ -178,6 +179,7 @@ export interface MempoolTransaction {
   realizedCost: string;
   maxCost: string;
   estimatedCost: string;
+  /** ISO-8601 timestamp of first-seen; formatted for display via `<RelativeTime>`. */
   timeInMempool: string;
   rawBlob: BlobResponse;
 }
