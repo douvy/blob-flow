@@ -6,7 +6,7 @@ import {
     MempoolResponse,
     MempoolTransaction
 } from '../../types';
-import { fetchApi, formatRelativeTime, truncateAddress } from './core';
+import { fetchApi, truncateAddress } from './core';
 import {
     formatBlobFee,
     formatBlobTotalCost,
@@ -39,7 +39,7 @@ export function transformBlobToMempoolTransaction(blob: BlobResponse, index: num
         realizedCost,
         maxCost: formatBlobWeiCost(blob.max_cost_wei),
         estimatedCost: realizedCost,
-        timeInMempool: formatRelativeTime(blob.timestamp),
+        timeInMempool: blob.timestamp,
         rawBlob: blob,
     };
 }

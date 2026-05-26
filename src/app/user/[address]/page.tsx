@@ -23,7 +23,7 @@ import {
   getBlobCount,
   truncateAddress,
 } from '@/utils';
-import { formatRelativeTime } from '@/lib/api/core';
+import { RelativeTime } from '@/components/RelativeTime';
 
 function truncateTxHash(hash: string): string {
   if (hash.length <= 14) return hash;
@@ -90,25 +90,25 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
                   <div className="text-xs text-[#8a93a5] mt-1 font-sans whitespace-nowrap">blob #{blob.blob_index}</div>
                   {showBlock && (
                     <div className="text-xs text-[#8a93a5] mt-1 font-sans sm:hidden">
-                      block {blob.block_number}
-                    </div>
-                  )}
-                  <div className="text-xs text-[#8a93a5] mt-1 font-sans whitespace-nowrap lg:hidden">{formatRelativeTime(blob.timestamp)}</div>
-                </td>
-                {showBlock && (
-                  <td className={`hidden sm:table-cell py-3 px-3 sm:px-4 text-sm text-white ${blockWidth}`}>
-                    {blob.block_url ? (
-                      <a
-                        href={blob.block_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      block{' '}
+                      <Link
+                        href={`/block/${blob.block_number}`}
                         className="text-blue hover:underline"
                       >
                         {blob.block_number}
-                      </a>
-                    ) : (
-                      <span>{blob.block_number}</span>
-                    )}
+                      </Link>
+                    </div>
+                  )}
+                  <div className="text-xs text-[#8a93a5] mt-1 font-sans whitespace-nowrap lg:hidden"><RelativeTime timestamp={blob.timestamp} /></div>
+                </td>
+                {showBlock && (
+                  <td className={`hidden sm:table-cell py-3 px-3 sm:px-4 text-sm text-white ${blockWidth}`}>
+                    <Link
+                      href={`/block/${blob.block_number}`}
+                      className="text-blue hover:underline"
+                    >
+                      {blob.block_number}
+                    </Link>
                   </td>
                 )}
                 <td className="py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap">
@@ -126,7 +126,7 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
                   <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">{headroom} room</div>
                   <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap md:hidden">{baseFee}</div>
                 </td>
-                <td className="hidden lg:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap">{formatRelativeTime(blob.timestamp)}</td>
+                <td className="hidden lg:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap"><RelativeTime timestamp={blob.timestamp} /></td>
               </tr>
             );
           })}
@@ -251,7 +251,7 @@ export default function UserDetailPage() {
                 </div>
                 <div className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
                   <div className="text-xs text-[#6e7787] uppercase tracking-wider mb-1">Last Active</div>
-                  <div className="text-xl text-white font-medium">{formatRelativeTime(user.last_timestamp)}</div>
+                  <div className="text-xl text-white font-medium"><RelativeTime timestamp={user.last_timestamp} /></div>
                 </div>
               </div>
             </div>

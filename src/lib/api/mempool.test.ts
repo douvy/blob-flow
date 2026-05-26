@@ -62,7 +62,7 @@ describe('api/mempool', () => {
       blobCount: 2,
       maxFeeGwei: '1 Gwei',
       feeHeadroom: '99.6%',
-      timeInMempool: '5 min ago',
+      timeInMempool: '2026-01-01T00:00:00.000Z',
       rawBlob: expect.objectContaining({
         tx_hash: '0xabc',
         from_address: '0x1234567890abcdef',

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { Block, BlobResponse, LatestBlocksResponse } from '../types';
@@ -20,6 +21,7 @@ import { transformNewBlockData } from '../lib/api/blocks';
 import { BlobDetailsContent } from './BlobDetailsContent';
 import { BLOCKS_PAGE_LIMIT, BLOCKS_PAGE_SIZE } from '../constants';
 import { useFlipRows } from '../hooks/useFlipRows';
+import { RelativeTime } from './RelativeTime';
 
 function getBlockDetailsId(blockId: number): string {
   return `block-${blockId}-blob-details`;
@@ -328,21 +330,15 @@ export default function LatestBlocksTable() {
                               }`}
                               aria-hidden="true"
                             />
-                            {block.blockUrl ? (
-                              <a
-                                href={block.blockUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue hover:underline"
-                                onClick={(event) => event.stopPropagation()}
-                              >
-                                {Number(block.number).toLocaleString()}
-                              </a>
-                            ) : (
-                              <span>{Number(block.number).toLocaleString()}</span>
-                            )}
+                            <Link
+                              href={`/block/${block.number}`}
+                              className="text-blue hover:underline"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              {Number(block.number).toLocaleString()}
+                            </Link>
                           </div>
-                          <div className="text-xs text-[#8a93a5] mt-1 font-normal whitespace-nowrap">{block.timestamp}</div>
+                          <div className="text-xs text-[#8a93a5] mt-1 font-normal whitespace-nowrap"><RelativeTime timestamp={block.timestamp} /></div>
                           <div className="text-xs text-[#8a93a5] mt-1 font-normal sm:hidden">{baseFee}</div>
                         </td>
                         <td className="py-3 px-3 sm:px-4 text-sm text-white">
