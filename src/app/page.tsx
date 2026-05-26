@@ -17,15 +17,15 @@ export default function Home() {
       <Header />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="mb-12">
+          <LiveMetrics />
+        </div>
+
+        <div className="mb-12">
           <LatestBlocksTable />
         </div>
 
         <div className="mb-12">
           <BlobMarketPanels />
-        </div>
-
-        <div className="mb-12">
-          <LiveMetrics />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
