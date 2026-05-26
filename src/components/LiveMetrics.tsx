@@ -6,6 +6,7 @@ import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { selectRollingWindow, transformStatsWindows } from '../lib/chartAggregation';
 import { transformStatsResponse } from '../lib/api/stats';
+import { transformNewBlockData } from '../lib/api/blocks';
 import {
   BackendStatsWindowsResponse,
   Block,
@@ -39,11 +40,25 @@ interface TopL2Stat {
   blocksSampled: number;
 }
 
+/**
+ * Aggregate `user_attribution` across the supplied blocks to find the dominant L2.
+ *
+ * Only blocks whose joined blob detail covers the entire pricing `blobCount`
+ * are included — `/blob/latest` may return fewer records than the pricing
+ * block reports for that height, and counting that partial set would skew the
+ * share while still claiming to cover the full sample. Partial blocks are
+ * dropped from the sample count instead of being misrepresented.
+ */
 function computeTopL2(blocks: Block[]): TopL2Stat | null {
+  const completeBlocks = blocks.filter(
+    (block) => block.blobs.length >= block.blobCount
+  );
+  if (completeBlocks.length === 0) return null;
+
   const counts = new Map<string, number>();
   let total = 0;
 
-  for (const block of blocks) {
+  for (const block of completeBlocks) {
     for (const blob of block.blobs) {
       const name = blob.user_attribution || 'Unknown';
       counts.set(name, (counts.get(name) || 0) + 1);
@@ -65,7 +80,7 @@ function computeTopL2(blocks: Block[]): TopL2Stat | null {
   return {
     name: topName,
     share: (topCount / total) * 100,
-    blocksSampled: blocks.length,
+    blocksSampled: completeBlocks.length,
   };
 }
 
@@ -104,6 +119,11 @@ export default function LiveMetrics() {
     refetch: refetchLatestBlocks,
   } = useApiData<LatestBlocksResponse>(fetchLatestBlocks, undefined, network);
 
+  // Refresh the rolling sample used for Top L2 whenever a new block lands.
+  // The Latest Block card reads `latestEvents.new_block` directly (below)
+  // rather than relying on this refetch — fetchApi dedupes in-flight GETs,
+  // so an in-progress call started before the event would otherwise satisfy
+  // the refetch with stale data and leave the card a block behind.
   useLiveBlobEvent('new_block', () => {
     void refetchLatestBlocks();
   });
@@ -123,7 +143,22 @@ export default function LiveMetrics() {
     : undefined;
   const displayStats = liveStats || statsData;
 
-  const latestBlock = latestBlocks?.data[0];
+  // Prefer the WebSocket-delivered block when it is at least as new as the
+  // most recently fetched one. The WS payload omits pricing params, so fall
+  // back to the polled block's `maxBlobs` for the "X/Y blobs" descriptor.
+  const fetchedLatest = latestBlocks?.data[0];
+  const latestBlock = useMemo<Block | undefined>(() => {
+    const liveEvent = latestEvents.new_block;
+    if (!liveEvent) return fetchedLatest;
+    if (fetchedLatest && liveEvent.data.block_number < fetchedLatest.id) {
+      return fetchedLatest;
+    }
+    const liveBlock = transformNewBlockData(liveEvent.data);
+    if (!liveBlock.maxBlobs && fetchedLatest?.maxBlobs) {
+      return { ...liveBlock, maxBlobs: fetchedLatest.maxBlobs };
+    }
+    return liveBlock;
+  }, [latestEvents.new_block, fetchedLatest]);
 
   const topL2 = useMemo(
     () => computeTopL2(latestBlocks?.data ?? []),
@@ -171,8 +206,8 @@ export default function LiveMetrics() {
   ];
 
   const isLoading = statsLoading || windowsLoading || blocksLoading;
-  const error = statsError || windowsError || blocksError;
-  const haveData = Boolean(displayStats && selectedWindow);
+  const headlineError = statsError || windowsError;
+  const haveHeadline = Boolean(displayStats && selectedWindow);
 
   const loadingComponent = (
     <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -191,8 +226,8 @@ export default function LiveMetrics() {
       <h2 className="text-2xl font-windsor-bold text-white mb-4">Live Metrics</h2>
 
       <DataStateWrapper
-        isLoading={isLoading && !haveData}
-        error={haveData ? null : error}
+        isLoading={isLoading && !haveHeadline}
+        error={haveHeadline ? null : headlineError || blocksError}
         loadingComponent={loadingComponent}
       >
         {displayStats && selectedWindow && (
@@ -210,6 +245,14 @@ export default function LiveMetrics() {
           </div>
         )}
       </DataStateWrapper>
+
+      {haveHeadline && blocksError && (
+        <p className="mt-3 text-xs text-red-300">
+          Latest Block and Top L2 data unavailable:{' '}
+          {blocksError.message}
+          {latestBlocks ? '. Showing the last successful sample.' : '.'}
+        </p>
+      )}
     </section>
   );
 }
