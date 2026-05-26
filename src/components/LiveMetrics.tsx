@@ -204,7 +204,7 @@ export default function LiveMetrics() {
     user: TopUserStat | null,
   ) => [
     {
-      title: 'Avg Base Fee',
+      title: `Avg Base Fee (${window.label})`,
       value: formatGwei(window.averageBaseFeeGwei),
       trend: 'neutral' as const,
       description: `Median ${formatGwei(window.medianBaseFeeGwei)} · p95 ${formatGwei(window.p95BaseFeeGwei)}`,
