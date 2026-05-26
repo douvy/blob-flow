@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { Block, BlobResponse, LatestBlocksResponse } from '../types';
@@ -394,9 +394,9 @@ export default function LatestBlocksTable() {
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={safePage <= 1}
-              className="px-3 py-1 rounded-md border border-divider bg-[#1d1f23] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#23252a]"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md border border-divider bg-[#1d1f23] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#23252a]"
             >
-              <i className="fa-regular fa-chevron-left text-xs" aria-hidden="true" /> Prev
+              <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" /> Prev
             </button>
             <span className="px-2">
               Page <span className="text-white">{safePage}</span> of{' '}
@@ -406,9 +406,9 @@ export default function LatestBlocksTable() {
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={safePage >= totalPages}
-              className="px-3 py-1 rounded-md border border-divider bg-[#1d1f23] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#23252a]"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md border border-divider bg-[#1d1f23] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#23252a]"
             >
-              Next <i className="fa-regular fa-chevron-right text-xs" aria-hidden="true" />
+              Next <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>

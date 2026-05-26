@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { ArrowRight, ChevronRight } from 'lucide-react';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { useNetwork } from '../hooks/useNetwork';
@@ -183,8 +184,8 @@ function BlockRow({
         onKeyDown={onKeyDown}
         className="grid grid-cols-2 sm:grid-cols-[1.25rem_minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3 px-3 py-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset rounded-md"
       >
-        <i
-          className={`hidden sm:inline fa-regular fa-chevron-right text-[10px] text-[#6e7787] transition-transform ${
+        <ChevronRight
+          className={`hidden h-3 w-3 text-[#6e7787] transition-transform sm:inline ${
             isExpanded ? 'rotate-90' : ''
           }`}
           aria-hidden="true"
@@ -306,9 +307,9 @@ export default function RecentBlocksPanel() {
         <h2 className="text-2xl font-windsor-bold text-white">Recent Block Fees</h2>
         <Link
           href="/blocks"
-          className="text-sm text-blue hover:underline whitespace-nowrap"
+          className="inline-flex items-center gap-1 text-sm text-blue hover:underline whitespace-nowrap"
         >
-          View all blocks <i className="fa-regular fa-arrow-right text-xs ml-1" aria-hidden="true" />
+          View all blocks <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
       </div>
 
