@@ -2,8 +2,9 @@
 
 import React from 'react';
 
-const ANIMATION_DURATION = 450;
-const ANIMATION_EASING = 'cubic-bezier(0.16, 1, 0.3, 1)';
+const ROW_ENTER_ANIMATION_DURATION = 1400;
+const ROW_MOVE_ANIMATION_DURATION = 950;
+const ROW_ANIMATION_EASING = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
 
 function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
@@ -110,10 +111,15 @@ export function useFlipRows(
         nextAnimations.push(
           row.animate(
             [
-              { opacity: 0, transform: 'translateY(-16px)' },
+              { opacity: 0, transform: 'translateY(-10px)' },
+              { opacity: 0.65, transform: 'translateY(-3px)' },
               { opacity: 1, transform: 'translateY(0)' },
             ],
-            { duration: ANIMATION_DURATION, easing: ANIMATION_EASING, fill: 'backwards' }
+            {
+              duration: ROW_ENTER_ANIMATION_DURATION,
+              easing: ROW_ANIMATION_EASING,
+              fill: 'backwards',
+            }
           )
         );
         return;
@@ -127,7 +133,7 @@ export function useFlipRows(
               { transform: `translateY(${delta}px)` },
               { transform: 'translateY(0)' },
             ],
-            { duration: ANIMATION_DURATION, easing: ANIMATION_EASING }
+            { duration: ROW_MOVE_ANIMATION_DURATION, easing: ROW_ANIMATION_EASING }
           )
         );
       }
