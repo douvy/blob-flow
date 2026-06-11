@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Maximize2 } from 'lucide-react';
 import { useChartData } from '../hooks/useChartData';
 import DataStateWrapper from './DataStateWrapper';
-import FeeIndicators from './charts/FeeIndicators';
 import { CHART_VIEWS } from './charts/chartViews';
 import { CHART_CARD_CLASS } from '../constants/chartTheme';
 
@@ -29,12 +28,6 @@ export default function MetricsCharts() {
       <DataStateWrapper isLoading={isLoading} error={error} loadingComponent={loadingComponent}>
         {chartData && (
           <div className="flex flex-col space-y-6">
-            {/* Fee Market Indicators */}
-            <FeeIndicators
-              indicators={chartData.indicators}
-              selectedWindow={chartData.selectedWindow}
-            />
-
             {CHART_VIEWS.map((view) => (
               <div key={view.id} className={CHART_CARD_CLASS}>
                 <div className="flex items-start justify-between gap-3 mb-4">

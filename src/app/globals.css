@@ -79,3 +79,43 @@
     transform: scale(2.4);
   }
 }
+
+/* New-block tick on the hero fee readout: nudge from the direction the fee moved. */
+@keyframes fee-tick-up {
+  0% {
+    color: #ff6b6b;
+    transform: translateY(6px);
+    opacity: 0.6;
+  }
+
+  100% {
+    color: #ffffff;
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fee-tick-down {
+  0% {
+    color: #66cc99;
+    transform: translateY(-6px);
+    opacity: 0.6;
+  }
+
+  100% {
+    color: #ffffff;
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* New bars in the hero fullness strip grow up from the baseline. */
+@keyframes bar-grow-in {
+  0% {
+    transform: scaleY(0);
+  }
+
+  100% {
+    transform: scaleY(1);
+  }
+}

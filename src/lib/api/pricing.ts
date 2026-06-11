@@ -50,11 +50,15 @@ function mapBlobPricing(pricing: BackendBlobPricingResponse): BlobPricing {
                 high: formatWeiToGwei(pricing.market_pressure.next_block_fee_estimate.high),
             },
         },
-        recentBlocks: pricing.recent_blocks.map(mapRecentBlock),
+        recentBlocks: pricing.recent_blocks.map(transformPricingRecentBlock),
     };
 }
 
-function mapRecentBlock(block: BackendBlobPricingRecentBlock): BlobPricingRecentBlock {
+/**
+ * Transform a backend pricing block record (also delivered on `new_block`
+ * WebSocket events) into the frontend shape.
+ */
+export function transformPricingRecentBlock(block: BackendBlobPricingRecentBlock): BlobPricingRecentBlock {
     return {
         blockNumber: block.block_number,
         blockTimestamp: block.block_timestamp,
