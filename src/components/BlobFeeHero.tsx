@@ -28,6 +28,9 @@ import {
   HERO_STRIP_BLOCKS,
   compareToWindows,
   computeFeeRangeTrend,
+  countBlocksAboveTarget,
+  countChartPointsAboveTarget,
+  getWindowAboveTargetSummary,
   formatFeeNumber,
   formatSignedPercent,
   mergeRecentPricingBlocks,
@@ -166,6 +169,14 @@ const TREND_CHIP_LABELS: Record<TimeRange, string> = {
   '7d': '7d',
   '30d': '30d',
   All: '30d',
+};
+
+/** Unit shown under the "Above target" count for bucketed ranges. */
+const BUCKET_HINTS: Record<string, string> = {
+  block: 'block buckets',
+  minute: 'minute buckets',
+  hour: 'hourly buckets',
+  day: 'daily buckets',
 };
 
 function isDayScaleRange(timeRange: TimeRange): boolean {
@@ -540,10 +551,15 @@ export default function BlobFeeHero() {
       : currentFeeGwei > previousFeeGwei
         ? 'animate-[fee-tick-up_900ms_ease-out]'
         : 'animate-[fee-tick-down_900ms_ease-out]';
+
+  const rollingWindows = useMemo(
+    () => (statsWindows ? transformStatsWindows(statsWindows) : []),
+    [statsWindows]
+  );
   const comparisons = useMemo(() => {
-    if (!statsWindows || currentFeeGwei <= 0) return [];
-    return compareToWindows(currentFeeGwei, transformStatsWindows(statsWindows));
-  }, [statsWindows, currentFeeGwei]);
+    if (currentFeeGwei <= 0) return [];
+    return compareToWindows(currentFeeGwei, rollingWindows);
+  }, [rollingWindows, currentFeeGwei]);
   const oneHourAverageGwei = comparisons.find((comparison) => comparison.window === '1h')?.averageGwei;
 
   const chartPoints = useMemo<HeroChartPoint[]>(() => {
@@ -583,6 +599,34 @@ export default function BlobFeeHero() {
       : undefined;
 
   const stripBlocks = useMemo(() => blocks.slice(0, HERO_STRIP_BLOCKS), [blocks]);
+
+  // "Above target" follows the header time range: per-block counts on the
+  // live 1h view; on 24h/7d/30d/All, true block counts from the stats window
+  // when the backend provides them, otherwise range-chart bucket counts.
+  const aboveTargetStat = useMemo(() => {
+    if (isLiveRange) {
+      const live = countBlocksAboveTarget(blocks);
+      return { value: `${live.aboveCount}/${live.totalCount}`, hint: 'recent blocks' };
+    }
+    const windowSummary = getWindowAboveTargetSummary(
+      rollingWindows,
+      getRequestedRollingWindow(timeRange)
+    );
+    if (windowSummary) {
+      return {
+        value: `${windowSummary.aboveCount.toLocaleString()}/${windowSummary.totalCount.toLocaleString()}`,
+        hint: `blocks · ${RANGE_LABELS[timeRange]}`,
+      };
+    }
+    if (!marketChart || marketChart.points.length === 0) {
+      return { value: '—', hint: RANGE_LABELS[timeRange] };
+    }
+    const bucketed = countChartPointsAboveTarget(marketChart.points);
+    return {
+      value: `${bucketed.aboveCount}/${bucketed.totalCount}`,
+      hint: BUCKET_HINTS[marketChart.granularity] ?? `${marketChart.granularity} buckets`,
+    };
+  }, [isLiveRange, blocks, rollingWindows, marketChart, timeRange]);
 
   const direction = getDirectionStyle(rangeTrend?.direction);
   const DirectionIcon = direction.Icon;
@@ -679,8 +723,8 @@ export default function BlobFeeHero() {
                 <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-divider pt-4 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
                   <PressureStat
                     label="Above target"
-                    value={`${pricing.marketPressure.recentBlocksAboveTarget}/${pricing.recentBlocks.length}`}
-                    hint="recent blocks"
+                    value={aboveTargetStat.value}
+                    hint={aboveTargetStat.hint}
                   />
                   <PressureStat
                     label="Full streak"

@@ -468,6 +468,10 @@ export interface BackendStatsWindow {
   total_cost_eth?: string;
   total_cost_wei?: string;
   unique_senders: number;
+  /** Blocks indexed within the window. Absent on older backends. */
+  total_blocks?: number;
+  /** Blocks in the window with blob gas usage above target. Absent on older backends. */
+  blocks_above_target?: number;
 }
 
 export interface BackendStatsWindowsResponse {
@@ -684,6 +688,10 @@ export interface RollingWindowDataPoint {
   averageUtilizationPct: number;
   totalCostEth: number;
   uniqueSenders: number;
+  /** Blocks indexed within the window. Absent on older backends. */
+  totalBlocks?: number;
+  /** Blocks in the window with blob gas usage above target. Absent on older backends. */
+  blocksAboveTarget?: number;
 }
 
 export interface ChartDataset {

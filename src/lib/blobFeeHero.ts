@@ -1,4 +1,8 @@
-import type { BlobPricingRecentBlock, RollingWindowDataPoint } from '@/types';
+import type {
+  BackendBlobMarketChartPoint,
+  BlobPricingRecentBlock,
+  RollingWindowDataPoint,
+} from '@/types';
 
 /** Number of recent blocks shown in the hero fee chart (~20 min of mainnet blocks). */
 export const HERO_CHART_BLOCKS = 100;
@@ -32,6 +36,57 @@ export function mergeRecentPricingBlocks(
   return Array.from(byNumber.values())
     .sort((left, right) => right.blockNumber - left.blockNumber)
     .slice(0, cap);
+}
+
+export interface AboveTargetSummary {
+  aboveCount: number;
+  totalCount: number;
+}
+
+/** Count blocks flagged above the per-block blob target (live 1h hero view). */
+export function countBlocksAboveTarget(blocks: BlobPricingRecentBlock[]): AboveTargetSummary {
+  return {
+    aboveCount: blocks.filter((block) => block.isAboveTarget).length,
+    totalCount: blocks.length,
+  };
+}
+
+/**
+ * Block-level above-target counts for a rolling window, when the stats API
+ * provides them (`total_blocks`/`blocks_above_target`). Returns null when the
+ * window is missing or the backend predates those fields, so callers can fall
+ * back to bucket counting.
+ */
+export function getWindowAboveTargetSummary(
+  windows: RollingWindowDataPoint[],
+  windowKey: string
+): AboveTargetSummary | null {
+  const match = windows.find((window) => window.window === windowKey);
+  if (
+    !match ||
+    match.totalBlocks === undefined ||
+    match.totalBlocks <= 0 ||
+    match.blocksAboveTarget === undefined
+  ) {
+    return null;
+  }
+
+  return { aboveCount: match.blocksAboveTarget, totalCount: match.totalBlocks };
+}
+
+/**
+ * Count bucketed chart points whose blob gas usage exceeds the bucket's
+ * target (24h/7d/30d hero views).
+ */
+export function countChartPointsAboveTarget(
+  points: BackendBlobMarketChartPoint[]
+): AboveTargetSummary {
+  return {
+    aboveCount: points.filter(
+      (point) => point.blob_gas_target > 0 && point.blob_gas_used > point.blob_gas_target
+    ).length,
+    totalCount: points.length,
+  };
 }
 
 export function parseGwei(value: string | number | undefined): number {

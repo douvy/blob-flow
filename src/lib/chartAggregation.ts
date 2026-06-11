@@ -47,6 +47,11 @@ function parseFiniteNumber(value: string | number | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+/** Pass through an optional non-negative count, dropping malformed values. */
+function parseOptionalCount(value: number | undefined): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
 function decimalWeiToGwei(value: string | undefined): number {
   return roundTo(parseFiniteNumber(value) / 1e9, 6);
 }
@@ -183,6 +188,8 @@ export function transformStatsWindows(
         averageUtilizationPct: roundTo(parseFiniteNumber(window.average_utilization) * 100, 2),
         totalCostEth: weiToEth(totalCostWei),
         uniqueSenders: window.unique_senders,
+        totalBlocks: parseOptionalCount(window.total_blocks),
+        blocksAboveTarget: parseOptionalCount(window.blocks_above_target),
       };
     })
     .sort((a, b) => a.durationSeconds - b.durationSeconds);

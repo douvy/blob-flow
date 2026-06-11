@@ -3,12 +3,19 @@ import {
   compareToWindows,
   computeFeeRangeTrend,
   computeFeeTrend,
+  countBlocksAboveTarget,
+  countChartPointsAboveTarget,
+  getWindowAboveTargetSummary,
   formatFeeNumber,
   formatSignedPercent,
   mergeRecentPricingBlocks,
   parseGwei,
 } from './blobFeeHero';
-import type { BlobPricingRecentBlock, RollingWindowDataPoint } from '@/types';
+import type {
+  BackendBlobMarketChartPoint,
+  BlobPricingRecentBlock,
+  RollingWindowDataPoint,
+} from '@/types';
 
 function makeBlock(
   blockNumber: number,
@@ -37,7 +44,8 @@ function makeBlock(
 
 function makeWindow(
   window: string,
-  averageBaseFeeGwei: number
+  averageBaseFeeGwei: number,
+  overrides: Partial<RollingWindowDataPoint> = {}
 ): RollingWindowDataPoint {
   return {
     window,
@@ -53,8 +61,89 @@ function makeWindow(
     averageUtilizationPct: 50,
     totalCostEth: 1,
     uniqueSenders: 5,
+    ...overrides,
   };
 }
+
+function makeChartPoint(
+  overrides: Partial<BackendBlobMarketChartPoint> = {}
+): BackendBlobMarketChartPoint {
+  return {
+    timestamp: '2026-06-11T00:00:00Z',
+    average_blob_base_fee_gwei: '0.01',
+    median_blob_base_fee_gwei: '0.01',
+    p95_blob_base_fee_gwei: '0.01',
+    blob_count: 4,
+    blob_gas_used: 524288,
+    blob_gas_target: 1835008,
+    average_utilization: '0.19',
+    total_cost_wei: '0',
+    unique_senders: 1,
+    ...overrides,
+  };
+}
+
+describe('countBlocksAboveTarget', () => {
+  it('counts blocks flagged above target', () => {
+    const blocks = [
+      makeBlock(3, { isAboveTarget: true }),
+      makeBlock(2),
+      makeBlock(1, { isAboveTarget: true }),
+    ];
+
+    expect(countBlocksAboveTarget(blocks)).toEqual({ aboveCount: 2, totalCount: 3 });
+    expect(countBlocksAboveTarget([])).toEqual({ aboveCount: 0, totalCount: 0 });
+  });
+});
+
+describe('getWindowAboveTargetSummary', () => {
+  it('returns block counts for the matching window', () => {
+    const windows = [
+      makeWindow('1h', 0.01, { totalBlocks: 300, blocksAboveTarget: 120 }),
+      makeWindow('24h', 0.01, { totalBlocks: 7200, blocksAboveTarget: 4812 }),
+    ];
+
+    expect(getWindowAboveTargetSummary(windows, '24h')).toEqual({
+      aboveCount: 4812,
+      totalCount: 7200,
+    });
+  });
+
+  it('returns null when the window is missing or lacks block counts', () => {
+    const windows = [
+      makeWindow('24h', 0.01),
+      makeWindow('7d', 0.01, { totalBlocks: 0, blocksAboveTarget: 0 }),
+      makeWindow('30d', 0.01, { totalBlocks: 1000 }),
+    ];
+
+    // Backend predates the block-count fields.
+    expect(getWindowAboveTargetSummary(windows, '24h')).toBeNull();
+    // No blocks indexed in the window.
+    expect(getWindowAboveTargetSummary(windows, '7d')).toBeNull();
+    // Only one of the two fields present.
+    expect(getWindowAboveTargetSummary(windows, '30d')).toBeNull();
+    // Window not requested/returned.
+    expect(getWindowAboveTargetSummary(windows, '1h')).toBeNull();
+  });
+});
+
+describe('countChartPointsAboveTarget', () => {
+  it('counts buckets whose gas usage exceeds the bucket target', () => {
+    const points = [
+      makeChartPoint({ blob_gas_used: 2_000_000, blob_gas_target: 1_835_008 }),
+      makeChartPoint({ blob_gas_used: 524_288, blob_gas_target: 1_835_008 }),
+      makeChartPoint({ blob_gas_used: 1_835_008, blob_gas_target: 1_835_008 }),
+    ];
+
+    expect(countChartPointsAboveTarget(points)).toEqual({ aboveCount: 1, totalCount: 3 });
+  });
+
+  it('never marks a bucket without a target as above it', () => {
+    const points = [makeChartPoint({ blob_gas_used: 100, blob_gas_target: 0 })];
+
+    expect(countChartPointsAboveTarget(points)).toEqual({ aboveCount: 0, totalCount: 1 });
+  });
+});
 
 describe('mergeRecentPricingBlocks', () => {
   it('merges fetched and live blocks newest-first without duplicates', () => {
