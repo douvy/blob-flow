@@ -165,6 +165,27 @@ describe('chartAggregation', () => {
     });
   });
 
+  it('passes block counts through and drops malformed values', () => {
+    const windows = transformStatsWindows(makeStatsWindows([
+      makeWindow('24h', 86400, { total_blocks: 7200, blocks_above_target: 4812 }),
+      makeWindow('1h', 3600, { total_blocks: Number.NaN, blocks_above_target: -1 }),
+      makeWindow('5m', 300),
+    ]));
+
+    expect(windows.find((window) => window.window === '24h')).toMatchObject({
+      totalBlocks: 7200,
+      blocksAboveTarget: 4812,
+    });
+
+    const hourWindow = windows.find((window) => window.window === '1h');
+    expect(hourWindow?.totalBlocks).toBeUndefined();
+    expect(hourWindow?.blocksAboveTarget).toBeUndefined();
+
+    const fiveMinuteWindow = windows.find((window) => window.window === '5m');
+    expect(fiveMinuteWindow?.totalBlocks).toBeUndefined();
+    expect(fiveMinuteWindow?.blocksAboveTarget).toBeUndefined();
+  });
+
   it('builds chart data from pricing blocks and selected rolling stats', () => {
     const dataset = buildChartDataset(
       makeStatsWindows([
