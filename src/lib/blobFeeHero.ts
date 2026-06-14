@@ -46,6 +46,14 @@ export interface FeeTrend {
   comparedBlocks: number;
 }
 
+export type FeeTrendDirection = 'up' | 'down' | 'stable';
+
+export interface FeeRangeTrend {
+  /** Percent change from the first positive fee in the range to the last. */
+  deltaPercent: number;
+  direction: FeeTrendDirection;
+}
+
 /**
  * Short-term fee movement over the most recent blocks. `blocks` must be
  * newest-first. Returns null when there is not enough data or the baseline
@@ -65,6 +73,33 @@ export function computeFeeTrend(
   return {
     deltaPercent: ((currentFee - pastFee) / pastFee) * 100,
     comparedBlocks,
+  };
+}
+
+/**
+ * Fee movement across the currently displayed range. `fees` must be oldest
+ * first. Zero/missing fees are skipped because they cannot be used as a
+ * percent-change baseline.
+ */
+export function computeFeeRangeTrend(
+  fees: Array<number | string | undefined>,
+  thresholdPercent = 1
+): FeeRangeTrend | null {
+  const positiveFees = fees.map(parseGwei).filter((fee) => fee > 0);
+  if (positiveFees.length < 2) return null;
+
+  const firstFee = positiveFees[0];
+  const lastFee = positiveFees[positiveFees.length - 1];
+  const deltaPercent = ((lastFee - firstFee) / firstFee) * 100;
+
+  return {
+    deltaPercent,
+    direction:
+      deltaPercent > thresholdPercent
+        ? 'up'
+        : deltaPercent < -thresholdPercent
+          ? 'down'
+          : 'stable',
   };
 }
 
