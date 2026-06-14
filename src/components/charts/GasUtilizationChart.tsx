@@ -35,9 +35,11 @@ function formatGas(value: number): string {
 
 export default function GasUtilizationChart({ data, averageUtilizationPct }: GasUtilizationChartProps) {
   const targetGas = data.find((entry) => entry.targetGas > 0)?.targetGas ?? 0;
+  const maxGas = data.find((entry) => entry.maxGas > 0)?.maxGas ?? 0;
   const averageGasUsed = targetGas > 0 && averageUtilizationPct !== undefined
     ? Math.round((targetGas * averageUtilizationPct) / 100)
     : 0;
+  const referenceMax = Math.max(targetGas, maxGas, averageGasUsed);
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -59,6 +61,13 @@ export default function GasUtilizationChart({ data, averageUtilizationPct }: Gas
           tickLine={AXIS_LINE}
           width={45}
           tickFormatter={formatGas}
+          domain={[
+            0,
+            (dataMax: number) => {
+              const maxValue = Math.max(dataMax, referenceMax);
+              return maxValue > 0 ? Math.ceil(maxValue * 1.08) : 1;
+            },
+          ]}
         />
         <Tooltip
           contentStyle={CHART_TOOLTIP_STYLE}
@@ -82,6 +91,11 @@ export default function GasUtilizationChart({ data, averageUtilizationPct }: Gas
                 <p style={{ color: '#6e7687', fontSize: '12px' }}>
                   Target: {formatGas(d.targetGas)}
                 </p>
+                {d.maxGas > 0 && (
+                  <p style={{ color: COLORS.lightBlue, fontSize: '12px' }}>
+                    Max: {formatGas(d.maxGas)}
+                  </p>
+                )}
                 <p style={{ color: '#6e7687', fontSize: '12px' }}>
                   Blobs: {d.blobCount} ({d.utilizationPct}%)
                 </p>
@@ -96,6 +110,15 @@ export default function GasUtilizationChart({ data, averageUtilizationPct }: Gas
             strokeDasharray="5 5"
             strokeOpacity={0.7}
             label={{ value: 'Target', fill: '#6e7687', fontSize: 10, position: 'right' }}
+          />
+        )}
+        {maxGas > 0 && (
+          <ReferenceLine
+            y={maxGas}
+            stroke={COLORS.lightBlue}
+            strokeDasharray="6 4"
+            strokeOpacity={0.7}
+            label={{ value: 'Max', fill: '#6e7687', fontSize: 10, position: 'insideRight' }}
           />
         )}
         {averageGasUsed > 0 && (
