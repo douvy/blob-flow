@@ -162,7 +162,7 @@ export default function TopUsersTable() {
                   <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Last 100 blocks</TooltipContent>
+              <TooltipContent>Recent indexed activity</TooltipContent>
             </Tooltip>
           </div>
         ),

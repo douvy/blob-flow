@@ -145,7 +145,7 @@ function stripGweiUnit(value: string): string {
 
 /** Header time ranges that the hero renders from bucketed chart data. */
 const RANGE_LABELS: Record<TimeRange, string> = {
-  '1h': 'last 100 blocks',
+  '1h': 'last 1h',
   '24h': 'last 24h',
   '7d': 'last 7 days',
   '30d': 'last 30 days',
@@ -153,7 +153,7 @@ const RANGE_LABELS: Record<TimeRange, string> = {
 };
 
 const TREND_RANGE_LABELS: Record<TimeRange, string> = {
-  '1h': 'last 100 blocks',
+  '1h': 'last 1h',
   '24h': 'last 24h',
   '7d': 'last 7 days',
   '30d': 'last 30 days',
@@ -161,7 +161,7 @@ const TREND_RANGE_LABELS: Record<TimeRange, string> = {
 };
 
 const TREND_CHIP_LABELS: Record<TimeRange, string> = {
-  '1h': '100 blocks',
+  '1h': '1h',
   '24h': '24h',
   '7d': '7d',
   '30d': '30d',
@@ -709,7 +709,7 @@ export default function BlobFeeHero() {
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6e7687]">
                   <span>
                     {isLiveRange
-                      ? `Blob base fee · last ${blocks.length} blocks`
+                      ? `Blob base fee · ${RANGE_LABELS[timeRange]}`
                       : `Avg blob base fee · ${RANGE_LABELS[timeRange]}`}
                   </span>
                   {headBlock && (
