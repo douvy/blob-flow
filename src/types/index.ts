@@ -507,6 +507,7 @@ export interface BackendBlobMarketChartPoint {
   blob_count: number;
   blob_gas_used: number;
   blob_gas_target: number;
+  blob_gas_limit?: number;
   average_utilization: string;
   total_cost_wei: string;
   unique_senders: number;
@@ -638,6 +639,7 @@ export interface GasUtilizationDataPoint {
   blockNumber: number;
   blobGasUsed: number;
   targetGas: number;
+  maxGas: number;
   blobCount: number;
   utilizationPct: number;
 }

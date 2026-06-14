@@ -205,6 +205,7 @@ describe('chartAggregation', () => {
       blockNumber: 2,
       blobGasUsed: 2097152,
       targetGas: 1835008,
+      maxGas: 2752512,
       blobCount: 16,
       utilizationPct: 114,
     });

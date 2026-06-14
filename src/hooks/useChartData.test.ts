@@ -281,6 +281,7 @@ describe('useChartData', () => {
     expect(result.current.timeRange).toBe('1h');
     expect(result.current.chartData!.baseFee.map((point) => point.baseFeeGwei)).toEqual([1, 2]);
     expect(result.current.chartData!.gasUtilization[0].targetGas).toBe(1835008);
+    expect(result.current.chartData!.gasUtilization[0].maxGas).toBe(2752512);
     expect(result.current.chartData!.l2UsageSeries.map((series) => series.key)).toEqual(['base', 'unknown']);
     expect(result.current.chartData!.l2Usage[1].base).toBe(5);
     expect(result.current.chartData!.costComparison[0].savingsPct).toBe(99);
