@@ -27,7 +27,7 @@ import {
   HERO_CHART_BLOCKS,
   HERO_STRIP_BLOCKS,
   compareToWindows,
-  computeFeeTrend,
+  computeFeeRangeTrend,
   formatFeeNumber,
   formatSignedPercent,
   mergeRecentPricingBlocks,
@@ -94,28 +94,16 @@ function getDirectionStyle(direction: string | undefined): DirectionStyle {
   return DIRECTION_STYLES[direction?.toLowerCase() ?? ''] ?? DIRECTION_STYLES.stable;
 }
 
-/**
- * Plain-language explanation of the direction chip, shown in its tooltip.
- * The direction comes from EIP-4844 fee mechanics: blob usage above the
- * per-block target accumulates excess blob gas (fee rises next block),
- * usage below the target drains it (fee falls).
- */
-function getDirectionExplanation(pricing: BlobPricing, currentFeeGwei: number): string {
-  const direction = pricing.marketPressure.predictedDirection.toLowerCase();
-  const target = pricing.blobParams.target;
-  const nextFee = formatFeeNumber(parseGwei(pricing.predictedNextFeeGwei));
-  const currentFee = formatFeeNumber(currentFeeGwei);
-  const comparison = `predicted next-block fee (${nextFee} Gwei) vs the current fee (${currentFee} Gwei)`;
-
-  if (direction === 'up') {
-    return `Based on the ${comparison}. Recent blocks are using more than the ${target}-blob target, so excess blob gas is accumulating and the protocol raises the fee each block until demand falls back to target.`;
+function getDirectionExplanation(
+  direction: DirectionStyle,
+  deltaPercent: number | undefined,
+  rangeLabel: string
+): string {
+  if (deltaPercent === undefined) {
+    return `${direction.label} is based on the blob base fee data available in the selected ${rangeLabel} view.`;
   }
 
-  if (direction === 'down') {
-    return `Based on the ${comparison}. Recent blocks are using less than the ${target}-blob target, so excess blob gas is draining and the protocol lowers the fee each block until demand returns to target.`;
-  }
-
-  return `Based on the ${comparison}. Recent blocks are close to the ${target}-blob target, so the protocol expects the fee to hold roughly steady.`;
+  return `${direction.label} is based on the first and latest blob base fee points in the selected ${rangeLabel} view: ${formatSignedPercent(deltaPercent)} across the range.`;
 }
 
 const LIVE_BADGE_STYLES: Record<string, { label: string; dotClass: string; textClass: string }> = {
@@ -162,6 +150,22 @@ const RANGE_LABELS: Record<TimeRange, string> = {
   '7d': 'last 7 days',
   '30d': 'last 30 days',
   All: 'last 30 days',
+};
+
+const TREND_RANGE_LABELS: Record<TimeRange, string> = {
+  '1h': 'last 100 blocks',
+  '24h': 'last 24h',
+  '7d': 'last 7 days',
+  '30d': 'last 30 days',
+  All: 'last 30 days',
+};
+
+const TREND_CHIP_LABELS: Record<TimeRange, string> = {
+  '1h': '100 blocks',
+  '24h': '24h',
+  '7d': '7d',
+  '30d': '30d',
+  All: '30d',
 };
 
 function isDayScaleRange(timeRange: TimeRange): boolean {
@@ -536,7 +540,6 @@ export default function BlobFeeHero() {
       : currentFeeGwei > previousFeeGwei
         ? 'animate-[fee-tick-up_900ms_ease-out]'
         : 'animate-[fee-tick-down_900ms_ease-out]';
-  const trend = useMemo(() => computeFeeTrend(blocks), [blocks]);
   const comparisons = useMemo(() => {
     if (!statsWindows || currentFeeGwei <= 0) return [];
     return compareToWindows(currentFeeGwei, transformStatsWindows(statsWindows));
@@ -566,6 +569,13 @@ export default function BlobFeeHero() {
     }));
   }, [isLiveRange, blocks, marketChart, timeRange]);
 
+  const rangeTrend = useMemo(
+    () => computeFeeRangeTrend(chartPoints.map((point) => point.fee)),
+    [chartPoints]
+  );
+  const trendRangeLabel = TREND_RANGE_LABELS[timeRange];
+  const trendChipLabel = TREND_CHIP_LABELS[timeRange];
+
   const chartReferenceFeeGwei = isLiveRange
     ? oneHourAverageGwei
     : marketChart
@@ -574,7 +584,7 @@ export default function BlobFeeHero() {
 
   const stripBlocks = useMemo(() => blocks.slice(0, HERO_STRIP_BLOCKS), [blocks]);
 
-  const direction = getDirectionStyle(pricing?.marketPressure.predictedDirection);
+  const direction = getDirectionStyle(rangeTrend?.direction);
   const DirectionIcon = direction.Icon;
   const now = useNow();
 
@@ -602,14 +612,15 @@ export default function BlobFeeHero() {
                       <button
                         type="button"
                         className={`inline-flex cursor-help items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${direction.chipClass}`}
-                        aria-label={`Fee direction: ${direction.label}`}
+                        aria-label={`Fee direction over ${trendRangeLabel}: ${direction.label}`}
                       >
                         <DirectionIcon className="h-3.5 w-3.5" aria-hidden="true" />
                         {direction.label}
+                        <span className="text-current/75">· {trendChipLabel}</span>
                       </button>
                     </InfoTooltipTrigger>
                     <InfoTooltipContent side="bottom" className="max-w-xs leading-relaxed">
-                      {getDirectionExplanation(pricing, currentFeeGwei)}
+                      {getDirectionExplanation(direction, rangeTrend?.deltaPercent, trendRangeLabel)}
                     </InfoTooltipContent>
                   </InfoTooltip>
                 </div>
@@ -625,20 +636,20 @@ export default function BlobFeeHero() {
                 </div>
 
                 <div className="mt-2 space-y-1 text-sm text-[#8f9aad]">
-                  {trend && (
+                  {rangeTrend && (
                     <p>
                       <span
                         className={
-                          trend.deltaPercent > 1
+                          rangeTrend.deltaPercent > 1
                             ? 'text-red'
-                            : trend.deltaPercent < -1
+                            : rangeTrend.deltaPercent < -1
                               ? 'text-green'
                               : 'text-[#d7dde8]'
                         }
                       >
-                        {formatSignedPercent(trend.deltaPercent)}
+                        {formatSignedPercent(rangeTrend.deltaPercent)}
                       </span>{' '}
-                      over the last {trend.comparedBlocks} blocks
+                      over {trendRangeLabel}
                     </p>
                   )}
                   <p>

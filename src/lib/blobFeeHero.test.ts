@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   compareToWindows,
+  computeFeeRangeTrend,
   computeFeeTrend,
   formatFeeNumber,
   formatSignedPercent,
@@ -117,6 +118,31 @@ describe('computeFeeTrend', () => {
         makeBlock(1, { blobBaseFeeGwei: '0' }),
       ])
     ).toBeNull();
+  });
+});
+
+describe('computeFeeRangeTrend', () => {
+  it('computes direction and percent change from oldest to newest fee', () => {
+    expect(computeFeeRangeTrend([0.01, 0.015])?.direction).toBe('up');
+    expect(computeFeeRangeTrend([0.01, 0.015])?.deltaPercent).toBeCloseTo(50);
+
+    expect(computeFeeRangeTrend([0.02, 0.01])?.direction).toBe('down');
+    expect(computeFeeRangeTrend([0.02, 0.01])?.deltaPercent).toBeCloseTo(-50);
+  });
+
+  it('reports stable changes inside the threshold', () => {
+    const trend = computeFeeRangeTrend([0.01, 0.01005]);
+
+    expect(trend?.direction).toBe('stable');
+    expect(trend?.deltaPercent).toBeCloseTo(0.5);
+  });
+
+  it('skips missing or zero fees before finding the range endpoints', () => {
+    const trend = computeFeeRangeTrend([0, undefined, '0.01', '0.02']);
+
+    expect(trend?.direction).toBe('up');
+    expect(trend?.deltaPercent).toBeCloseTo(100);
+    expect(computeFeeRangeTrend([0, undefined, 'not-a-number'])).toBeNull();
   });
 });
 
