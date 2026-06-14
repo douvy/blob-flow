@@ -54,8 +54,8 @@ export function countBlocksAboveTarget(blocks: BlobPricingRecentBlock[]): AboveT
 /**
  * Block-level above-target counts for a rolling window, when the stats API
  * provides them (`total_blocks`/`blocks_above_target`). Returns null when the
- * window is missing or the backend predates those fields, so callers can fall
- * back to bucket counting.
+ * window is missing, the backend predates those fields, or the window reports
+ * no indexed blocks, so callers can fall back to bucket counting.
  */
 export function getWindowAboveTargetSummary(
   windows: RollingWindowDataPoint[],
