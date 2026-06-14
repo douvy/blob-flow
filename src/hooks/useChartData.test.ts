@@ -46,6 +46,7 @@ const mockMarket = {
         blob_count: 7,
         blob_gas_used: 917504,
         blob_gas_target: 1835008,
+        blob_gas_limit: 3145728,
         average_utilization: '0.5',
         total_cost_wei: '2000000000000000',
         unique_senders: 3,
@@ -282,6 +283,7 @@ describe('useChartData', () => {
     expect(result.current.chartData!.baseFee.map((point) => point.baseFeeGwei)).toEqual([1, 2]);
     expect(result.current.chartData!.gasUtilization[0].targetGas).toBe(1835008);
     expect(result.current.chartData!.gasUtilization[0].maxGas).toBe(2752512);
+    expect(result.current.chartData!.gasUtilization[1].maxGas).toBe(3145728);
     expect(result.current.chartData!.l2UsageSeries.map((series) => series.key)).toEqual(['base', 'unknown']);
     expect(result.current.chartData!.l2Usage[1].base).toBe(5);
     expect(result.current.chartData!.costComparison[0].savingsPct).toBe(99);

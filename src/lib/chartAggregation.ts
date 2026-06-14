@@ -79,6 +79,8 @@ function deriveMaxBlobGasFromTarget(
   const targetBlobsPerBlock = targetGasPerBlock / BLOB_GAS_PER_BLOB;
   if (!Number.isFinite(targetBlobsPerBlock) || targetBlobsPerBlock <= 0) return 0;
 
+  // Fallback for older chart payloads without `blob_gas_limit`: infer from
+  // known target/max blob schedules, such as 3->6 and 14->21 blobs.
   const maxToTargetRatio = targetBlobsPerBlock <= 3 ? 2 : 1.5;
   return Math.round(targetGas * maxToTargetRatio);
 }
