@@ -49,6 +49,7 @@ import {
 } from './ui/tooltip';
 import type {
   BackendBlobMarketChartResponse,
+  BackendBlobMarketChartPoint,
   BackendStatsWindowsResponse,
   BlobPricing,
   BlobPricingRecentBlock,
@@ -207,6 +208,17 @@ interface HeroChartPoint {
   maxBlobs: number;
 }
 
+interface FullnessStripItem {
+  key: string;
+  href?: string;
+  title: string;
+  ariaLabel: string;
+  fillPercent: number;
+  isFull: boolean;
+  isAboveTarget: boolean;
+  isNewest?: boolean;
+}
+
 // Memoized: the hero re-renders every second for the "Xs ago" caption, and
 // the chart only needs to redraw when a block actually lands.
 const HeroFeeChart = React.memo(function HeroFeeChart({
@@ -308,26 +320,16 @@ const HeroFeeChart = React.memo(function HeroFeeChart({
   );
 });
 
-function getStripFillClass(block: BlobPricingRecentBlock): string {
-  if (block.isFull) return 'bg-red';
-  if (block.isAboveTarget) return 'bg-amber-300';
-  return 'bg-green';
-}
-
 const BlockFullnessStrip = React.memo(function BlockFullnessStrip({
-  blocks,
+  items,
+  targetPercent,
+  caption,
 }: {
-  blocks: BlobPricingRecentBlock[];
+  items: FullnessStripItem[];
+  targetPercent: number | null;
+  caption: string;
 }) {
-  // Oldest on the left, newest on the right, matching the chart above.
-  const orderedBlocks = useMemo(() => blocks.slice().reverse(), [blocks]);
-  const targetPercent = useMemo(() => {
-    const reference = blocks.find((block) => block.maxBlobs > 0 && block.targetBlobs > 0);
-    if (!reference) return null;
-    return (reference.targetBlobs / reference.maxBlobs) * 100;
-  }, [blocks]);
-
-  if (orderedBlocks.length === 0) return null;
+  if (items.length === 0) return null;
 
   return (
     <div>
@@ -340,32 +342,52 @@ const BlockFullnessStrip = React.memo(function BlockFullnessStrip({
             title="Target"
           />
         )}
-        {orderedBlocks.map((block, index) => {
-          const fillPercent = Math.min(100, Math.max(0, block.utilizationPercent));
-          const isNewest = index === orderedBlocks.length - 1;
+        {items.map((item) => {
+          const fillPercent = Math.min(100, Math.max(0, item.fillPercent));
+          const bar = (
+            <span
+              aria-hidden="true"
+              className={`absolute inset-x-0 bottom-0 origin-bottom animate-[bar-grow-in_600ms_ease-out] motion-reduce:animate-none ${
+                item.isFull ? 'bg-red' : item.isAboveTarget ? 'bg-amber-300' : 'bg-green'
+              } opacity-80 group-hover:opacity-100`}
+              style={{ height: `${fillPercent}%`, minHeight: fillPercent > 0 ? '2px' : '0' }}
+            />
+          );
+
+          if (item.href) {
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                title={item.title}
+                aria-label={item.ariaLabel}
+                className={`group relative h-full min-w-0 flex-1 overflow-hidden rounded-[3px] bg-[#202538] transition-colors hover:bg-[#2a3046] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue ${
+                  item.isNewest ? 'ring-1 ring-white/30' : ''
+                }`}
+              >
+                {bar}
+              </Link>
+            );
+          }
+
           return (
-            <Link
-              key={block.blockNumber}
-              href={`/block/${block.blockNumber}`}
-              title={`Block ${block.blockNumber.toLocaleString()} · ${block.blobCount}/${block.maxBlobs} blobs (${formatPercent(block.utilizationPercent, 0)}) · ${formatGwei(block.blobBaseFeeGwei, 6)}`}
-              aria-label={`View block ${block.blockNumber}: ${block.blobCount} of ${block.maxBlobs} blobs used`}
-              className={`group relative h-full min-w-0 flex-1 overflow-hidden rounded-[3px] bg-[#202538] transition-colors hover:bg-[#2a3046] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue ${
-                isNewest ? 'ring-1 ring-white/30' : ''
-              }`}
+            <span
+              key={item.key}
+              role="meter"
+              aria-label={item.ariaLabel}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(fillPercent)}
+              title={item.title}
+              className="group relative h-full min-w-0 flex-1 overflow-hidden rounded-[3px] bg-[#202538]"
             >
-              <span
-                aria-hidden="true"
-                className={`absolute inset-x-0 bottom-0 origin-bottom animate-[bar-grow-in_600ms_ease-out] motion-reduce:animate-none ${getStripFillClass(block)} opacity-80 group-hover:opacity-100`}
-                style={{ height: `${fillPercent}%`, minHeight: block.blobCount > 0 ? '2px' : '0' }}
-              />
-            </Link>
+              {bar}
+            </span>
           );
         })}
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6e7687]">
-        <span>
-          Last {orderedBlocks.length} blocks · click a bar for block details
-        </span>
+        <span>{caption}</span>
         <span className="flex items-center gap-3">
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-[2px] bg-green" /> under target
@@ -381,6 +403,89 @@ const BlockFullnessStrip = React.memo(function BlockFullnessStrip({
     </div>
   );
 });
+
+function getBlockStripTargetPercent(blocks: BlobPricingRecentBlock[]): number | null {
+  const reference = blocks.find((block) => block.maxBlobs > 0 && block.targetBlobs > 0);
+  if (!reference) return null;
+  return Math.min(100, Math.max(0, (reference.targetBlobs / reference.maxBlobs) * 100));
+}
+
+function getBucketTargetPercent(points: BackendBlobMarketChartPoint[]): number | null {
+  const reference = points.find((point) => (
+    point.blob_gas_limit !== undefined &&
+    point.blob_gas_limit > 0 &&
+    point.blob_gas_target > 0
+  ));
+  if (!reference?.blob_gas_limit) return null;
+  return Math.min(100, Math.max(0, (reference.blob_gas_target / reference.blob_gas_limit) * 100));
+}
+
+function getBucketFillPercent(point: BackendBlobMarketChartPoint): number {
+  if (point.blob_gas_limit !== undefined && point.blob_gas_limit > 0) {
+    return (point.blob_gas_used / point.blob_gas_limit) * 100;
+  }
+  return parseGwei(point.average_utilization) * 100;
+}
+
+function isFullBucket(point: BackendBlobMarketChartPoint): boolean {
+  if (point.blob_gas_limit !== undefined && point.blob_gas_limit > 0) {
+    return point.blob_gas_used >= point.blob_gas_limit;
+  }
+  return parseGwei(point.average_utilization) >= 1;
+}
+
+function describeBucketBlocks(point: BackendBlobMarketChartPoint): string | null {
+  if (point.start_block !== undefined && point.end_block !== undefined) {
+    if (point.start_block === point.end_block) {
+      return `block ${point.end_block.toLocaleString()}`;
+    }
+    return `blocks ${point.start_block.toLocaleString()}-${point.end_block.toLocaleString()}`;
+  }
+  if (point.end_block !== undefined) return `through block ${point.end_block.toLocaleString()}`;
+  if (point.start_block !== undefined) return `from block ${point.start_block.toLocaleString()}`;
+  return null;
+}
+
+function buildBlockStripItems(blocks: BlobPricingRecentBlock[]): FullnessStripItem[] {
+  // Oldest on the left, newest on the right, matching the chart above.
+  return blocks
+    .slice()
+    .reverse()
+    .map((block, index, orderedBlocks) => ({
+      key: block.blockNumber.toString(),
+      href: `/block/${block.blockNumber}`,
+      title: `Block ${block.blockNumber.toLocaleString()} · ${block.blobCount}/${block.maxBlobs} blobs (${formatPercent(block.utilizationPercent, 0)}) · ${formatGwei(block.blobBaseFeeGwei, 6)}`,
+      ariaLabel: `View block ${block.blockNumber}: ${block.blobCount} of ${block.maxBlobs} blobs used`,
+      fillPercent: block.utilizationPercent,
+      isFull: block.isFull,
+      isAboveTarget: block.isAboveTarget,
+      isNewest: index === orderedBlocks.length - 1,
+    }));
+}
+
+function buildBucketStripItems(
+  points: BackendBlobMarketChartPoint[],
+  dayScale: boolean
+): FullnessStripItem[] {
+  return points.map((point, index) => {
+    const label = point.label || formatBucketLabel(point.timestamp, dayScale);
+    const fillPercent = getBucketFillPercent(point);
+    const blockDescription = describeBucketBlocks(point);
+    const blockSuffix = blockDescription ? ` · ${blockDescription}` : '';
+    const targetState = point.blob_gas_target > 0 && point.blob_gas_used > point.blob_gas_target
+      ? 'above target'
+      : 'under target';
+
+    return {
+      key: `${point.timestamp}-${point.end_block ?? point.start_block ?? index}`,
+      title: `${label}${blockSuffix} · ${point.blob_count.toLocaleString()} blobs · ${formatPercent(fillPercent, 0)} used · ${targetState}`,
+      ariaLabel: `${label}: ${point.blob_count.toLocaleString()} blobs, ${formatPercent(fillPercent, 0)} used, ${targetState}`,
+      fillPercent,
+      isFull: isFullBucket(point),
+      isAboveTarget: point.blob_gas_target > 0 && point.blob_gas_used > point.blob_gas_target,
+    };
+  });
+}
 
 function ComparisonBadge({ label, deltaPercent, averageGwei }: {
   label: string;
@@ -599,6 +704,24 @@ export default function BlobFeeHero() {
       : undefined;
 
   const stripBlocks = useMemo(() => blocks.slice(0, HERO_STRIP_BLOCKS), [blocks]);
+  const stripItems = useMemo(() => {
+    if (isLiveRange) {
+      return buildBlockStripItems(stripBlocks);
+    }
+    return buildBucketStripItems(marketChart?.points ?? [], isDayScaleRange(timeRange));
+  }, [isLiveRange, stripBlocks, marketChart, timeRange]);
+  const stripTargetPercent = useMemo(() => (
+    isLiveRange
+      ? getBlockStripTargetPercent(stripBlocks)
+      : getBucketTargetPercent(marketChart?.points ?? [])
+  ), [isLiveRange, stripBlocks, marketChart]);
+  const stripCaption = isLiveRange
+    ? `Last ${stripItems.length} blocks · click a bar for block details`
+    : `${RANGE_LABELS[timeRange]} · ${
+      marketChart
+        ? BUCKET_HINTS[marketChart.granularity] ?? `${marketChart.granularity} buckets`
+        : 'utilization buckets'
+    }`;
 
   // "Above target" follows the header time range: per-block counts on the
   // live 1h view; on 24h/7d/30d/All, true block counts from the stats window
@@ -790,7 +913,15 @@ export default function BlobFeeHero() {
                   </p>
                 )}
                 <div className="mt-4">
-                  <BlockFullnessStrip blocks={stripBlocks} />
+                  {stripItems.length > 0 ? (
+                    <BlockFullnessStrip
+                      items={stripItems}
+                      targetPercent={stripTargetPercent}
+                      caption={stripCaption}
+                    />
+                  ) : !isLiveRange && marketChartLoading ? (
+                    <div className="h-14 animate-pulse rounded bg-[#202538]" />
+                  ) : null}
                 </div>
               </div>
             </div>
