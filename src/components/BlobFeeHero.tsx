@@ -79,17 +79,17 @@ interface DirectionStyle {
 const DIRECTION_STYLES: Record<string, DirectionStyle> = {
   up: {
     label: 'Rising',
-    chipClass: 'border-red/40 bg-red/10 text-red',
+    chipClass: 'border-red-400/15 bg-red-800/5 text-red-200',
     Icon: TrendingUp,
   },
   down: {
     label: 'Falling',
-    chipClass: 'border-green/40 bg-green/10 text-green',
+    chipClass: 'border-green-400/15 bg-green-800/5 text-green-200',
     Icon: TrendingDown,
   },
   stable: {
     label: 'Stable',
-    chipClass: 'border-[#8f9aad]/40 bg-[#8f9aad]/10 text-[#d7dde8]',
+    chipClass: 'border-gray-400/15 bg-gray-800/5 text-gray-200',
     Icon: MoveRight,
   },
 };
@@ -763,7 +763,7 @@ export default function BlobFeeHero() {
         loadingComponent={<HeroSkeleton />}
       >
         {pricing && (
-          <article className="rounded-lg border border-divider bg-[#161a29]/80 p-5 sm:p-6">
+          <article className="rounded-lg border border-divider bg-[#14161a] p-5 sm:p-6">
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
               {/* Right now */}
               <div className="lg:col-span-5">
@@ -778,10 +778,10 @@ export default function BlobFeeHero() {
                     <InfoTooltipTrigger asChild>
                       <button
                         type="button"
-                        className={`inline-flex cursor-help items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${direction.chipClass}`}
+                        className={`inline-flex cursor-help items-center gap-1.5 rounded-xs h-[18px] px-1.5 pt-px shrink-0 border font-mono text-[0.625rem] leading-6 ${direction.chipClass}`}
                         aria-label={`Fee direction over ${trendRangeLabel}: ${direction.label}`}
                       >
-                        <DirectionIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                        <DirectionIcon className="h-3 w-3" aria-hidden="true" />
                         {direction.label}
                         <span className="text-current/75">· {trendChipLabel}</span>
                       </button>
