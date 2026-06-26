@@ -124,8 +124,11 @@ export default function ChartDetailPage() {
 
   return (
     <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
-      <Header />
-      <div className="container mx-auto px-4 py-8 max-w-[1600px]">
+      <div className="gutter-lines" aria-hidden="true" />
+      <div className="gutter-line-cap" aria-hidden="true" />
+      <div className="content-area">
+        <Header />
+        <div className="container mx-auto px-4 py-8 max-w-[1600px]">
         <Link
           href="/#data-trends"
           className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2"
@@ -154,7 +157,8 @@ export default function ChartDetailPage() {
           <UnknownChart chartId={chartId} />
         )}
       </div>
-      <Footer />
+        <Footer />
+      </div>
     </main>
   );
 }
