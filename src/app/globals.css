@@ -132,10 +132,11 @@
     margin-right: calc((100vw - 80rem) / 4);
   }
 
-  /* Header extends full width beyond content-area */
-  .content-area > header {
+  /* Header and footer extend full width beyond content-area */
+  .content-area > header,
+  .content-area > footer {
+    width: 100vw;
     margin-left: calc(-1 * (100vw - 80rem) / 4);
-    margin-right: calc(-1 * (100vw - 80rem) / 4);
   }
 }
 
