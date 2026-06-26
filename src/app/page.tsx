@@ -14,40 +14,47 @@ import Footer from '@/components/Footer';
 export default function Home() {
   return (
     <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
-      <Header />
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="mb-12">
+      <div className="gutter-lines" aria-hidden="true" />
+      <div className="gutter-line-cap" aria-hidden="true" />
+      <div className="content-area">
+        <Header />
+        <div className="container mx-auto px-4 pt-12 pb-16 max-w-7xl">
           <BlobFeeHero />
         </div>
 
-        <div className="mb-12">
+        <div className="border-t border-[rgba(50,60,80,0.4)]" />
+
+        <div className="container mx-auto px-4 py-12 max-w-7xl">
           <LiveMetrics />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start mb-12">
-          <div className="space-y-12">
-            <RecentBlocksPanel />
-            <MempoolTable />
+        <div className="border-t border-[rgba(50,60,80,0.4)]" />
+
+        <div className="container mx-auto px-4 py-12 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            <div className="space-y-8">
+              <RecentBlocksPanel />
+              <MempoolTable />
+            </div>
+            <MetricsCharts />
           </div>
-          <MetricsCharts />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
-          <div className="lg:col-span-3">
-            <div className="mb-12">
+        <div className="border-t border-[rgba(50,60,80,0.4)]" />
+
+        <div className="container mx-auto px-4 py-12 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            <div className="lg:col-span-3">
               <TopUsersTable />
             </div>
-          </div>
-
-          <div className="lg:col-span-2">
-            <div className="mb-12 pt-2">
+            <div className="lg:col-span-2 pt-2">
               <h2 className="text-2xl font-windsor-bold text-white mb-3">What are blobs?</h2>
               <ExplainerSection />
             </div>
           </div>
         </div>
+        <Footer />
       </div>
-      <Footer />
     </main>
   );
 }
