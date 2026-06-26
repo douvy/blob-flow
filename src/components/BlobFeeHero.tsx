@@ -333,7 +333,7 @@ const BlockFullnessStrip = React.memo(function BlockFullnessStrip({
 
   return (
     <div>
-      <div className="relative flex h-10 items-end gap-[3px]">
+      <div className="relative flex h-7 items-end gap-2">
         {targetPercent !== null && (
           <div
             aria-hidden="true"
@@ -348,8 +348,8 @@ const BlockFullnessStrip = React.memo(function BlockFullnessStrip({
             <span
               aria-hidden="true"
               className={`absolute inset-x-0 bottom-0 origin-bottom animate-[bar-grow-in_600ms_ease-out] motion-reduce:animate-none ${
-                item.isFull ? 'bg-red' : item.isAboveTarget ? 'bg-amber-300' : 'bg-green'
-              } opacity-80 group-hover:opacity-100`}
+                item.isFull ? 'bg-red-400' : item.isAboveTarget ? 'bg-amber-400' : 'bg-green-400'
+              } opacity-70 group-hover:opacity-90`}
               style={{ height: `${fillPercent}%`, minHeight: fillPercent > 0 ? '2px' : '0' }}
             />
           );
@@ -361,7 +361,7 @@ const BlockFullnessStrip = React.memo(function BlockFullnessStrip({
                 href={item.href}
                 title={item.title}
                 aria-label={item.ariaLabel}
-                className={`group relative h-full min-w-0 flex-1 overflow-hidden rounded-[3px] bg-[#202538] transition-colors hover:bg-[#2a3046] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue ${
+                className={`group relative h-full flex-1 overflow-hidden rounded-[2px] bg-[#181f2f] border border-[#263044] transition-colors hover:bg-[#1e2738] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue ${
                   item.isNewest ? 'ring-1 ring-white/30' : ''
                 }`}
               >
@@ -379,7 +379,7 @@ const BlockFullnessStrip = React.memo(function BlockFullnessStrip({
               aria-valuemax={100}
               aria-valuenow={Math.round(fillPercent)}
               title={item.title}
-              className="group relative h-full min-w-0 flex-1 overflow-hidden rounded-[3px] bg-[#202538]"
+              className="group relative h-full flex-1 overflow-hidden rounded-[2px] bg-[#181f2f] border border-[#263044]"
             >
               {bar}
             </span>
@@ -390,13 +390,13 @@ const BlockFullnessStrip = React.memo(function BlockFullnessStrip({
         <span>{caption}</span>
         <span className="flex items-center gap-3">
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-[2px] bg-green" /> under target
+            <span className="h-2 w-2 rounded-[2px] bg-green-400" /> under target
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-[2px] bg-amber-300" /> above
+            <span className="h-2 w-2 rounded-[2px] bg-amber-400" /> above
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-[2px] bg-red" /> full
+            <span className="h-2 w-2 rounded-[2px] bg-red-400" /> full
           </span>
         </span>
       </div>
@@ -497,22 +497,22 @@ function ComparisonBadge({ label, deltaPercent, averageGwei }: {
   const toneClass = isElevated ? 'text-red' : isDepressed ? 'text-green' : 'text-[#d7dde8]';
 
   return (
-    <div className="rounded-md border border-divider bg-[#111522]/70 px-3 py-2">
-      <div className="text-[11px] uppercase text-[#8f9aad]">vs {label} avg</div>
+    <div className="rounded-md border border-[#1e2024] bg-[#14161a] px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-white">vs {label} avg</div>
       <div className={`mt-0.5 text-base font-medium ${toneClass}`}>
         {formatSignedPercent(deltaPercent)}
       </div>
-      <div className="text-[11px] text-[#6e7687]">avg {formatFeeNumber(averageGwei)} Gwei</div>
+      <div className="text-[10px] text-[#666666]">avg {formatFeeNumber(averageGwei)} Gwei</div>
     </div>
   );
 }
 
 function PressureStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div>
-      <div className="text-[11px] uppercase text-[#8f9aad]">{label}</div>
+    <div className="rounded-md border border-[#292e35] bg-[#17181b] px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-white">{label}</div>
       <div className="mt-0.5 text-sm font-medium text-white">{value}</div>
-      {hint && <div className="text-[11px] text-[#6e7687]">{hint}</div>}
+      {hint && <div className="text-[10px] text-[#666666]">{hint}</div>}
     </div>
   );
 }
@@ -532,7 +532,7 @@ function HeroSkeleton() {
         </div>
         <div className="lg:col-span-7 space-y-4">
           <div className="h-44 rounded bg-[#202538]" />
-          <div className="h-10 rounded bg-[#202538]" />
+          <div className="h-7 rounded bg-[#202538]" />
         </div>
       </div>
     </div>
@@ -769,7 +769,7 @@ export default function BlobFeeHero() {
               <div className="lg:col-span-5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <h1 className="text-sm uppercase tracking-wide text-[#8f9aad]">
+                    <h1 className="text-xs font-normal uppercase tracking-wide text-[#a9adb6]">
                       Blob base fee · {pricing.networkName}
                     </h1>
                     <LiveBadge pulseKey={headBlock?.blockNumber ?? 0} />
@@ -795,38 +795,25 @@ export default function BlobFeeHero() {
                 <div className="mt-2 flex items-baseline gap-2">
                   <span
                     key={headBlock?.blockNumber ?? 'pending'}
-                    className={`font-windsor-bold text-5xl text-white tabular-nums sm:text-6xl motion-reduce:animate-none ${feeTickClass}`}
+                    className={`font-windsor-bold text-4xl text-white tabular-nums sm:text-5xl motion-reduce:animate-none ${feeTickClass}`}
                   >
                     {formatFeeNumber(currentFeeGwei)}
                   </span>
-                  <span className="text-lg text-[#8f9aad]">Gwei</span>
+                  <span className="text-lg text-white">Gwei</span>
                 </div>
 
-                <div className="mt-2 space-y-1 text-sm text-[#8f9aad]">
+                <div className="mt-2 space-y-1 text-sm text-[#a9adb6]">
                   {rangeTrend && (
                     <p>
-                      <span
-                        className={
-                          rangeTrend.deltaPercent > 1
-                            ? 'text-red'
-                            : rangeTrend.deltaPercent < -1
-                              ? 'text-green'
-                              : 'text-[#d7dde8]'
-                        }
-                      >
+                      –&nbsp;&nbsp;
+                      <span className={rangeTrend.deltaPercent < -1 ? 'text-green-200' : ''}>
                         {formatSignedPercent(rangeTrend.deltaPercent)}
-                      </span>{' '}
-                      over {trendRangeLabel}
+                      </span>
+                      {' '}over {trendRangeLabel}
                     </p>
                   )}
                   <p>
-                    Next block est.{' '}
-                    <span className="text-white">{formatFeeNumber(parseGwei(pricing.predictedNextFeeGwei))} Gwei</span>
-                    <span className="text-[#6e7687]">
-                      {' '}
-                      (range {stripGweiUnit(pricing.marketPressure.nextBlockFeeEstimate.low)} –{' '}
-                      {stripGweiUnit(pricing.marketPressure.nextBlockFeeEstimate.high)})
-                    </span>
+                    –&nbsp;&nbsp;Next block est. {formatFeeNumber(parseGwei(pricing.predictedNextFeeGwei))} Gwei (range {stripGweiUnit(pricing.marketPressure.nextBlockFeeEstimate.low)} – {stripGweiUnit(pricing.marketPressure.nextBlockFeeEstimate.high)})
                   </p>
                 </div>
 
@@ -843,7 +830,7 @@ export default function BlobFeeHero() {
                   </div>
                 )}
 
-                <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-divider pt-4 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+                <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
                   <PressureStat
                     label="Above target"
                     value={aboveTargetStat.value}
@@ -872,7 +859,7 @@ export default function BlobFeeHero() {
               </div>
 
               {/* Recent past */}
-              <div className="lg:col-span-7">
+              <div className="lg:col-span-6 lg:col-start-7">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6e7687]">
                   <span>
                     {isLiveRange
