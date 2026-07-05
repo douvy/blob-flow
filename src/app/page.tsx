@@ -1,6 +1,5 @@
-"use client";
-
 import React from 'react';
+import type { Metadata } from 'next';
 import BlobFeeHero from '@/components/BlobFeeHero';
 import LiveMetrics from '@/components/LiveMetrics';
 import MetricsCharts from '@/components/MetricsCharts';
@@ -9,10 +8,17 @@ import TopUsersTable from '@/components/TopUsersTable';
 import MempoolSummary from '@/components/MempoolSummary';
 import ExplainerSection from '@/components/ExplainerSection';
 
+export const metadata: Metadata = {
+  alternates: {
+    canonical: '/',
+  },
+};
+
 export default function Home() {
   return (
     <>
       <div className="container mx-auto px-4 pt-12 pb-16 max-w-7xl">
+        <h1 className="sr-only">Real-time Ethereum blob analytics</h1>
         <BlobFeeHero />
       </div>
 
