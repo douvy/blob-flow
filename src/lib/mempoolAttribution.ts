@@ -5,7 +5,7 @@ import { MempoolTransaction } from '@/types';
  * incomplete view of pending blob demand.
  */
 export const MEMPOOL_PRIVATE_CAVEAT =
-  'Only the public mempool is visible here — some providers submit blobs through private channels, so their transactions don’t appear until they’re mined.';
+  'Only the public mempool is visible here. Some providers submit blobs through private channels, so their transactions don’t appear until they’re mined.';
 
 export const UNATTRIBUTED_MEMPOOL_USER = 'Unknown';
 
@@ -28,7 +28,7 @@ export interface MempoolAttributionSummary {
  * Roll pending blob entries up by attributed user (L2/provider).
  *
  * The mempool endpoint returns one entry per blob, so a multi-blob
- * transaction arrives as several entries sharing a tx hash — transaction
+ * transaction arrives as several entries sharing a tx hash: transaction
  * counts dedupe by hash while blob counts and sizes sum per entry.
  */
 export function aggregateMempoolAttribution(

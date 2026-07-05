@@ -25,7 +25,7 @@ const ICON_CLUSTER_LIMIT = 4;
  */
 export default function MempoolSummary() {
   const { selectedNetwork } = useNetwork();
-  const { transactions, isLoading, error } = useMempoolLiveList(
+  const { transactions, truncated, isLoading, error } = useMempoolLiveList(
     MEMPOOL_SAMPLE_LIMIT,
     selectedNetwork.apiParam
   );
@@ -43,13 +43,12 @@ export default function MempoolSummary() {
     );
   }
 
-  // The endpoint returns one entry per blob, so a full sample means the true
-  // totals are at least what we counted.
-  const sampleTruncated = (transactions?.length ?? 0) >= MEMPOOL_SAMPLE_LIMIT;
-  const txDisplay = sampleTruncated ? `${summary.txCount}+` : `${summary.txCount}`;
+  // When the sample is truncated the true totals are at least what we
+  // counted, so mark them as lower bounds.
+  const txDisplay = truncated ? `${summary.txCount}+` : `${summary.txCount}`;
   const countsLabel = !transactions
     ? 'pending transactions unavailable'
-    : summary.txCount === 0
+    : summary.txCount === 0 && !truncated
       ? 'no pending blob transactions'
       : `${txDisplay} tx · ${formatBlobCount(summary.blobCount)} · ${formatBlobSize(summary.blobSizeBytes)}`;
 

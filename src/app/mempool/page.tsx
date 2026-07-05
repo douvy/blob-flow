@@ -40,7 +40,7 @@ export default function MempoolPage() {
     { refetchInterval: PRESSURE_REFRESH_MS }
   );
 
-  const { transactions, isLoading, error } = useMempoolLiveList(
+  const { transactions, truncated, isLoading, error } = useMempoolLiveList(
     MEMPOOL_SAMPLE_LIMIT,
     network
   );
@@ -49,7 +49,6 @@ export default function MempoolPage() {
     () => aggregateMempoolAttribution(transactions ?? []),
     [transactions]
   );
-  const sampleTruncated = (transactions?.length ?? 0) >= MEMPOOL_SAMPLE_LIMIT;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -75,21 +74,21 @@ export default function MempoolPage() {
         <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard
             label="Pending blobs"
-            value={pressure ? pressure.pendingBlobCount.toLocaleString() : '—'}
+            value={pressure ? pressure.pendingBlobCount.toLocaleString() : '-'}
             hint="public mempool"
           />
           <StatCard
             label="Unique senders"
-            value={pressure ? pressure.pendingUniqueSenders.toLocaleString() : '—'}
+            value={pressure ? pressure.pendingUniqueSenders.toLocaleString() : '-'}
           />
           <StatCard
             label="Likely includable"
-            value={pressure ? pressure.includability.likelyIncludableCount.toLocaleString() : '—'}
+            value={pressure ? pressure.includability.likelyIncludableCount.toLocaleString() : '-'}
             hint="at current base fee"
           />
           <StatCard
             label="Oldest pending"
-            value={pressure ? pressure.pendingTransactionAge.oldest : '—'}
+            value={pressure ? pressure.pendingTransactionAge.oldest : '-'}
             hint="time in mempool"
           />
         </div>
@@ -145,7 +144,7 @@ export default function MempoolPage() {
               </tbody>
             </table>
           </div>
-          {sampleTruncated && (
+          {truncated && (
             <p className="mt-2 text-xs text-[#6e7687]">
               Based on the most recent {MEMPOOL_SAMPLE_LIMIT} pending blobs.
             </p>

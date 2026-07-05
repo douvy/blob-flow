@@ -1,16 +1,18 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DEFAULT_NETWORK } from '../constants';
 import { LiveDataProvider } from '../contexts/LiveDataContext';
-import { useApiData } from '../hooks/useApiData';
+import { api } from '../lib/api';
 import { useNetwork } from '../hooks/useNetwork';
 import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
-import { BlobResponse, MempoolResponse, MempoolUpdateData } from '../types';
+import { BlobResponse, MempoolUpdateData } from '../types';
 import MempoolTable from './MempoolTable';
 
-vi.mock('../hooks/useApiData', () => ({
-  useApiData: vi.fn(),
+vi.mock('../lib/api', () => ({
+  api: {
+    getMempool: vi.fn(),
+  },
 }));
 
 vi.mock('../hooks/useNetwork', () => ({
@@ -76,17 +78,28 @@ function detailsButtonName(txHash: string): string {
   return `View pending blob details for transaction ${txHash}`;
 }
 
-function renderMempoolTable() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+// Mirror the production QueryClient defaults that matter here: a nonzero
+// staleTime means a remount inside the stale window renders from cache
+// without refetching, which is exactly the window where removed rows used
+// to resurrect.
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 15_000 } },
   });
-  return render(
+}
+
+function mempoolTableUi(queryClient: QueryClient) {
+  return (
     <QueryClientProvider client={queryClient}>
       <LiveDataProvider network={DEFAULT_NETWORK.apiParam}>
         <MempoolTable />
       </LiveDataProvider>
     </QueryClientProvider>
   );
+}
+
+function renderMempoolTable() {
+  return render(mempoolTableUi(makeQueryClient()));
 }
 
 describe('MempoolTable', () => {
@@ -102,21 +115,16 @@ describe('MempoolTable', () => {
       setSelectedNetwork: vi.fn(),
       networkOptions: [DEFAULT_NETWORK],
     });
-    vi.mocked(useApiData<MempoolResponse>).mockReturnValue({
-      data: {
-        data: [transformBlobToMempoolTransaction(blob, 0)],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
+    vi.mocked(api.getMempool).mockResolvedValue({
+      data: [transformBlobToMempoolTransaction(blob, 0)],
     });
   });
 
-  it('opens pending blob details from the transaction hash', () => {
+  it('opens pending blob details from the transaction hash', async () => {
     renderMempoolTable();
 
     fireEvent.click(
-      screen.getByRole('button', {
+      await screen.findByRole('button', {
         name: detailsButtonName(blob.tx_hash),
       })
     );
@@ -132,8 +140,9 @@ describe('MempoolTable', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('applies live add and remove events cumulatively', () => {
+  it('applies live add and remove events cumulatively', async () => {
     renderMempoolTable();
+    await screen.findByRole('button', { name: detailsButtonName(blob.tx_hash) });
     const socket = MockWebSocket.instances[0];
     act(() => socket.open());
 
@@ -144,7 +153,7 @@ describe('MempoolTable', () => {
       socket.receive(makeMempoolUpdateMessage({ action: 'add', blob: addedBlob }));
     });
     expect(
-      screen.getByRole('button', { name: detailsButtonName(addedBlob.tx_hash) })
+      await screen.findByRole('button', { name: detailsButtonName(addedBlob.tx_hash) })
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: detailsButtonName(blob.tx_hash) })
@@ -158,9 +167,11 @@ describe('MempoolTable', () => {
         })
       );
     });
-    expect(
-      screen.queryByRole('button', { name: detailsButtonName(blob.tx_hash) })
-    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: detailsButtonName(blob.tx_hash) })
+      ).not.toBeInTheDocument()
+    );
     expect(
       screen.getByRole('button', { name: detailsButtonName(addedBlob.tx_hash) })
     ).toBeInTheDocument();
@@ -175,15 +186,16 @@ describe('MempoolTable', () => {
       socket.receive(makeMempoolUpdateMessage({ action: 'add', blob: laterBlob }));
     });
     expect(
-      screen.getByRole('button', { name: detailsButtonName(laterBlob.tx_hash) })
+      await screen.findByRole('button', { name: detailsButtonName(laterBlob.tx_hash) })
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: detailsButtonName(blob.tx_hash) })
     ).not.toBeInTheDocument();
   });
 
-  it('accumulates one row per blob for a multi-blob transaction', () => {
+  it('accumulates one row per blob for a multi-blob transaction', async () => {
     renderMempoolTable();
+    await screen.findByRole('button', { name: detailsButtonName(blob.tx_hash) });
     const socket = MockWebSocket.instances[0];
     act(() => socket.open());
 
@@ -203,9 +215,11 @@ describe('MempoolTable', () => {
         })
       );
     });
-    expect(
-      screen.getAllByRole('button', { name: detailsButtonName(txHash) })
-    ).toHaveLength(2);
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('button', { name: detailsButtonName(txHash) })
+      ).toHaveLength(2)
+    );
 
     // Removes drop every blob entry of the transaction.
     act(() => {
@@ -216,8 +230,45 @@ describe('MempoolTable', () => {
         })
       );
     });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: detailsButtonName(txHash) })
+      ).not.toBeInTheDocument()
+    );
+  });
+
+  it('does not resurrect removed rows when remounting from a warm cache', async () => {
+    // Regression for live deltas living only in hook-local state: navigating
+    // away and back inside the stale window used to reseed from the original
+    // REST snapshot, bringing back transactions the mempool already dropped.
+    const queryClient = makeQueryClient();
+    const view = render(mempoolTableUi(queryClient));
+    await screen.findByRole('button', { name: detailsButtonName(blob.tx_hash) });
+
+    const socket = MockWebSocket.instances[0];
+    act(() => socket.open());
+    act(() => {
+      socket.receive(
+        makeMempoolUpdateMessage({
+          action: 'remove',
+          blob: { network_id: 1, network_name: 'mainnet', tx_hash: blob.tx_hash },
+        })
+      );
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: detailsButtonName(blob.tx_hash) })
+      ).not.toBeInTheDocument()
+    );
+
+    view.unmount();
+    render(mempoolTableUi(queryClient));
+
     expect(
-      screen.queryByRole('button', { name: detailsButtonName(txHash) })
+      await screen.findByText('No pending blob transactions right now.')
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: detailsButtonName(blob.tx_hash) })
     ).not.toBeInTheDocument();
   });
 });

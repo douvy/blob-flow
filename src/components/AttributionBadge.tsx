@@ -6,7 +6,7 @@ import { getAttributionImageSrc, getAttributionInitial } from '../utils';
 
 /**
  * Provider/L2 logo for an attributed user, falling back to an initial for
- * unknown senders. Always decorative — render the name alongside it.
+ * unknown senders. Always decorative; render the name alongside it.
  */
 export default function AttributionBadge({
   user,

@@ -4,15 +4,17 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DEFAULT_NETWORK } from '../constants';
 import { LiveDataProvider } from '../contexts/LiveDataContext';
-import { useApiData } from '../hooks/useApiData';
+import { api } from '../lib/api';
 import { useNetwork } from '../hooks/useNetwork';
 import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
-import { BlobResponse, MempoolResponse } from '../types';
+import { BlobResponse } from '../types';
 import { TooltipProvider } from './ui/tooltip';
 import MempoolSummary from './MempoolSummary';
 
-vi.mock('../hooks/useApiData', () => ({
-  useApiData: vi.fn(),
+vi.mock('../lib/api', () => ({
+  api: {
+    getMempool: vi.fn(),
+  },
 }));
 
 vi.mock('../hooks/useNetwork', () => ({
@@ -77,27 +79,22 @@ describe('MempoolSummary', () => {
       setSelectedNetwork: vi.fn(),
       networkOptions: [DEFAULT_NETWORK],
     });
-    vi.mocked(useApiData<MempoolResponse>).mockReturnValue({
-      data: {
-        data: [
-          transformBlobToMempoolTransaction(makeBlob({ tx_hash: '0x01', blob_index: 0 }), 0),
-          transformBlobToMempoolTransaction(makeBlob({ tx_hash: '0x01', blob_index: 1 }), 1),
-          transformBlobToMempoolTransaction(
-            makeBlob({ tx_hash: '0x02', user_attribution: undefined }),
-            2
-          ),
-        ],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
+    vi.mocked(api.getMempool).mockResolvedValue({
+      data: [
+        transformBlobToMempoolTransaction(makeBlob({ tx_hash: '0x01', blob_index: 0 }), 0),
+        transformBlobToMempoolTransaction(makeBlob({ tx_hash: '0x01', blob_index: 1 }), 1),
+        transformBlobToMempoolTransaction(
+          makeBlob({ tx_hash: '0x02', user_attribution: undefined }),
+          2
+        ),
+      ],
     });
   });
 
-  it('renders a single line with deduped tx counts linking to /mempool', () => {
+  it('renders a single line with deduped tx counts linking to /mempool', async () => {
     renderMempoolSummary();
 
-    const link = screen.getByRole('link', { name: /^Mempool:/ });
+    const link = await screen.findByRole('link', { name: /^Mempool:/ });
     expect(link).toHaveAttribute('href', '/mempool');
     expect(link).toHaveTextContent('2 tx · 3 blobs · 384 KB');
   });
@@ -106,7 +103,7 @@ describe('MempoolSummary', () => {
     const user = userEvent.setup();
     renderMempoolSummary();
 
-    await user.hover(screen.getByRole('link', { name: /^Mempool:/ }));
+    await user.hover(await screen.findByRole('link', { name: /^Mempool:/ }));
 
     const tooltip = await screen.findByRole('tooltip');
     expect(tooltip).toHaveTextContent('Base');
