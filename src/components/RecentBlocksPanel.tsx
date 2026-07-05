@@ -156,6 +156,22 @@ function mergeBlocks(blocks: Block[], nextBlock: Block): Block[] {
   ].slice(0, HOMEPAGE_BLOCK_ROWS);
 }
 
+// mergeBlockLists folds a batch of incoming blocks (e.g. a reconnect
+// snapshot) into the live list: incoming data wins per block number, and the
+// newest HOMEPAGE_BLOCK_ROWS blocks overall are kept.
+function mergeBlockLists(blocks: Block[], incoming: Block[]): Block[] {
+  const merged = new Map<string, Block>();
+  for (const block of blocks) {
+    merged.set(block.number, block);
+  }
+  for (const block of incoming) {
+    merged.set(block.number, block);
+  }
+  return Array.from(merged.values())
+    .sort((left, right) => Number(right.number) - Number(left.number))
+    .slice(0, HOMEPAGE_BLOCK_ROWS);
+}
+
 function mergeLiveAndFetchedBlocks(liveBlocks: Block[], fetchedBlocks: Block[]): Block[] {
   const mergedBlocks = new Map<string, Block>();
   const fallbackBlock = fetchedBlocks[0];
@@ -276,6 +292,21 @@ export default function RecentBlocksPanel() {
       blocks: mergeBlocks(
         currentState.network === network ? currentState.blocks : [],
         liveBlock
+      ),
+    }));
+  });
+
+  // The server sends the recent blocks on every (re)connect, closing the gap
+  // of events broadcast while this client was disconnected.
+  useLiveBlobEvent('block_snapshot', (event) => {
+    const snapshotBlocks = event.data.blocks.map((blockData) =>
+      transformNewBlockData(blockData)
+    );
+    setLiveBlockState((currentState) => ({
+      network,
+      blocks: mergeBlockLists(
+        currentState.network === network ? currentState.blocks : [],
+        snapshotBlocks
       ),
     }));
   });

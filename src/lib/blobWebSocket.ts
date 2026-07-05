@@ -3,6 +3,7 @@ import {
   BlobWebSocketConnectionState,
   BlobWebSocketEvent,
   BlobWebSocketSubscribeMessage,
+  BlockSnapshotData,
   LiveBlobWebSocketEvent,
   MempoolUpdateData,
   NewBlockData,
@@ -111,6 +112,11 @@ export function parseBlobWebSocketEvent(message: string): BlobWebSocketEvent | n
     case 'new_block':
       if (isRecord(payload.data)) {
         return { type: 'new_block', data: payload.data as unknown as NewBlockData };
+      }
+      return null;
+    case 'block_snapshot':
+      if (isRecord(payload.data) && Array.isArray(payload.data.blocks)) {
+        return { type: 'block_snapshot', data: payload.data as unknown as BlockSnapshotData };
       }
       return null;
     case 'mempool_update':
@@ -283,12 +289,40 @@ export class BlobWebSocketClient {
     this.staleTimer = setTimeout(() => {
       if (this.socket?.readyState === SOCKET_OPEN) {
         this.setConnectionState('stale');
+        // A stale-but-OPEN socket is almost always half-dead (laptop sleep,
+        // NAT rebind, dropped proxy tunnel): the server pings every 30s, so
+        // silence past the stale timeout means nothing is arriving. Waiting
+        // for the TCP stack to notice can take minutes of missed events —
+        // tear the socket down and reconnect instead.
+        this.forceReconnect();
       }
     }, staleTimeoutMs);
 
     if (this.connectionState === 'stale') {
       this.setConnectionState('connected');
     }
+  }
+
+  // forceReconnect abandons the current socket (detaching handlers so its
+  // eventual close event cannot double-schedule) and enters the reconnect
+  // path immediately.
+  private forceReconnect() {
+    const socket = this.socket;
+    this.socket = null;
+    this.clearStaleTimer();
+
+    if (socket) {
+      socket.onopen = null;
+      socket.onmessage = null;
+      socket.onclose = null;
+      socket.onerror = null;
+
+      if (socket.readyState === SOCKET_CONNECTING || socket.readyState === SOCKET_OPEN) {
+        socket.close();
+      }
+    }
+
+    this.scheduleReconnect();
   }
 
   private setConnectionState(state: BlobWebSocketConnectionState) {
