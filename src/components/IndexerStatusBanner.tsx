@@ -8,6 +8,7 @@ import { useNow } from '../hooks/useNow';
 import { api } from '../lib/api';
 import { StatusResponse } from '../types';
 import {
+  BACKFILL_MIN_REMAINING_BLOCKS,
   INDEXER_LAG_THRESHOLD_SECONDS,
   INDEXER_STATUS_POLL_MS,
   SECONDS_PER_BLOCK,
@@ -54,6 +55,8 @@ export default function IndexerStatusBanner() {
   }
 
   const backfill = status.backfill;
+  const backfillInProgress =
+    backfill?.active && backfill.remaining_blocks >= BACKFILL_MIN_REMAINING_BLOCKS;
   const lagSeconds = computeLagSeconds(status, now);
 
   if (lagSeconds > INDEXER_LAG_THRESHOLD_SECONDS) {
@@ -67,7 +70,7 @@ export default function IndexerStatusBanner() {
           <span>
             Indexer is {formatDuration(lagSeconds)} behind the chain head (last indexed block{' '}
             {formatNumber(status.last_indexed_block)}). Recent data may be incomplete.
-            {backfill?.active && (
+            {backfillInProgress && (
               <> Backfilling — {formatPercent(backfill.progress_percent)} complete.</>
             )}
           </span>
@@ -76,7 +79,7 @@ export default function IndexerStatusBanner() {
     );
   }
 
-  if (backfill?.active) {
+  if (backfillInProgress) {
     return (
       <div
         role="status"
