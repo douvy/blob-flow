@@ -24,7 +24,7 @@ export default function MetricsCharts() {
 
   return (
     <section id="data-trends" className="scroll-mt-20">
-      <h2 className="text-2xl font-windsor-bold text-white mb-3">Data Trends</h2>
+      <h2 className="text-2xl font-windsor-bold text-white mb-4">Data Trends</h2>
       <DataStateWrapper isLoading={isLoading} error={error} loadingComponent={loadingComponent}>
         {chartData && (
           <div className="flex flex-col space-y-6">

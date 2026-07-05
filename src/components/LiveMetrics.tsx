@@ -245,7 +245,7 @@ export default function LiveMetrics() {
   const haveHeadline = Boolean(displayStats && selectedWindow);
 
   const loadingComponent = (
-    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
       {[...Array(4)].map((_, index) => (
         <div key={index} className="animate-pulse bg-[#14161a] rounded-lg p-5 border border-divider">
           <div className="h-5 bg-[#26282e] rounded w-3/4 mb-3"></div>
@@ -266,7 +266,7 @@ export default function LiveMetrics() {
         loadingComponent={loadingComponent}
       >
         {displayStats && selectedWindow && (
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
             {getMetrics(displayStats, selectedWindow, latestBlock, topUser).map((metric, index) => (
               <MetricCard
                 key={index}
