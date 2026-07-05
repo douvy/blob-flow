@@ -117,11 +117,20 @@ export function groupChartPointsForStrip(
 ): HeroStripBucket[] {
   if (points.length === 0 || maxItems < 1) return [];
 
-  const groupSize = Math.ceil(points.length / maxItems);
-  const groups: HeroStripBucket[] = [];
+  // Balanced partition: group sizes differ by at most one, so a just-over-limit
+  // response (say 25 points) still fills the strip instead of collapsing to
+  // half the bars. The remainder goes to the oldest (leftmost) bars.
+  const groupCount = Math.min(maxItems, points.length);
+  const baseSize = Math.floor(points.length / groupCount);
+  let remainder = points.length % groupCount;
 
-  for (let start = 0; start < points.length; start += groupSize) {
-    groups.push(mergeStripBuckets(points.slice(start, start + groupSize)));
+  const groups: HeroStripBucket[] = [];
+  let start = 0;
+  while (start < points.length) {
+    const size = remainder > 0 ? baseSize + 1 : baseSize;
+    if (remainder > 0) remainder -= 1;
+    groups.push(mergeStripBuckets(points.slice(start, start + size)));
+    start += size;
   }
 
   return groups;

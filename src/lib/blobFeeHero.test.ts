@@ -202,6 +202,27 @@ describe('groupChartPointsForStrip', () => {
     });
   });
 
+  it('keeps group sizes balanced when the count does not divide evenly', () => {
+    const points = Array.from({ length: 25 }, (_, index) =>
+      makeChartPoint({ timestamp: `2026-06-11T00:${String(index).padStart(2, '0')}:00Z` })
+    );
+
+    const grouped = groupChartPointsForStrip(points, 24);
+
+    expect(grouped).toHaveLength(24);
+    expect(grouped.map((group) => group.bucket_count)).toEqual([2, ...Array(23).fill(1)]);
+  });
+
+  it('spreads the remainder across the oldest bars', () => {
+    const points = Array.from({ length: 8 }, (_, index) =>
+      makeChartPoint({ timestamp: `2026-06-11T0${index}:00:00Z` })
+    );
+
+    const grouped = groupChartPointsForStrip(points, 3);
+
+    expect(grouped.map((group) => group.bucket_count)).toEqual([3, 3, 2]);
+  });
+
   it('drops the merged gas limit when any bucket lacks one', () => {
     const points = [
       makeChartPoint({ blob_gas_limit: 200 }),

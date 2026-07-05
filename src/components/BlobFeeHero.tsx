@@ -189,9 +189,15 @@ const BUCKET_HINTS: Record<string, string> = {
  */
 function getBucketStripHint(
   marketChart: BackendBlobMarketChartResponse,
-  bucketsPerBar: number
+  stripBuckets: HeroStripBucket[]
 ): string {
   const baseHint = BUCKET_HINTS[marketChart.granularity] ?? `${marketChart.granularity} buckets`;
+  if (stripBuckets.length === 0) return baseHint;
+
+  // Bars can differ by one bucket when the count doesn't divide evenly; the
+  // rounded mean matches the dominant bar span.
+  const totalBuckets = stripBuckets.reduce((total, bucket) => total + bucket.bucket_count, 0);
+  const bucketsPerBar = Math.round(totalBuckets / stripBuckets.length);
   if (bucketsPerBar <= 1) return baseHint;
 
   const seconds = marketChart.bucket_seconds * bucketsPerBar;
@@ -492,7 +498,19 @@ function formatStripBucketLabel(bucket: HeroStripBucket, dayScale: boolean): str
   if (bucket.bucket_count <= 1) return startLabel;
 
   const endLabel = formatBucketLabel(bucket.end_timestamp, dayScale);
-  return endLabel && endLabel !== startLabel ? `${startLabel} – ${endLabel}` : startLabel;
+  if (endLabel && endLabel !== startLabel) return `${startLabel} – ${endLabel}`;
+
+  if (dayScale) {
+    // Same-day bar on a day-scale range (e.g. 7-hour bars on 7d): add the
+    // bucket start times so bars within one day stay distinguishable.
+    const startTime = formatBucketLabel(bucket.timestamp, false);
+    const endTime = formatBucketLabel(bucket.end_timestamp, false);
+    if (startTime && endTime && startTime !== endTime) {
+      return `${startLabel} ${startTime} – ${endTime}`;
+    }
+  }
+
+  return startLabel;
 }
 
 function buildBucketStripItems(
@@ -757,7 +775,7 @@ export default function BlobFeeHero() {
     ? `Last ${stripItems.length} blocks · click a bar for block details`
     : `${RANGE_LABELS[timeRange]} · ${
       marketChart
-        ? getBucketStripHint(marketChart, stripBuckets[0]?.bucket_count ?? 1)
+        ? getBucketStripHint(marketChart, stripBuckets)
         : 'utilization buckets'
     }`;
 
