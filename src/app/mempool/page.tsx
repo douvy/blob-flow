@@ -98,7 +98,7 @@ export default function MempoolPage() {
           isLoading={isLoading && !transactions}
           error={transactions ? null : error}
           loadingComponent={
-            <div className="h-40 animate-pulse rounded-lg border border-divider bg-[#161a29]/80" />
+            <div className="h-40 animate-pulse rounded-lg border border-divider bg-[#14161a]" />
           }
         >
           <div className="overflow-x-auto border border-divider rounded-lg">
@@ -113,7 +113,7 @@ export default function MempoolPage() {
               </thead>
               <tbody className="divide-y divide-divider">
                 {summary.groups.length === 0 && (
-                  <tr className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
+                  <tr className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
                     <td colSpan={4} className="py-6 px-4 text-center text-sm text-[#8a93a5]">
                       No pending blob transactions right now.
                     </td>
@@ -122,7 +122,7 @@ export default function MempoolPage() {
                 {summary.groups.map((group) => (
                   <tr
                     key={group.user}
-                    className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60"
+                    className="bg-gradient-to-r from-[#17181b] to-[#141519]/60"
                   >
                     <td className="py-3 px-3 sm:px-4 text-sm text-white">
                       <div className="flex items-center gap-2">
