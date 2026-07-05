@@ -70,7 +70,7 @@ function BlobDetailField({
 
 export function BlobDetailsContent({ block }: { block: Block }) {
   return (
-    <div className="px-4 sm:px-6 py-4 border-t border-dividerBlue/50">
+    <div className="px-4 sm:px-6 py-4 border-t border-divider">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <h3 className="text-sm font-medium text-white">Blob details</h3>
         <span className="text-xs text-[#6e7787]">
