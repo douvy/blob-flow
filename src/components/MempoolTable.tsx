@@ -55,40 +55,46 @@ export default function MempoolTable() {
     };
   }, [data, liveEvent]);
 
+  // Fee Cap and Time collapse into sublines below sm/md and again between lg
+  // and xl, where the panel shares the row with the charts and is narrowest.
+  const tableHeader = (
+    <thead>
+      <tr className="border-b border-divider bg-gradient-to-b from-[#22252c] to-[#16171b]">
+        <th className="py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%]">TX Hash</th>
+        <th className="py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%]">Sender</th>
+        <th className="py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%]">Blobs</th>
+        <th className="hidden sm:table-cell lg:hidden xl:table-cell py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[19%] whitespace-nowrap">Fee Cap</th>
+        <th className="py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[22%]">Cost</th>
+        <th className="hidden md:table-cell lg:hidden xl:table-cell py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[15%] whitespace-nowrap">Time</th>
+      </tr>
+    </thead>
+  );
+
   const loadingComponent = (
     <div className="overflow-x-auto border border-divider rounded-lg">
-      <table className="min-w-full overflow-hidden table-fixed">
-        <thead>
-          <tr className="border-b border-divider bg-gradient-to-b from-[#22252c] to-[#16171b]">
-            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[22%]">TX Hash</th>
-            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[22%]">Sender</th>
-            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%]">Blobs</th>
-            <th className="hidden sm:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%] whitespace-nowrap">Fee Cap</th>
-            <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%]">Cost</th>
-            <th className="hidden md:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%] whitespace-nowrap">Time</th>
-          </tr>
-        </thead>
+      <table className="w-full overflow-hidden table-fixed">
+        {tableHeader}
         <tbody className="divide-y divide-divider">
           {[...Array(5)].map((_, index) => (
             <tr key={index} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
-              <td className="py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-24 animate-pulse mb-2"></div>
-                <div className="h-3 bg-[#202538] rounded w-14 animate-pulse md:hidden"></div>
+              <td className="py-3 px-2">
+                <div className="h-5 bg-[#202538] rounded w-24 max-w-full animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#202538] rounded w-14 max-w-full animate-pulse md:hidden lg:block xl:hidden"></div>
               </td>
-              <td className="py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-20 animate-pulse"></div>
+              <td className="py-3 px-2">
+                <div className="h-5 bg-[#202538] rounded w-20 max-w-full animate-pulse"></div>
               </td>
-              <td className="py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-8 animate-pulse"></div>
+              <td className="py-3 px-2">
+                <div className="h-5 bg-[#202538] rounded w-8 max-w-full animate-pulse"></div>
               </td>
-              <td className="hidden sm:table-cell py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-16 animate-pulse"></div>
+              <td className="hidden sm:table-cell lg:hidden xl:table-cell py-3 px-2">
+                <div className="h-5 bg-[#202538] rounded w-16 max-w-full animate-pulse"></div>
               </td>
-              <td className="py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-20 animate-pulse"></div>
+              <td className="py-3 px-2">
+                <div className="h-5 bg-[#202538] rounded w-20 max-w-full animate-pulse"></div>
               </td>
-              <td className="hidden md:table-cell py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-12 animate-pulse"></div>
+              <td className="hidden md:table-cell lg:hidden xl:table-cell py-3 px-2">
+                <div className="h-5 bg-[#202538] rounded w-12 max-w-full animate-pulse"></div>
               </td>
             </tr>
           ))}
@@ -99,7 +105,7 @@ export default function MempoolTable() {
 
   const truncateTxHash = (hash: string): string => {
     if (hash.length <= 10) return hash;
-    return `${hash.substring(0, 8)}...`;
+    return `${hash.substring(0, 6)}...`;
   };
 
   return (
@@ -113,17 +119,8 @@ export default function MempoolTable() {
       >
         {displayData && (
           <div className="overflow-x-auto border border-divider rounded-lg">
-            <table className="min-w-full overflow-hidden table-fixed">
-              <thead>
-                <tr className="border-b border-divider bg-gradient-to-b from-[#22252c] to-[#16171b]">
-                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[22%]">TX Hash</th>
-                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[22%]">Sender</th>
-                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%]">Blobs</th>
-                  <th className="hidden sm:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%] whitespace-nowrap">Fee Cap</th>
-                  <th className="py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%]">Cost</th>
-                  <th className="hidden md:table-cell py-3 px-3 sm:px-4 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%] whitespace-nowrap">Time</th>
-                </tr>
-              </thead>
+            <table className="w-full overflow-hidden table-fixed">
+              {tableHeader}
               <tbody ref={tbodyRef} className="divide-y divide-divider">
                 {displayData.data.map((tx: MempoolTransaction) => {
                   const user = tx.user || 'Unknown';
@@ -136,19 +133,19 @@ export default function MempoolTable() {
                       data-row-key={rowKey}
                       className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors"
                     >
-                      <td className="py-3 px-3 sm:px-4 text-sm font-mono text-white">
+                      <td className="py-3 px-2 text-xs sm:text-sm font-mono text-white">
                         <button
                           type="button"
                           onClick={() => setSelectedTransaction(tx)}
-                          className="cursor-pointer rounded text-left text-white underline decoration-[#3B55E6]/50 underline-offset-4 transition-colors hover:text-[#9ac4fd] focus:outline-none focus:ring-2 focus:ring-[#3B55E6] focus:ring-offset-2 focus:ring-offset-[#161a29]"
+                          className="max-w-full truncate cursor-pointer rounded text-left text-white underline decoration-[#3B55E6]/50 underline-offset-4 transition-colors hover:text-[#9ac4fd] focus:outline-none focus:ring-2 focus:ring-[#3B55E6] focus:ring-offset-2 focus:ring-offset-[#161a29]"
                           aria-label={`View pending blob details for transaction ${tx.txHash}`}
                         >
                           {truncateTxHash(tx.txHash)}
                         </button>
-                        <div className="text-xs text-[#8a93a5] mt-1 font-sans md:hidden"><RelativeTime timestamp={tx.timeInMempool} /></div>
+                        <div className="text-xs text-[#8a93a5] mt-1 font-sans truncate md:hidden lg:block xl:hidden"><RelativeTime timestamp={tx.timeInMempool} /></div>
                       </td>
-                      <td className="py-3 px-3 sm:px-4 text-sm text-white min-w-0">
-                        <div className="font-mono whitespace-nowrap" title={tx.fromAddressFull}>
+                      <td className="py-3 px-2 text-xs sm:text-sm text-white">
+                        <div className="font-mono truncate" title={tx.fromAddressFull}>
                           {tx.fromAddressUrl ? (
                             <a
                               href={tx.fromAddressUrl}
@@ -179,20 +176,20 @@ export default function MempoolTable() {
                           <span className="truncate">{user}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-3 sm:px-4 text-sm text-white">
-                        <div className="whitespace-nowrap">{formatBlobCount(tx.blobCount)}</div>
-                        <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">{formatBlobSize(tx.blobSizeBytes)}</div>
+                      <td className="py-3 px-2 text-xs sm:text-sm text-white">
+                        <div className="truncate">{formatBlobCount(tx.blobCount)}</div>
+                        <div className="text-xs text-[#8a93a5] mt-1 truncate">{formatBlobSize(tx.blobSizeBytes)}</div>
                       </td>
-                      <td className="hidden sm:table-cell py-3 px-3 sm:px-4 text-sm text-white">
-                        <div className="whitespace-nowrap">{tx.maxFeeGwei}</div>
-                        <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">{tx.feeHeadroom} room</div>
+                      <td className="hidden sm:table-cell lg:hidden xl:table-cell py-3 px-2 text-xs sm:text-sm text-white">
+                        <div className="truncate" title={tx.maxFeeGwei}>{tx.maxFeeGwei}</div>
+                        <div className="text-xs text-[#8a93a5] mt-1 truncate">{tx.feeHeadroom} room</div>
                       </td>
-                      <td className="py-3 px-3 sm:px-4 text-sm text-white">
-                        <div className="whitespace-nowrap">{tx.realizedCost}</div>
-                        <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">max {tx.maxCost}</div>
-                        <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap sm:hidden">{tx.feeHeadroom} room</div>
+                      <td className="py-3 px-2 text-xs sm:text-sm text-white">
+                        <div className="truncate" title={tx.realizedCost}>{tx.realizedCost}</div>
+                        <div className="text-xs text-[#8a93a5] mt-1 truncate" title={`max ${tx.maxCost}`}>max {tx.maxCost}</div>
+                        <div className="text-xs text-[#8a93a5] mt-1 truncate sm:hidden lg:block xl:hidden">{tx.feeHeadroom} room</div>
                       </td>
-                      <td className="hidden md:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap"><RelativeTime timestamp={tx.timeInMempool} /></td>
+                      <td className="hidden md:table-cell lg:hidden xl:table-cell py-3 px-2 text-xs sm:text-sm text-white truncate"><RelativeTime timestamp={tx.timeInMempool} /></td>
                     </tr>
                   );
                 })}
