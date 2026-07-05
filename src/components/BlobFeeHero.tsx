@@ -33,8 +33,10 @@ import {
   getWindowAboveTargetSummary,
   formatFeeNumber,
   formatSignedPercent,
+  groupChartPointsForStrip,
   mergeRecentPricingBlocks,
   parseGwei,
+  type HeroStripBucket,
 } from '@/lib/blobFeeHero';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
@@ -171,6 +173,34 @@ const BUCKET_HINTS: Record<string, string> = {
   hour: 'hourly buckets',
   day: 'daily buckets',
 };
+
+/**
+ * Caption hint for the fullness strip. When the strip merges several chart
+ * buckets per bar, describe the merged bar span (e.g. "7-hour buckets")
+ * instead of the backend granularity.
+ */
+function getBucketStripHint(
+  marketChart: BackendBlobMarketChartResponse,
+  stripBuckets: HeroStripBucket[]
+): string {
+  const baseHint = BUCKET_HINTS[marketChart.granularity] ?? `${marketChart.granularity} buckets`;
+  if (stripBuckets.length === 0) return baseHint;
+
+  // Bars can differ by one bucket when the count doesn't divide evenly; the
+  // rounded mean matches the dominant bar span.
+  const totalBuckets = stripBuckets.reduce((total, bucket) => total + bucket.bucket_count, 0);
+  const bucketsPerBar = Math.round(totalBuckets / stripBuckets.length);
+  if (bucketsPerBar <= 1) return baseHint;
+
+  const seconds = marketChart.bucket_seconds * bucketsPerBar;
+  if (!Number.isFinite(seconds) || seconds <= 0) return baseHint;
+  if (seconds === 86400) return BUCKET_HINTS.day;
+  if (seconds === 3600) return BUCKET_HINTS.hour;
+  if (seconds % 86400 === 0) return `${seconds / 86400}-day buckets`;
+  if (seconds % 3600 === 0) return `${seconds / 3600}-hour buckets`;
+  if (seconds % 60 === 0) return `${seconds / 60}-minute buckets`;
+  return baseHint;
+}
 
 function isDayScaleRange(timeRange: TimeRange): boolean {
   return timeRange === '7d' || timeRange === '30d' || timeRange === 'All';
@@ -455,12 +485,32 @@ function buildBlockStripItems(blocks: BlobPricingRecentBlock[]): FullnessStripIt
     }));
 }
 
+function formatStripBucketLabel(bucket: HeroStripBucket, dayScale: boolean): string {
+  const startLabel = bucket.label || formatBucketLabel(bucket.timestamp, dayScale);
+  if (bucket.bucket_count <= 1) return startLabel;
+
+  const endLabel = formatBucketLabel(bucket.end_timestamp, dayScale);
+  if (endLabel && endLabel !== startLabel) return `${startLabel} – ${endLabel}`;
+
+  if (dayScale) {
+    // Same-day bar on a day-scale range (e.g. 7-hour bars on 7d): add the
+    // bucket start times so bars within one day stay distinguishable.
+    const startTime = formatBucketLabel(bucket.timestamp, false);
+    const endTime = formatBucketLabel(bucket.end_timestamp, false);
+    if (startTime && endTime && startTime !== endTime) {
+      return `${startLabel} ${startTime} – ${endTime}`;
+    }
+  }
+
+  return startLabel;
+}
+
 function buildBucketStripItems(
-  points: BackendBlobMarketChartPoint[],
+  points: HeroStripBucket[],
   dayScale: boolean
 ): FullnessStripItem[] {
   return points.map((point, index) => {
-    const label = point.label || formatBucketLabel(point.timestamp, dayScale);
+    const label = formatStripBucketLabel(point, dayScale);
     const fillPercent = getBucketFillPercent(point);
     const blockDescription = describeBucketBlocks(point);
     const blockSuffix = blockDescription ? ` · ${blockDescription}` : '';
@@ -696,12 +746,18 @@ export default function BlobFeeHero() {
       : undefined;
 
   const stripBlocks = useMemo(() => blocks.slice(0, HERO_STRIP_BLOCKS), [blocks]);
+  // Long ranges return hundreds of chart buckets; merge them down to the
+  // strip's bar capacity so the row never overflows the card.
+  const stripBuckets = useMemo(
+    () => (isLiveRange ? [] : groupChartPointsForStrip(marketChart?.points ?? [])),
+    [isLiveRange, marketChart]
+  );
   const stripItems = useMemo(() => {
     if (isLiveRange) {
       return buildBlockStripItems(stripBlocks);
     }
-    return buildBucketStripItems(marketChart?.points ?? [], isDayScaleRange(timeRange));
-  }, [isLiveRange, stripBlocks, marketChart, timeRange]);
+    return buildBucketStripItems(stripBuckets, isDayScaleRange(timeRange));
+  }, [isLiveRange, stripBlocks, stripBuckets, timeRange]);
   const stripTargetPercent = useMemo(() => (
     isLiveRange
       ? getBlockStripTargetPercent(stripBlocks)
@@ -711,7 +767,7 @@ export default function BlobFeeHero() {
     ? `Last ${stripItems.length} blocks · click a bar for block details`
     : `${RANGE_LABELS[timeRange]} · ${
       marketChart
-        ? BUCKET_HINTS[marketChart.granularity] ?? `${marketChart.granularity} buckets`
+        ? getBucketStripHint(marketChart, stripBuckets)
         : 'utilization buckets'
     }`;
 
