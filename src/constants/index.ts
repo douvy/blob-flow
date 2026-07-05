@@ -39,6 +39,13 @@ export const SECONDS_PER_BLOCK = 12;
 export const INDEXER_STATUS_POLL_MS = 30_000;
 /** Generous enough to absorb client clock skew and brief indexer hiccups. */
 export const INDEXER_LAG_THRESHOLD_SECONDS = 120;
+/**
+ * The backend reports a backfill as active until it fully catches the chain
+ * head, so the last handful of blocks is normal tip-chasing, not a state
+ * worth a banner. Matches the lag threshold (120s / 12s per block).
+ */
+export const BACKFILL_MIN_REMAINING_BLOCKS =
+  INDEXER_LAG_THRESHOLD_SECONDS / SECONDS_PER_BLOCK;
 
 /**
  * Network configuration

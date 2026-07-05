@@ -94,6 +94,22 @@ describe('IndexerStatusBanner', () => {
     );
   });
 
+  it('renders nothing when a backfill is nearly caught up', () => {
+    mockStatus(
+      makeStatus({
+        backfill: makeBackfill({
+          active: true,
+          remaining_blocks: 1,
+          progress_percent: 99.4,
+        }),
+      })
+    );
+
+    const { container } = render(<IndexerStatusBanner />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('shows a lag warning when the indexer trails the chain head', () => {
     mockStatus(
       makeStatus({
