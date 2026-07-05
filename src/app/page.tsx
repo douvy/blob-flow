@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <>
-      <div className="container mx-auto px-4 pt-12 pb-16 max-w-7xl">
+      <div className="container mx-auto px-4 py-12 max-w-7xl">
         <h1 className="sr-only">Real-time Ethereum blob analytics</h1>
         <BlobFeeHero />
       </div>
@@ -37,7 +37,7 @@ export default function Home() {
             <MempoolSummary />
             <TopUsersTable />
             <section>
-              <h2 className="text-2xl font-windsor-bold text-white mb-3">What are blobs?</h2>
+              <h2 className="text-2xl font-windsor-bold text-white mb-4">What are blobs?</h2>
               <ExplainerSection />
             </section>
           </div>

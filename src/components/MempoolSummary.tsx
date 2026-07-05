@@ -37,7 +37,7 @@ export default function MempoolSummary() {
 
   if (!transactions && isLoading) {
     return (
-      <section className="pt-2">
+      <section>
         <div className="h-[46px] animate-pulse rounded-lg border border-divider bg-[#14161a]" />
       </section>
     );
@@ -97,11 +97,11 @@ export default function MempoolSummary() {
   );
 
   if (!transactions) {
-    return <section className="pt-2">{line}</section>;
+    return <section>{line}</section>;
   }
 
   return (
-    <section className="pt-2">
+    <section>
       <Tooltip>
         <TooltipTrigger asChild>{line}</TooltipTrigger>
         <TooltipContent side="bottom" align="start" className="w-80 max-w-[calc(100vw-2rem)] px-3 py-2.5">
