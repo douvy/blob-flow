@@ -49,30 +49,30 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
         {tableHeader}
         <tbody className="divide-y divide-divider">
           {[...Array(5)].map((_, index) => (
-            <tr key={index} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
+            <tr key={index} className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
               <td className="py-3 px-2">
-                <div className="h-5 bg-[#202538] rounded w-24 max-w-full animate-pulse mb-2"></div>
-                <div className="h-3 bg-[#202538] rounded w-14 max-w-full animate-pulse md:hidden"></div>
+                <div className="h-5 bg-[#26282e] rounded w-24 max-w-full animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#26282e] rounded w-14 max-w-full animate-pulse md:hidden"></div>
               </td>
               <td className="py-3 px-2">
-                <div className="h-5 bg-[#202538] rounded w-20 max-w-full animate-pulse mb-2"></div>
-                <div className="h-3 bg-[#202538] rounded w-14 max-w-full animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-20 max-w-full animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#26282e] rounded w-14 max-w-full animate-pulse"></div>
               </td>
               <td className="py-3 px-2">
-                <div className="h-5 bg-[#202538] rounded w-12 max-w-full animate-pulse mb-2"></div>
-                <div className="h-3 bg-[#202538] rounded w-10 max-w-full animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-12 max-w-full animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#26282e] rounded w-10 max-w-full animate-pulse"></div>
               </td>
               <td className="hidden sm:table-cell py-3 px-2">
-                <div className="h-5 bg-[#202538] rounded w-16 max-w-full animate-pulse mb-2"></div>
-                <div className="h-3 bg-[#202538] rounded w-12 max-w-full animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-16 max-w-full animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#26282e] rounded w-12 max-w-full animate-pulse"></div>
               </td>
               <td className="py-3 px-2">
-                <div className="h-5 bg-[#202538] rounded w-20 max-w-full animate-pulse mb-2"></div>
-                <div className="h-3 bg-[#202538] rounded w-16 max-w-full animate-pulse"></div>
-                <div className="h-3 bg-[#202538] rounded w-14 max-w-full animate-pulse mt-2 sm:hidden"></div>
+                <div className="h-5 bg-[#26282e] rounded w-20 max-w-full animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#26282e] rounded w-16 max-w-full animate-pulse"></div>
+                <div className="h-3 bg-[#26282e] rounded w-14 max-w-full animate-pulse mt-2 sm:hidden"></div>
               </td>
               <td className="hidden md:table-cell py-3 px-2">
-                <div className="h-5 bg-[#202538] rounded w-12 max-w-full animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-12 max-w-full animate-pulse"></div>
               </td>
             </tr>
           ))}
@@ -101,7 +101,7 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
               {tableHeader}
               <tbody ref={tbodyRef} className="divide-y divide-divider">
                 {transactions.length === 0 && (
-                  <tr className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
+                  <tr className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
                     <td colSpan={6} className="py-6 px-4 text-center text-sm text-[#8a93a5]">
                       No pending blob transactions right now.
                     </td>
@@ -116,13 +116,13 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
                     <tr
                       key={rowKey}
                       data-row-key={rowKey}
-                      className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors"
+                      className="bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 transition-colors"
                     >
                       <td className="py-3 px-2 text-xs sm:text-sm font-mono text-white">
                         <button
                           type="button"
                           onClick={() => setSelectedTransaction(tx)}
-                          className="max-w-full truncate cursor-pointer rounded text-left text-white underline decoration-[#3B55E6]/50 underline-offset-4 transition-colors hover:text-[#9ac4fd] focus:outline-none focus:ring-2 focus:ring-[#3B55E6] focus:ring-offset-2 focus:ring-offset-[#161a29]"
+                          className="max-w-full truncate cursor-pointer rounded text-left text-white underline decoration-[#3B55E6]/50 underline-offset-4 transition-colors hover:text-[#9ac4fd] focus:outline-none focus:ring-2 focus:ring-[#3B55E6] focus:ring-offset-2 focus:ring-offset-[#17181b]"
                           title={tx.txHash}
                           aria-label={`View pending blob details for transaction ${tx.txHash}`}
                         >

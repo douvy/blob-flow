@@ -38,7 +38,7 @@ export default function MempoolSummary() {
   if (!transactions && isLoading) {
     return (
       <section className="pt-2">
-        <div className="h-[46px] animate-pulse rounded-lg border border-divider bg-[#161a29]/80" />
+        <div className="h-[46px] animate-pulse rounded-lg border border-divider bg-[#14161a]" />
       </section>
     );
   }
@@ -59,7 +59,7 @@ export default function MempoolSummary() {
     <Link
       href="/mempool"
       aria-label={`Mempool: ${countsLabel}. View details.`}
-      className="group flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-divider bg-gradient-to-r from-[#161a29] to-[#19191e]/60 px-4 py-3 transition-colors hover:from-[#202538]/70 hover:to-[#242731]/70"
+      className="group flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-divider bg-gradient-to-r from-[#17181b] to-[#141519]/60 px-4 py-3 transition-colors hover:from-[#1f2127]/70 hover:to-[#23252b]/70"
     >
       <span className="font-windsor-bold text-xl leading-none text-white pt-[2px]">Mempool</span>
       <span className="text-sm tabular-nums text-[#8a93a5]">
@@ -72,14 +72,14 @@ export default function MempoolSummary() {
             {topGroups.map((group) => (
               <span
                 key={group.user}
-                className="-ml-1.5 flex rounded-full ring-2 ring-[#161a29] first:ml-0"
+                className="-ml-1.5 flex rounded-full ring-2 ring-[#17181b] first:ml-0"
                 title={group.user}
               >
                 <AttributionBadge user={group.user} sizeClass="h-5 w-5" />
               </span>
             ))}
             {extraGroupCount > 0 && (
-              <span className="-ml-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#202538] text-[9px] text-[#8a93a5] ring-2 ring-[#161a29]">
+              <span className="-ml-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#26282e] text-[9px] text-[#8a93a5] ring-2 ring-[#17181b]">
                 +{extraGroupCount}
               </span>
             )}

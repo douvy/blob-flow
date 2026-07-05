@@ -38,7 +38,7 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
 
   if (blobs.length === 0) {
     return (
-      <div className="text-center py-8 border border-divider rounded-lg bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
+      <div className="text-center py-8 border border-divider rounded-lg bg-gradient-to-r from-[#17181b] to-[#141519]/60">
         <p className="text-[#6c727f]">No blobs found.</p>
       </div>
     );
@@ -72,7 +72,7 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
             const headroom = formatFeeHeadroom(blob.fee_cap_headroom_percent);
 
             return (
-              <tr key={`${blob.tx_hash}-${blob.blob_index}`} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 transition-colors">
+              <tr key={`${blob.tx_hash}-${blob.blob_index}`} className="bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 transition-colors">
                 <td className="py-3 px-3 sm:px-4 text-sm font-mono text-white">
                   {blob.transaction_url ? (
                     <a
@@ -161,15 +161,15 @@ export default function UserDetailPage() {
   const loadingStats = (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-8 h-8 rounded-full bg-[#202538] animate-pulse" />
-        <div className="h-8 bg-[#202538] rounded w-40 animate-pulse" />
+        <div className="w-8 h-8 rounded-full bg-[#26282e] animate-pulse" />
+        <div className="h-8 bg-[#26282e] rounded w-40 animate-pulse" />
       </div>
-      <div className="h-5 bg-[#202538] rounded w-80 animate-pulse" />
+      <div className="h-5 bg-[#26282e] rounded w-80 animate-pulse" />
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[...Array(3)].map((_, i) => (
           <div key={i} className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
-            <div className="h-3 bg-[#202538] rounded w-16 animate-pulse mb-2" />
-            <div className="h-6 bg-[#202538] rounded w-20 animate-pulse" />
+            <div className="h-3 bg-[#26282e] rounded w-16 animate-pulse mb-2" />
+            <div className="h-6 bg-[#26282e] rounded w-20 animate-pulse" />
           </div>
         ))}
       </div>
@@ -191,13 +191,13 @@ export default function UserDetailPage() {
         </thead>
         <tbody className="divide-y divide-divider">
           {[...Array(5)].map((_, index) => (
-            <tr key={index} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
-              <td className="py-3 px-3 sm:px-4"><div className="h-5 bg-[#202538] rounded w-28 animate-pulse" /></td>
-              <td className="hidden sm:table-cell py-3 px-3 sm:px-4"><div className="h-5 bg-[#202538] rounded w-16 animate-pulse" /></td>
-              <td className="py-3 px-3 sm:px-4"><div className="h-5 bg-[#202538] rounded w-14 animate-pulse" /></td>
-              <td className="hidden md:table-cell py-3 px-3 sm:px-4"><div className="h-5 bg-[#202538] rounded w-20 animate-pulse" /></td>
-              <td className="py-3 px-3 sm:px-4"><div className="h-5 bg-[#202538] rounded w-20 animate-pulse" /></td>
-              <td className="hidden lg:table-cell py-3 px-3 sm:px-4"><div className="h-5 bg-[#202538] rounded w-16 animate-pulse" /></td>
+            <tr key={index} className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
+              <td className="py-3 px-3 sm:px-4"><div className="h-5 bg-[#26282e] rounded w-28 animate-pulse" /></td>
+              <td className="hidden sm:table-cell py-3 px-3 sm:px-4"><div className="h-5 bg-[#26282e] rounded w-16 animate-pulse" /></td>
+              <td className="py-3 px-3 sm:px-4"><div className="h-5 bg-[#26282e] rounded w-14 animate-pulse" /></td>
+              <td className="hidden md:table-cell py-3 px-3 sm:px-4"><div className="h-5 bg-[#26282e] rounded w-20 animate-pulse" /></td>
+              <td className="py-3 px-3 sm:px-4"><div className="h-5 bg-[#26282e] rounded w-20 animate-pulse" /></td>
+              <td className="hidden lg:table-cell py-3 px-3 sm:px-4"><div className="h-5 bg-[#26282e] rounded w-16 animate-pulse" /></td>
             </tr>
           ))}
         </tbody>
