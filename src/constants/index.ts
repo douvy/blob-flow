@@ -9,6 +9,14 @@ export const BLOCKS_PAGE_LIMIT = 100;
 export const BLOCKS_PAGE_SIZE = 20;
 
 /**
+ * Indexer health banner
+ */
+export const SECONDS_PER_BLOCK = 12;
+export const INDEXER_STATUS_POLL_MS = 30_000;
+/** Generous enough to absorb client clock skew and brief indexer hiccups. */
+export const INDEXER_LAG_THRESHOLD_SECONDS = 120;
+
+/**
  * Network configuration
  */
 export const NETWORKS = {
