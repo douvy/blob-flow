@@ -55,6 +55,10 @@ src/
 - Tailwind utility classes for all styling; no CSS modules
 - Custom fonts: GT Flexa, Windsor Bold
 
+## Writing Style
+
+Never use em dashes (—) anywhere: UI copy, code comments, commit messages, PR titles and descriptions, or documentation. Use a period, comma, colon, semicolon, or parentheses instead.
+
 ## CI Standards
 
 Never make CI less restrictive. Do not add lint/type-check exceptions (e.g. `eslint-disable`, `@ts-ignore`, `any` casts), skip checks, or loosen rules to make builds pass. Fix the underlying issue instead.

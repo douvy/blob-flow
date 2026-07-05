@@ -2,9 +2,7 @@
 
 import Image from 'next/image';
 import React from 'react';
-import { useApiData } from '../hooks/useApiData';
-import { api } from '../lib/api';
-import { MempoolResponse, MempoolTransaction } from '../types';
+import { MempoolTransaction } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import {
@@ -13,59 +11,34 @@ import {
   getAttributionImageSrc,
   getAttributionInitial,
 } from '../utils';
-import { useLatestBlobEvent } from '../contexts/LiveDataContext';
-import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
+import { useMempoolLiveList } from '../hooks/useMempoolLiveList';
 import { useFlipRows } from '../hooks/useFlipRows';
 import MempoolBlobDetailsModal from './MempoolBlobDetailsModal';
 import { RelativeTime } from './RelativeTime';
 
-export default function MempoolTable() {
+export default function MempoolTable({ limit = 10 }: { limit?: number }) {
   const { selectedNetwork } = useNetwork();
-  const liveEvent = useLatestBlobEvent('mempool_update');
   const [selectedTransaction, setSelectedTransaction] = React.useState<MempoolTransaction | null>(null);
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   useFlipRows(tbodyRef, selectedNetwork.apiParam);
 
-  const { data, isLoading, error } = useApiData<MempoolResponse>(
-    () => api.getMempool(10, selectedNetwork.apiParam),
-    ['mempool', selectedNetwork.apiParam, 10]
+  const { transactions, isLoading, error } = useMempoolLiveList(
+    limit,
+    selectedNetwork.apiParam
   );
 
-  const displayData = React.useMemo<MempoolResponse | undefined>(() => {
-    if (!liveEvent) {
-      return data;
-    }
-
-    if (liveEvent.data.action === 'remove') {
-      return {
-        data: (data?.data || [])
-          .filter((tx) => tx.txHash !== liveEvent.data.blob.tx_hash)
-          .map((tx, index) => ({ ...tx, id: index + 1 })),
-      };
-    }
-
-    const liveTransaction = transformBlobToMempoolTransaction(liveEvent.data.blob, 0);
-    return {
-      data: [
-        liveTransaction,
-        ...(data?.data || []).filter((tx) => tx.txHash !== liveTransaction.txHash),
-      ]
-        .slice(0, 10)
-        .map((tx, index) => ({ ...tx, id: index + 1 })),
-    };
-  }, [data, liveEvent]);
-
-  // Fee Cap and Time collapse into sublines below sm/md and again between lg
-  // and xl, where the panel shares the row with the charts and is narrowest.
+  // Fee Cap and Time collapse into sublines below sm/md. (The lg-to-xl
+  // collapse from the old homepage placement is gone: this table now renders
+  // full-width on /mempool only.)
   const tableHeader = (
     <thead>
       <tr className="border-b border-divider bg-gradient-to-b from-[#22252c] to-[#16171b]">
         <th className="py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%]">TX Hash</th>
         <th className="py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[16%]">Sender</th>
         <th className="py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[12%]">Blobs</th>
-        <th className="hidden sm:table-cell lg:hidden xl:table-cell py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[19%] whitespace-nowrap">Fee Cap</th>
+        <th className="hidden sm:table-cell py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[19%] whitespace-nowrap">Fee Cap</th>
         <th className="py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[22%]">Cost</th>
-        <th className="hidden md:table-cell lg:hidden xl:table-cell py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[15%] whitespace-nowrap">Time</th>
+        <th className="hidden md:table-cell py-3 px-2 text-left text-xs font-medium text-[#6e7787] uppercase tracking-wider w-[15%] whitespace-nowrap">Time</th>
       </tr>
     </thead>
   );
@@ -79,7 +52,7 @@ export default function MempoolTable() {
             <tr key={index} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
               <td className="py-3 px-2">
                 <div className="h-5 bg-[#202538] rounded w-24 max-w-full animate-pulse mb-2"></div>
-                <div className="h-3 bg-[#202538] rounded w-14 max-w-full animate-pulse md:hidden lg:block xl:hidden"></div>
+                <div className="h-3 bg-[#202538] rounded w-14 max-w-full animate-pulse md:hidden"></div>
               </td>
               <td className="py-3 px-2">
                 <div className="h-5 bg-[#202538] rounded w-20 max-w-full animate-pulse mb-2"></div>
@@ -89,16 +62,16 @@ export default function MempoolTable() {
                 <div className="h-5 bg-[#202538] rounded w-12 max-w-full animate-pulse mb-2"></div>
                 <div className="h-3 bg-[#202538] rounded w-10 max-w-full animate-pulse"></div>
               </td>
-              <td className="hidden sm:table-cell lg:hidden xl:table-cell py-3 px-2">
+              <td className="hidden sm:table-cell py-3 px-2">
                 <div className="h-5 bg-[#202538] rounded w-16 max-w-full animate-pulse mb-2"></div>
                 <div className="h-3 bg-[#202538] rounded w-12 max-w-full animate-pulse"></div>
               </td>
               <td className="py-3 px-2">
                 <div className="h-5 bg-[#202538] rounded w-20 max-w-full animate-pulse mb-2"></div>
                 <div className="h-3 bg-[#202538] rounded w-16 max-w-full animate-pulse"></div>
-                <div className="h-3 bg-[#202538] rounded w-14 max-w-full animate-pulse mt-2 sm:hidden lg:block xl:hidden"></div>
+                <div className="h-3 bg-[#202538] rounded w-14 max-w-full animate-pulse mt-2 sm:hidden"></div>
               </td>
-              <td className="hidden md:table-cell lg:hidden xl:table-cell py-3 px-2">
+              <td className="hidden md:table-cell py-3 px-2">
                 <div className="h-5 bg-[#202538] rounded w-12 max-w-full animate-pulse"></div>
               </td>
             </tr>
@@ -115,19 +88,26 @@ export default function MempoolTable() {
 
   return (
     <section className="pt-2">
-      <h2 className="text-2xl font-windsor-bold text-white mb-4">Mempool Attribution</h2>
+      <h2 className="text-2xl font-windsor-bold text-white mb-4">Pending Transactions</h2>
 
       <DataStateWrapper
-        isLoading={isLoading && !displayData}
-        error={displayData ? null : error}
+        isLoading={isLoading && !transactions}
+        error={transactions ? null : error}
         loadingComponent={loadingComponent}
       >
-        {displayData && (
+        {transactions && (
           <div className="overflow-x-auto border border-divider rounded-lg">
             <table className="w-full overflow-hidden table-fixed">
               {tableHeader}
               <tbody ref={tbodyRef} className="divide-y divide-divider">
-                {displayData.data.map((tx: MempoolTransaction) => {
+                {transactions.length === 0 && (
+                  <tr className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
+                    <td colSpan={6} className="py-6 px-4 text-center text-sm text-[#8a93a5]">
+                      No pending blob transactions right now.
+                    </td>
+                  </tr>
+                )}
+                {transactions.map((tx: MempoolTransaction) => {
                   const user = tx.user || 'Unknown';
                   const userImageSrc = getAttributionImageSrc(user);
                   const rowKey = `${tx.txHash}-${tx.rawBlob.blob_index}`;
@@ -148,7 +128,7 @@ export default function MempoolTable() {
                         >
                           {truncateTxHash(tx.txHash)}
                         </button>
-                        <div className="text-xs text-[#8a93a5] mt-1 font-sans truncate md:hidden lg:block xl:hidden"><RelativeTime timestamp={tx.timeInMempool} /></div>
+                        <div className="text-xs text-[#8a93a5] mt-1 font-sans truncate md:hidden"><RelativeTime timestamp={tx.timeInMempool} /></div>
                       </td>
                       <td className="py-3 px-2 text-xs sm:text-sm text-white">
                         <div className="font-mono truncate" title={tx.fromAddressFull}>
@@ -186,7 +166,7 @@ export default function MempoolTable() {
                         <div className="truncate">{formatBlobCount(tx.blobCount)}</div>
                         <div className="text-xs text-[#8a93a5] mt-1 truncate">{formatBlobSize(tx.blobSizeBytes)}</div>
                       </td>
-                      <td className="hidden sm:table-cell lg:hidden xl:table-cell py-3 px-2 text-xs sm:text-sm text-white">
+                      <td className="hidden sm:table-cell py-3 px-2 text-xs sm:text-sm text-white">
                         <div className="truncate" title={tx.maxFeeGwei}>{tx.maxFeeGwei}</div>
                         <div className="text-xs text-[#8a93a5] mt-1 truncate">{tx.feeHeadroom} room</div>
                       </td>
@@ -194,9 +174,8 @@ export default function MempoolTable() {
                         <div className="truncate" title={tx.realizedCost}>{tx.realizedCost}</div>
                         <div className="text-xs text-[#8a93a5] mt-1 truncate" title={`max ${tx.maxCost}`}>max {tx.maxCost}</div>
                         <div className="text-xs text-[#8a93a5] mt-1 truncate sm:hidden">{tx.feeHeadroom} room</div>
-                        <div className="hidden text-xs text-[#8a93a5] mt-1 truncate lg:block xl:hidden" title={`${tx.feeHeadroom} room · cap ${tx.maxFeeGwei}`}>{tx.feeHeadroom} room · cap {tx.maxFeeGwei}</div>
                       </td>
-                      <td className="hidden md:table-cell lg:hidden xl:table-cell py-3 px-2 text-xs sm:text-sm text-white truncate"><RelativeTime timestamp={tx.timeInMempool} /></td>
+                      <td className="hidden md:table-cell py-3 px-2 text-xs sm:text-sm text-white truncate"><RelativeTime timestamp={tx.timeInMempool} /></td>
                     </tr>
                   );
                 })}
