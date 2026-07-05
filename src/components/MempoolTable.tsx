@@ -2,9 +2,7 @@
 
 import Image from 'next/image';
 import React from 'react';
-import { useApiData } from '../hooks/useApiData';
-import { api } from '../lib/api';
-import { MempoolResponse, MempoolTransaction } from '../types';
+import { MempoolTransaction } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import {
@@ -13,47 +11,21 @@ import {
   getAttributionImageSrc,
   getAttributionInitial,
 } from '../utils';
-import { useLatestBlobEvent } from '../contexts/LiveDataContext';
-import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
+import { useMempoolLiveList } from '../hooks/useMempoolLiveList';
 import { useFlipRows } from '../hooks/useFlipRows';
 import MempoolBlobDetailsModal from './MempoolBlobDetailsModal';
 import { RelativeTime } from './RelativeTime';
 
-export default function MempoolTable() {
+export default function MempoolTable({ limit = 10 }: { limit?: number }) {
   const { selectedNetwork } = useNetwork();
-  const liveEvent = useLatestBlobEvent('mempool_update');
   const [selectedTransaction, setSelectedTransaction] = React.useState<MempoolTransaction | null>(null);
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   useFlipRows(tbodyRef, selectedNetwork.apiParam);
 
-  const { data, isLoading, error } = useApiData<MempoolResponse>(
-    () => api.getMempool(10, selectedNetwork.apiParam),
-    ['mempool', selectedNetwork.apiParam, 10]
+  const { transactions, isLoading, error } = useMempoolLiveList(
+    limit,
+    selectedNetwork.apiParam
   );
-
-  const displayData = React.useMemo<MempoolResponse | undefined>(() => {
-    if (!liveEvent) {
-      return data;
-    }
-
-    if (liveEvent.data.action === 'remove') {
-      return {
-        data: (data?.data || [])
-          .filter((tx) => tx.txHash !== liveEvent.data.blob.tx_hash)
-          .map((tx, index) => ({ ...tx, id: index + 1 })),
-      };
-    }
-
-    const liveTransaction = transformBlobToMempoolTransaction(liveEvent.data.blob, 0);
-    return {
-      data: [
-        liveTransaction,
-        ...(data?.data || []).filter((tx) => tx.txHash !== liveTransaction.txHash),
-      ]
-        .slice(0, 10)
-        .map((tx, index) => ({ ...tx, id: index + 1 })),
-    };
-  }, [data, liveEvent]);
 
   const loadingComponent = (
     <div className="overflow-x-auto border border-divider rounded-lg">
@@ -104,14 +76,14 @@ export default function MempoolTable() {
 
   return (
     <section className="pt-2">
-      <h2 className="text-2xl font-windsor-bold text-white mb-4">Mempool Attribution</h2>
+      <h2 className="text-2xl font-windsor-bold text-white mb-4">Pending Transactions</h2>
 
       <DataStateWrapper
-        isLoading={isLoading && !displayData}
-        error={displayData ? null : error}
+        isLoading={isLoading && !transactions}
+        error={transactions ? null : error}
         loadingComponent={loadingComponent}
       >
-        {displayData && (
+        {transactions && (
           <div className="overflow-x-auto border border-divider rounded-lg">
             <table className="min-w-full overflow-hidden table-fixed">
               <thead>
@@ -125,7 +97,14 @@ export default function MempoolTable() {
                 </tr>
               </thead>
               <tbody ref={tbodyRef} className="divide-y divide-divider">
-                {displayData.data.map((tx: MempoolTransaction) => {
+                {transactions.length === 0 && (
+                  <tr className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
+                    <td colSpan={6} className="py-6 px-4 text-center text-sm text-[#8a93a5]">
+                      No pending blob transactions right now.
+                    </td>
+                  </tr>
+                )}
+                {transactions.map((tx: MempoolTransaction) => {
                   const user = tx.user || 'Unknown';
                   const userImageSrc = getAttributionImageSrc(user);
                   const rowKey = `${tx.txHash}-${tx.rawBlob.blob_index}`;

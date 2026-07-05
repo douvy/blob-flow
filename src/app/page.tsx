@@ -6,7 +6,7 @@ import LiveMetrics from '@/components/LiveMetrics';
 import MetricsCharts from '@/components/MetricsCharts';
 import RecentBlocksPanel from '@/components/RecentBlocksPanel';
 import TopUsersTable from '@/components/TopUsersTable';
-import MempoolTable from '@/components/MempoolTable';
+import MempoolSummary from '@/components/MempoolSummary';
 import ExplainerSection from '@/components/ExplainerSection';
 
 export default function Home() {
@@ -28,7 +28,7 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <div className="space-y-8">
             <RecentBlocksPanel />
-            <MempoolTable />
+            <MempoolSummary />
             <TopUsersTable />
             <section>
               <h2 className="text-2xl font-windsor-bold text-white mb-3">What are blobs?</h2>

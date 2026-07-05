@@ -1,11 +1,12 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DEFAULT_NETWORK } from '../constants';
-import { useLatestBlobEvent } from '../contexts/LiveDataContext';
+import { LiveDataProvider } from '../contexts/LiveDataContext';
 import { useApiData } from '../hooks/useApiData';
 import { useNetwork } from '../hooks/useNetwork';
 import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
-import { BlobResponse, MempoolResponse } from '../types';
+import { BlobResponse, MempoolResponse, MempoolUpdateData } from '../types';
 import MempoolTable from './MempoolTable';
 
 vi.mock('../hooks/useApiData', () => ({
@@ -16,9 +17,34 @@ vi.mock('../hooks/useNetwork', () => ({
   useNetwork: vi.fn(),
 }));
 
-vi.mock('../contexts/LiveDataContext', () => ({
-  useLatestBlobEvent: vi.fn(),
-}));
+class MockWebSocket {
+  static instances: MockWebSocket[] = [];
+
+  readyState = 0;
+  onopen: ((event: Event) => void) | null = null;
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onclose: ((event: CloseEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+
+  constructor(readonly url: string) {
+    MockWebSocket.instances.push(this);
+  }
+
+  send() {}
+
+  close() {
+    this.readyState = 3;
+  }
+
+  open() {
+    this.readyState = 1;
+    this.onopen?.(new Event('open'));
+  }
+
+  receive(data: string) {
+    this.onmessage?.(new MessageEvent('message', { data }));
+  }
+}
 
 const blob: BlobResponse = {
   network_id: 1,
@@ -38,8 +64,35 @@ const blob: BlobResponse = {
   blob_gas_used: 131072,
 };
 
+function makePendingBlob(txHash: string): BlobResponse {
+  return { ...blob, tx_hash: txHash };
+}
+
+function makeMempoolUpdateMessage(data: MempoolUpdateData): string {
+  return JSON.stringify({ type: 'mempool_update', data });
+}
+
+function detailsButtonName(txHash: string): string {
+  return `View pending blob details for transaction ${txHash}`;
+}
+
+function renderMempoolTable() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <LiveDataProvider network={DEFAULT_NETWORK.apiParam}>
+        <MempoolTable />
+      </LiveDataProvider>
+    </QueryClientProvider>
+  );
+}
+
 describe('MempoolTable', () => {
   beforeEach(() => {
+    MockWebSocket.instances = [];
+    vi.stubGlobal('WebSocket', MockWebSocket);
     Object.defineProperty(window, 'scrollTo', {
       configurable: true,
       value: vi.fn(),
@@ -49,7 +102,6 @@ describe('MempoolTable', () => {
       setSelectedNetwork: vi.fn(),
       networkOptions: [DEFAULT_NETWORK],
     });
-    vi.mocked(useLatestBlobEvent).mockReturnValue(null);
     vi.mocked(useApiData<MempoolResponse>).mockReturnValue({
       data: {
         data: [transformBlobToMempoolTransaction(blob, 0)],
@@ -61,11 +113,11 @@ describe('MempoolTable', () => {
   });
 
   it('opens pending blob details from the transaction hash', () => {
-    render(<MempoolTable />);
+    renderMempoolTable();
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: `View pending blob details for transaction ${blob.tx_hash}`,
+        name: detailsButtonName(blob.tx_hash),
       })
     );
 
@@ -78,5 +130,94 @@ describe('MempoolTable', () => {
     fireEvent.click(screen.getByRole('button', { name: /close blob details/i }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('applies live add and remove events cumulatively', () => {
+    renderMempoolTable();
+    const socket = MockWebSocket.instances[0];
+    act(() => socket.open());
+
+    const addedBlob = makePendingBlob(
+      '0x1111111111111111111111111111111111111111111111111111111111111111'
+    );
+    act(() => {
+      socket.receive(makeMempoolUpdateMessage({ action: 'add', blob: addedBlob }));
+    });
+    expect(
+      screen.getByRole('button', { name: detailsButtonName(addedBlob.tx_hash) })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: detailsButtonName(blob.tx_hash) })
+    ).toBeInTheDocument();
+
+    act(() => {
+      socket.receive(
+        makeMempoolUpdateMessage({
+          action: 'remove',
+          blob: { network_id: 1, network_name: 'mainnet', tx_hash: blob.tx_hash },
+        })
+      );
+    });
+    expect(
+      screen.queryByRole('button', { name: detailsButtonName(blob.tx_hash) })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: detailsButtonName(addedBlob.tx_hash) })
+    ).toBeInTheDocument();
+
+    // Regression: a later event must not resurrect a previously removed row
+    // (the old implementation re-derived the list from the REST snapshot plus
+    // only the latest event, so removals were forgotten).
+    const laterBlob = makePendingBlob(
+      '0x2222222222222222222222222222222222222222222222222222222222222222'
+    );
+    act(() => {
+      socket.receive(makeMempoolUpdateMessage({ action: 'add', blob: laterBlob }));
+    });
+    expect(
+      screen.getByRole('button', { name: detailsButtonName(laterBlob.tx_hash) })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: detailsButtonName(blob.tx_hash) })
+    ).not.toBeInTheDocument();
+  });
+
+  it('accumulates one row per blob for a multi-blob transaction', () => {
+    renderMempoolTable();
+    const socket = MockWebSocket.instances[0];
+    act(() => socket.open());
+
+    const txHash =
+      '0x3333333333333333333333333333333333333333333333333333333333333333';
+    act(() => {
+      socket.receive(
+        makeMempoolUpdateMessage({
+          action: 'add',
+          blob: { ...makePendingBlob(txHash), blob_index: 0 },
+        })
+      );
+      socket.receive(
+        makeMempoolUpdateMessage({
+          action: 'add',
+          blob: { ...makePendingBlob(txHash), blob_index: 1 },
+        })
+      );
+    });
+    expect(
+      screen.getAllByRole('button', { name: detailsButtonName(txHash) })
+    ).toHaveLength(2);
+
+    // Removes drop every blob entry of the transaction.
+    act(() => {
+      socket.receive(
+        makeMempoolUpdateMessage({
+          action: 'remove',
+          blob: { network_id: 1, network_name: 'mainnet', tx_hash: txHash },
+        })
+      );
+    });
+    expect(
+      screen.queryByRole('button', { name: detailsButtonName(txHash) })
+    ).not.toBeInTheDocument();
   });
 });

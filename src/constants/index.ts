@@ -41,3 +41,9 @@ export const THEME = {
   TEXT: '#333333',
   ERROR: '#FF6B6B',
 };
+
+/**
+ * How many pending transactions to sample for mempool views. Shared so the
+ * homepage summary and the /mempool page hit the same React Query cache entry.
+ */
+export const MEMPOOL_SAMPLE_LIMIT = 50;
