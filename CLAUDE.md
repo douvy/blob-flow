@@ -67,3 +67,4 @@ PR titles must use Conventional Commit format: `type: subject` or `type(scope): 
 
 - `NEXT_PUBLIC_API_URL` — API base URL (default: `https://blob-indexer.ahkc.win/api/v1`)
 - `NEXT_PUBLIC_USE_MOCK_DATA` — Toggle mock data (default: `false`)
+- `NEXT_PUBLIC_SITE_URL` — Canonical site origin for SEO metadata, sitemap, and robots (falls back to `VERCEL_URL`, then `http://localhost:3000`)

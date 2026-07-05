@@ -4,6 +4,11 @@
 
 export const APP_NAME = 'Blob Flow';
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://blob-indexer.ahkc.win/api/v1';
+// Canonical site origin for SEO metadata (Open Graph URLs, sitemap, robots).
+// Set NEXT_PUBLIC_SITE_URL in production; falls back to the Vercel deployment URL.
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 export const HOMEPAGE_BLOCK_ROWS = 5;
 export const BLOCKS_PAGE_LIMIT = 100;
 export const BLOCKS_PAGE_SIZE = 20;
