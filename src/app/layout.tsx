@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import AppProviders from '@/components/AppProviders';
 import Header from '@/components/Header';
+import IndexerStatusBanner from '@/components/IndexerStatusBanner';
 import Footer from '@/components/Footer';
 import { SITE_URL } from '@/constants';
 
@@ -86,6 +87,7 @@ export default function RootLayout({
             <div className="gutter-lines" aria-hidden="true" />
             <div className="gutter-line-cap" aria-hidden="true" />
             <Header />
+            <IndexerStatusBanner />
             <div className="content-area flex-1">{children}</div>
             <Footer />
           </main>

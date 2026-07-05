@@ -499,13 +499,32 @@ export interface BackendStatsWindowsResponse {
 }
 
 // Backend StatusResponse - matches api.StatusResponse from swagger
+export interface BackfillStatus {
+  active: boolean;
+  start_block: number;
+  current_block: number;
+  target_block: number;
+  remaining_blocks: number;
+  progress_percent: number;
+  updated_at: string;
+  completed_at?: string;
+}
+
 export interface StatusResponse {
-  network_id: number;
+  chain_id: number;
   network_name: string;
   last_indexed_block: number;
   indexer_version: string;
   uptime: string;
+  /** Timestamp of the last indexed block. */
   last_indexed_time: string;
+  /** Absent on older backends. */
+  current_chain_head?: number;
+  indexer_lag_blocks?: number;
+  last_indexed_at?: string;
+  chain_head_updated_at?: string;
+  websocket_freshness_at?: string;
+  backfill?: BackfillStatus;
 }
 
 // ---- Chart Data Types ----
