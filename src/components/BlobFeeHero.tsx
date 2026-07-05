@@ -156,14 +156,6 @@ const RANGE_LABELS: Record<TimeRange, string> = {
   All: 'last 30 days',
 };
 
-const TREND_RANGE_LABELS: Record<TimeRange, string> = {
-  '1h': 'last 1h',
-  '24h': 'last 24h',
-  '7d': 'last 7 days',
-  '30d': 'last 30 days',
-  All: 'last 30 days',
-};
-
 const TREND_CHIP_LABELS: Record<TimeRange, string> = {
   '1h': '1h',
   '24h': '24h',
@@ -694,7 +686,7 @@ export default function BlobFeeHero() {
     () => computeFeeRangeTrend(chartPoints.map((point) => point.fee)),
     [chartPoints]
   );
-  const trendRangeLabel = TREND_RANGE_LABELS[timeRange];
+  const trendRangeLabel = RANGE_LABELS[timeRange];
   const trendChipLabel = TREND_CHIP_LABELS[timeRange];
 
   const chartReferenceFeeGwei = isLiveRange
