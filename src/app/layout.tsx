@@ -1,6 +1,8 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import AppProviders from '@/components/AppProviders';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 // Removed Inter font
 
@@ -20,7 +22,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AppProviders>{children}</AppProviders>
+        <AppProviders>
+          <main className="flex min-h-screen flex-col bg-background xl:bg-grid-pattern xl:bg-grid-size">
+            <div className="gutter-lines" aria-hidden="true" />
+            <div className="gutter-line-cap" aria-hidden="true" />
+            <Header />
+            <div className="content-area flex-1">{children}</div>
+            <Footer />
+          </main>
+        </AppProviders>
       </body>
     </html>
   );

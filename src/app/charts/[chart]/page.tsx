@@ -4,8 +4,6 @@ import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Minimize2 } from 'lucide-react';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { useChartData } from '@/hooks/useChartData';
 import { CHART_CARD_CLASS } from '@/constants/chartTheme';
@@ -123,9 +121,7 @@ export default function ChartDetailPage() {
   const view = getChartView(chartId);
 
   return (
-    <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
-      <Header />
-      <div className="container mx-auto px-4 py-8 max-w-[1600px]">
+    <div className="container mx-auto px-4 py-8 max-w-[1600px]">
         <Link
           href="/#data-trends"
           className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2"
@@ -153,8 +149,6 @@ export default function ChartDetailPage() {
         ) : (
           <UnknownChart chartId={chartId} />
         )}
-      </div>
-      <Footer />
-    </main>
+    </div>
   );
 }
