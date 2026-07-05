@@ -19,6 +19,7 @@ import {
   getAttributionInitial,
   getBlobCount,
   getNetworkIconSrc,
+  parseSearchQuery,
   truncateAddress,
 } from './index';
 
@@ -107,5 +108,49 @@ describe('utils', () => {
     expect(formatBlobWeiCost('9065041362944')).toBe('0.000009 ETH');
     expect(formatBlobTotalCost('0.001')).toBe('0.001 ETH');
     expect(formatBlobTotalCost('9065041362944')).toBe('0.000009 ETH');
+  });
+});
+
+describe('parseSearchQuery', () => {
+  const address = '0x1234567890abcdef1234567890abcdef12345678';
+  const txHash = '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+
+  it('parses a bare block number', () => {
+    expect(parseSearchQuery('25467750')).toEqual({ kind: 'block', blockNumber: '25467750' });
+  });
+
+  it('parses block numbers with prefix, commas, and whitespace', () => {
+    expect(parseSearchQuery('block:25467750')).toEqual({ kind: 'block', blockNumber: '25467750' });
+    expect(parseSearchQuery('BLOCK: 25,467,750')).toEqual({ kind: 'block', blockNumber: '25467750' });
+    expect(parseSearchQuery('  25467750  ')).toEqual({ kind: 'block', blockNumber: '25467750' });
+  });
+
+  it('parses addresses bare and with the rollup prefix', () => {
+    expect(parseSearchQuery(address)).toEqual({ kind: 'address', address });
+    expect(parseSearchQuery(`rollup:${address.toUpperCase().replace('0X', '0x')}`)).toEqual({
+      kind: 'address',
+      address,
+    });
+  });
+
+  it('parses transaction hashes bare and with tx/blob prefixes', () => {
+    expect(parseSearchQuery(txHash)).toEqual({ kind: 'transaction', txHash });
+    expect(parseSearchQuery(`tx:${txHash}`)).toEqual({ kind: 'transaction', txHash });
+    expect(parseSearchQuery(`blob:${txHash}`)).toEqual({ kind: 'transaction', txHash });
+  });
+
+  it('rejects values that do not match their prefix', () => {
+    expect(parseSearchQuery(`block:${txHash}`)).toBeNull();
+    expect(parseSearchQuery('tx:25467750')).toBeNull();
+    expect(parseSearchQuery(`rollup:${txHash}`)).toBeNull();
+  });
+
+  it('rejects unknown prefixes, empty values, and free text', () => {
+    expect(parseSearchQuery('http://example.com')).toBeNull();
+    expect(parseSearchQuery('block:')).toBeNull();
+    expect(parseSearchQuery('')).toBeNull();
+    expect(parseSearchQuery('12 pending blobs from Optimism')).toBeNull();
+    expect(parseSearchQuery('0')).toBeNull();
+    expect(parseSearchQuery('0x1234')).toBeNull();
   });
 });

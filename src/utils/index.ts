@@ -1,6 +1,8 @@
 /**
  * Utility functions for the application
  */
+import { SearchTarget } from '@/types';
+
 const ATTRIBUTION_IMAGE_NAMES: Record<string, string> = {
   arbitrum: 'arbitrum',
   'arbitrum one': 'arbitrum',
@@ -315,4 +317,43 @@ function groupIntegerPart(value: string): string {
 
 function shouldRoundUp(value: string): boolean {
   return value >= '5' && value <= '9';
+}
+
+const SEARCH_PREFIXES = ['block', 'tx', 'blob', 'rollup'] as const;
+type SearchPrefix = (typeof SEARCH_PREFIXES)[number];
+
+const BLOCK_NUMBER_PATTERN = /^\d+$/;
+const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/i;
+const TX_HASH_PATTERN = /^0x[0-9a-f]{64}$/i;
+
+/**
+ * Parse a search query into a navigable target. Accepts a bare block number,
+ * address, or transaction hash, optionally qualified with one of the
+ * `block:` / `tx:` / `blob:` / `rollup:` prefixes offered in the search modal.
+ * Returns null when the query doesn't resolve to a destination.
+ */
+export function parseSearchQuery(query: string): SearchTarget | null {
+  let value = query.trim();
+  let prefix: SearchPrefix | null = null;
+
+  const prefixMatch = value.match(/^([a-z]+):\s*(.*)$/i);
+  if (prefixMatch) {
+    const candidate = prefixMatch[1].toLowerCase();
+    if (!(SEARCH_PREFIXES as readonly string[]).includes(candidate)) return null;
+    prefix = candidate as SearchPrefix;
+    value = prefixMatch[2].trim();
+  }
+  if (!value) return null;
+
+  const blockNumber = value.replace(/,/g, '');
+  if ((prefix === null || prefix === 'block') && BLOCK_NUMBER_PATTERN.test(blockNumber)) {
+    return Number(blockNumber) > 0 ? { kind: 'block', blockNumber } : null;
+  }
+  if ((prefix === null || prefix === 'rollup') && ADDRESS_PATTERN.test(value)) {
+    return { kind: 'address', address: value.toLowerCase() };
+  }
+  if ((prefix === null || prefix === 'tx' || prefix === 'blob') && TX_HASH_PATTERN.test(value)) {
+    return { kind: 'transaction', txHash: value.toLowerCase() };
+  }
+  return null;
 }

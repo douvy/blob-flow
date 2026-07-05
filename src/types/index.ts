@@ -729,3 +729,11 @@ export interface ChartDataset {
   rollingCoverageLabel: string;
   blockCoverageLabel: string;
 }
+
+// ---- Search ----
+
+/** A navigable destination parsed from a search query. */
+export type SearchTarget =
+  | { kind: 'block'; blockNumber: string }
+  | { kind: 'address'; address: string }
+  | { kind: 'transaction'; txHash: string };
