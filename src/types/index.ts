@@ -468,6 +468,10 @@ export interface BackendStatsWindow {
   total_cost_eth?: string;
   total_cost_wei?: string;
   unique_senders: number;
+  /** Blocks indexed within the window. Absent on older backends. */
+  total_blocks?: number;
+  /** Blocks in the window with blob gas usage above target. Absent on older backends. */
+  blocks_above_target?: number;
 }
 
 export interface BackendStatsWindowsResponse {
@@ -503,6 +507,7 @@ export interface BackendBlobMarketChartPoint {
   blob_count: number;
   blob_gas_used: number;
   blob_gas_target: number;
+  blob_gas_limit?: number;
   average_utilization: string;
   total_cost_wei: string;
   unique_senders: number;
@@ -634,6 +639,7 @@ export interface GasUtilizationDataPoint {
   blockNumber: number;
   blobGasUsed: number;
   targetGas: number;
+  maxGas: number;
   blobCount: number;
   utilizationPct: number;
 }
@@ -684,6 +690,10 @@ export interface RollingWindowDataPoint {
   averageUtilizationPct: number;
   totalCostEth: number;
   uniqueSenders: number;
+  /** Blocks indexed within the window. Absent on older backends. */
+  totalBlocks?: number;
+  /** Blocks in the window with blob gas usage above target. Absent on older backends. */
+  blocksAboveTarget?: number;
 }
 
 export interface ChartDataset {

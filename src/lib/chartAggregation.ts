@@ -29,6 +29,7 @@ const WINDOW_LABELS: Record<RollingWindowKey, string> = {
 
 const WINDOW_FALLBACK_ORDER: RollingWindowKey[] = ['30d', '7d', '24h', '1h', '5m'];
 const PRICING_API_MAX_BLOCKS = 100;
+const BLOB_GAS_PER_BLOB = 131_072;
 const ESTIMATED_BLOCKS_PER_RANGE: Record<TimeRange, number> = {
   '1h': 300,
   '24h': 7_200,
@@ -45,6 +46,43 @@ function roundTo(value: number, digits: number): number {
 function parseFiniteNumber(value: string | number | undefined): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** Pass through an optional non-negative count, dropping malformed values. */
+function parseOptionalCount(value: number | undefined): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+function getInclusiveBlockCount(startBlock?: number, endBlock?: number): number {
+  if (
+    startBlock === undefined ||
+    endBlock === undefined ||
+    !Number.isFinite(startBlock) ||
+    !Number.isFinite(endBlock) ||
+    endBlock < startBlock
+  ) {
+    return 0;
+  }
+
+  return endBlock - startBlock + 1;
+}
+
+function deriveMaxBlobGasFromTarget(
+  targetGas: number,
+  startBlock?: number,
+  endBlock?: number
+): number {
+  if (!Number.isFinite(targetGas) || targetGas <= 0) return 0;
+
+  const blockCount = getInclusiveBlockCount(startBlock, endBlock);
+  const targetGasPerBlock = blockCount > 0 ? targetGas / blockCount : targetGas;
+  const targetBlobsPerBlock = targetGasPerBlock / BLOB_GAS_PER_BLOB;
+  if (!Number.isFinite(targetBlobsPerBlock) || targetBlobsPerBlock <= 0) return 0;
+
+  // Fallback for older chart payloads without `blob_gas_limit`: infer from
+  // known target/max blob schedules, such as 3->6 and 14->21 blobs.
+  const maxToTargetRatio = targetBlobsPerBlock <= 3 ? 2 : 1.5;
+  return Math.round(targetGas * maxToTargetRatio);
 }
 
 function decimalWeiToGwei(value: string | undefined): number {
@@ -183,6 +221,8 @@ export function transformStatsWindows(
         averageUtilizationPct: roundTo(parseFiniteNumber(window.average_utilization) * 100, 2),
         totalCostEth: weiToEth(totalCostWei),
         uniqueSenders: window.unique_senders,
+        totalBlocks: parseOptionalCount(window.total_blocks),
+        blocksAboveTarget: parseOptionalCount(window.blocks_above_target),
       };
     })
     .sort((a, b) => a.durationSeconds - b.durationSeconds);
@@ -250,6 +290,7 @@ export function transformPricingBlocks(pricing: BlobPricing): {
       blockNumber: block.blockNumber,
       blobGasUsed: block.blobGasUsed,
       targetGas,
+      maxGas: block.blobGasLimit || pricing.blobParams.maxGas,
       blobCount: block.blobCount,
       utilizationPct,
     };
@@ -345,19 +386,28 @@ function transformMarketPoints(market: BackendBlobMarketChartResponse): {
     blockNumber: point.end_block,
   }));
 
-  const gasUtilization = sortedPoints.map((point) => ({
-    timestamp: isoTimestamp(point.timestamp),
-    label: point.label ?? (
-      market.granularity === 'block' && point.end_block
-        ? `#${point.end_block}`
-        : formatBucketLabel(point.timestamp, market.granularity)
-    ),
-    blockNumber: point.end_block ?? point.start_block ?? 0,
-    blobGasUsed: point.blob_gas_used,
-    targetGas: point.blob_gas_target,
-    blobCount: point.blob_count,
-    utilizationPct: roundTo(parseFiniteNumber(point.average_utilization) * 100, 0),
-  }));
+  const gasUtilization = sortedPoints.map((point) => {
+    const explicitMaxGas = parseFiniteNumber(point.blob_gas_limit);
+    const maxGas =
+      explicitMaxGas > 0
+        ? explicitMaxGas
+        : deriveMaxBlobGasFromTarget(point.blob_gas_target, point.start_block, point.end_block);
+
+    return {
+      timestamp: isoTimestamp(point.timestamp),
+      label: point.label ?? (
+        market.granularity === 'block' && point.end_block
+          ? `#${point.end_block}`
+          : formatBucketLabel(point.timestamp, market.granularity)
+      ),
+      blockNumber: point.end_block ?? point.start_block ?? 0,
+      blobGasUsed: point.blob_gas_used,
+      targetGas: point.blob_gas_target,
+      maxGas,
+      blobCount: point.blob_count,
+      utilizationPct: roundTo(parseFiniteNumber(point.average_utilization) * 100, 0),
+    };
+  });
 
   return { baseFee, gasUtilization };
 }
