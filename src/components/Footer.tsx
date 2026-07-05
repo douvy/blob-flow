@@ -5,9 +5,24 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 
+function GitHubStarLink() {
+  return (
+    <Link
+      href="https://github.com/douvy/blob-flow"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center"
+    >
+      <span className="decoration-[#4a5568] underline underline-offset-2 hover:text-[#d9d9d9] hover:decoration-[#d9d9d9]">
+        Star on GitHub <ArrowUpRight className="inline h-4 w-4 align-[-2px]" aria-hidden="true" />
+      </span>
+    </Link>
+  );
+}
+
 export default function Footer() {
   return (
-    <footer className="w-full p-6 px-0 border-t border-gray-800 bg-[#19202f] mt-4 md:mt-12">
+    <footer className="relative z-10 w-full p-6 px-0 border-t border-gray-800 bg-darkBlue mt-4 md:mt-12">
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
           {/* Left side with logo and name */}
@@ -39,30 +54,12 @@ export default function Footer() {
             
             {/* Mobile GitHub link */}
             <div className="block md:hidden text-left">
-              <Link 
-                href="https://github.com/douvy/blob-flow" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="inline-flex items-center"
-              >
-                <span className="decoration-[#4a5568] underline underline-offset-2 hover:text-[#d9d9d9] hover:decoration-[#d9d9d9]">
-                  Star on GitHub <ArrowUpRight className="inline h-4 w-4 align-[-2px]" aria-hidden="true" />
-                </span>
-              </Link>
+              <GitHubStarLink />
             </div>
-            
+
             {/* Desktop GitHub link */}
             <div className="hidden md:inline">
-              <Link 
-                href="https://github.com/douvy/blob-flow" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="inline-flex items-center"
-              >
-                <span className="decoration-[#4a5568] underline underline-offset-2 hover:text-[#d9d9d9] hover:decoration-[#d9d9d9]">
-                  Star on GitHub <ArrowUpRight className="inline h-4 w-4 align-[-2px]" aria-hidden="true" />
-                </span>
-              </Link>
+              <GitHubStarLink />
             </div>
           </div>
         </div>

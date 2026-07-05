@@ -806,7 +806,15 @@ export default function BlobFeeHero() {
                   {rangeTrend && (
                     <p>
                       –&nbsp;&nbsp;
-                      <span className={rangeTrend.deltaPercent < -1 ? 'text-green-200' : ''}>
+                      <span
+                        className={
+                          rangeTrend.deltaPercent > 1
+                            ? 'text-red-200'
+                            : rangeTrend.deltaPercent < -1
+                              ? 'text-green-200'
+                              : ''
+                        }
+                      >
                         {formatSignedPercent(rangeTrend.deltaPercent)}
                       </span>
                       {' '}over {trendRangeLabel}

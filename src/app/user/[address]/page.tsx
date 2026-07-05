@@ -4,8 +4,6 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { useApiData } from '@/hooks/useApiData';
 import { api } from '@/lib/api';
@@ -208,12 +206,7 @@ export default function UserDetailPage() {
   );
 
   return (
-    <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
-      <div className="gutter-lines" aria-hidden="true" />
-      <div className="gutter-line-cap" aria-hidden="true" />
-      <div className="content-area">
-        <Header />
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
         <Link href="/" className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to Dashboard
@@ -271,9 +264,6 @@ export default function UserDetailPage() {
             {mempoolBlobs && <BlobTable blobs={mempoolBlobs} showBlock={false} />}
           </DataStateWrapper>
         </section>
-      </div>
-        <Footer />
-      </div>
-    </main>
+    </div>
   );
 }

@@ -12,12 +12,13 @@
   --color-divider: #23252a;
   --color-dividerBlue: #27364e;
   --color-blue: #3b55e6;
-  --color-darkBlue: #1e2747;
+  --color-darkBlue: #19202f;
   --color-lightBlue: #9ac4fd;
   --color-purple: #6a5acd;
   --color-green: #66cc99;
   --color-red: #ff6b6b;
   --color-yellow: #ffff00;
+  --color-frameLine: rgba(50, 60, 80, 0.4);
 }
 
 @utility bg-grid-pattern {
@@ -49,10 +50,10 @@
 }
 
 :root {
-  --title-color: #f0f0f0;
-  --body-text: #b8bdc7;
-  --background: #131720;
-  --container: #0e0f11;
+  /* Midpoint between the 80rem content edge and the viewport edge */
+  --gutter-offset: calc((100vw - 80rem) / 4);
+  /* Must match the rendered height of the sticky <Header> */
+  --header-height: 52px;
 }
 
 @layer base {
@@ -62,9 +63,6 @@
 
   body {
     @apply text-bodyText bg-background font-gt-flexa;
-    background-image: linear-gradient(#1a1f2e 1px, transparent 1px),
-                      linear-gradient(90deg, #1a1f2e 1px, transparent 1px);
-    background-size: 20px 20px;
   }
 }
 
@@ -121,33 +119,21 @@
 }
 
 /* Content area with solid background - spans between gutter lines */
-.content-area {
-  background: #121317;
-  min-height: 100vh;
-}
+@utility content-area {
+  background: var(--color-background);
 
-@media (min-width: 80rem) {
-  .content-area {
-    margin-left: calc((100vw - 80rem) / 4);
-    margin-right: calc((100vw - 80rem) / 4);
-  }
-
-  /* Header and footer extend full width beyond content-area */
-  .content-area > header,
-  .content-area > footer {
-    width: 100vw;
-    margin-left: calc(-1 * (100vw - 80rem) / 4);
+  @media (min-width: 80rem) {
+    margin-left: var(--gutter-offset);
+    margin-right: var(--gutter-offset);
   }
 }
 
 /* Vertical gutter lines with caps - positioned midway between content and viewport edge */
 /* Hidden on mobile where there's no gutter space */
-.gutter-lines {
+@utility gutter-lines {
   display: none;
-}
 
-@media (min-width: 80rem) {
-  .gutter-lines {
+  @media (min-width: 80rem) {
     display: block;
     position: fixed;
     top: 0;
@@ -157,68 +143,73 @@
     pointer-events: none;
     z-index: 0;
   }
-}
 
-.gutter-lines::before,
-.gutter-lines::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  width: 1px;
-  height: 100%;
-  background: rgba(50, 60, 80, 0.4);
-}
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background: var(--color-frameLine);
+  }
 
-/* Position at midpoint between content edge (40rem from center) and viewport edge */
-.gutter-lines::before {
-  left: calc((100vw - 80rem) / 4);
-}
+  &::before {
+    left: var(--gutter-offset);
+  }
 
-.gutter-lines::after {
-  right: calc((100vw - 80rem) / 4);
+  &::after {
+    right: var(--gutter-offset);
+  }
 }
 
 /* Vertical caps at top of lines - short thick bars with intro animation */
 /* Hidden on mobile where there's no gutter space */
-.gutter-line-cap {
+@utility gutter-line-cap {
   display: none;
-}
 
-@media (min-width: 80rem) {
-  .gutter-line-cap {
+  @media (min-width: 80rem) {
     display: block;
     position: fixed;
-    top: 60px;
+    top: var(--header-height);
     left: 0;
     width: 100%;
-    height: calc(100vh - 60px);
+    height: calc(100vh - var(--header-height));
     pointer-events: none;
     z-index: 1;
     overflow: hidden;
   }
-}
 
-.gutter-line-cap::before,
-.gutter-line-cap::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  width: 5px;
-  height: 14px;
-  background: #010409;
-  border: 1px solid #20232d;
-  box-sizing: border-box;
-  animation: cap-slide-down 5s linear forwards;
-  animation-delay: 0.5s;
-  opacity: 0;
-}
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 5px;
+    height: 14px;
+    background: #010409;
+    border: 1px solid #20232d;
+    box-sizing: border-box;
+    animation: cap-slide-down 5s linear forwards;
+    animation-delay: 0.5s;
+    opacity: 0;
+  }
 
-.gutter-line-cap::before {
-  left: calc((100vw - 80rem) / 4 - 2px);
-}
+  &::before {
+    left: calc(var(--gutter-offset) - 2px);
+  }
 
-.gutter-line-cap::after {
-  right: calc((100vw - 80rem) / 4 - 2px);
+  &::after {
+    right: calc(var(--gutter-offset) - 2px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::before,
+    &::after {
+      animation: none;
+      opacity: 1;
+    }
+  }
 }
 
 @keyframes cap-slide-down {
@@ -231,11 +222,11 @@
     opacity: 1;
   }
   80% {
-    transform: translateY(calc(100vh - 60px - 11px));
+    transform: translateY(calc(100vh - var(--header-height) - 11px));
     opacity: 1;
   }
   85% {
-    transform: translateY(calc(100vh - 60px - 11px));
+    transform: translateY(calc(100vh - var(--header-height) - 11px));
     opacity: 0;
   }
   86% {
