@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, ChevronRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { useNetwork } from '../hooks/useNetwork';
@@ -243,7 +243,6 @@ function BlockRow({ block }: { block: Block }) {
       aria-label={`View blob details for block ${block.number}`}
       className="flex items-center gap-3 rounded-md border border-divider/70 bg-[#111522]/70 px-3 py-2 transition-colors hover:border-blue/30 hover:bg-[#181d2e]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
     >
-      <ChevronRight className="h-3 w-3 shrink-0 text-[#6e7787]" aria-hidden="true" />
       <div className="grid min-w-0 flex-1 grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3">
         <div className="min-w-0">
           <div className="text-[11px] text-[#8f9aad]">Block</div>
@@ -330,7 +329,6 @@ export default function RecentBlocksPanel() {
             key={index}
             className="flex items-center gap-3 rounded-md border border-divider/70 bg-[#111522]/70 px-3 py-3 animate-pulse"
           >
-            <div className="h-3 w-3 shrink-0 rounded bg-[#202538]" />
             <div className="grid min-w-0 flex-1 grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3">
               <div className="h-5 bg-[#202538] rounded w-20" />
               <div className="h-5 bg-[#202538] rounded" />
