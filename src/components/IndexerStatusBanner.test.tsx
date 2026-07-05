@@ -90,7 +90,7 @@ describe('IndexerStatusBanner', () => {
     render(<IndexerStatusBanner />);
 
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Indexer is backfilling history — 43.5% complete, 1,240 blocks remaining.'
+      'Indexer is backfilling history: 43.5% complete, 1,240 blocks remaining.'
     );
   });
 
@@ -150,7 +150,7 @@ describe('IndexerStatusBanner', () => {
 
     const banner = screen.getByRole('status');
     expect(banner).toHaveTextContent('behind the chain head');
-    expect(banner).toHaveTextContent('Backfilling — 10% complete.');
+    expect(banner).toHaveTextContent('Backfilling: 10% complete.');
   });
 });
 

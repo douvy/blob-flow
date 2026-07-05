@@ -38,7 +38,7 @@ src/
 
 ## Architecture Patterns
 
-- **API layer:** Modular client in `src/lib/api/` — `core.ts` handles HTTP with exponential backoff retry (max 2, 5xx only) and 10s timeout via AbortController
+- **API layer:** Modular client in `src/lib/api/`; `core.ts` handles HTTP with exponential backoff retry (max 2, 5xx only) and 10s timeout via AbortController
 - **Type transformation:** Backend response types (e.g. `BlobResponse`) are transformed to frontend types (e.g. `Block`) in the API modules
 - **All responses** wrapped in `ApiResponse<T>` with `success`, `data`, and optional `error`
 - **Network-aware:** API calls accept optional network param via `useNetwork` hook; selection persisted in localStorage
@@ -52,7 +52,7 @@ src/
 - Constants go in `src/constants/index.ts`
 - Utilities go in `src/utils/index.ts`
 - Components are functional, client-side (`"use client"`)
-- Tailwind utility classes for all styling — no CSS modules
+- Tailwind utility classes for all styling; no CSS modules
 - Custom fonts: GT Flexa, Windsor Bold
 
 ## CI Standards
@@ -65,6 +65,6 @@ PR titles must use Conventional Commit format: `type: subject` or `type(scope): 
 
 ## Environment Variables
 
-- `NEXT_PUBLIC_API_URL` — API base URL (default: `https://blob-indexer.ahkc.win/api/v1`)
-- `NEXT_PUBLIC_USE_MOCK_DATA` — Toggle mock data (default: `false`)
-- `NEXT_PUBLIC_SITE_URL` — Canonical site origin for SEO metadata, sitemap, and robots (falls back to `VERCEL_URL`, then `http://localhost:3000`)
+- `NEXT_PUBLIC_API_URL`: API base URL (default: `https://blob-indexer.ahkc.win/api/v1`)
+- `NEXT_PUBLIC_USE_MOCK_DATA`: Toggle mock data (default: `false`)
+- `NEXT_PUBLIC_SITE_URL`: Canonical site origin for SEO metadata, sitemap, and robots (falls back to `VERCEL_URL`, then `http://localhost:3000`)

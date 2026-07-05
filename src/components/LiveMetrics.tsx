@@ -55,7 +55,7 @@ interface TopUserAggregate {
  * Aggregate blob senders across the supplied blocks to find the dominant user.
  *
  * Only blocks whose joined blob detail covers the entire pricing `blobCount`
- * are included — `/blob/latest` may return fewer records than the pricing
+ * are included; `/blob/latest` may return fewer records than the pricing
  * block reports for that height, and counting that partial set would skew the
  * share while still claiming to cover the full sample. Partial blocks are
  * dropped from the sample count instead of being misrepresented.
@@ -153,7 +153,7 @@ export default function LiveMetrics() {
 
   // Refresh the rolling sample used for Top User whenever a new block lands.
   // The Latest Block card reads `newBlockEvent` directly (below) rather than
-  // relying on this refetch — fetchApi dedupes in-flight GETs, so an
+  // relying on this refetch; fetchApi dedupes in-flight GETs, so an
   // in-progress call started before the event would otherwise satisfy the
   // refetch with stale data and leave the card a block behind.
   useLiveBlobEvent('new_block', () => {
@@ -213,7 +213,7 @@ export default function LiveMetrics() {
     },
     {
       title: 'Latest Block',
-      value: block ? `#${block.id.toLocaleString()}` : '—',
+      value: block ? `#${block.id.toLocaleString()}` : '-',
       trend: 'neutral' as const,
       description: block
         ? `${block.blobCount}${block.maxBlobs ? `/${block.maxBlobs}` : ''} blobs · ${formatRelativeTime(block.timestamp, new Date(now))}`
@@ -229,7 +229,7 @@ export default function LiveMetrics() {
     },
     {
       title: 'Top User',
-      value: user ? user.name : '—',
+      value: user ? user.name : '-',
       trend: 'neutral' as const,
       description: user
         ? `${user.share.toFixed(0)}% of last ${user.blocksSampled} blocks`

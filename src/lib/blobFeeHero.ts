@@ -105,11 +105,11 @@ export interface HeroStripBucket extends BackendBlobMarketChartPoint {
 
 /**
  * Merge consecutive chart buckets so the hero fullness strip renders at most
- * `maxItems` bars — long ranges return hundreds of buckets, far more than the
+ * `maxItems` bars; long ranges return hundreds of buckets, far more than the
  * strip can fit. Blob and gas counts are summed; `blob_gas_limit` survives
  * only when every merged bucket reports one, mirroring the fill-percent
  * fallback to `average_utilization`, which is averaged. Fee fields are
- * averaged as an approximation — the strip does not display them.
+ * averaged as an approximation; the strip does not display them.
  */
 export function groupChartPointsForStrip(
   points: BackendBlobMarketChartPoint[],

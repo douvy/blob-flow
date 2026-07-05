@@ -606,7 +606,7 @@ export default function BlobFeeHero() {
 
   // Rolling-window context for the "how abnormal is this" comparison: always
   // 1h and 24h, plus the selected header range's window when it differs.
-  // Optional — the hero renders without it if the stats endpoint is down.
+  // Optional; the hero renders without it if the stats endpoint is down.
   const requestedWindows = useMemo<RollingWindowKey[]>(() => {
     const windows: RollingWindowKey[] = ['1h', '24h'];
     const rangeWindow = getRequestedRollingWindow(timeRange);
@@ -790,7 +790,7 @@ export default function BlobFeeHero() {
       };
     }
     if (!marketChart || marketChart.points.length === 0) {
-      return { value: '—', hint: RANGE_LABELS[timeRange] };
+      return { value: '-', hint: RANGE_LABELS[timeRange] };
     }
     const bucketed = countChartPointsAboveTarget(marketChart.points);
     return {
@@ -903,7 +903,7 @@ export default function BlobFeeHero() {
                   />
                   <PressureStat
                     label="Pending"
-                    value={mempoolPressure ? mempoolPressure.pendingBlobCount.toLocaleString() : '—'}
+                    value={mempoolPressure ? mempoolPressure.pendingBlobCount.toLocaleString() : '-'}
                     hint={
                       mempoolPressure
                         ? `${mempoolPressure.includability.likelyIncludableCount} includable`

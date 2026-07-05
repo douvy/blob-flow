@@ -71,7 +71,7 @@ export default function IndexerStatusBanner() {
             Indexer is {formatDuration(lagSeconds)} behind the chain head (last indexed block{' '}
             {formatNumber(status.last_indexed_block)}). Recent data may be incomplete.
             {backfillInProgress && (
-              <> Backfilling — {formatPercent(backfill.progress_percent)} complete.</>
+              <> Backfilling: {formatPercent(backfill.progress_percent)} complete.</>
             )}
           </span>
         </div>
@@ -88,7 +88,7 @@ export default function IndexerStatusBanner() {
         <div className="container mx-auto flex items-center gap-2 px-4 py-2 text-sm text-lightBlue">
           <DatabaseBackup className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
-            Indexer is backfilling history — {formatPercent(backfill.progress_percent)} complete,{' '}
+            Indexer is backfilling history: {formatPercent(backfill.progress_percent)} complete,{' '}
             {formatNumber(backfill.remaining_blocks)} blocks remaining. Data may be incomplete.
           </span>
         </div>

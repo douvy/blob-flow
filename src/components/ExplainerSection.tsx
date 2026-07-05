@@ -23,7 +23,7 @@ export default function ExplainerSection() {
         </ul>
         
         <p className="text-[#b8bdc7] mt-4">
-        BlobFlow tracks blob usage, costs, and attribution across rollup providers in real time — fees, blocks, and mempool activity update live as each new block lands.
+        BlobFlow tracks blob usage, costs, and attribution across rollup providers in real time: fees, blocks, and mempool activity update live as each new block lands.
         </p>
         
         <div className="mt-6">
