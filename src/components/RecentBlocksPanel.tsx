@@ -9,7 +9,6 @@ import { useNetwork } from '../hooks/useNetwork';
 import { useLiveBlobEvent } from '../contexts/LiveDataContext';
 import { transformNewBlockData } from '../lib/api/blocks';
 import DataStateWrapper from './DataStateWrapper';
-import { BlobDetailsContent } from './BlobDetailsContent';
 import { Block, LatestBlocksResponse } from '../types';
 import { formatBlobFee, formatPercent } from '../utils';
 import { HOMEPAGE_BLOCK_ROWS } from '../constants';
@@ -217,88 +216,48 @@ function hasKnownAttribution(attribution: string[]): boolean {
   return attribution.some((name) => name !== 'Unknown');
 }
 
-function BlockRow({
-  block,
-  isExpanded,
-  onToggle,
-  onKeyDown,
-}: {
-  block: Block;
-  isExpanded: boolean;
-  onToggle: () => void;
-  onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
-}) {
-  const detailsId = `recent-block-${block.id}-details`;
+function BlockRow({ block }: { block: Block }) {
   const usage = getBlockUsage(block);
   const fillLabel = usage.maxBlobs > 0 ? `${usage.usedBlobs}/${usage.maxBlobs}` : `${usage.usedBlobs}`;
   const utilization = usage.maxBlobs > 0 ? formatPercent(usage.utilizationPercent, 0) : '-';
 
   return (
-    <div
-      className={`rounded-md border transition-colors ${
-        isExpanded
-          ? 'border-blue/40 bg-[#181d2e]/80'
-          : 'border-divider/70 bg-[#111522]/70 hover:border-blue/30 hover:bg-[#181d2e]/60'
-      }`}
+    <Link
+      href={`/block/${block.number}`}
+      aria-label={`View blob details for block ${block.number}`}
+      className="flex items-center gap-3 rounded-md border border-divider/70 bg-[#111522]/70 px-3 py-2 transition-colors hover:border-blue/30 hover:bg-[#181d2e]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
     >
-      <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={isExpanded}
-        aria-controls={detailsId}
-        aria-label={`View blob details for block ${block.number}`}
-        onClick={onToggle}
-        onKeyDown={onKeyDown}
-        className="flex items-center gap-3 px-3 py-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset rounded-md"
-      >
-        <ChevronRight
-          className={`h-3 w-3 shrink-0 text-[#6e7787] transition-transform ${
-            isExpanded ? 'rotate-90' : ''
-          }`}
-          aria-hidden="true"
-        />
-        <div className="grid min-w-0 flex-1 grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3">
-          <div className="min-w-0">
-            <div className="text-[11px] text-[#8f9aad]">Block</div>
-            <div className="truncate text-sm font-medium text-white">
-              <Link
-                href={`/block/${block.number}`}
-                className="text-blue hover:underline"
-                onClick={(event) => event.stopPropagation()}
-              >
-                {Number(block.number).toLocaleString()}
-              </Link>
-            </div>
+      <ChevronRight className="h-3 w-3 shrink-0 text-[#6e7787]" aria-hidden="true" />
+      <div className="grid min-w-0 flex-1 grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3">
+        <div className="min-w-0">
+          <div className="text-[11px] text-[#8f9aad]">Block</div>
+          <div className="truncate text-sm font-medium text-blue">
+            {Number(block.number).toLocaleString()}
           </div>
-          <div className="min-w-0">
-            <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-[#8f9aad]">
-              <span>{fillLabel} blobs</span>
-              <span>{utilization}</span>
-            </div>
-            <FullnessBar
-              percent={usage.utilizationPercent}
-              targetPercent={usage.targetPercent}
-              state={usage.state}
-            />
+        </div>
+        <div className="min-w-0">
+          <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-[#8f9aad]">
+            <span>{fillLabel} blobs</span>
+            <span>{utilization}</span>
           </div>
-          <div className="min-w-0">
-            <div className="text-[11px] text-[#8f9aad]">Base fee</div>
-            <div className="truncate text-sm font-medium text-white">{formatBaseFee(block)}</div>
-          </div>
-          <div className="min-w-0">
-            <div className="text-[11px] text-[#8f9aad]">State</div>
-            <div className={`truncate text-sm font-medium ${usage.state.textClass}`}>
-              {usage.state.label}
-            </div>
+          <FullnessBar
+            percent={usage.utilizationPercent}
+            targetPercent={usage.targetPercent}
+            state={usage.state}
+          />
+        </div>
+        <div className="min-w-0">
+          <div className="text-[11px] text-[#8f9aad]">Base fee</div>
+          <div className="truncate text-sm font-medium text-white">{formatBaseFee(block)}</div>
+        </div>
+        <div className="min-w-0">
+          <div className="text-[11px] text-[#8f9aad]">State</div>
+          <div className={`truncate text-sm font-medium ${usage.state.textClass}`}>
+            {usage.state.label}
           </div>
         </div>
       </div>
-      {isExpanded && (
-        <div id={detailsId} className="bg-[#0f1322] rounded-b-md">
-          <BlobDetailsContent block={block} />
-        </div>
-      )}
-    </div>
+    </Link>
   );
 }
 
@@ -309,13 +268,6 @@ export default function RecentBlocksPanel() {
     network: string;
     blocks: Block[];
   }>({ network, blocks: [] });
-  const [expandedBlockState, setExpandedBlockState] = React.useState<{
-    network: string;
-    blockId: number | null;
-  }>({ network, blockId: null });
-  const expandedBlockId = expandedBlockState.network === network
-    ? expandedBlockState.blockId
-    : null;
 
   useLiveBlobEvent('new_block', (event) => {
     const liveBlock = transformNewBlockData(event.data);
@@ -338,33 +290,6 @@ export default function RecentBlocksPanel() {
     const currentLiveBlocks = liveBlockState.network === network ? liveBlockState.blocks : [];
     return mergeLiveAndFetchedBlocks(currentLiveBlocks, baseBlocks);
   }, [data, liveBlockState, network]);
-
-  const toggleBlock = React.useCallback((blockId: number) => {
-    setExpandedBlockState((currentState) => {
-      const currentBlockId = currentState.network === network ? currentState.blockId : null;
-
-      return {
-        network,
-        blockId: currentBlockId === blockId ? null : blockId,
-      };
-    });
-  }, [network]);
-
-  const handleKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>, blockId: number) => {
-      // Only treat Enter/Space as a row toggle when the row itself is the
-      // event target. Without this, pressing Enter/Space while focused on a
-      // nested interactive element (e.g. the block-number link) bubbles up
-      // here, preventDefault swallows the link's activation, and the row
-      // toggles unexpectedly.
-      if (event.target !== event.currentTarget) return;
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        toggleBlock(blockId);
-      }
-    },
-    [toggleBlock]
-  );
 
   const loadingComponent = (
     <article className="rounded-lg border border-divider bg-[#161a29]/80 p-5">
@@ -407,13 +332,7 @@ export default function RecentBlocksPanel() {
         <article className="rounded-lg border border-divider bg-[#161a29]/80 p-5">
           <div className="space-y-3">
             {displayBlocks.map((block) => (
-              <BlockRow
-                key={block.id}
-                block={block}
-                isExpanded={expandedBlockId === block.id}
-                onToggle={() => toggleBlock(block.id)}
-                onKeyDown={(event) => handleKeyDown(event, block.id)}
-              />
+              <BlockRow key={block.id} block={block} />
             ))}
           </div>
         </article>
