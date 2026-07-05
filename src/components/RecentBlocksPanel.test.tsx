@@ -250,14 +250,20 @@ describe('RecentBlocksPanel', () => {
       MockWebSocket.instances[0].receive(makeNewBlockMessage(201, 1));
     });
 
-    expect(screen.getByRole('button', { name: 'View blob details for block 201' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View blob details for block 201' })).toHaveAttribute(
+      'href',
+      '/block/201'
+    );
 
     act(() => {
       MockWebSocket.instances[0].receive(makeNewBlockMessage(202, 2));
     });
 
-    expect(screen.getByRole('button', { name: 'View blob details for block 202' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'View blob details for block 201' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View blob details for block 202' })).toHaveAttribute(
+      'href',
+      '/block/202'
+    );
+    expect(screen.getByRole('link', { name: 'View blob details for block 201' })).toBeInTheDocument();
     expect(screen.getByText('2/6 blobs')).toBeInTheDocument();
     expect(screen.getByText('33%')).toBeInTheDocument();
     expect(screen.queryByText('Error loading data')).not.toBeInTheDocument();
