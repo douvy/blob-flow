@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DEFAULT_NETWORK } from '../constants';
 import { LiveDataProvider } from '../contexts/LiveDataContext';
 import { useApiData } from '../hooks/useApiData';
@@ -137,10 +138,15 @@ function makeLegacyNewBlockMessage(blockNumber: number, blob: BlobResponse): str
 }
 
 function renderRecentBlocksPanel() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <LiveDataProvider network={DEFAULT_NETWORK.apiParam}>
-      <RecentBlocksPanel />
-    </LiveDataProvider>
+    <QueryClientProvider client={queryClient}>
+      <LiveDataProvider network={DEFAULT_NETWORK.apiParam}>
+        <RecentBlocksPanel />
+      </LiveDataProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -267,5 +273,44 @@ describe('RecentBlocksPanel', () => {
     expect(screen.getByText('2/6 blobs')).toBeInTheDocument();
     expect(screen.getByText('33%')).toBeInTheDocument();
     expect(screen.queryByText('Error loading data')).not.toBeInTheDocument();
+  });
+
+  it('fills gaps from a block_snapshot, including zero-blob blocks', () => {
+    renderRecentBlocksPanel();
+
+    // Live events arrive with a hole at 202 (e.g. missed while reconnecting).
+    act(() => {
+      MockWebSocket.instances[0].open();
+      MockWebSocket.instances[0].receive(makeNewBlockMessage(201, 1));
+      MockWebSocket.instances[0].receive(makeNewBlockMessage(203, 2));
+    });
+
+    expect(
+      screen.queryByRole('link', { name: 'View blob details for block 202' })
+    ).not.toBeInTheDocument();
+
+    // The reconnect snapshot carries the recent blocks, newest first; 202 is
+    // a zero-blob block that never had a live event of its own.
+    const snapshot = JSON.stringify({
+      type: 'block_snapshot',
+      data: {
+        blocks: [
+          JSON.parse(makeNewBlockMessage(203, 2)).data,
+          JSON.parse(makeNewBlockMessage(202, 0)).data,
+          JSON.parse(makeNewBlockMessage(201, 1)).data,
+        ],
+      },
+    });
+    act(() => {
+      MockWebSocket.instances[0].receive(snapshot);
+    });
+
+    for (const block of [201, 202, 203]) {
+      expect(
+        screen.getByRole('link', { name: `View blob details for block ${block}` })
+      ).toBeInTheDocument();
+    }
+    // Zero-blob block renders with its pricing-derived capacity.
+    expect(screen.getByText('0/6 blobs')).toBeInTheDocument();
   });
 });

@@ -74,6 +74,17 @@ export interface NewBlockEvent {
   data: NewBlockData;
 }
 
+export interface BlockSnapshotData {
+  blocks: NewBlockData[];
+}
+
+// Sent once by the server on every (re)connect with the most recent blocks,
+// newest first, so blocks broadcast during a reconnect window are recovered.
+export interface BlockSnapshotEvent {
+  type: 'block_snapshot';
+  data: BlockSnapshotData;
+}
+
 export type MempoolUpdateData =
   | {
       action: 'add';
@@ -114,6 +125,7 @@ export type HeartbeatEvent = PingEvent | PongEvent;
 
 export type BlobWebSocketEvent =
   | NewBlockEvent
+  | BlockSnapshotEvent
   | MempoolUpdateEvent
   | StatsUpdateEvent
   | UsersUpdateEvent
@@ -123,10 +135,15 @@ export type LiveBlobWebSocketEvent = Exclude<BlobWebSocketEvent, HeartbeatEvent>
 
 export interface BlobWebSocketEventMap {
   new_block: NewBlockEvent;
+  block_snapshot: BlockSnapshotEvent;
   mempool_update: MempoolUpdateEvent;
   stats_update: StatsUpdateEvent;
   users_update: UsersUpdateEvent;
 }
+
+// Every event type deliverable to live subscribers: the subscribable set plus
+// the connection-lifecycle block_snapshot the server always sends.
+export type LiveBlobEventType = keyof BlobWebSocketEventMap;
 
 export type LatestBlobWebSocketEvents = {
   [EventType in SubscribableBlobEventType]?: BlobWebSocketEventMap[EventType];

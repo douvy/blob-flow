@@ -201,7 +201,33 @@ describe('blobWebSocket', () => {
     expect(events[0].type).toBe('stats_update');
   });
 
-  it('marks open sockets stale when heartbeats stop and restores connected on messages', async () => {
+  it('force-reconnects a silent open socket instead of waiting for TCP to notice', async () => {
+    vi.useFakeTimers();
+    const states: string[] = [];
+    const client = new BlobWebSocketClient({
+      url: 'wss://example.test/api/v1/ws?network=mainnet',
+      WebSocketImpl: MockWebSocket,
+      staleTimeoutMs: 50,
+      reconnectDelayMs: 10,
+      onConnectionStateChange: (state) => states.push(state),
+    });
+
+    client.connect();
+    MockWebSocket.instances[0].open();
+    await vi.advanceTimersByTimeAsync(50);
+
+    // The half-dead socket is abandoned and closed immediately...
+    expect(states).toEqual(['connecting', 'connected', 'stale', 'reconnecting']);
+    expect(MockWebSocket.instances[0].readyState).toBe(3);
+
+    // ...and a replacement comes up after the backoff delay.
+    await vi.advanceTimersByTimeAsync(10);
+    expect(MockWebSocket.instances).toHaveLength(2);
+    MockWebSocket.instances[1].open();
+    expect(states).toEqual(['connecting', 'connected', 'stale', 'reconnecting', 'connected']);
+  });
+
+  it('keeps a live socket connected while messages keep arriving', async () => {
     vi.useFakeTimers();
     const states: string[] = [];
     const client = new BlobWebSocketClient({
@@ -213,13 +239,46 @@ describe('blobWebSocket', () => {
 
     client.connect();
     MockWebSocket.instances[0].open();
-    await vi.advanceTimersByTimeAsync(50);
+    for (let i = 0; i < 3; i += 1) {
+      await vi.advanceTimersByTimeAsync(30); // under the stale timeout
+      MockWebSocket.instances[0].receive(JSON.stringify({ type: 'ping' }));
+    }
 
-    expect(states).toEqual(['connecting', 'connected', 'stale']);
+    expect(states).toEqual(['connecting', 'connected']);
+    expect(MockWebSocket.instances).toHaveLength(1);
+  });
 
-    MockWebSocket.instances[0].receive(JSON.stringify({ type: 'ping' }));
+  it('parses block_snapshot events and rejects malformed ones', () => {
+    const parsed = parseBlobWebSocketEvent(
+      JSON.stringify({
+        type: 'block_snapshot',
+        data: {
+          blocks: [
+            {
+              block_number: 124,
+              blob_count: 0,
+              timestamp: '2026-03-09T14:00:12Z',
+              blobs: [],
+            },
+            {
+              block_number: 123,
+              blob_count: 1,
+              timestamp: '2026-03-09T14:00:00Z',
+              blobs: [blobResponse],
+            },
+          ],
+        },
+      })
+    );
 
-    expect(states).toEqual(['connecting', 'connected', 'stale', 'connected']);
+    expect(parsed?.type).toBe('block_snapshot');
+    if (parsed?.type === 'block_snapshot') {
+      expect(parsed.data.blocks).toHaveLength(2);
+      expect(parsed.data.blocks[0].block_number).toBe(124);
+    }
+
+    expect(parseBlobWebSocketEvent(JSON.stringify({ type: 'block_snapshot' }))).toBeNull();
+    expect(parseBlobWebSocketEvent(JSON.stringify({ type: 'block_snapshot', data: {} }))).toBeNull();
   });
 
   it('reconnects with capped backoff after unplanned closes', async () => {
