@@ -1,8 +1,16 @@
-"use client";
-
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { ArrowLeft } from 'lucide-react';
 import LatestBlocksTable from '@/components/LatestBlocksTable';
+
+export const metadata: Metadata = {
+  title: 'Latest Blocks & Blob Fees',
+  description:
+    'Browse recent Ethereum blocks in real time with live blob counts, blob base fees, and per-blob details.',
+  alternates: {
+    canonical: '/blocks',
+  },
+};
 
 export default function BlocksPage() {
   return (

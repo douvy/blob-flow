@@ -36,12 +36,8 @@ export const metadata: Metadata = {
     'Base',
     'zkSync',
   ],
-  alternates: {
-    canonical: '/',
-  },
   openGraph: {
     type: 'website',
-    url: '/',
     siteName: SITE_NAME,
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
@@ -80,7 +76,10 @@ export default function RootLayout({
       <body>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+          dangerouslySetInnerHTML={{
+            // Escape `<` so the payload can never close the script tag.
+            __html: JSON.stringify(structuredData).replace(/</g, '\\u003c'),
+          }}
         />
         <AppProviders>
           <main className="flex min-h-screen flex-col bg-background xl:bg-grid-pattern xl:bg-grid-size">
