@@ -853,7 +853,6 @@ export default function BlobFeeHero() {
                 <div className="mt-2 space-y-1 text-sm text-[#a9adb6]">
                   {rangeTrend && (
                     <p>
-                      –&nbsp;&nbsp;
                       <span
                         className={
                           rangeTrend.deltaPercent > 1
@@ -869,7 +868,7 @@ export default function BlobFeeHero() {
                     </p>
                   )}
                   <p>
-                    –&nbsp;&nbsp;Next block est. {formatFeeNumber(parseGwei(pricing.predictedNextFeeGwei))} Gwei (range {stripGweiUnit(pricing.marketPressure.nextBlockFeeEstimate.low)} – {stripGweiUnit(pricing.marketPressure.nextBlockFeeEstimate.high)})
+                    Next block est. {formatFeeNumber(parseGwei(pricing.predictedNextFeeGwei))} Gwei (range {stripGweiUnit(pricing.marketPressure.nextBlockFeeEstimate.low)} – {stripGweiUnit(pricing.marketPressure.nextBlockFeeEstimate.high)})
                   </p>
                 </div>
 
