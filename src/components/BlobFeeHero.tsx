@@ -761,9 +761,9 @@ export default function BlobFeeHero() {
               <div className="lg:col-span-5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <h1 className="text-xs font-normal uppercase tracking-wide text-[#a9adb6]">
+                    <h2 className="text-xs font-normal uppercase tracking-wide text-[#a9adb6]">
                       Blob base fee · {pricing.networkName}
-                    </h1>
+                    </h2>
                     <LiveBadge pulseKey={headBlock?.blockNumber ?? 0} />
                   </div>
                   <InfoTooltip>

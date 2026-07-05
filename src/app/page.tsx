@@ -1,6 +1,5 @@
-"use client";
-
 import React from 'react';
+import type { Metadata } from 'next';
 import BlobFeeHero from '@/components/BlobFeeHero';
 import LiveMetrics from '@/components/LiveMetrics';
 import MetricsCharts from '@/components/MetricsCharts';
@@ -9,10 +8,25 @@ import TopUsersTable from '@/components/TopUsersTable';
 import MempoolTable from '@/components/MempoolTable';
 import ExplainerSection from '@/components/ExplainerSection';
 
+export const metadata: Metadata = {
+  alternates: {
+    canonical: '/',
+  },
+};
+
 export default function Home() {
   return (
     <>
       <div className="container mx-auto px-4 pt-12 pb-16 max-w-7xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-windsor-bold text-white">
+            Real-time Ethereum blob analytics
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-bodyText">
+            Live EIP-4844 blob base fees, blockspace usage, and L2 rollup
+            activity — streamed block by block as the chain moves.
+          </p>
+        </div>
         <BlobFeeHero />
       </div>
 
