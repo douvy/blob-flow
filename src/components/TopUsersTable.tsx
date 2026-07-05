@@ -157,7 +157,7 @@ export default function TopUsersTable() {
                 <button
                   type="button"
                   className="inline-flex rounded-sm text-[#6e7787] hover:text-bodyText focus:outline-none focus:ring-2 focus:ring-blue"
-                  aria-label="Count window"
+                  aria-label="Recent indexed activity"
                 >
                   <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
