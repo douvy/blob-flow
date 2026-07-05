@@ -82,16 +82,21 @@ export default function MempoolTable() {
                 <div className="h-3 bg-[#202538] rounded w-14 max-w-full animate-pulse md:hidden lg:block xl:hidden"></div>
               </td>
               <td className="py-3 px-2">
-                <div className="h-5 bg-[#202538] rounded w-20 max-w-full animate-pulse"></div>
+                <div className="h-5 bg-[#202538] rounded w-20 max-w-full animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#202538] rounded w-14 max-w-full animate-pulse"></div>
               </td>
               <td className="py-3 px-2">
-                <div className="h-5 bg-[#202538] rounded w-8 max-w-full animate-pulse"></div>
+                <div className="h-5 bg-[#202538] rounded w-12 max-w-full animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#202538] rounded w-10 max-w-full animate-pulse"></div>
               </td>
               <td className="hidden sm:table-cell lg:hidden xl:table-cell py-3 px-2">
-                <div className="h-5 bg-[#202538] rounded w-16 max-w-full animate-pulse"></div>
+                <div className="h-5 bg-[#202538] rounded w-16 max-w-full animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#202538] rounded w-12 max-w-full animate-pulse"></div>
               </td>
               <td className="py-3 px-2">
-                <div className="h-5 bg-[#202538] rounded w-20 max-w-full animate-pulse"></div>
+                <div className="h-5 bg-[#202538] rounded w-20 max-w-full animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#202538] rounded w-16 max-w-full animate-pulse"></div>
+                <div className="h-3 bg-[#202538] rounded w-14 max-w-full animate-pulse mt-2 sm:hidden lg:block xl:hidden"></div>
               </td>
               <td className="hidden md:table-cell lg:hidden xl:table-cell py-3 px-2">
                 <div className="h-5 bg-[#202538] rounded w-12 max-w-full animate-pulse"></div>
@@ -105,7 +110,7 @@ export default function MempoolTable() {
 
   const truncateTxHash = (hash: string): string => {
     if (hash.length <= 10) return hash;
-    return `${hash.substring(0, 6)}...`;
+    return `${hash.substring(0, 8)}...`;
   };
 
   return (
@@ -138,6 +143,7 @@ export default function MempoolTable() {
                           type="button"
                           onClick={() => setSelectedTransaction(tx)}
                           className="max-w-full truncate cursor-pointer rounded text-left text-white underline decoration-[#3B55E6]/50 underline-offset-4 transition-colors hover:text-[#9ac4fd] focus:outline-none focus:ring-2 focus:ring-[#3B55E6] focus:ring-offset-2 focus:ring-offset-[#161a29]"
+                          title={tx.txHash}
                           aria-label={`View pending blob details for transaction ${tx.txHash}`}
                         >
                           {truncateTxHash(tx.txHash)}
@@ -187,7 +193,8 @@ export default function MempoolTable() {
                       <td className="py-3 px-2 text-xs sm:text-sm text-white">
                         <div className="truncate" title={tx.realizedCost}>{tx.realizedCost}</div>
                         <div className="text-xs text-[#8a93a5] mt-1 truncate" title={`max ${tx.maxCost}`}>max {tx.maxCost}</div>
-                        <div className="text-xs text-[#8a93a5] mt-1 truncate sm:hidden lg:block xl:hidden">{tx.feeHeadroom} room</div>
+                        <div className="text-xs text-[#8a93a5] mt-1 truncate sm:hidden">{tx.feeHeadroom} room</div>
+                        <div className="hidden text-xs text-[#8a93a5] mt-1 truncate lg:block xl:hidden" title={`${tx.feeHeadroom} room · cap ${tx.maxFeeGwei}`}>{tx.feeHeadroom} room · cap {tx.maxFeeGwei}</div>
                       </td>
                       <td className="hidden md:table-cell lg:hidden xl:table-cell py-3 px-2 text-xs sm:text-sm text-white truncate"><RelativeTime timestamp={tx.timeInMempool} /></td>
                     </tr>
