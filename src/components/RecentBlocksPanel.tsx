@@ -30,13 +30,13 @@ interface BlockUsage {
 const ABOVE_TARGET_STATE: UsageState = {
   label: 'Above target',
   fillClass: 'bg-amber-300',
-  textClass: 'text-amber-300',
+  textClass: 'text-amber-200',
 };
 
 const UNDER_TARGET_STATE: UsageState = {
   label: 'Under target',
   fillClass: 'bg-green-400',
-  textClass: 'text-green-400',
+  textClass: 'text-green-200',
 };
 
 function getGasPerBlob(block: Block): number {
@@ -102,7 +102,7 @@ function FullnessBar({
 
   return (
     <div
-      className="relative h-2 overflow-hidden rounded-full bg-[#202538]"
+      className="relative h-2 overflow-hidden rounded-full bg-[#26282e]"
       role="meter"
       aria-label={state.label}
       aria-valuemin={0}
@@ -241,17 +241,17 @@ function BlockRow({ block }: { block: Block }) {
     <Link
       href={`/block/${block.number}`}
       aria-label={`View blob details for block ${block.number}`}
-      className="flex items-center gap-3 rounded-md border border-divider/70 bg-[#111522]/70 px-3 py-2 transition-colors hover:border-blue/30 hover:bg-[#181d2e]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
+      className="flex items-center gap-3 rounded-md border border-[#292e35] bg-[#17181b] px-3 py-2 transition-colors hover:border-blue/30 hover:bg-[#1d1f23] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
     >
       <div className="grid min-w-0 flex-1 grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3">
         <div className="min-w-0">
-          <div className="text-[11px] text-[#8f9aad]">Block</div>
+          <div className="text-[11px] text-[#6e7687]">Block</div>
           <div className="truncate text-sm font-medium text-blue">
             {Number(block.number).toLocaleString()}
           </div>
         </div>
         <div className="min-w-0">
-          <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-[#8f9aad]">
+          <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-[#6e7687]">
             <span>{fillLabel} blobs</span>
             <span>{utilization}</span>
           </div>
@@ -262,11 +262,11 @@ function BlockRow({ block }: { block: Block }) {
           />
         </div>
         <div className="min-w-0">
-          <div className="text-[11px] text-[#8f9aad]">Base fee</div>
+          <div className="text-[11px] text-[#6e7687]">Base fee</div>
           <div className="truncate text-sm font-medium text-white">{formatBaseFee(block)}</div>
         </div>
         <div className="min-w-0">
-          <div className="text-[11px] text-[#8f9aad]">State</div>
+          <div className="text-[11px] text-[#6e7687]">State</div>
           <div className={`truncate text-sm font-medium ${usage.state.textClass}`}>
             {usage.state.label}
           </div>
@@ -322,18 +322,18 @@ export default function RecentBlocksPanel() {
   }, [data, liveBlockState, network]);
 
   const loadingComponent = (
-    <article className="rounded-lg border border-divider bg-[#161a29]/80 p-5">
+    <article className="rounded-lg border border-divider bg-[#14161a] p-5">
       <div className="space-y-3">
         {[...Array(HOMEPAGE_BLOCK_ROWS)].map((_, index) => (
           <div
             key={index}
-            className="flex items-center gap-3 rounded-md border border-divider/70 bg-[#111522]/70 px-3 py-3 animate-pulse"
+            className="flex items-center gap-3 rounded-md border border-[#292e35] bg-[#17181b] px-3 py-3 animate-pulse"
           >
             <div className="grid min-w-0 flex-1 grid-cols-2 sm:grid-cols-[minmax(5.5rem,0.8fr)_minmax(8rem,1.2fr)_minmax(7rem,1fr)_minmax(5.5rem,0.8fr)] items-center gap-3">
-              <div className="h-5 bg-[#202538] rounded w-20" />
-              <div className="h-5 bg-[#202538] rounded" />
-              <div className="h-5 bg-[#202538] rounded w-24" />
-              <div className="h-5 bg-[#202538] rounded w-20" />
+              <div className="h-5 bg-[#26282e] rounded w-20" />
+              <div className="h-5 bg-[#26282e] rounded" />
+              <div className="h-5 bg-[#26282e] rounded w-24" />
+              <div className="h-5 bg-[#26282e] rounded w-20" />
             </div>
           </div>
         ))}
@@ -358,7 +358,7 @@ export default function RecentBlocksPanel() {
         error={displayBlocks.length === 0 ? error : null}
         loadingComponent={loadingComponent}
       >
-        <article className="rounded-lg border border-divider bg-[#161a29]/80 p-5">
+        <article className="rounded-lg border border-divider bg-[#14161a] p-5">
           <div className="space-y-3">
             {displayBlocks.map((block) => (
               <BlockRow key={block.id} block={block} />

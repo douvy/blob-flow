@@ -32,5 +32,4 @@ export const L2_COLORS: Record<string, string> = {
   unknown: '#6e7687',
 };
 
-export const CHART_CARD_CLASS =
-  "rounded-tl-lg mb-2 border border-divider rounded-tr-lg rounded-bl-lg bg-blue/10 p-3 relative after:content-[''] after:absolute after:border-b-[10px] after:border-r-[10px] after:border-[#171c28] after:right-0 after:bottom-0 after:w-full after:h-full after:pointer-events-none after:rounded-br-lg after:rounded-bl-lg after:rounded-tr-lg after:-right-0 after:-bottom-0 after:left-[11px] after:top-[11px]";
+export const CHART_CARD_CLASS = 'rounded-lg border border-divider bg-[#14161a] p-3';

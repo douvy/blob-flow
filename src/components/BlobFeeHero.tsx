@@ -561,20 +561,20 @@ function PressureStat({ label, value, hint }: { label: string; value: string; hi
 
 function HeroSkeleton() {
   return (
-    <div className="animate-pulse rounded-lg border border-divider bg-[#161a29]/80 p-6">
+    <div className="animate-pulse rounded-lg border border-divider bg-[#14161a] p-6">
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         <div className="lg:col-span-5 space-y-4">
-          <div className="h-4 w-40 rounded bg-[#202538]" />
-          <div className="h-14 w-56 rounded bg-[#202538]" />
-          <div className="h-4 w-64 rounded bg-[#202538]" />
+          <div className="h-4 w-40 rounded bg-[#26282e]" />
+          <div className="h-14 w-56 rounded bg-[#26282e]" />
+          <div className="h-4 w-64 rounded bg-[#26282e]" />
           <div className="grid grid-cols-2 gap-3">
-            <div className="h-16 rounded bg-[#202538]" />
-            <div className="h-16 rounded bg-[#202538]" />
+            <div className="h-16 rounded bg-[#26282e]" />
+            <div className="h-16 rounded bg-[#26282e]" />
           </div>
         </div>
         <div className="lg:col-span-7 space-y-4">
-          <div className="h-44 rounded bg-[#202538]" />
-          <div className="h-7 rounded bg-[#202538]" />
+          <div className="h-44 rounded bg-[#26282e]" />
+          <div className="h-7 rounded bg-[#26282e]" />
         </div>
       </div>
     </div>
@@ -942,7 +942,7 @@ export default function BlobFeeHero() {
                       Couldn&apos;t load {RANGE_LABELS[timeRange]} fee history. The live view (1h) is unaffected.
                     </div>
                   ) : !isLiveRange && marketChartLoading ? (
-                    <div className="h-full animate-pulse rounded bg-[#202538]" />
+                    <div className="h-full animate-pulse rounded bg-[#26282e]" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-[#6e7687]">
                       Waiting for block data…
@@ -962,7 +962,7 @@ export default function BlobFeeHero() {
                       caption={stripCaption}
                     />
                   ) : !isLiveRange && marketChartLoading ? (
-                    <div className="h-14 animate-pulse rounded bg-[#202538]" />
+                    <div className="h-14 animate-pulse rounded bg-[#26282e]" />
                   ) : null}
                 </div>
               </div>

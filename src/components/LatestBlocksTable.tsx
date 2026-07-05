@@ -152,7 +152,7 @@ function BlobDetailsRow({ block }: { block: Block }) {
     <tr
       id={getBlockDetailsId(block.id)}
       data-row-key={`details-${block.id}`}
-      className="bg-[#111522]"
+      className="bg-[#101114]"
     >
       <td colSpan={6} className="p-0">
         <BlobDetailsContent block={block} />
@@ -246,26 +246,26 @@ export default function LatestBlocksTable() {
         </thead>
         <tbody className="divide-y divide-divider">
           {[...Array(5)].map((_, index) => (
-            <tr key={index} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
+            <tr key={index} className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
               <td className="py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-20 animate-pulse mb-2"></div>
-                <div className="h-3 bg-[#202538] rounded w-16 animate-pulse sm:hidden"></div>
+                <div className="h-5 bg-[#26282e] rounded w-20 animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#26282e] rounded w-16 animate-pulse sm:hidden"></div>
               </td>
               <td className="py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-8 animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-8 animate-pulse"></div>
               </td>
               <td className="py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-12 animate-pulse mb-2"></div>
-                <div className="h-2 bg-[#202538] rounded w-24 animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-12 animate-pulse mb-2"></div>
+                <div className="h-2 bg-[#26282e] rounded w-24 animate-pulse"></div>
               </td>
               <td className="hidden sm:table-cell py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-16 animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-16 animate-pulse"></div>
               </td>
               <td className="hidden md:table-cell py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-16 animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-16 animate-pulse"></div>
               </td>
               <td className="hidden lg:table-cell py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-20 animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-20 animate-pulse"></div>
               </td>
             </tr>
           ))}
@@ -311,8 +311,8 @@ export default function LatestBlocksTable() {
                         data-row-key={`block-${block.id}`}
                         className={`bg-gradient-to-r transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset ${
                           isExpanded
-                            ? 'from-[#202538]/80 to-[#242731]/70'
-                            : 'from-[#161a29] to-[#19191e]/60 hover:from-[#202538]/70 hover:to-[#242731]/70'
+                            ? 'from-[#1f2127]/80 to-[#23252b]/70'
+                            : 'from-[#17181b] to-[#141519]/60 hover:from-[#1f2127]/70 hover:to-[#23252b]/70'
                         }`}
                         onClick={() => toggleBlock(block.id)}
                         onKeyDown={(event) => handleBlockRowKeyDown(event, block.id)}

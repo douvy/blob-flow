@@ -196,7 +196,7 @@ describe('RecentBlocksPanel', () => {
     expect(screen.getByText('76%')).toBeInTheDocument();
 
     const underTargetText = screen.getByText('Under target');
-    expect(underTargetText).toHaveClass('text-green-400');
+    expect(underTargetText).toHaveClass('text-green-200');
     const underTargetMeter = screen.getByRole('meter', { name: 'Under target' });
     expect(underTargetMeter).toHaveAttribute('aria-valuetext', 'Under target; target at 67%');
     expect(underTargetMeter.firstElementChild).toHaveClass('bg-green-400');
@@ -205,7 +205,7 @@ describe('RecentBlocksPanel', () => {
     });
 
     const aboveTargetText = screen.getByText('Above target');
-    expect(aboveTargetText).toHaveClass('text-amber-300');
+    expect(aboveTargetText).toHaveClass('text-amber-200');
     const aboveTargetMeter = screen.getByRole('meter', { name: 'Above target' });
     expect(aboveTargetMeter).toHaveAttribute('aria-valuetext', 'Above target; target at 67%');
     expect(aboveTargetMeter.firstElementChild).toHaveClass('bg-amber-300');

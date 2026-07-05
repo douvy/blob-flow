@@ -247,10 +247,10 @@ export default function LiveMetrics() {
   const loadingComponent = (
     <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {[...Array(4)].map((_, index) => (
-        <div key={index} className="animate-pulse bg-[#161a29]/80 rounded-lg p-5 border border-divider">
-          <div className="h-5 bg-[#202538] rounded w-3/4 mb-3"></div>
-          <div className="h-7 bg-[#202538] rounded w-1/2 mb-2"></div>
-          <div className="h-4 bg-[#202538] rounded w-5/6"></div>
+        <div key={index} className="animate-pulse bg-[#14161a] rounded-lg p-5 border border-divider">
+          <div className="h-5 bg-[#26282e] rounded w-3/4 mb-3"></div>
+          <div className="h-7 bg-[#26282e] rounded w-1/2 mb-2"></div>
+          <div className="h-4 bg-[#26282e] rounded w-5/6"></div>
         </div>
       ))}
     </div>
