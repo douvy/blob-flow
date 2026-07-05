@@ -54,35 +54,39 @@ export default function IndexerStatusBanner() {
   }
 
   const backfill = status.backfill;
-  if (backfill?.active) {
-    return (
-      <div
-        role="status"
-        className="sticky top-[var(--header-height)] z-40 border-b border-dividerBlue bg-darkBlue"
-      >
-        <div className="container mx-auto flex items-center gap-2 px-4 py-2 text-sm text-lightBlue">
-          <DatabaseBackup className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>
-            Indexer is backfilling history — {formatPercent(backfill.progress_percent)} complete,{' '}
-            {formatNumber(backfill.remaining_blocks)} blocks remaining. Data may be incomplete.
-          </span>
-        </div>
-      </div>
-    );
-  }
-
   const lagSeconds = computeLagSeconds(status, now);
+
   if (lagSeconds > INDEXER_LAG_THRESHOLD_SECONDS) {
     return (
       <div
         role="status"
-        className="sticky top-[var(--header-height)] z-40 border-b border-yellow-400/30 bg-[#221f11]"
+        className="sticky top-[var(--header-height)] z-30 border-b border-yellow-400/30 bg-[#221f11]"
       >
         <div className="container mx-auto flex items-center gap-2 px-4 py-2 text-sm text-yellow-100">
           <TriangleAlert className="h-4 w-4 shrink-0 text-yellow-400" aria-hidden="true" />
           <span>
             Indexer is {formatDuration(lagSeconds)} behind the chain head (last indexed block{' '}
             {formatNumber(status.last_indexed_block)}). Recent data may be incomplete.
+            {backfill?.active && (
+              <> Backfilling — {formatPercent(backfill.progress_percent)} complete.</>
+            )}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (backfill?.active) {
+    return (
+      <div
+        role="status"
+        className="sticky top-[var(--header-height)] z-30 border-b border-dividerBlue bg-darkBlue"
+      >
+        <div className="container mx-auto flex items-center gap-2 px-4 py-2 text-sm text-lightBlue">
+          <DatabaseBackup className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            Indexer is backfilling history — {formatPercent(backfill.progress_percent)} complete,{' '}
+            {formatNumber(backfill.remaining_blocks)} blocks remaining. Data may be incomplete.
           </span>
         </div>
       </div>

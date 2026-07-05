@@ -122,7 +122,7 @@ describe('IndexerStatusBanner', () => {
     expect(screen.getByRole('status')).toHaveTextContent('behind the chain head');
   });
 
-  it('prefers the backfill notice over the lag warning while backfilling', () => {
+  it('keeps the lag warning when a backfill is also running', () => {
     mockStatus(
       makeStatus({
         indexer_lag_blocks: 100,
@@ -132,7 +132,9 @@ describe('IndexerStatusBanner', () => {
 
     render(<IndexerStatusBanner />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('backfilling history');
+    const banner = screen.getByRole('status');
+    expect(banner).toHaveTextContent('behind the chain head');
+    expect(banner).toHaveTextContent('Backfilling — 10% complete.');
   });
 });
 
