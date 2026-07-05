@@ -203,7 +203,7 @@ export default function LatestBlocksTable() {
 
   // Derive the expanded block id from the user's selection (if it still
   // applies to the current network and the block is still on the page). Rows
-  // are collapsed by default — no auto-expand. Doing this in a memo rather
+  // are collapsed by default, no auto-expand. Doing this in a memo rather
   // than an effect avoids set-state-in-effect.
   const expandedBlockId = React.useMemo(() => {
     if (!displayData) return null;

@@ -14,7 +14,7 @@ export function useNetwork() {
         DEFAULT_NETWORK.name
     );
 
-    // Derive selected network from stored name — stays in sync without a separate effect
+    // Derive selected network from stored name; stays in sync without a separate effect
     const selectedNetwork = Object.values(NETWORKS).find(
         network => network.name === storedNetwork
     ) || DEFAULT_NETWORK;

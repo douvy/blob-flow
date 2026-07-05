@@ -9,11 +9,11 @@ import { SITE_URL } from '@/constants';
 // Removed Inter font
 
 const SITE_NAME = 'BlobFlow';
-const SITE_TITLE = 'BlobFlow — Real-Time Ethereum Blob Analytics';
+const SITE_TITLE = 'BlobFlow: Real-Time Ethereum Blob Analytics';
 const SITE_DESCRIPTION =
   'Track the Ethereum EIP-4844 blob market in real time: live blob base fees, ' +
   'next-block fee predictions, mempool pressure, and L2 rollup usage across ' +
-  'Arbitrum, Optimism, Base, and zkSync — streamed block by block.';
+  'Arbitrum, Optimism, Base, and zkSync, streamed block by block.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
