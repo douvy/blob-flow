@@ -6,12 +6,10 @@ import {
   ArrowLeftRight,
   ArrowUpRight,
   Box,
-  Clock3,
   CornerDownLeft,
   Fingerprint,
   Layers3,
   RotateCw,
-  Scale,
   Wallet,
   X,
 } from 'lucide-react';
@@ -305,7 +303,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
       >
         <DialogTitle className="sr-only">Search BlobFlow</DialogTitle>
         <DialogDescription className="sr-only">
-          Search for blocks, blob IDs, transactions, rollups, and recent blob activity.
+          Search for blocks, blob IDs, transactions, and rollups.
         </DialogDescription>
         <Command shouldFilter={false} value={selectedValue} onValueChange={setSelectedValue}>
           <div className="sticky top-0 z-10 flex items-center bg-[#14161a]">
@@ -404,38 +402,6 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   </CommandItem>
                 );
               })}
-            </CommandGroup>
-
-            <CommandSeparator />
-
-            <CommandGroup heading="Latest blob activity">
-              <CommandItem value="latest-block" onSelect={() => handleTypeSelect('blocks', 'block:9274612')}>
-                <RotateCw className="text-blue" aria-hidden="true" />
-                <span className="text-white">Block #9274612 - 8 blobs added by Arbitrum (3 min ago)</span>
-              </CommandItem>
-              <CommandItem
-                value="pending-optimism"
-                onSelect={() => {
-                  setSearchQuery('12 pending blobs from Optimism');
-                  searchInputRef.current?.focus();
-                }}
-              >
-                <Clock3 className="text-blue" aria-hidden="true" />
-                <span className="text-white">12 pending blobs in mempool from Optimism (waiting for confirmation)</span>
-              </CommandItem>
-            </CommandGroup>
-
-            <CommandSeparator />
-
-            <CommandGroup heading="Blob stats summary">
-              <CommandItem value="base-fee">
-                <ArrowUpRight className="text-blue" aria-hidden="true" />
-                <span className="text-white">Current Blob Base Fee: 0.00042 ETH (up 12% in 24h)</span>
-              </CommandItem>
-              <CommandItem value="cost-comparison">
-                <Scale className="text-blue" aria-hidden="true" />
-                <span className="text-white">Blob Cost vs Calldata: 3.2x cheaper for rollups today</span>
-              </CommandItem>
             </CommandGroup>
           </CommandList>
         </Command>
