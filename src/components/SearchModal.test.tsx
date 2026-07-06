@@ -17,11 +17,20 @@ vi.mock('../hooks/useNetwork', () => ({
 }));
 
 vi.mock('../lib/api', () => ({
-  api: { getBlobByTxHash: vi.fn() },
+  api: { getBlobByTxHash: vi.fn(), getBlobByVersionedHash: vi.fn(), search: vi.fn() },
 }));
 
 const address = '0x1234567890abcdef1234567890abcdef12345678';
 const txHash = '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+const blobHash = `0x01${'ab'.repeat(31)}`;
+
+// The type-ahead debounce is 250ms; wait past it so /search results (or
+// their absence) have settled before asserting.
+async function settleTypeAhead() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 320));
+  });
+}
 
 async function openModal() {
   const onClose = vi.fn();
@@ -59,6 +68,7 @@ beforeEach(() => {
     setSelectedNetwork: vi.fn(),
     networkOptions: [DEFAULT_NETWORK],
   });
+  (api.search as Mock).mockResolvedValue([]);
 });
 
 describe('SearchModal', () => {
@@ -140,5 +150,89 @@ describe('SearchModal', () => {
     fireEvent.click(screen.getByText('Blocks'));
 
     expect(input).toHaveValue('block:25467750');
+  });
+
+  it('resolves a blob versioned hash to its block', async () => {
+    (api.getBlobByVersionedHash as Mock).mockResolvedValue({
+      tx_hash: txHash,
+      block_number: 25467700,
+      versioned_hash: blobHash,
+    });
+    const { onClose, input } = await openModal();
+
+    fireEvent.change(input, { target: { value: blobHash } });
+    const item = await screen.findByText(
+      `Find the block for blob ${blobHash.slice(0, 6)}...${blobHash.slice(-4)}`
+    );
+
+    fireEvent.click(item);
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/block/25467700'));
+    expect(api.getBlobByVersionedHash).toHaveBeenCalledWith(blobHash, DEFAULT_NETWORK.apiParam);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('shows type-ahead matches and navigates on Enter', async () => {
+    (api.search as Mock).mockResolvedValue([
+      { type: 'rollup', name: 'Base', addresses: [address] },
+    ]);
+    const { onClose, input } = await openModal();
+
+    fireEvent.change(input, { target: { value: 'base' } });
+    const item = await screen.findByText('Base');
+    expect(api.search).toHaveBeenCalledWith('base', DEFAULT_NETWORK.apiParam);
+
+    // With no instant local result, the first navigable match is selected so
+    // Enter navigates.
+    await waitFor(() =>
+      expect(item.closest('[cmdk-item]')).toHaveAttribute('aria-selected', 'true')
+    );
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(pushMock).toHaveBeenCalledWith(`/user/${address}`);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('drops type-ahead matches that duplicate the instant result', async () => {
+    (api.search as Mock).mockResolvedValue([{ type: 'block', block_number: 25467750 }]);
+    const { input } = await openModal();
+
+    fireEvent.change(input, { target: { value: '25467750' } });
+    await settleTypeAhead();
+
+    expect(screen.getByText('Go to block 25,467,750')).toBeInTheDocument();
+    expect(screen.queryByText('Block 25,467,750')).not.toBeInTheDocument();
+  });
+
+  it('renders pending matches as disabled', async () => {
+    (api.search as Mock).mockResolvedValue([{ type: 'blob', versioned_hash: blobHash, tx_hash: txHash }]);
+    const { input } = await openModal();
+
+    fireEvent.change(input, { target: { value: 'blob:0x01ab' } });
+    const item = await screen.findByText(
+      `Blob ${blobHash.slice(0, 6)}...${blobHash.slice(-4)} — pending`
+    );
+
+    expect(item.closest('[cmdk-item]')).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(item);
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it('filters type-ahead matches to the active prefix type', async () => {
+    (api.search as Mock).mockResolvedValue([
+      { type: 'rollup', name: 'Base', addresses: [address] },
+      { type: 'address', address, user_attribution: 'Base' },
+      { type: 'block', block_number: 42 },
+    ]);
+    const { input } = await openModal();
+
+    fireEvent.change(input, { target: { value: 'rollup:base' } });
+    await screen.findByText('Base');
+    expect(api.search).toHaveBeenCalledWith('base', DEFAULT_NETWORK.apiParam);
+
+    expect(screen.queryByText('Block 42')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(`${address.slice(0, 6)}...${address.slice(-4)} — Base`)
+    ).toBeInTheDocument();
   });
 });

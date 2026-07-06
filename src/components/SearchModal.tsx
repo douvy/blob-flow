@@ -12,6 +12,7 @@ import {
   Layers3,
   RotateCw,
   Scale,
+  Wallet,
   X,
 } from 'lucide-react';
 import {
@@ -25,7 +26,8 @@ import {
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 import { api } from '@/lib/api';
 import { useNetwork } from '@/hooks/useNetwork';
-import { SearchTarget } from '@/types';
+import useSearchMatches from '@/hooks/useSearchMatches';
+import { SearchMatchResponse, SearchTarget } from '@/types';
 import { parseSearchQuery, truncateAddress } from '@/utils';
 
 interface SearchModalProps {
@@ -42,8 +44,29 @@ const typeOptions = [
   { type: 'rollups' as const, prefix: 'rollup:', label: 'Rollups', icon: Layers3 },
 ];
 
+// A type-filter prefix restricts which backend match types are shown.
+const PREFIX_MATCH_TYPES: Record<string, SearchMatchResponse['type'][]> = {
+  block: ['block'],
+  tx: ['transaction'],
+  blob: ['blob'],
+  rollup: ['rollup', 'address'],
+};
+
+const MATCH_ICONS: Record<SearchMatchResponse['type'], typeof Box> = {
+  block: Box,
+  transaction: ArrowLeftRight,
+  blob: Fingerprint,
+  address: Wallet,
+  rollup: Layers3,
+};
+
 function stripSearchPrefix(query: string): string {
   return query.replace(/^[a-z]+:\s*/i, '');
+}
+
+function activeSearchPrefix(query: string): string | null {
+  const match = query.trim().match(/^([a-z]+):/i);
+  return match ? match[1].toLowerCase() : null;
 }
 
 function describeTarget(target: SearchTarget): string {
@@ -54,6 +77,65 @@ function describeTarget(target: SearchTarget): string {
       return `View blob activity for ${truncateAddress(target.address)}`;
     case 'transaction':
       return `Find the block for transaction ${truncateAddress(target.txHash)}`;
+    case 'blob':
+      return `Find the block for blob ${truncateAddress(target.versionedHash)}`;
+  }
+}
+
+function matchPath(match: SearchMatchResponse): string | null {
+  switch (match.type) {
+    case 'block':
+    case 'transaction':
+    case 'blob':
+      return match.block_number != null ? `/block/${match.block_number}` : null;
+    case 'address':
+      return match.address ? `/user/${match.address}` : null;
+    case 'rollup':
+      return match.addresses?.length ? `/user/${match.addresses[0]}` : null;
+  }
+}
+
+function matchLabel(match: SearchMatchResponse): string {
+  const inBlock =
+    match.block_number != null
+      ? ` — block ${Number(match.block_number).toLocaleString()}`
+      : ' — pending';
+
+  switch (match.type) {
+    case 'block':
+      return `Block ${Number(match.block_number).toLocaleString()}`;
+    case 'transaction':
+      return `Transaction ${truncateAddress(match.tx_hash ?? '')}${inBlock}`;
+    case 'blob':
+      return `Blob ${truncateAddress(match.versioned_hash ?? '')}${inBlock}`;
+    case 'address':
+      return `${truncateAddress(match.address ?? '')}${match.user_attribution ? ` — ${match.user_attribution}` : ''}`;
+    case 'rollup': {
+      const count = match.addresses?.length ?? 0;
+      return `${match.name}${count > 1 ? ` — ${count} addresses` : ''}`;
+    }
+  }
+}
+
+function matchItemValue(match: SearchMatchResponse): string {
+  const identifier =
+    match.tx_hash || match.versioned_hash || match.address || match.name || match.block_number;
+  return `match-${match.type}-${identifier}`.toLowerCase();
+}
+
+// A backend match that resolves to the same destination as the local parse
+// result would render as a duplicate row; drop it.
+function duplicatesTarget(match: SearchMatchResponse, target: SearchTarget | null): boolean {
+  if (!target) return false;
+  switch (target.kind) {
+    case 'block':
+      return match.type === 'block' && match.block_number === Number(target.blockNumber);
+    case 'transaction':
+      return match.type === 'transaction' && match.tx_hash?.toLowerCase() === target.txHash;
+    case 'blob':
+      return match.type === 'blob' && match.versioned_hash?.toLowerCase() === target.versionedHash;
+    case 'address':
+      return match.type === 'address' && match.address?.toLowerCase() === target.address;
   }
 }
 
@@ -62,11 +144,25 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const { selectedNetwork } = useNetwork();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<SearchType>(null);
-  const [isLookingUpTx, setIsLookingUpTx] = useState(false);
+  const [selectedValue, setSelectedValue] = useState('');
+  const [isResolvingHash, setIsResolvingHash] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const searchTarget = useMemo(() => parseSearchQuery(searchQuery), [searchQuery]);
+  const matches = useSearchMatches(
+    stripSearchPrefix(searchQuery),
+    selectedNetwork.apiParam,
+    isOpen
+  );
+
+  const visibleMatches = useMemo(() => {
+    const prefix = activeSearchPrefix(searchQuery);
+    const allowedTypes = prefix ? PREFIX_MATCH_TYPES[prefix] : null;
+    return matches
+      .filter((match) => (allowedTypes ? allowedTypes.includes(match.type) : true))
+      .filter((match) => !duplicatesTarget(match, searchTarget));
+  }, [matches, searchQuery, searchTarget]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -74,13 +170,32 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
     const animationFrame = requestAnimationFrame(() => {
       setSearchQuery('');
       setSelectedType(null);
+      setSelectedValue('');
       setSearchError(null);
-      setIsLookingUpTx(false);
+      setIsResolvingHash(false);
       searchInputRef.current?.focus();
     });
 
     return () => cancelAnimationFrame(animationFrame);
   }, [isOpen]);
+
+  // cmdk only auto-selects the first item when the input changes, so matches
+  // that arrive async would otherwise leave a type option highlighted and
+  // Enter would not navigate. When there is no instant local result, move the
+  // selection onto the first navigable match — a render-time adjustment keyed
+  // on the match identity, so it fires once per new match list and never
+  // fights arrow-key navigation.
+  const firstNavigableMatch = searchTarget
+    ? undefined
+    : visibleMatches.find((match) => matchPath(match) !== null);
+  const firstMatchValue = firstNavigableMatch ? matchItemValue(firstNavigableMatch) : null;
+  const [prevFirstMatchValue, setPrevFirstMatchValue] = useState<string | null>(null);
+  if (firstMatchValue !== prevFirstMatchValue) {
+    setPrevFirstMatchValue(firstMatchValue);
+    if (firstMatchValue) {
+      setSelectedValue(firstMatchValue);
+    }
+  }
 
   const handleQueryChange = (value: string) => {
     setSearchQuery(value);
@@ -92,34 +207,57 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
     onClose();
   };
 
-  const handleTargetSelect = async (target: SearchTarget) => {
-    if (target.kind === 'block') {
-      navigateTo(`/block/${target.blockNumber}`);
-      return;
-    }
-    if (target.kind === 'address') {
-      navigateTo(`/user/${target.address}`);
-      return;
-    }
-
-    // Transaction hashes have no page of their own; resolve to the containing block.
-    if (isLookingUpTx) return;
-    setIsLookingUpTx(true);
+  // Resolve a hash to its containing block via the given lookup and navigate
+  // there, or surface notFoundMessage when it isn't confirmed in any block.
+  const resolveHashToBlock = async (
+    lookup: () => Promise<number | null | undefined>,
+    notFoundMessage: string
+  ) => {
+    if (isResolvingHash) return;
+    setIsResolvingHash(true);
     setSearchError(null);
+    let blockNumber: number | null | undefined;
     try {
-      const response = await api.getBlobByTxHash(target.txHash, selectedNetwork.apiParam);
-      if (response.success && response.data && response.data.block_number > 0) {
-        navigateTo(`/block/${response.data.block_number}`);
-        return;
-      }
+      blockNumber = await lookup();
     } catch {
-      // Fall through to the not-found message below.
+      blockNumber = null;
     } finally {
-      setIsLookingUpTx(false);
+      setIsResolvingHash(false);
     }
-    setSearchError(
-      `No confirmed blob transaction found for ${truncateAddress(target.txHash)}. It may be pending or outside the indexed window.`
-    );
+    if (blockNumber != null && blockNumber > 0) {
+      navigateTo(`/block/${blockNumber}`);
+    } else {
+      setSearchError(notFoundMessage);
+    }
+  };
+
+  const handleTargetSelect = (target: SearchTarget) => {
+    switch (target.kind) {
+      case 'block':
+        navigateTo(`/block/${target.blockNumber}`);
+        return;
+      case 'address':
+        navigateTo(`/user/${target.address}`);
+        return;
+      case 'transaction':
+        void resolveHashToBlock(
+          () =>
+            api
+              .getBlobByTxHash(target.txHash, selectedNetwork.apiParam)
+              .then((response) => (response.success ? response.data?.block_number : null)),
+          `No confirmed blob transaction found for ${truncateAddress(target.txHash)}. It may be pending or outside the indexed window.`
+        );
+        return;
+      case 'blob':
+        void resolveHashToBlock(
+          () =>
+            api
+              .getBlobByVersionedHash(target.versionedHash, selectedNetwork.apiParam)
+              .then((blob) => blob?.block_number),
+          `No confirmed blob found for ${truncateAddress(target.versionedHash)}. It may be pending or outside the indexed window.`
+        );
+        return;
+    }
   };
 
   const handleTypeSelect = (type: SearchType, query: string) => {
@@ -153,7 +291,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
         <DialogDescription className="sr-only">
           Search for blocks, blob IDs, transactions, rollups, and recent blob activity.
         </DialogDescription>
-        <Command shouldFilter={false}>
+        <Command shouldFilter={false} value={selectedValue} onValueChange={setSelectedValue}>
           <div className="sticky top-0 z-10 flex items-center bg-[#14161a]">
             <div className="flex-1">
               <CommandInput
@@ -182,16 +320,16 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     <CommandItem
                       key={`${searchTarget.kind}-${searchQuery}`}
                       value={`goto-${searchTarget.kind}`}
-                      disabled={isLookingUpTx}
+                      disabled={isResolvingHash}
                       onSelect={() => handleTargetSelect(searchTarget)}
                     >
-                      {isLookingUpTx ? (
+                      {isResolvingHash ? (
                         <RotateCw className="animate-spin text-blue" aria-hidden="true" />
                       ) : (
                         <ArrowUpRight className="text-blue" aria-hidden="true" />
                       )}
                       <span className="flex-1 text-white">
-                        {isLookingUpTx ? 'Searching…' : describeTarget(searchTarget)}
+                        {isResolvingHash ? 'Searching…' : describeTarget(searchTarget)}
                       </span>
                       <CornerDownLeft className="text-bodyText/50" aria-hidden="true" />
                     </CommandItem>
@@ -199,6 +337,33 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   {searchError && (
                     <p className="px-2 py-2.5 text-sm text-[#ff8f8f]">{searchError}</p>
                   )}
+                </CommandGroup>
+
+                <CommandSeparator />
+              </>
+            )}
+
+            {visibleMatches.length > 0 && (
+              <>
+                <CommandGroup heading="Matches">
+                  {visibleMatches.map((match) => {
+                    const Icon = MATCH_ICONS[match.type];
+                    const path = matchPath(match);
+
+                    return (
+                      <CommandItem
+                        key={matchItemValue(match)}
+                        value={matchItemValue(match)}
+                        disabled={path === null}
+                        onSelect={() => {
+                          if (path) navigateTo(path);
+                        }}
+                      >
+                        <Icon className="text-blue" aria-hidden="true" />
+                        <span className="text-white">{matchLabel(match)}</span>
+                      </CommandItem>
+                    );
+                  })}
                 </CommandGroup>
 
                 <CommandSeparator />

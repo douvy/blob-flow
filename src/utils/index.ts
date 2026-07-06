@@ -324,13 +324,16 @@ type SearchPrefix = (typeof SEARCH_PREFIXES)[number];
 
 const BLOCK_NUMBER_PATTERN = /^\d+$/;
 const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/i;
-const TX_HASH_PATTERN = /^0x[0-9a-f]{64}$/i;
+const HASH_64_PATTERN = /^0x[0-9a-f]{64}$/i;
 
 /**
  * Parse a search query into a navigable target. Accepts a bare block number,
- * address, or transaction hash, optionally qualified with one of the
- * `block:` / `tx:` / `blob:` / `rollup:` prefixes offered in the search modal.
- * Returns null when the query doesn't resolve to a destination.
+ * address, transaction hash, or blob versioned hash, optionally qualified
+ * with one of the `block:` / `tx:` / `blob:` / `rollup:` prefixes offered in
+ * the search modal. A bare 64-hex hash starting `0x01` is treated as a blob
+ * versioned hash (their version byte is always 0x01), any other as a
+ * transaction hash. Returns null when the query doesn't resolve to a
+ * destination.
  */
 export function parseSearchQuery(query: string): SearchTarget | null {
   let value = query.trim();
@@ -352,8 +355,20 @@ export function parseSearchQuery(query: string): SearchTarget | null {
   if ((prefix === null || prefix === 'rollup') && ADDRESS_PATTERN.test(value)) {
     return { kind: 'address', address: value.toLowerCase() };
   }
-  if ((prefix === null || prefix === 'tx' || prefix === 'blob') && TX_HASH_PATTERN.test(value)) {
-    return { kind: 'transaction', txHash: value.toLowerCase() };
+  if (HASH_64_PATTERN.test(value)) {
+    const hash = value.toLowerCase();
+    const isVersionedBlobHash = hash.startsWith('0x01');
+    if (prefix === 'blob') {
+      return isVersionedBlobHash ? { kind: 'blob', versionedHash: hash } : null;
+    }
+    if (prefix === 'tx') {
+      return { kind: 'transaction', txHash: hash };
+    }
+    if (prefix === null) {
+      return isVersionedBlobHash
+        ? { kind: 'blob', versionedHash: hash }
+        : { kind: 'transaction', txHash: hash };
+    }
   }
   return null;
 }

@@ -8,7 +8,7 @@ import { BlobDetailsContent } from '@/components/BlobDetailsContent';
 import { useApiData } from '@/hooks/useApiData';
 import { api } from '@/lib/api';
 import { useNetwork } from '@/hooks/useNetwork';
-import { Block } from '@/types';
+import { ApiResponse, Block, StatusResponse } from '@/types';
 import { formatBlobFee, formatUtilizationPercent } from '@/utils';
 
 function formatBaseFee(block: Block): string {
@@ -24,6 +24,24 @@ function formatOpenCapacity(block: Block): string {
 function formatUtilization(block: Block): string {
   if (block.maxBlobs <= 0) return '-';
   return formatUtilizationPercent(block.utilizationPercent);
+}
+
+function isAheadOfIndex(blockNumber: number, coverage?: StatusResponse): boolean {
+  return coverage?.latest_indexed_block != null && blockNumber > coverage.latest_indexed_block;
+}
+
+function describeMissingBlock(
+  blockNumber: number,
+  networkName: string,
+  coverage?: StatusResponse
+): string {
+  if (coverage?.earliest_indexed_block != null && blockNumber < coverage.earliest_indexed_block) {
+    return `This block is older than the indexer's retention window for ${networkName} — the earliest indexed block is ${coverage.earliest_indexed_block.toLocaleString()}.`;
+  }
+  if (coverage?.latest_indexed_block != null && blockNumber > coverage.latest_indexed_block) {
+    return `This block is ahead of the latest indexed block for ${networkName} (${coverage.latest_indexed_block.toLocaleString()}). It may not exist on chain yet.`;
+  }
+  return `This block isn't indexed for ${networkName}. The slot may have been missed, or the indexer may still be catching up.`;
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
@@ -49,6 +67,15 @@ export default function BlockDetailPage() {
         : Promise.resolve(null),
     ['block-by-number', selectedNetwork.apiParam, rawNumber]
   );
+
+  // Indexed coverage bounds, fetched alongside the block so the not-found
+  // state can say why the block is missing. Best-effort: failures or absent
+  // bounds fall back to the generic message.
+  const { data: statusResponse } = useApiData<ApiResponse<StatusResponse> | null>(
+    () => api.getStatus(selectedNetwork.apiParam).catch(() => null),
+    ['indexer-status', selectedNetwork.apiParam]
+  );
+  const coverage = statusResponse?.data;
 
   const loadingComponent = (
     <div className="space-y-6">
@@ -97,18 +124,19 @@ export default function BlockDetailPage() {
                   Block {blockNumber.toLocaleString()}
                 </h1>
                 <p className="text-bodyText text-sm mb-4">
-                  This block isn&rsquo;t available in the latest indexed window for{' '}
-                  {selectedNetwork.name}. It may be older than the indexer&rsquo;s retention.
+                  {describeMissingBlock(blockNumber, selectedNetwork.name, coverage)}
                 </p>
-                <a
-                  href={`https://etherscan.io/block/${blockNumber}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue hover:underline text-sm inline-flex items-center gap-2"
-                >
-                  View on Etherscan
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                </a>
+                {!isAheadOfIndex(blockNumber, coverage) && (
+                  <a
+                    href={`https://etherscan.io/block/${blockNumber}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue hover:underline text-sm inline-flex items-center gap-2"
+                  >
+                    View on Etherscan
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  </a>
+                )}
               </div>
             ) : block ? (
               <>

@@ -133,10 +133,19 @@ describe('parseSearchQuery', () => {
     });
   });
 
-  it('parses transaction hashes bare and with tx/blob prefixes', () => {
+  it('parses transaction hashes bare and with the tx prefix', () => {
     expect(parseSearchQuery(txHash)).toEqual({ kind: 'transaction', txHash });
     expect(parseSearchQuery(`tx:${txHash}`)).toEqual({ kind: 'transaction', txHash });
-    expect(parseSearchQuery(`blob:${txHash}`)).toEqual({ kind: 'transaction', txHash });
+  });
+
+  it('parses 0x01-prefixed hashes as blob versioned hashes', () => {
+    const blobHash = `0x01${'ab'.repeat(31)}`;
+    expect(parseSearchQuery(blobHash)).toEqual({ kind: 'blob', versionedHash: blobHash });
+    expect(parseSearchQuery(`blob:${blobHash}`)).toEqual({ kind: 'blob', versionedHash: blobHash });
+    // An explicit tx: prefix overrides the version-byte heuristic.
+    expect(parseSearchQuery(`tx:${blobHash}`)).toEqual({ kind: 'transaction', txHash: blobHash });
+    // blob: requires a plausible versioned hash.
+    expect(parseSearchQuery(`blob:${txHash}`)).toBeNull();
   });
 
   it('rejects values that do not match their prefix', () => {

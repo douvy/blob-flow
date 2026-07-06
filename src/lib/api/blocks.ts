@@ -7,7 +7,7 @@ import {
     LatestBlocksResponse,
     NewBlockData,
 } from '../../types';
-import { fetchApi } from './core';
+import { fetchApi, isNotFoundError } from './core';
 
 function getAttributions(blobs: BlobResponse[]): string[] {
     const attributions: string[] = Array.from(new Set(
@@ -135,18 +135,50 @@ export async function getBlobByTxHash(txHash: string, network?: string): Promise
 }
 
 /**
- * Get a single block by number. The backend has no per-block endpoint, so this
- * walks the latest pricing window and returns the matching block (with blob
- * details) if it falls within the most recent {@link limit} blocks.
+ * Get the blob transaction carrying a given EIP-4844 versioned blob hash
+ * (0x01-prefixed, 32 bytes). Returns null when no indexed blob carries it.
+ * @param versionedHash - Versioned blob hash to retrieve
+ * @param network - Optional network parameter
+ */
+export async function getBlobByVersionedHash(
+    versionedHash: string,
+    network?: string,
+): Promise<BlobResponse | null> {
+    try {
+        const response = await fetchApi<ApiResponse<BlobResponse>>(
+            `/blob/by-hash/${versionedHash}`,
+            network
+        );
+        return response.data ?? null;
+    } catch (error) {
+        if (isNotFoundError(error)) {
+            return null;
+        }
+        throw error;
+    }
+}
+
+/**
+ * Get a single block by number, with blob details and block-level pricing.
+ * Returns null when the block is not indexed (missed slot, ahead of the chain
+ * head, or outside the indexed range).
  * @param blockNumber - Block number to retrieve
  * @param network - Optional network parameter
- * @param limit - How many recent blocks to scan
  */
 export async function getBlockByNumber(
     blockNumber: number,
     network?: string,
-    limit = 100,
 ): Promise<Block | null> {
-    const { data } = await getLatestBlocks(limit, network);
-    return data.find((block) => block.number === blockNumber.toString()) ?? null;
+    try {
+        const response = await fetchApi<ApiResponse<NewBlockData>>(
+            `/block/${blockNumber}`,
+            network
+        );
+        return transformNewBlockData(response.data);
+    } catch (error) {
+        if (isNotFoundError(error)) {
+            return null;
+        }
+        throw error;
+    }
 }
