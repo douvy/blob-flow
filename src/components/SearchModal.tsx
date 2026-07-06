@@ -34,7 +34,7 @@ interface SearchModalProps {
   onClose: () => void;
 }
 
-type SearchType = 'blocks' | 'blobs' | 'transactions' | 'rollups' | null;
+type SearchType = 'blocks' | 'blobs' | 'transactions' | 'rollups';
 
 const typeOptions = [
   { type: 'blocks' as const, prefix: 'block:', label: 'Blocks', icon: Box },
@@ -142,7 +142,6 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const router = useRouter();
   const { selectedNetwork } = useNetwork();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<SearchType>(null);
   const [selectedValue, setSelectedValue] = useState('');
   const [isResolvingHash, setIsResolvingHash] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -150,8 +149,22 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
   // Invalidates in-flight hash lookups when the query changes or the modal
   // closes, so a slow response can't navigate or surface an error late.
   const lookupTokenRef = useRef(0);
+  // Set while a type-option click is being applied. cmdk re-selects the first
+  // list item whenever the input changes, and a type click rewrites the input;
+  // with no results above the type group that would move the selection
+  // highlight onto the first type option ("Blocks") instead of the clicked one.
+  const pendingTypeSelectionRef = useRef<SearchType | null>(null);
 
   const searchTarget = useMemo(() => parseSearchQuery(searchQuery), [searchQuery]);
+
+  // The active type filter follows the query prefix, so it also clears or
+  // moves when the user edits the prefix by hand rather than clicking.
+  const selectedType = useMemo(() => {
+    const prefix = activeSearchPrefix(searchQuery);
+    return prefix
+      ? typeOptions.find((option) => option.prefix === `${prefix}:`)?.type ?? null
+      : null;
+  }, [searchQuery]);
   const matches = useSearchMatches(
     stripSearchPrefix(searchQuery),
     selectedNetwork.apiParam,
@@ -171,8 +184,8 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
     if (!isOpen) return;
 
     const animationFrame = requestAnimationFrame(() => {
+      pendingTypeSelectionRef.current = null;
       setSearchQuery('');
-      setSelectedType(null);
       setSelectedValue('');
       setSearchError(null);
       setIsResolvingHash(false);
@@ -204,6 +217,24 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
     lookupTokenRef.current += 1;
     setSearchQuery(value);
     setSearchError(null);
+  };
+
+  // Redirect cmdk's first-item re-selection after a type click back onto the
+  // clicked type option; genuine selections (results, matches) pass through.
+  // cmdk re-selects exactly once per input change, so the pending flag is
+  // consumed by the first value change that arrives, whatever it is.
+  const handleSelectedValueChange = (value: string) => {
+    const pendingType = pendingTypeSelectionRef.current;
+    pendingTypeSelectionRef.current = null;
+    setSelectedValue(value);
+    if (pendingType && value !== pendingType && typeOptions.some((option) => option.type === value)) {
+      // Accept the re-selection above so the controlled value really changes,
+      // then move it onto the clicked option in a follow-up update. Jumping
+      // straight to the clicked option can be a no-op state update (its value
+      // is usually already selected when the click lands), which React bails
+      // out of, so cmdk would never sync and stay stuck on the first item.
+      queueMicrotask(() => setSelectedValue(pendingType));
+    }
   };
 
   const navigateTo = (path: string) => {
@@ -275,7 +306,14 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
   const handleTypeSelect = (type: SearchType, query: string) => {
     lookupTokenRef.current += 1;
-    setSelectedType(type);
+    // Only an actual input change triggers cmdk's re-selection; re-clicking
+    // the active type leaves the query alone, so nothing needs redirecting.
+    // Never arm the flag for the first type option either: cmdk suppresses
+    // the no-op re-selection onto it (it is already selected when it is both
+    // clicked and first), which would leave the flag armed and swallow the
+    // next hover or arrow-key selection.
+    pendingTypeSelectionRef.current =
+      query !== searchQuery && type !== typeOptions[0].type ? type : null;
     setSearchQuery(query);
     setSearchError(null);
     requestAnimationFrame(() => {
@@ -305,7 +343,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
         <DialogDescription className="sr-only">
           Search for blocks, blob IDs, transactions, rollups, and addresses.
         </DialogDescription>
-        <Command shouldFilter={false} value={selectedValue} onValueChange={setSelectedValue}>
+        <Command shouldFilter={false} value={selectedValue} onValueChange={handleSelectedValueChange}>
           <div className="sticky top-0 z-10 flex items-center bg-[#14161a]">
             <div className="flex-1">
               <CommandInput

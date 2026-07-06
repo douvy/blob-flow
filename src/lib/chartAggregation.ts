@@ -418,20 +418,29 @@ function normalizeGranularity(granularity: string): Granularity {
   return 'minute';
 }
 
-function formatMarketCoverage(
-  market: BackendBlobMarketChartResponse,
+const NO_BUCKETS_COVERAGE_LABEL = 'no chart buckets in this view';
+
+/** Shared shape of the bucketed chart responses, enough to caption coverage. */
+interface BucketedChartResponse {
+  range: BackendChartRange | string;
+  granularity: string;
+  bucket_seconds: number;
+}
+
+function formatBucketCoverage(
+  chart: BucketedChartResponse,
   pointCount: number,
   timeRange: TimeRange,
   coverage: ChartDataCoverage | null
 ): string {
-  if (pointCount === 0) return 'no chart buckets in this view';
+  if (pointCount === 0) return NO_BUCKETS_COVERAGE_LABEL;
 
-  const bucketWidthSeconds = getBucketWidthSeconds(market);
-  const spanWord = describeBucketSpan(bucketWidthSeconds) ?? market.granularity;
+  const bucketWidthSeconds = getBucketWidthSeconds(chart);
+  const spanWord = describeBucketSpan(bucketWidthSeconds) ?? chart.granularity;
   const bucketLabel = pointCount === 1
     ? `1 ${spanWord} bucket`
     : `${pointCount.toLocaleString()} ${spanWord} buckets`;
-  const rangeLabel = timeRange === 'All' && market.range === '30d'
+  const rangeLabel = timeRange === 'All' && chart.range === '30d'
     ? '30d view'
     : timeRange === 'All'
       ? 'all available history'
@@ -488,6 +497,41 @@ export function marketPointHasData(point: BackendBlobMarketChartPoint): boolean 
     point.blob_count > 0 ||
     point.blob_gas_used > 0 ||
     parseFiniteNumber(point.average_blob_base_fee_gwei) > 0
+  );
+}
+
+/**
+ * Timestamps of market buckets with no indexed blocks. The attribution and
+ * cost endpoints bucket the same window, so their points at these timestamps
+ * are also missing data. Their payloads cannot make that call on their own:
+ * an all-zero attribution or cost bucket can be a genuinely quiet interval,
+ * but the market bucket still carries a nonzero base fee in that case.
+ */
+function collectEmptyBucketTimestamps(market: BackendBlobMarketChartResponse): Set<number> {
+  const emptyTimestamps = new Set<number>();
+  for (const point of market.points) {
+    if (!marketPointHasData(point)) {
+      emptyTimestamps.add(isoTimestamp(point.timestamp));
+    }
+  }
+  return emptyTimestamps;
+}
+
+/**
+ * The empty-bucket filter keys on exact timestamps, so it is only safe when
+ * the other endpoint buckets identically to the market response. The three
+ * responses are fetched and cached independently, so a mismatched snapshot
+ * (for example a stale cache across a backend granularity change) must fail
+ * open rather than drop a wider bucket that shares a start timestamp with
+ * one empty market bucket.
+ */
+function sharesMarketBucketing(
+  market: BackendBlobMarketChartResponse,
+  other: { granularity: string; bucket_seconds: number }
+): boolean {
+  return (
+    other.granularity === market.granularity &&
+    other.bucket_seconds === market.bucket_seconds
   );
 }
 
@@ -562,10 +606,12 @@ function filterToCoverage<T extends { timestamp: string }>(
 
 function transformAttributionUsage(
   attribution: BackendAttributionUsageChartResponse,
+  emptyBucketTimestamps: Set<number>,
   coverageStartMs?: number
 ): {
   l2Usage: L2UsageDataPoint[];
   l2UsageSeries: L2UsageSeries[];
+  coverage: ChartDataCoverage | null;
 } {
   const l2UsageSeries = attribution.series.map((series) => ({
     key: series.key,
@@ -575,7 +621,13 @@ function transformAttributionUsage(
   }));
 
   const bucketWidthSeconds = getBucketWidthSeconds(attribution);
-  const points = filterToCoverage(attribution.points, coverageStartMs, bucketWidthSeconds * 1000);
+  const points = filterToCoverage(
+    attribution.points.filter(
+      (point) => !emptyBucketTimestamps.has(isoTimestamp(point.timestamp))
+    ),
+    coverageStartMs,
+    bucketWidthSeconds * 1000
+  );
   const coverage = getChartDataCoverage(attribution, points);
   const labelStyle = getBucketLabelStyle(bucketWidthSeconds, coverage?.spanMs ?? 0);
 
@@ -595,25 +647,35 @@ function transformAttributionUsage(
     return row;
   });
 
-  return { l2Usage, l2UsageSeries };
+  return { l2Usage, l2UsageSeries, coverage };
 }
 
 function transformCostComparison(
   costComparison: BackendCostComparisonChartResponse,
+  emptyBucketTimestamps: Set<number>,
   coverageStartMs?: number
-): CostComparisonDataPoint[] {
+): { points: CostComparisonDataPoint[]; coverage: ChartDataCoverage | null } {
   const bucketWidthSeconds = getBucketWidthSeconds(costComparison);
-  const points = filterToCoverage(costComparison.points, coverageStartMs, bucketWidthSeconds * 1000);
+  const points = filterToCoverage(
+    costComparison.points.filter(
+      (point) => !emptyBucketTimestamps.has(isoTimestamp(point.timestamp))
+    ),
+    coverageStartMs,
+    bucketWidthSeconds * 1000
+  );
   const coverage = getChartDataCoverage(costComparison, points);
   const labelStyle = getBucketLabelStyle(bucketWidthSeconds, coverage?.spanMs ?? 0);
 
-  return points.map((point) => ({
-    timestamp: isoTimestamp(point.timestamp),
-    label: formatBucketLabel(point.timestamp, labelStyle),
-    blobCostEth: weiIntegerToEth(point.blob_cost_wei),
-    calldataEquivEth: weiIntegerToEth(point.calldata_equivalent_cost_wei),
-    savingsPct: roundTo(point.savings_percent, 2),
-  }));
+  return {
+    points: points.map((point) => ({
+      timestamp: isoTimestamp(point.timestamp),
+      label: formatBucketLabel(point.timestamp, labelStyle),
+      blobCostEth: weiIntegerToEth(point.blob_cost_wei),
+      calldataEquivEth: weiIntegerToEth(point.calldata_equivalent_cost_wei),
+      savingsPct: roundTo(point.savings_percent, 2),
+    })),
+    coverage,
+  };
 }
 
 export function buildChartDatasetFromResponses(
@@ -629,14 +691,36 @@ export function buildChartDatasetFromResponses(
     selectRollingWindow(rollingWindows, timeRange) ??
     buildSelectedWindowFromMarket(market, timeRange);
   const { baseFee, gasUtilization, coverage } = transformMarketPoints(market);
-  const { l2Usage, l2UsageSeries } = transformAttributionUsage(attribution, coverage?.startMs);
-  const costComparisonData = transformCostComparison(costComparison, coverage?.startMs);
+  const emptyBucketTimestamps = collectEmptyBucketTimestamps(market);
+  const noFilter = new Set<number>();
+  const { l2Usage, l2UsageSeries, coverage: l2UsageCoverage } = transformAttributionUsage(
+    attribution,
+    sharesMarketBucketing(market, attribution) ? emptyBucketTimestamps : noFilter,
+    coverage?.startMs
+  );
+  const { points: costComparisonData, coverage: costComparisonCoverage } = transformCostComparison(
+    costComparison,
+    sharesMarketBucketing(market, costComparison) ? emptyBucketTimestamps : noFilter,
+    coverage?.startMs
+  );
   const currentBaseFeeGwei = roundTo(parseFiniteNumber(market.summary.current_base_fee_gwei), 6);
   const averageBaseFeeGwei = selectedWindow.averageBaseFeeGwei;
   const rollingCoverageLabel = statsWindows
     ? formatRollingCoverage(timeRange, selectedWindow)
     : `${selectedWindow.label} chart summary`;
-  const blockCoverageLabel = formatMarketCoverage(market, baseFee.length, timeRange, coverage);
+  const blockCoverageLabel = formatBucketCoverage(market, baseFee.length, timeRange, coverage);
+  const l2UsageCoverageLabel = formatBucketCoverage(
+    attribution,
+    l2Usage.length,
+    timeRange,
+    l2UsageCoverage
+  );
+  const costComparisonCoverageLabel = formatBucketCoverage(
+    costComparison,
+    costComparisonData.length,
+    timeRange,
+    costComparisonCoverage
+  );
   const chartRangeLabel = formatChartRangeLabel(timeRange, selectedWindow);
 
   return {
@@ -662,7 +746,9 @@ export function buildChartDatasetFromResponses(
     chartRangeLabel,
     rollingCoverageLabel,
     blockCoverageLabel,
-    coverageLabel: `${rollingCoverageLabel}; charts show ${blockCoverageLabel}.`,
+    l2UsageCoverageLabel,
+    costComparisonCoverageLabel,
+    coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show ${blockCoverageLabel}.`,
   };
 }
 
@@ -709,6 +795,8 @@ export function buildChartDataset(
     chartRangeLabel,
     rollingCoverageLabel,
     blockCoverageLabel,
+    l2UsageCoverageLabel: NO_BUCKETS_COVERAGE_LABEL,
+    costComparisonCoverageLabel: NO_BUCKETS_COVERAGE_LABEL,
     coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show the ${blockCoverageLabel}.`,
   };
 }
