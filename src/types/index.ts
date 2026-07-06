@@ -110,6 +110,9 @@ export interface StatsUpdateEvent {
 
 export interface UsersUpdateEvent {
   type: 'users_update';
+  // Window the aggregates cover; clients drop events that don't match their
+  // selected range instead of overwriting a differently-scoped view.
+  range?: BackendUsersRange | string;
   data: UserResponse[];
 }
 
@@ -397,6 +400,9 @@ export interface BlobPricing {
   marketPressure: BlobMarketPressure;
   recentBlocks: BlobPricingRecentBlock[];
 }
+
+// Time window accepted by /users and echoed on users_update events
+export type BackendUsersRange = '1h' | '24h' | '7d' | '30d' | 'all';
 
 // Backend UserResponse - matches api.UserResponse from swagger
 export interface UserResponse {

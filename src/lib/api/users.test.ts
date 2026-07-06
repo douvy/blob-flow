@@ -40,7 +40,7 @@ describe('api/users', () => {
     const result = await usersApi.getTopUsers(10, 'mainnet');
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/users?limit=10&network=mainnet'),
+      expect.stringContaining('/users?limit=10&range=all&network=mainnet'),
       expect.any(Object)
     );
     expect(result.data[0]).toMatchObject({
@@ -52,6 +52,59 @@ describe('api/users', () => {
       totalCostWei: '1200000000000000000',
     });
     expect(result.data[1].name).toBe('Known User');
+  });
+
+  it('requests the given time range', async () => {
+    const usersApi = await import('./users');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: [] }),
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await usersApi.getTopUsers(10, 'mainnet', '7d');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/users?limit=10&range=7d&network=mainnet'),
+      expect.any(Object)
+    );
+  });
+
+  it('prefers the server-computed blob share over the local top-N share', async () => {
+    const usersApi = await import('./users');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [
+          {
+            address: '0x1234567890abcdef',
+            name: 'Arbitrum',
+            blob_count: 3,
+            total_cost_eth: '1.2',
+            last_timestamp: '2026-01-01T00:00:00.000Z',
+            blob_share_percent: 12.34,
+          },
+          {
+            address: '0xabcdef1234567890',
+            name: 'Base',
+            blob_count: 1,
+            total_cost_eth: '0.3',
+            last_timestamp: '2026-01-01T00:00:10.000Z',
+          },
+        ],
+      }),
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await usersApi.getTopUsers(10, 'mainnet', '24h');
+
+    // Server share, rounded to one decimal
+    expect(result.data[0].percentage).toBe(12.3);
+    // No server share on this row: falls back to share of returned rows
+    expect(result.data[1].percentage).toBe(25);
   });
 
   it('returns a user record by address', async () => {

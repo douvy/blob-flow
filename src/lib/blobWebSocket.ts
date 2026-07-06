@@ -131,7 +131,11 @@ export function parseBlobWebSocketEvent(message: string): BlobWebSocketEvent | n
       return null;
     case 'users_update':
       if (Array.isArray(payload.data)) {
-        return { type: 'users_update', data: payload.data.filter(isRecord) as unknown as UserResponse[] };
+        return {
+          type: 'users_update',
+          range: typeof payload.range === 'string' ? payload.range : undefined,
+          data: payload.data.filter(isRecord) as unknown as UserResponse[],
+        };
       }
       return null;
     default:

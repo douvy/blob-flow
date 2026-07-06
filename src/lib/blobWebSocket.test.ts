@@ -142,6 +142,33 @@ describe('blobWebSocket', () => {
     }
   });
 
+  it('parses users_update events and carries the range tag through', () => {
+    const user = {
+      address: '0x0000000000000000000000000000000000000001',
+      name: 'Base',
+      blob_count: 4,
+      total_cost_eth: '0.004',
+      last_timestamp: '2026-03-09T14:00:00Z',
+    };
+
+    const tagged = parseBlobWebSocketEvent(
+      JSON.stringify({ type: 'users_update', range: '24h', data: [user] })
+    );
+    expect(tagged?.type).toBe('users_update');
+    if (tagged?.type === 'users_update') {
+      expect(tagged.range).toBe('24h');
+      expect(tagged.data).toEqual([user]);
+    }
+
+    const untagged = parseBlobWebSocketEvent(
+      JSON.stringify({ type: 'users_update', data: [user] })
+    );
+    expect(untagged?.type).toBe('users_update');
+    if (untagged?.type === 'users_update') {
+      expect(untagged.range).toBeUndefined();
+    }
+  });
+
   it('opens one active socket and sends subscription filters after connect', () => {
     const states: string[] = [];
     const client = new BlobWebSocketClient({
