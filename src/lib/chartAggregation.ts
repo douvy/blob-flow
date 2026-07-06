@@ -2,6 +2,7 @@ import { formatUnits } from 'viem';
 import type { TimeRange } from '../contexts/TimeRangeContext';
 import type {
   BackendAttributionUsageChartResponse,
+  BackendBlobMarketChartPoint,
   BackendBlobMarketChartResponse,
   BackendChartRange,
   BackendCostComparisonChartResponse,
@@ -322,8 +323,11 @@ function normalizeGranularity(granularity: string): Granularity {
   return 'minute';
 }
 
-function formatMarketCoverage(market: BackendBlobMarketChartResponse, timeRange: TimeRange): string {
-  const pointCount = market.points.length;
+function formatMarketCoverage(
+  market: BackendBlobMarketChartResponse,
+  pointCount: number,
+  timeRange: TimeRange
+): string {
   if (pointCount === 0) return 'no chart buckets in this view';
 
   const bucketLabel = pointCount === 1
@@ -366,11 +370,25 @@ function buildSelectedWindowFromMarket(
   };
 }
 
+/**
+ * Buckets with no indexed blocks (typically the in-progress trailing minute,
+ * or an indexer gap) report zero for every field. The blob base fee is never
+ * zero on a real block (minimum 1 wei), so an all-zero bucket is missing data
+ * and would plot as a false plunge to zero.
+ */
+function marketPointHasData(point: BackendBlobMarketChartPoint): boolean {
+  return (
+    point.blob_count > 0 ||
+    point.blob_gas_used > 0 ||
+    parseFiniteNumber(point.average_blob_base_fee_gwei) > 0
+  );
+}
+
 function transformMarketPoints(market: BackendBlobMarketChartResponse): {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
 } {
-  const sortedPoints = [...market.points].sort((a, b) => {
+  const sortedPoints = market.points.filter(marketPointHasData).sort((a, b) => {
     const timestampDiff = isoTimestamp(a.timestamp) - isoTimestamp(b.timestamp);
     return timestampDiff !== 0 ? timestampDiff : (a.end_block ?? 0) - (b.end_block ?? 0);
   });
@@ -474,7 +492,7 @@ export function buildChartDatasetFromResponses(
   const rollingCoverageLabel = statsWindows
     ? formatRollingCoverage(timeRange, selectedWindow)
     : `${selectedWindow.label} chart summary`;
-  const blockCoverageLabel = formatMarketCoverage(market, timeRange);
+  const blockCoverageLabel = formatMarketCoverage(market, baseFee.length, timeRange);
   const chartRangeLabel = formatChartRangeLabel(timeRange, selectedWindow);
 
   return {
@@ -496,7 +514,7 @@ export function buildChartDatasetFromResponses(
       recentBaseFeeSparkline: baseFee.slice(-12).map((point) => point.baseFeeGwei),
     },
     granularity: normalizeGranularity(market.granularity),
-    recentBlockCount: market.points.length,
+    recentBlockCount: baseFee.length,
     chartRangeLabel,
     rollingCoverageLabel,
     blockCoverageLabel,
