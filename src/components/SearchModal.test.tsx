@@ -213,6 +213,21 @@ describe('SearchModal', () => {
     expect(screen.getByText('Rollups').closest('[cmdk-item]')).toHaveClass('bg-[#23252a]');
   });
 
+  it('does not swallow arrow-key selection after clicking Blocks', async () => {
+    const { input } = await openModal();
+
+    fireEvent.click(screen.getByText('Blocks'));
+    expect(input).toHaveValue('block:');
+    await expectSelected('Blocks');
+
+    // cmdk suppresses its automatic re-selection when Blocks is clicked while
+    // already selected; a stale redirect flag would send this arrow-key
+    // selection back to Blocks.
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+    await expectSelected('Blob IDs');
+  });
+
   it('follows a hand-typed prefix with the type highlight and clears it when removed', async () => {
     const { input } = await openModal();
 

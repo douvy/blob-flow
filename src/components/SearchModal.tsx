@@ -308,7 +308,12 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
     lookupTokenRef.current += 1;
     // Only an actual input change triggers cmdk's re-selection; re-clicking
     // the active type leaves the query alone, so nothing needs redirecting.
-    pendingTypeSelectionRef.current = query !== searchQuery ? type : null;
+    // Never arm the flag for the first type option either: cmdk suppresses
+    // the no-op re-selection onto it (it is already selected when it is both
+    // clicked and first), which would leave the flag armed and swallow the
+    // next hover or arrow-key selection.
+    pendingTypeSelectionRef.current =
+      query !== searchQuery && type !== typeOptions[0].type ? type : null;
     setSearchQuery(query);
     setSearchError(null);
     requestAnimationFrame(() => {
