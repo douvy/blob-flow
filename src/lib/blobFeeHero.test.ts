@@ -5,6 +5,8 @@ import {
   computeFeeTrend,
   countBlocksAboveTarget,
   countChartPointsAboveTarget,
+  getBucketHint,
+  getBucketStripHint,
   getWindowAboveTargetSummary,
   formatFeeNumber,
   formatSignedPercent,
@@ -438,5 +440,50 @@ describe('formatSignedPercent', () => {
     expect(formatSignedPercent(212.4)).toBe('+212%');
     expect(formatSignedPercent(-38.25)).toBe('-38.3%');
     expect(formatSignedPercent(0)).toBe('0%');
+  });
+});
+
+describe('getBucketHint', () => {
+  it('describes the real bucket width instead of the backend granularity', () => {
+    // A backfilling 30d response reports granularity "hour" with 6h buckets.
+    expect(getBucketHint({ granularity: 'hour', bucket_seconds: 21600 })).toBe('6-hour buckets');
+    expect(getBucketHint({ granularity: 'minute', bucket_seconds: 300 })).toBe('5-minute buckets');
+    expect(getBucketHint({ granularity: 'hour', bucket_seconds: 3600 })).toBe('hourly buckets');
+    expect(getBucketHint({ granularity: 'day', bucket_seconds: 86400 })).toBe('daily buckets');
+  });
+
+  it('scales with the merged bucket count', () => {
+    expect(getBucketHint({ granularity: 'hour', bucket_seconds: 21600 }, 4)).toBe('daily buckets');
+    expect(getBucketHint({ granularity: 'hour', bucket_seconds: 21600 }, 5)).toBe('30-hour buckets');
+  });
+
+  it('falls back to the granularity when the bucket width is missing', () => {
+    expect(getBucketHint({ granularity: 'hour', bucket_seconds: 0 })).toBe('hourly buckets');
+    expect(getBucketHint({ granularity: 'epoch', bucket_seconds: Number.NaN })).toBe('epoch buckets');
+  });
+});
+
+describe('getBucketStripHint', () => {
+  const chart = { granularity: 'hour', bucket_seconds: 21600 };
+
+  it('uses the real bucket width even when each bar is a single bucket', () => {
+    const bars = groupChartPointsForStrip([
+      makeChartPoint({ timestamp: '2026-07-05T00:00:00Z' }),
+      makeChartPoint({ timestamp: '2026-07-05T06:00:00Z' }),
+      makeChartPoint({ timestamp: '2026-07-05T12:00:00Z' }),
+    ]);
+    expect(getBucketStripHint(chart, bars)).toBe('6-hour buckets');
+  });
+
+  it('describes the merged bar span', () => {
+    const points = Array.from({ length: 48 }, (_, index) =>
+      makeChartPoint({ timestamp: `2026-07-0${1 + Math.floor(index / 24)}T00:00:00Z` })
+    );
+    const bars = groupChartPointsForStrip(points, 12);
+    expect(getBucketStripHint(chart, bars)).toBe('daily buckets');
+  });
+
+  it('falls back to the single-bucket width for an empty strip', () => {
+    expect(getBucketStripHint(chart, [])).toBe('6-hour buckets');
   });
 });
