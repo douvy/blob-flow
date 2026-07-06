@@ -10,6 +10,7 @@ import {
   formatWeiToReadable,
   getAttributionImageSrc,
   getAttributionInitial,
+  safeExplorerUrl,
 } from '../utils';
 import { RelativeTime } from './RelativeTime';
 
@@ -46,6 +47,8 @@ export default function MempoolBlobDetailsModal({
   const blob = transaction.rawBlob;
   const user = blob.user_attribution || 'Unknown';
   const imageSrc = getAttributionImageSrc(user);
+  const transactionUrl = safeExplorerUrl(transaction.transactionUrl);
+  const fromAddressUrl = safeExplorerUrl(blob.from_address_url);
   const blockValue =
     blob.confirmed && blob.block_number > 0 ? blob.block_number.toLocaleString() : 'Pending';
 
@@ -93,9 +96,9 @@ export default function MempoolBlobDetailsModal({
               {blob.network_name || `Network ${blob.network_id}`}
             </span>
             <span className="text-sm text-[#6e7687]"><RelativeTime timestamp={transaction.timeInMempool} /></span>
-            {transaction.transactionUrl && (
+            {transactionUrl && (
               <a
-                href={transaction.transactionUrl}
+                href={transactionUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-auto inline-flex items-center gap-2 text-sm text-blue hover:underline"
@@ -124,14 +127,14 @@ export default function MempoolBlobDetailsModal({
             <DetailItem
               label="Transaction Hash"
               value={transaction.txHash}
-              href={transaction.transactionUrl}
+              href={transactionUrl}
               mono
               full
             />
             <DetailItem
               label="From Address"
               value={blob.from_address}
-              href={blob.from_address_url}
+              href={fromAddressUrl}
               mono
               full
             />
