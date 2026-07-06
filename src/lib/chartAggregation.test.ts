@@ -2,10 +2,12 @@ import {
   buildChartDataset,
   getPricingBlockRequestLimit,
   getRequestedRollingWindow,
+  marketPointHasData,
   selectRollingWindow,
   transformStatsWindows,
 } from './chartAggregation';
 import type {
+  BackendBlobMarketChartPoint,
   BackendStatsWindow,
   BackendStatsWindowsResponse,
   BlobPricing,
@@ -219,6 +221,34 @@ describe('chartAggregation', () => {
       pendingBlobCount: 3,
     });
     expect(dataset.coverageLabel).toContain('latest 2 pricing blocks');
+  });
+
+  it('treats only all-zero market buckets as missing data', () => {
+    const makePoint = (
+      overrides: Partial<BackendBlobMarketChartPoint>
+    ): BackendBlobMarketChartPoint => ({
+      timestamp: '2026-01-01T00:00:00.000Z',
+      average_blob_base_fee_gwei: '0',
+      median_blob_base_fee_gwei: '0',
+      p95_blob_base_fee_gwei: '0',
+      blob_count: 0,
+      blob_gas_used: 0,
+      blob_gas_target: 1835008,
+      average_utilization: '0',
+      total_cost_wei: '0',
+      unique_senders: 0,
+      ...overrides,
+    });
+
+    // No indexed blocks: every observed field is zero.
+    expect(marketPointHasData(makePoint({}))).toBe(false);
+    expect(marketPointHasData(makePoint({ average_blob_base_fee_gwei: 'not-a-number' }))).toBe(false);
+
+    // Real buckets survive, including blocks with zero blobs (fee still set)
+    // and buckets at the 1 wei protocol floor.
+    expect(marketPointHasData(makePoint({ blob_count: 3, blob_gas_used: 393216 }))).toBe(true);
+    expect(marketPointHasData(makePoint({ average_blob_base_fee_gwei: '0.004' }))).toBe(true);
+    expect(marketPointHasData(makePoint({ average_blob_base_fee_gwei: '0.000000001' }))).toBe(true);
   });
 
   it('filters pricing chart series to the selected rolling window', () => {

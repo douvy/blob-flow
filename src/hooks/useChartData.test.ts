@@ -297,6 +297,44 @@ describe('useChartData', () => {
     expect(urls.some((url) => url.includes('/charts/rolling-stats?windows=5m,1h,24h,7d,30d'))).toBe(true);
   });
 
+  it('drops empty market buckets so missing data does not plot as zero', async () => {
+    const fetchMock = createFetchMock({
+      ...mockMarket,
+      data: {
+        ...mockMarket.data,
+        points: [
+          ...mockMarket.data.points,
+          {
+            timestamp: '2026-01-01T00:02:00.000Z',
+            average_blob_base_fee_gwei: '0',
+            median_blob_base_fee_gwei: '0',
+            p95_blob_base_fee_gwei: '0',
+            blob_count: 0,
+            blob_gas_used: 0,
+            blob_gas_target: 1835008,
+            average_utilization: '0',
+            total_cost_wei: '0',
+            unique_senders: 0,
+          },
+        ],
+      },
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { result } = renderHook(() => useChartData(), { wrapper: createQueryWrapper(wrapper) });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.chartData!.baseFee.map((point) => point.baseFeeGwei)).toEqual([1, 2]);
+    expect(result.current.chartData!.gasUtilization).toHaveLength(2);
+    expect(result.current.chartData!.indicators.recentBaseFeeSparkline).toEqual([1, 2]);
+    expect(result.current.dataPoints).toBe(2);
+    expect(result.current.chartData!.blockCoverageLabel).toContain('2 minute buckets');
+  });
+
   it('keeps chart summaries available when no market points are returned', async () => {
     const fetchMock = createFetchMock({
       ...mockMarket,
