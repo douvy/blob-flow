@@ -19,6 +19,7 @@ import {
   getAttributionInitial,
   getBlobCount,
   getNetworkIconSrc,
+  safeExplorerUrl,
   truncateAddress,
 } from './index';
 
@@ -30,6 +31,16 @@ describe('utils', () => {
   it('truncates addresses with default length', () => {
     expect(truncateAddress('0x1234567890abcdef')).toBe('0x1234...cdef');
     expect(truncateAddress('')).toBe('');
+  });
+
+  it('passes through http(s) explorer urls and rejects other schemes', () => {
+    expect(safeExplorerUrl('https://etherscan.io/tx/0xabc')).toBe('https://etherscan.io/tx/0xabc');
+    expect(safeExplorerUrl('http://localhost:3000/tx/0xabc')).toBe('http://localhost:3000/tx/0xabc');
+    expect(safeExplorerUrl('javascript:alert(1)')).toBeUndefined();
+    expect(safeExplorerUrl('data:text/html,hi')).toBeUndefined();
+    expect(safeExplorerUrl('not a url')).toBeUndefined();
+    expect(safeExplorerUrl('')).toBeUndefined();
+    expect(safeExplorerUrl(undefined)).toBeUndefined();
   });
 
   it('maps known network names to local icons', () => {

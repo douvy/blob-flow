@@ -1,6 +1,7 @@
 "use client";
 
 import Image from 'next/image';
+import { ExternalLink } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
 import useScrollLock from '../hooks/useScrollLock';
 import { MempoolTransaction } from '../types';
@@ -9,6 +10,7 @@ import {
   formatWeiToReadable,
   getAttributionImageSrc,
   getAttributionInitial,
+  safeExplorerUrl,
 } from '../utils';
 import { RelativeTime } from './RelativeTime';
 
@@ -45,6 +47,8 @@ export default function MempoolBlobDetailsModal({
   const blob = transaction.rawBlob;
   const user = blob.user_attribution || 'Unknown';
   const imageSrc = getAttributionImageSrc(user);
+  const transactionUrl = safeExplorerUrl(transaction.transactionUrl);
+  const fromAddressUrl = safeExplorerUrl(blob.from_address_url);
   const blockValue =
     blob.confirmed && blob.block_number > 0 ? blob.block_number.toLocaleString() : 'Pending';
 
@@ -92,6 +96,17 @@ export default function MempoolBlobDetailsModal({
               {blob.network_name || `Network ${blob.network_id}`}
             </span>
             <span className="text-sm text-[#6e7687]"><RelativeTime timestamp={transaction.timeInMempool} /></span>
+            {transactionUrl && (
+              <a
+                href={transactionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-auto inline-flex items-center gap-2 text-sm text-blue hover:underline"
+              >
+                View on Etherscan
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+            )}
           </div>
 
           <div className="mb-6 flex items-center gap-3 border-b border-divider pb-5">
@@ -109,8 +124,20 @@ export default function MempoolBlobDetailsModal({
           </div>
 
           <dl className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-            <DetailItem label="Transaction Hash" value={transaction.txHash} mono full />
-            <DetailItem label="From Address" value={blob.from_address} mono full />
+            <DetailItem
+              label="Transaction Hash"
+              value={transaction.txHash}
+              href={transactionUrl}
+              mono
+              full
+            />
+            <DetailItem
+              label="From Address"
+              value={blob.from_address}
+              href={fromAddressUrl}
+              mono
+              full
+            />
             <DetailItem label="Block" value={blockValue} />
             <DetailItem label="Blob Index" value={blob.blob_index.toString()} />
             <DetailItem label="Blob Size" value={formatBlobSize(blob.blob_size_bytes)} />
@@ -130,17 +157,31 @@ export default function MempoolBlobDetailsModal({
 interface DetailItemProps {
   label: string;
   value: string;
+  href?: string;
   mono?: boolean;
   full?: boolean;
 }
 
-function DetailItem({ label, value, mono = false, full = false }: DetailItemProps) {
+function DetailItem({ label, value, href, mono = false, full = false }: DetailItemProps) {
   const valueClasses = `${mono ? 'font-mono ' : ''}break-words text-sm text-white`;
 
   return (
     <div className={full ? 'sm:col-span-2' : undefined}>
       <dt className="mb-1 text-xs uppercase tracking-wider text-[#6e7787]">{label}</dt>
-      <dd className={valueClasses}>{value}</dd>
+      <dd className={valueClasses}>
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue hover:underline"
+          >
+            {value}
+          </a>
+        ) : (
+          value
+        )}
+      </dd>
     </div>
   );
 }
