@@ -6,9 +6,10 @@ import { ArrowLeft, ExternalLink } from 'lucide-react';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { BlobDetailsContent } from '@/components/BlobDetailsContent';
 import { useApiData } from '@/hooks/useApiData';
+import { useIndexerStatus } from '@/hooks/useIndexerStatus';
 import { api } from '@/lib/api';
 import { useNetwork } from '@/hooks/useNetwork';
-import { ApiResponse, Block, StatusResponse } from '@/types';
+import { Block, StatusResponse } from '@/types';
 import { formatBlobFee, formatUtilizationPercent } from '@/utils';
 
 function formatBaseFee(block: Block): string {
@@ -71,11 +72,7 @@ export default function BlockDetailPage() {
   // Indexed coverage bounds, fetched alongside the block so the not-found
   // state can say why the block is missing. Best-effort: failures or absent
   // bounds fall back to the generic message.
-  const { data: statusResponse } = useApiData<ApiResponse<StatusResponse> | null>(
-    () => api.getStatus(selectedNetwork.apiParam).catch(() => null),
-    ['indexer-status', selectedNetwork.apiParam]
-  );
-  const coverage = statusResponse?.data;
+  const { data: coverage } = useIndexerStatus();
 
   const loadingComponent = (
     <div className="space-y-6">

@@ -4,6 +4,7 @@ import type { Mock } from 'vitest';
 import { DEFAULT_NETWORK } from '../constants';
 import { useNetwork } from '../hooks/useNetwork';
 import { api } from '../lib/api';
+import { ApiError } from '../lib/api/core';
 import SearchModal from './SearchModal';
 
 const pushMock = vi.hoisted(() => vi.fn());
@@ -128,7 +129,7 @@ describe('SearchModal', () => {
   });
 
   it('shows an error when a transaction hash is not found', async () => {
-    (api.getBlobByTxHash as Mock).mockRejectedValue(new Error('HTTP 404'));
+    (api.getBlobByTxHash as Mock).mockRejectedValue(new ApiError(404, 'Not Found'));
     const { onClose, input } = await openModal();
 
     fireEvent.change(input, { target: { value: `tx:${txHash}` } });
@@ -141,6 +142,49 @@ describe('SearchModal', () => {
     await screen.findByText(/No confirmed blob transaction found/);
     expect(pushMock).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('reports transient lookup failures distinctly from not-found', async () => {
+    (api.getBlobByTxHash as Mock).mockRejectedValue(new ApiError(500, 'Internal Server Error'));
+    const { input } = await openModal();
+
+    fireEvent.change(input, { target: { value: `tx:${txHash}` } });
+    fireEvent.click(
+      await screen.findByText(
+        `Find the block for transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}`
+      )
+    );
+
+    await screen.findByText(/Search failed — the indexer did not respond/);
+    expect(screen.queryByText(/No confirmed blob transaction found/)).not.toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it('ignores hash lookups that resolve after the query has changed', async () => {
+    let resolveLookup: (value: unknown) => void = () => {};
+    (api.getBlobByTxHash as Mock).mockReturnValue(
+      new Promise((resolve) => {
+        resolveLookup = resolve;
+      })
+    );
+    const { onClose, input } = await openModal();
+
+    fireEvent.change(input, { target: { value: txHash } });
+    fireEvent.click(
+      await screen.findByText(
+        `Find the block for transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}`
+      )
+    );
+
+    // The user keeps typing while the lookup is in flight.
+    fireEvent.change(input, { target: { value: '25467750' } });
+    await act(async () => {
+      resolveLookup({ success: true, data: { block_number: 999 } });
+    });
+
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Search failed/)).not.toBeInTheDocument();
   });
 
   it('keeps the typed value when switching search type', async () => {

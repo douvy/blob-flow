@@ -25,6 +25,7 @@ import {
 } from './ui/command';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 import { api } from '@/lib/api';
+import { isNotFoundError } from '@/lib/api/core';
 import { useNetwork } from '@/hooks/useNetwork';
 import useSearchMatches from '@/hooks/useSearchMatches';
 import { SearchMatchResponse, SearchTarget } from '@/types';
@@ -148,6 +149,9 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [isResolvingHash, setIsResolvingHash] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // Invalidates in-flight hash lookups when the query changes or the modal
+  // closes, so a slow response can't navigate or surface an error late.
+  const lookupTokenRef = useRef(0);
 
   const searchTarget = useMemo(() => parseSearchQuery(searchQuery), [searchQuery]);
   const matches = useSearchMatches(
@@ -165,6 +169,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
   }, [matches, searchQuery, searchTarget]);
 
   useEffect(() => {
+    lookupTokenRef.current += 1;
     if (!isOpen) return;
 
     const animationFrame = requestAnimationFrame(() => {
@@ -198,6 +203,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
   }
 
   const handleQueryChange = (value: string) => {
+    lookupTokenRef.current += 1;
     setSearchQuery(value);
     setSearchError(null);
   };
@@ -214,17 +220,26 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
     notFoundMessage: string
   ) => {
     if (isResolvingHash) return;
+    const token = ++lookupTokenRef.current;
     setIsResolvingHash(true);
     setSearchError(null);
     let blockNumber: number | null | undefined;
+    let failureMessage: string | null = null;
     try {
       blockNumber = await lookup();
-    } catch {
-      blockNumber = null;
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        blockNumber = null;
+      } else {
+        failureMessage = 'Search failed — the indexer did not respond. Try again.';
+      }
     } finally {
       setIsResolvingHash(false);
     }
-    if (blockNumber != null && blockNumber > 0) {
+    if (lookupTokenRef.current !== token) return;
+    if (failureMessage) {
+      setSearchError(failureMessage);
+    } else if (blockNumber != null && blockNumber > 0) {
       navigateTo(`/block/${blockNumber}`);
     } else {
       setSearchError(notFoundMessage);
@@ -261,6 +276,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
   };
 
   const handleTypeSelect = (type: SearchType, query: string) => {
+    lookupTokenRef.current += 1;
     setSelectedType(type);
     setSearchQuery(query);
     setSearchError(null);
