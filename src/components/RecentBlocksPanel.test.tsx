@@ -125,18 +125,6 @@ function makeNewBlockMessage(blockNumber: number, blobCount: number): string {
   });
 }
 
-function makeLegacyNewBlockMessage(blockNumber: number, blob: BlobResponse): string {
-  return JSON.stringify({
-    type: 'new_block',
-    data: {
-      block_number: blockNumber,
-      blob_count: 1,
-      timestamp: blob.timestamp,
-      blobs: [blob],
-    },
-  });
-}
-
 function renderRecentBlocksPanel() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -210,40 +198,6 @@ describe('RecentBlocksPanel', () => {
     expect(aboveTargetMeter).toHaveAttribute('aria-valuetext', 'Above target; target at 67%');
     expect(aboveTargetMeter.firstElementChild).toHaveClass('bg-amber-300');
     expect(aboveTargetMeter.querySelector('[title="Target"]')).toHaveStyle({
-      left: '66.66666666666666%',
-    });
-  });
-
-  it('adds a target marker to legacy live blocks by reusing fetched capacity params', () => {
-    vi.mocked(useApiData<LatestBlocksResponse>).mockReturnValue({
-      data: {
-        data: [makeBlock({ id: 201, number: '201', blobGasUsed: 0, blobCount: 0 })],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    renderRecentBlocksPanel();
-
-    act(() => {
-      MockWebSocket.instances[0].open();
-      MockWebSocket.instances[0].receive(
-        makeLegacyNewBlockMessage(
-          202,
-          makeBlob(202, 0, {
-            tx_hash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-            timestamp: '2026-01-01T00:00:12.000Z',
-            blob_gas_used: 655360,
-          })
-        )
-      );
-    });
-
-    expect(screen.getByText('5/21 blobs')).toBeInTheDocument();
-    const liveMeter = screen.getAllByRole('meter', { name: 'Under target' })[0];
-    expect(liveMeter).toHaveAttribute('aria-valuetext', 'Under target; target at 67%');
-    expect(liveMeter.querySelector('[title="Target"]')).toHaveStyle({
       left: '66.66666666666666%',
     });
   });

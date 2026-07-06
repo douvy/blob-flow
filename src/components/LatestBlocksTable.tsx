@@ -4,8 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useApiData } from '../hooks/useApiData';
-import { api } from '../lib/api';
+import { useLiveBlockList } from '../hooks/useLiveBlockList';
 import { Block, BlobResponse, LatestBlocksResponse } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
@@ -17,8 +16,6 @@ import {
   getAttributionImageSrc,
   getAttributionInitial,
 } from '../utils';
-import { useLatestBlobEvent } from '../contexts/LiveDataContext';
-import { transformNewBlockData } from '../lib/api/blocks';
 import { BlobDetailsContent } from './BlobDetailsContent';
 import { BLOCKS_PAGE_LIMIT, BLOCKS_PAGE_SIZE } from '../constants';
 import { useFlipRows } from '../hooks/useFlipRows';
@@ -167,7 +164,6 @@ function BlobDetailsRow({ block }: { block: Block }) {
 
 export default function LatestBlocksTable() {
   const { selectedNetwork } = useNetwork();
-  const liveBlockEvent = useLatestBlobEvent('new_block');
   // Tracks the user's most recent selection per-network: `id` is null when they
   // collapsed the auto-expanded default, otherwise the id they expanded.
   const [userSelection, setUserSelection] = React.useState<{ network: string; id: number | null } | null>(null);
@@ -179,23 +175,9 @@ export default function LatestBlocksTable() {
     setPage(1);
   }
 
-  const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
-    () => api.getLatestBlocks(BLOCKS_PAGE_LIMIT, selectedNetwork.apiParam),
-    ['latest-blocks', selectedNetwork.apiParam, BLOCKS_PAGE_LIMIT]
-  );
+  const { blocks: mergedBlocks, isLoading, error } = useLiveBlockList(BLOCKS_PAGE_LIMIT);
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   useFlipRows(tbodyRef, selectedNetwork.apiParam);
-
-  const mergedBlocks = React.useMemo<Block[]>(() => {
-    const baseBlocks = data?.data ?? [];
-    if (!liveBlockEvent) return baseBlocks;
-
-    const liveBlock = transformNewBlockData(liveBlockEvent.data);
-    return [
-      liveBlock,
-      ...baseBlocks.filter((block) => block.number !== liveBlock.number),
-    ].slice(0, BLOCKS_PAGE_LIMIT);
-  }, [data, liveBlockEvent]);
 
   const totalPages = Math.max(1, Math.ceil(mergedBlocks.length / BLOCKS_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);

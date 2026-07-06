@@ -5,7 +5,7 @@ import {
     BlobResponse,
     Block,
     LatestBlocksResponse,
-    NewBlockData,
+    NewBlockInput,
 } from '../../types';
 import { fetchApi } from './core';
 
@@ -40,7 +40,7 @@ function getBlobGasUsed(blobs: BlobResponse[]): number {
 }
 
 export function transformNewBlockData(
-    blockData: NewBlockData,
+    blockData: NewBlockInput,
     pricingBlock?: BackendBlobPricingRecentBlock
 ): Block {
     const blockPricing = pricingBlock ?? blockData.pricing;

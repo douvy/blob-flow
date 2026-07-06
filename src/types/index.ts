@@ -61,13 +61,23 @@ export type SubscribableBlobEventType =
 
 export type BlobWebSocketEventType = SubscribableBlobEventType | 'ping' | 'pong';
 
+// The indexer attaches pricing to every new_block broadcast and every
+// block_snapshot entry; a partial event is never sent, so live consumers can
+// rely on capacity data being present.
 export interface NewBlockData {
   block_number: number;
   blob_count: number;
   timestamp: string;
   blobs: BlobResponse[];
-  pricing?: BackendBlobPricingRecentBlock;
+  pricing: BackendBlobPricingRecentBlock;
 }
+
+// transformNewBlockData is also reused to rebuild blocks from REST blob
+// feeds, which carry no pricing payload; this looser shape keeps that path
+// typed without weakening the wire guarantee above.
+export type NewBlockInput = Omit<NewBlockData, 'pricing'> & {
+  pricing?: BackendBlobPricingRecentBlock;
+};
 
 export interface NewBlockEvent {
   type: 'new_block';
