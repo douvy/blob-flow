@@ -335,6 +335,88 @@ describe('useChartData', () => {
     expect(result.current.chartData!.blockCoverageLabel).toContain('2 minute buckets');
   });
 
+  it('drops L2 usage and cost buckets whose market bucket has no data', async () => {
+    // 00:02 is a genuinely quiet minute (market fee present, zero blobs);
+    // 00:03 has no indexed blocks (all-zero market bucket).
+    const quietMarketPoint = {
+      timestamp: '2026-01-01T00:02:00.000Z',
+      average_blob_base_fee_gwei: '3',
+      median_blob_base_fee_gwei: '3',
+      p95_blob_base_fee_gwei: '3',
+      blob_count: 0,
+      blob_gas_used: 0,
+      blob_gas_target: 1835008,
+      average_utilization: '0',
+      total_cost_wei: '0',
+      unique_senders: 0,
+    };
+    const emptyMarketPoint = {
+      ...quietMarketPoint,
+      timestamp: '2026-01-01T00:03:00.000Z',
+      average_blob_base_fee_gwei: '0',
+      median_blob_base_fee_gwei: '0',
+      p95_blob_base_fee_gwei: '0',
+    };
+    const zeroAttributionValues = {
+      base: { blob_count: 0, total_cost_wei: '0', blob_gas_used: 0 },
+      unknown: { blob_count: 0, total_cost_wei: '0', blob_gas_used: 0 },
+    };
+    const zeroCostFields = {
+      blob_count: 0,
+      blob_bytes: 0,
+      blob_cost_wei: '0',
+      calldata_equivalent_cost_wei: '0',
+      savings_wei: '0',
+      savings_percent: 0,
+    };
+
+    const fetchMock = createFetchMock(
+      {
+        ...mockMarket,
+        data: {
+          ...mockMarket.data,
+          points: [...mockMarket.data.points, quietMarketPoint, emptyMarketPoint],
+        },
+      },
+      {
+        ...mockAttribution,
+        data: {
+          ...mockAttribution.data,
+          points: [
+            ...mockAttribution.data.points,
+            { timestamp: '2026-01-01T00:02:00.000Z', values: zeroAttributionValues },
+            { timestamp: '2026-01-01T00:03:00.000Z', values: zeroAttributionValues },
+          ],
+        },
+      },
+      {
+        ...mockCostComparison,
+        data: {
+          ...mockCostComparison.data,
+          points: [
+            ...mockCostComparison.data.points,
+            { timestamp: '2026-01-01T00:02:00.000Z', ...zeroCostFields },
+            { timestamp: '2026-01-01T00:03:00.000Z', ...zeroCostFields },
+          ],
+        },
+      }
+    );
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { result } = renderHook(() => useChartData(), { wrapper: createQueryWrapper(wrapper) });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.chartData!.baseFee.map((point) => point.baseFeeGwei)).toEqual([1, 2, 3]);
+    expect(result.current.chartData!.l2Usage.map((point) => point.total)).toEqual([2, 7, 0]);
+    expect(result.current.chartData!.costComparison.map((point) => point.blobCostEth)).toEqual([
+      0.001, 0.002, 0,
+    ]);
+  });
+
   it('keeps chart summaries available when no market points are returned', async () => {
     const fetchMock = createFetchMock({
       ...mockMarket,

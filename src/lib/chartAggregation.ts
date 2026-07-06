@@ -384,6 +384,23 @@ export function marketPointHasData(point: BackendBlobMarketChartPoint): boolean 
   );
 }
 
+/**
+ * Timestamps of market buckets with no indexed blocks. The attribution and
+ * cost endpoints bucket the same window, so their points at these timestamps
+ * are also missing data. Their payloads cannot make that call on their own:
+ * an all-zero attribution or cost bucket can be a genuinely quiet interval,
+ * but the market bucket still carries a nonzero base fee in that case.
+ */
+function collectEmptyBucketTimestamps(market: BackendBlobMarketChartResponse): Set<number> {
+  const emptyTimestamps = new Set<number>();
+  for (const point of market.points) {
+    if (!marketPointHasData(point)) {
+      emptyTimestamps.add(isoTimestamp(point.timestamp));
+    }
+  }
+  return emptyTimestamps;
+}
+
 function transformMarketPoints(market: BackendBlobMarketChartResponse): {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
@@ -431,7 +448,8 @@ function transformMarketPoints(market: BackendBlobMarketChartResponse): {
 }
 
 function transformAttributionUsage(
-  attribution: BackendAttributionUsageChartResponse
+  attribution: BackendAttributionUsageChartResponse,
+  emptyBucketTimestamps: Set<number>
 ): {
   l2Usage: L2UsageDataPoint[];
   l2UsageSeries: L2UsageSeries[];
@@ -443,33 +461,40 @@ function transformAttributionUsage(
     address: series.address,
   }));
 
-  const l2Usage = attribution.points.map((point) => {
-    const row: L2UsageDataPoint = {
-      timestamp: isoTimestamp(point.timestamp),
-      label: formatBucketLabel(point.timestamp, attribution.granularity),
-      total: 0,
-    };
+  const l2Usage = attribution.points
+    .filter((point) => !emptyBucketTimestamps.has(isoTimestamp(point.timestamp)))
+    .map((point) => {
+      const row: L2UsageDataPoint = {
+        timestamp: isoTimestamp(point.timestamp),
+        label: formatBucketLabel(point.timestamp, attribution.granularity),
+        total: 0,
+      };
 
-    for (const series of l2UsageSeries) {
-      const blobCount = point.values[series.key]?.blob_count ?? 0;
-      row[series.key] = blobCount;
-      row.total += blobCount;
-    }
+      for (const series of l2UsageSeries) {
+        const blobCount = point.values[series.key]?.blob_count ?? 0;
+        row[series.key] = blobCount;
+        row.total += blobCount;
+      }
 
-    return row;
-  });
+      return row;
+    });
 
   return { l2Usage, l2UsageSeries };
 }
 
-function transformCostComparison(costComparison: BackendCostComparisonChartResponse): CostComparisonDataPoint[] {
-  return costComparison.points.map((point) => ({
-    timestamp: isoTimestamp(point.timestamp),
-    label: formatBucketLabel(point.timestamp, costComparison.granularity),
-    blobCostEth: weiIntegerToEth(point.blob_cost_wei),
-    calldataEquivEth: weiIntegerToEth(point.calldata_equivalent_cost_wei),
-    savingsPct: roundTo(point.savings_percent, 2),
-  }));
+function transformCostComparison(
+  costComparison: BackendCostComparisonChartResponse,
+  emptyBucketTimestamps: Set<number>
+): CostComparisonDataPoint[] {
+  return costComparison.points
+    .filter((point) => !emptyBucketTimestamps.has(isoTimestamp(point.timestamp)))
+    .map((point) => ({
+      timestamp: isoTimestamp(point.timestamp),
+      label: formatBucketLabel(point.timestamp, costComparison.granularity),
+      blobCostEth: weiIntegerToEth(point.blob_cost_wei),
+      calldataEquivEth: weiIntegerToEth(point.calldata_equivalent_cost_wei),
+      savingsPct: roundTo(point.savings_percent, 2),
+    }));
 }
 
 export function buildChartDatasetFromResponses(
@@ -485,8 +510,9 @@ export function buildChartDatasetFromResponses(
     selectRollingWindow(rollingWindows, timeRange) ??
     buildSelectedWindowFromMarket(market, timeRange);
   const { baseFee, gasUtilization } = transformMarketPoints(market);
-  const { l2Usage, l2UsageSeries } = transformAttributionUsage(attribution);
-  const costComparisonData = transformCostComparison(costComparison);
+  const emptyBucketTimestamps = collectEmptyBucketTimestamps(market);
+  const { l2Usage, l2UsageSeries } = transformAttributionUsage(attribution, emptyBucketTimestamps);
+  const costComparisonData = transformCostComparison(costComparison, emptyBucketTimestamps);
   const currentBaseFeeGwei = roundTo(parseFiniteNumber(market.summary.current_base_fee_gwei), 6);
   const averageBaseFeeGwei = selectedWindow.averageBaseFeeGwei;
   const rollingCoverageLabel = statsWindows
