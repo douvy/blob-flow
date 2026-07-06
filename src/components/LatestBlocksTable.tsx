@@ -90,6 +90,10 @@ function formatBlockPaid(block: Block): string {
 }
 
 function AttributionDisplay({ attribution }: { attribution: string[] }) {
+  if (attribution.length === 0) {
+    return <span>-</span>;
+  }
+
   if (attribution.length === 1) {
     const imageSrc = getAttributionImageSrc(attribution[0]);
 
