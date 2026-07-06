@@ -556,10 +556,20 @@ export default function BlobFeeHero() {
     data: pricing,
     isLoading,
     error,
-    refetch: refetchPricing,
   } = useApiData<BlobPricing>(
     fetchPricing,
     ['blob-pricing-hero', network, HERO_CHART_BLOCKS],
+    { refetchInterval: PRICING_FALLBACK_REFRESH_MS }
+  );
+
+  // Head-state refresh (current fee fallback, prediction, market pressure).
+  // Refetched on every ~12s block, so it stays at the API's small default
+  // block window instead of re-pulling the full 1h history each time; the
+  // WebSocket already streams the per-block chart data.
+  const fetchPricingHead = useCallback(() => api.getBlobPricing(network), [network]);
+  const { data: pricingHead, refetch: refetchPricingHead } = useApiData<BlobPricing>(
+    fetchPricingHead,
+    ['blob-pricing-head', network],
     { refetchInterval: PRICING_FALLBACK_REFRESH_MS }
   );
 
@@ -631,7 +641,7 @@ export default function BlobFeeHero() {
       }));
     }
     // Keep prediction and market pressure in step with the chain head.
-    void refetchPricing();
+    void refetchPricingHead();
   });
 
   // Trim to the advertised 1h window: missed slots stretch 300 blocks past
@@ -648,10 +658,14 @@ export default function BlobFeeHero() {
     [pricing, liveState, network]
   );
 
+  // Header readouts prefer the per-block head refresh; the 1h history query
+  // is the fallback until the head query resolves.
+  const headlinePricing = pricingHead ?? pricing;
+
   const headBlock = blocks[0];
   const currentFeeGwei = headBlock
     ? parseGwei(headBlock.blobBaseFeeGwei)
-    : parseGwei(pricing?.currentBaseFeeGwei);
+    : parseGwei(headlinePricing?.currentBaseFeeGwei);
   // Tick animation: re-runs whenever the head block changes (via `key`),
   // nudging the readout from the direction the fee moved.
   const previousFeeGwei = blocks[1] ? parseGwei(blocks[1].blobBaseFeeGwei) : null;
@@ -767,7 +781,7 @@ export default function BlobFeeHero() {
         error={pricing ? null : error}
         loadingComponent={<HeroSkeleton />}
       >
-        {pricing && (
+        {pricing && headlinePricing && (
           <article className="rounded-lg border border-divider bg-[#14161a] p-5 sm:p-6">
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
               {/* Right now */}
@@ -775,7 +789,7 @@ export default function BlobFeeHero() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <h1 className="text-xs font-normal uppercase tracking-wide text-[#a9adb6]">
-                      Blob base fee · {pricing.networkName}
+                      Blob base fee · {headlinePricing.networkName}
                     </h1>
                     <LiveBadge pulseKey={headBlock?.blockNumber ?? 0} />
                   </div>
@@ -826,7 +840,7 @@ export default function BlobFeeHero() {
                     </p>
                   )}
                   <p>
-                    –&nbsp;&nbsp;Next block est. {formatFeeNumber(parseGwei(pricing.predictedNextFeeGwei))} Gwei (range {stripGweiUnit(pricing.marketPressure.nextBlockFeeEstimate.low)} – {stripGweiUnit(pricing.marketPressure.nextBlockFeeEstimate.high)})
+                    –&nbsp;&nbsp;Next block est. {formatFeeNumber(parseGwei(headlinePricing.predictedNextFeeGwei))} Gwei (range {stripGweiUnit(headlinePricing.marketPressure.nextBlockFeeEstimate.low)} – {stripGweiUnit(headlinePricing.marketPressure.nextBlockFeeEstimate.high)})
                   </p>
                 </div>
 
@@ -851,12 +865,12 @@ export default function BlobFeeHero() {
                   />
                   <PressureStat
                     label="Full streak"
-                    value={pricing.marketPressure.consecutiveFullBlocks.toLocaleString()}
+                    value={headlinePricing.marketPressure.consecutiveFullBlocks.toLocaleString()}
                     hint="blocks in a row"
                   />
                   <PressureStat
                     label="At max"
-                    value={formatPercent(pricing.marketPressure.percentRecentBlocksAtMaxBlobs, 0)}
+                    value={formatPercent(headlinePricing.marketPressure.percentRecentBlocksAtMaxBlobs, 0)}
                     hint="of recent blocks"
                   />
                   <PressureStat

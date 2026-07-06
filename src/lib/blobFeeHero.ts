@@ -41,10 +41,13 @@ export function mergeRecentPricingBlocks(
 }
 
 /**
- * Drop blocks older than `windowSeconds` before the newest block. Missed
- * slots make HERO_CHART_BLOCKS blocks span more wall time than the
+ * Drop blocks older than `windowSeconds` before the newest block timestamp.
+ * Missed slots make HERO_CHART_BLOCKS blocks span more wall time than the
  * advertised window, so the live view trims to keep "last 1h" exact.
- * `blocks` must be newest-first; blocks with unparseable timestamps are kept.
+ * Anchored to the newest parseable timestamp rather than the first entry:
+ * callers order by block number, and a malformed or stale head-row timestamp
+ * must not skew or defeat the trim. Blocks with unparseable timestamps are
+ * kept; if no timestamp parses, the input is returned unchanged.
  */
 export function trimBlocksToWindow(
   blocks: BlobPricingRecentBlock[],
@@ -52,8 +55,14 @@ export function trimBlocksToWindow(
 ): BlobPricingRecentBlock[] {
   if (blocks.length === 0) return blocks;
 
-  const newestMs = Date.parse(blocks[0].blockTimestamp);
-  if (Number.isNaN(newestMs)) return blocks;
+  let newestMs = Number.NEGATIVE_INFINITY;
+  for (const block of blocks) {
+    const timestampMs = Date.parse(block.blockTimestamp);
+    if (!Number.isNaN(timestampMs) && timestampMs > newestMs) {
+      newestMs = timestampMs;
+    }
+  }
+  if (!Number.isFinite(newestMs)) return blocks;
 
   const cutoffMs = newestMs - windowSeconds * 1000;
   return blocks.filter((block) => {
