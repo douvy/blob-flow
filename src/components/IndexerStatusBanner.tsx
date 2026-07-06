@@ -1,11 +1,9 @@
 "use client";
 
-import React, { useCallback } from 'react';
+import React from 'react';
 import { DatabaseBackup, TriangleAlert } from 'lucide-react';
-import { useApiData } from '../hooks/useApiData';
-import { useNetwork } from '../hooks/useNetwork';
+import { useIndexerStatus } from '../hooks/useIndexerStatus';
 import { useNow } from '../hooks/useNow';
-import { api } from '../lib/api';
 import { StatusResponse } from '../types';
 import {
   BACKFILL_MIN_REMAINING_BLOCKS,
@@ -58,23 +56,9 @@ export function computeBackfillCoveragePercent(status: StatusResponse): number |
 }
 
 export default function IndexerStatusBanner() {
-  const { selectedNetwork } = useNetwork();
-  const network = selectedNetwork.apiParam;
   const now = useNow();
 
-  const fetchStatus = useCallback(async () => {
-    const response = await api.getStatus(network);
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to fetch indexer status');
-    }
-    return response.data;
-  }, [network]);
-
-  const { data: status } = useApiData<StatusResponse>(
-    fetchStatus,
-    ['indexer-status', network],
-    { refetchInterval: INDEXER_STATUS_POLL_MS }
-  );
+  const { data: status } = useIndexerStatus({ refetchInterval: INDEXER_STATUS_POLL_MS });
 
   if (!status) {
     return null;

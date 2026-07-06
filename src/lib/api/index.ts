@@ -1,5 +1,6 @@
-import { getBlockByNumber, getLatestBlocks, getBlobByTxHash } from './blocks';
+import { getBlockByNumber, getLatestBlocks, getBlobByTxHash, getBlobByVersionedHash } from './blocks';
 import { getRawBlobs } from './blobs';
+import { search } from './search';
 import {
     getAttributionUsageChart,
     getBlobMarketChart,
@@ -16,6 +17,8 @@ export const api = {
     getLatestBlocks,
     getBlockByNumber,
     getBlobByTxHash,
+    getBlobByVersionedHash,
+    search,
     getRawBlobs,
     getBlobPricing,
     getBlobMarketChart,

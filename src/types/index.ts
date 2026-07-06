@@ -42,6 +42,10 @@ export interface BlobResponse {
   max_cost_wei?: string;
   fee_cap_headroom_wei?: string;
   fee_cap_headroom_percent?: string;
+  /** This blob's own EIP-4844 versioned hash (0x01-prefixed). Omitted for rows indexed before versioned hashes were stored. */
+  versioned_hash?: string;
+  /** All versioned hashes carried by this blob's transaction. Omitted for rows indexed before versioned hashes were stored. */
+  versioned_hashes?: string[];
 }
 
 // ---- WebSocket Live Data Types ----
@@ -767,4 +771,27 @@ export interface ChartDataset {
   coverageLabel: string;
   rollingCoverageLabel: string;
   blockCoverageLabel: string;
+}
+
+// ---- Search ----
+
+/** A navigable destination parsed from a search query. */
+export type SearchTarget =
+  | { kind: 'block'; blockNumber: string }
+  | { kind: 'address'; address: string }
+  | { kind: 'transaction'; txHash: string }
+  | { kind: 'blob'; versionedHash: string };
+
+// Backend SearchMatchResponse - matches api.SearchMatchResponse from swagger.
+// `type` discriminates which of the remaining fields are populated;
+// block_number is omitted on matches still pending in the mempool.
+export interface SearchMatchResponse {
+  type: 'block' | 'transaction' | 'blob' | 'address' | 'rollup';
+  block_number?: number;
+  tx_hash?: string;
+  versioned_hash?: string;
+  address?: string;
+  user_attribution?: string;
+  name?: string;
+  addresses?: string[];
 }
