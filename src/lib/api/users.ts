@@ -1,4 +1,4 @@
-import { TopUsersResponse, User, ApiResponse, UserResponse, BlobResponse } from '../../types';
+import { TopUsersResponse, User, ApiResponse, UserResponse, BlobResponse, BackendUsersRange } from '../../types';
 import { fetchApi } from './core';
 import { truncateAddress } from '../../utils';
 
@@ -8,9 +8,21 @@ export function transformUserResponses(usersResponse: UserResponse[]): TopUsersR
     // Calculate total blobs across all returned users for percentage calculation
     const totalBlobs = usersResponse.reduce((sum, user) => sum + user.blob_count, 0) || 1;
 
+    // Server-side shares are computed over all users in the window; the local
+    // fallback only sees the returned rows. The two denominators differ, so
+    // mixing them within one column would misstate shares: use the server
+    // values only when every row has one.
+    const hasServerShares =
+        usersResponse.length > 0 &&
+        usersResponse.every(
+            (user) => typeof user.blob_share_percent === 'number' && Number.isFinite(user.blob_share_percent)
+        );
+
     // Map the API response to our expected format
     const users: User[] = usersResponse.map((user: UserResponse, index: number) => {
-        const percentage = Math.round((user.blob_count / totalBlobs) * 1000) / 10;
+        const percentage = hasServerShares && typeof user.blob_share_percent === 'number'
+            ? Math.round(user.blob_share_percent * 10) / 10
+            : Math.round((user.blob_count / totalBlobs) * 1000) / 10;
 
         return {
             id: index + 1,
@@ -31,9 +43,10 @@ export function transformUserResponses(usersResponse: UserResponse[]): TopUsersR
  * Get top blob users
  * @param limit - Number of users to return
  * @param network - Optional network parameter
+ * @param range - Time window to aggregate over
  */
-export const getTopUsers = async (limit = 10, network?: string): Promise<TopUsersResponse> => {
-    const response = await fetchApi<ApiResponse<UserResponse[]>>(`/users?limit=${limit}`, network);
+export const getTopUsers = async (limit = 10, network?: string, range: BackendUsersRange = 'all'): Promise<TopUsersResponse> => {
+    const response = await fetchApi<ApiResponse<UserResponse[]>>(`/users?limit=${limit}&range=${range}`, network);
 
     return transformUserResponses(response.data);
 };

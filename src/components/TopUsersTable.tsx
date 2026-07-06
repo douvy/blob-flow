@@ -20,11 +20,12 @@ import {
 } from '@tanstack/react-table';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
-import { TopUsersResponse, User } from '../types';
+import { BackendUsersRange, TopUsersResponse, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
+import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import { getAttributionImageSrc, getAttributionInitial } from '../utils';
-import { useLatestBlobEvent } from '../contexts/LiveDataContext';
+import { useLiveBlobEvent } from '../contexts/LiveDataContext';
 import { transformUserResponses } from '../lib/api/users';
 import {
   Table,
@@ -44,6 +45,14 @@ const COLUMN_WIDTHS: Record<string, string> = {
   percentage: 'w-1/3',
 };
 const EMPTY_USERS: User[] = [];
+
+const RANGE_LABELS: Record<TimeRange, string> = {
+  '1h': 'Last hour',
+  '24h': 'Last 24 hours',
+  '7d': 'Last 7 days',
+  '30d': 'Last 30 days',
+  All: 'All time',
+};
 
 function getUserColor(userName: string): string {
   switch (userName.toLowerCase()) {
@@ -121,22 +130,42 @@ function UserIdentity({ user }: { user: User }) {
 export default function TopUsersTable() {
   const router = useRouter();
   const { selectedNetwork } = useNetwork();
-  const usersUpdateEvent = useLatestBlobEvent('users_update');
+  const { timeRange } = useTimeRange();
+  const usersRange: BackendUsersRange = timeRange === 'All' ? 'all' : timeRange;
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: 'dataCount', desc: true },
   ]);
 
   const { data, isLoading, error } = useApiData<TopUsersResponse>(
-    () => api.getTopUsers(10, selectedNetwork.apiParam),
-    ['top-users', selectedNetwork.apiParam, 10]
+    () => api.getTopUsers(10, selectedNetwork.apiParam, usersRange),
+    ['top-users', selectedNetwork.apiParam, 10, usersRange]
   );
-  const displayData = React.useMemo(
-    () => (usersUpdateEvent ? transformUserResponses(usersUpdateEvent.data) : data),
-    [data, usersUpdateEvent]
-  );
+
+  // Live events carry the window they aggregate over; one scoped to a
+  // different window or network must never overwrite this view. Snapshots are
+  // stored with their scope and consulted only while it matches, so a scope
+  // switch falls back to the REST data on that same render (an effect-based
+  // reset alone would paint one frame of the old window's rows first).
+  const liveScopeKey = `${selectedNetwork.apiParam}:${usersRange}`;
+  const [liveUpdate, setLiveUpdate] = React.useState<{
+    scopeKey: string;
+    data: TopUsersResponse;
+  } | null>(null);
+  useLiveBlobEvent('users_update', (event) => {
+    if (event.range === usersRange) {
+      setLiveUpdate({ scopeKey: liveScopeKey, data: transformUserResponses(event.data) });
+    }
+  });
+  React.useEffect(() => {
+    // Drop snapshots from a previous scope so returning to it later starts
+    // from fresh REST data instead of the stale snapshot.
+    setLiveUpdate((current) => (current && current.scopeKey !== liveScopeKey ? null : current));
+  }, [liveScopeKey]);
+
+  const displayData = (liveUpdate?.scopeKey === liveScopeKey ? liveUpdate.data : null) ?? data;
   const tableData = displayData?.data ?? EMPTY_USERS;
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
-  useFlipRows(tbodyRef, selectedNetwork.apiParam);
+  useFlipRows(tbodyRef, liveScopeKey);
 
   const columns = React.useMemo<ColumnDef<User>[]>(
     () => [
@@ -162,7 +191,7 @@ export default function TopUsersTable() {
                   <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Recent indexed activity</TooltipContent>
+              <TooltipContent>{RANGE_LABELS[timeRange]}</TooltipContent>
             </Tooltip>
           </div>
         ),
@@ -190,7 +219,7 @@ export default function TopUsersTable() {
         },
       },
     ],
-    []
+    [timeRange]
   );
 
   const table = useReactTable({
