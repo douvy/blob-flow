@@ -27,6 +27,21 @@ export function truncateAddress(address: string, length: number = 6): string {
   return `${address.substring(0, length)}...${address.substring(address.length - 4)}`;
 }
 
+/**
+ * Explorer URLs come from the backend; only pass through http(s) links so a
+ * malformed payload cannot inject javascript: or data: hrefs into anchors.
+ */
+export function safeExplorerUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function getAttributionImageSrc(name: string): string | null {
   const imageName = ATTRIBUTION_IMAGE_NAMES[name.trim().toLowerCase()];
   return imageName ? `/images/${imageName}.png` : null;
