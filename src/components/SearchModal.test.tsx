@@ -196,6 +196,52 @@ describe('SearchModal', () => {
     expect(input).toHaveValue('block:25467750');
   });
 
+  it('moves the highlight to the newly clicked search type instead of Blocks', async () => {
+    const { input } = await openModal();
+
+    fireEvent.click(screen.getByText('Blocks'));
+    expect(input).toHaveValue('block:');
+    await expectSelected('Blocks');
+
+    fireEvent.click(screen.getByText('Rollups'));
+    expect(input).toHaveValue('rollup:');
+
+    await expectSelected('Rollups');
+    const blocksItem = screen.getByText('Blocks').closest('[cmdk-item]');
+    expect(blocksItem).toHaveAttribute('aria-selected', 'false');
+    expect(blocksItem).not.toHaveClass('bg-[#23252a]');
+    expect(screen.getByText('Rollups').closest('[cmdk-item]')).toHaveClass('bg-[#23252a]');
+  });
+
+  it('follows a hand-typed prefix with the type highlight and clears it when removed', async () => {
+    const { input } = await openModal();
+
+    fireEvent.change(input, { target: { value: 'tx:' } });
+    expect(screen.getByText('Transactions with blobs').closest('[cmdk-item]')).toHaveClass(
+      'bg-[#23252a]'
+    );
+
+    fireEvent.change(input, { target: { value: '' } });
+    expect(screen.getByText('Transactions with blobs').closest('[cmdk-item]')).not.toHaveClass(
+      'bg-[#23252a]'
+    );
+  });
+
+  it('keeps the first match selected when switching type with results showing', async () => {
+    (api.search as Mock).mockResolvedValue([
+      { type: 'rollup', name: 'Base', addresses: [address] },
+    ]);
+    const { input } = await openModal();
+
+    fireEvent.change(input, { target: { value: 'base' } });
+    await expectSelected('Base');
+
+    fireEvent.click(screen.getByText('Rollups'));
+    expect(input).toHaveValue('rollup:base');
+
+    await expectSelected('Base');
+  });
+
   it('resolves a blob versioned hash to its block', async () => {
     (api.getBlobByVersionedHash as Mock).mockResolvedValue({
       tx_hash: txHash,
