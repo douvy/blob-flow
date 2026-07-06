@@ -118,6 +118,25 @@ describe('TopUsersTable', () => {
     expect(screen.getByText('Base')).toBeInTheDocument();
   });
 
+  it('shows the selected timeframe next to the heading', () => {
+    const { rerender } = renderTable();
+
+    expect(screen.getByText('Last hour')).toBeInTheDocument();
+
+    vi.mocked(useTimeRange).mockReturnValue({
+      timeRange: '24h',
+      setTimeRange: vi.fn(),
+    });
+    rerender(
+      <TooltipProvider>
+        <TopUsersTable />
+      </TooltipProvider>
+    );
+
+    expect(screen.getByText('Last 24 hours')).toBeInTheDocument();
+    expect(screen.queryByText('Last hour')).not.toBeInTheDocument();
+  });
+
   it('applies live updates scoped to the selected range', () => {
     renderTable();
 
