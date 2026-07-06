@@ -3,6 +3,7 @@ import type {
   BlobPricingRecentBlock,
   RollingWindowDataPoint,
 } from '@/types';
+import { describeBucketSpan, getBucketWidthSeconds } from './chartAggregation';
 
 /** Number of recent blocks shown in the hero fee chart (1h of 12s mainnet slots). */
 export const HERO_CHART_BLOCKS = 300;
@@ -126,6 +127,47 @@ export function parseGwei(value: string | number | undefined): number {
   if (value === undefined || value === null) return 0;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+/** Fallback bucket-unit hints keyed by the backend `granularity` field. */
+const GRANULARITY_BUCKET_HINTS: Record<string, string> = {
+  block: 'block buckets',
+  minute: 'minute buckets',
+  hour: 'hourly buckets',
+  day: 'daily buckets',
+};
+
+/**
+ * Caption hint for a bar spanning `bucketCount` chart buckets. Prefers the
+ * real bucket width: the backend `granularity` field names the aggregation
+ * table the buckets came from, not their width (a 30d response can report
+ * granularity "hour" while `bucket_seconds` says the buckets are 6 hours).
+ */
+export function getBucketHint(
+  chart: { granularity: string; bucket_seconds: number },
+  bucketCount = 1
+): string {
+  const spanWord = describeBucketSpan(getBucketWidthSeconds(chart) * Math.max(1, bucketCount));
+  if (spanWord) return `${spanWord} buckets`;
+  return GRANULARITY_BUCKET_HINTS[chart.granularity] ?? `${chart.granularity} buckets`;
+}
+
+/**
+ * Caption hint for the hero fullness strip. When the strip merges several
+ * chart buckets per bar, describe the merged bar span (e.g. "daily buckets"
+ * for 4 merged 6-hour buckets) instead of the single-bucket width.
+ */
+export function getBucketStripHint(
+  chart: { granularity: string; bucket_seconds: number },
+  stripBuckets: HeroStripBucket[]
+): string {
+  if (stripBuckets.length === 0) return getBucketHint(chart);
+
+  // Bars can differ by one bucket when the count doesn't divide evenly; the
+  // rounded mean matches the dominant bar span.
+  const totalBuckets = stripBuckets.reduce((total, bucket) => total + bucket.bucket_count, 0);
+  const bucketsPerBar = Math.round(totalBuckets / stripBuckets.length);
+  return getBucketHint(chart, bucketsPerBar);
 }
 
 /** A hero-strip bar: one chart bucket, or several consecutive buckets merged. */

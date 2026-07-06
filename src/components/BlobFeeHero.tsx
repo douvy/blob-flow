@@ -19,9 +19,13 @@ import { api } from '@/lib/api';
 import { transformPricingRecentBlock } from '@/lib/api/pricing';
 import {
   getBackendChartRange,
+  getBucketLabelStyle,
+  getBucketWidthSeconds,
+  getChartDataCoverage,
   getRequestedRollingWindow,
   marketPointHasData,
   transformStatsWindows,
+  type BucketLabelStyle,
 } from '@/lib/chartAggregation';
 import { useTimeRange, type TimeRange } from '@/contexts/TimeRangeContext';
 import {
@@ -31,6 +35,8 @@ import {
   computeFeeRangeTrend,
   countBlocksAboveTarget,
   countChartPointsAboveTarget,
+  getBucketHint,
+  getBucketStripHint,
   getWindowAboveTargetSummary,
   formatFeeNumber,
   formatSignedPercent,
@@ -105,13 +111,13 @@ function getDirectionStyle(direction: string | undefined): DirectionStyle {
 function getDirectionExplanation(
   direction: DirectionStyle,
   deltaPercent: number | undefined,
-  rangeLabel: string
+  scopeLabel: string
 ): string {
   if (deltaPercent === undefined) {
-    return `${direction.label} is based on the blob base fee data available in the selected ${rangeLabel} view.`;
+    return `${direction.label} is based on the blob base fee data available in the selected ${scopeLabel}.`;
   }
 
-  return `${direction.label} is based on the first and latest blob base fee points in the selected ${rangeLabel} view: ${formatSignedPercent(deltaPercent)} across the range.`;
+  return `${direction.label} is based on the first and latest blob base fee points in the selected ${scopeLabel}: ${formatSignedPercent(deltaPercent)} across the range.`;
 }
 
 const LIVE_BADGE_STYLES: Record<string, { label: string; dotClass: string; textClass: string }> = {
@@ -168,53 +174,17 @@ const TREND_CHIP_LABELS: Record<TimeRange, string> = {
   All: '30d',
 };
 
-/** Unit shown under the "Above target" count for bucketed ranges. */
-const BUCKET_HINTS: Record<string, string> = {
-  block: 'block buckets',
-  minute: 'minute buckets',
-  hour: 'hourly buckets',
-  day: 'daily buckets',
-};
-
-/**
- * Caption hint for the fullness strip. When the strip merges several chart
- * buckets per bar, describe the merged bar span (e.g. "7-hour buckets")
- * instead of the backend granularity.
- */
-function getBucketStripHint(
-  marketChart: BackendBlobMarketChartResponse,
-  stripBuckets: HeroStripBucket[]
-): string {
-  const baseHint = BUCKET_HINTS[marketChart.granularity] ?? `${marketChart.granularity} buckets`;
-  if (stripBuckets.length === 0) return baseHint;
-
-  // Bars can differ by one bucket when the count doesn't divide evenly; the
-  // rounded mean matches the dominant bar span.
-  const totalBuckets = stripBuckets.reduce((total, bucket) => total + bucket.bucket_count, 0);
-  const bucketsPerBar = Math.round(totalBuckets / stripBuckets.length);
-  if (bucketsPerBar <= 1) return baseHint;
-
-  const seconds = marketChart.bucket_seconds * bucketsPerBar;
-  if (!Number.isFinite(seconds) || seconds <= 0) return baseHint;
-  if (seconds === 86400) return BUCKET_HINTS.day;
-  if (seconds === 3600) return BUCKET_HINTS.hour;
-  if (seconds % 86400 === 0) return `${seconds / 86400}-day buckets`;
-  if (seconds % 3600 === 0) return `${seconds / 3600}-hour buckets`;
-  if (seconds % 60 === 0) return `${seconds / 60}-minute buckets`;
-  return baseHint;
-}
-
-function isDayScaleRange(timeRange: TimeRange): boolean {
-  return timeRange === '7d' || timeRange === '30d' || timeRange === 'All';
-}
-
-function formatBucketLabel(timestamp: string, dayScale: boolean): string {
+function formatBucketLabel(timestamp: string, style: BucketLabelStyle): string {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return '';
-  if (dayScale) {
+  if (style === 'day') {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
-  return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+  const time = date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+  if (style === 'day-time') {
+    return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${time}`;
+  }
+  return time;
 }
 
 function formatChartTime(timestamp: string): string {
@@ -487,18 +457,18 @@ function buildBlockStripItems(blocks: BlobPricingRecentBlock[]): FullnessStripIt
     }));
 }
 
-function formatStripBucketLabel(bucket: HeroStripBucket, dayScale: boolean): string {
-  const startLabel = bucket.label || formatBucketLabel(bucket.timestamp, dayScale);
+function formatStripBucketLabel(bucket: HeroStripBucket, style: BucketLabelStyle): string {
+  const startLabel = bucket.label || formatBucketLabel(bucket.timestamp, style);
   if (bucket.bucket_count <= 1) return startLabel;
 
-  const endLabel = formatBucketLabel(bucket.end_timestamp, dayScale);
+  const endLabel = formatBucketLabel(bucket.end_timestamp, style);
   if (endLabel && endLabel !== startLabel) return `${startLabel} – ${endLabel}`;
 
-  if (dayScale) {
+  if (style === 'day') {
     // Same-day bar on a day-scale range (e.g. 7-hour bars on 7d): add the
     // bucket start times so bars within one day stay distinguishable.
-    const startTime = formatBucketLabel(bucket.timestamp, false);
-    const endTime = formatBucketLabel(bucket.end_timestamp, false);
+    const startTime = formatBucketLabel(bucket.timestamp, 'time');
+    const endTime = formatBucketLabel(bucket.end_timestamp, 'time');
     if (startTime && endTime && startTime !== endTime) {
       return `${startLabel} ${startTime} – ${endTime}`;
     }
@@ -509,10 +479,10 @@ function formatStripBucketLabel(bucket: HeroStripBucket, dayScale: boolean): str
 
 function buildBucketStripItems(
   points: HeroStripBucket[],
-  dayScale: boolean
+  style: BucketLabelStyle
 ): FullnessStripItem[] {
   return points.map((point, index) => {
-    const label = formatStripBucketLabel(point, dayScale);
+    const label = formatStripBucketLabel(point, style);
     const fillPercent = getBucketFillPercent(point);
     const blockDescription = describeBucketBlocks(point);
     const blockSuffix = blockDescription ? ` · ${blockDescription}` : '';
@@ -736,6 +706,36 @@ export default function BlobFeeHero() {
     [marketChart]
   );
 
+  // Wall-clock span the remaining buckets actually cover. While the indexer
+  // backfills, this is far shorter than the requested range, and labels and
+  // captions must describe the data instead of the advertised window.
+  const marketCoverage = useMemo(
+    () => (marketChart ? getChartDataCoverage(marketChart, marketPoints) : null),
+    [marketChart, marketPoints]
+  );
+  const bucketLabelStyle: BucketLabelStyle = marketChart
+    ? getBucketLabelStyle(getBucketWidthSeconds(marketChart), marketCoverage?.spanMs ?? 0)
+    : 'time';
+  // Replaces "last 30 days" with "data since Jul 5, 06:00" when the indexed
+  // history does not reach back to the start of the selected range.
+  const coverageSinceLabel = marketCoverage?.isPartial
+    ? formatBucketLabel(
+      new Date(marketCoverage.startMs).toISOString(),
+      bucketLabelStyle === 'day' ? 'day' : 'day-time'
+    )
+    : null;
+  const rangeCaption = !isLiveRange && coverageSinceLabel
+    ? `data since ${coverageSinceLabel}`
+    : RANGE_LABELS[timeRange];
+  // The trend (and its chip) is computed from the plotted points, so its
+  // wording must follow the actual coverage too.
+  const trendScopePhrase = !isLiveRange && coverageSinceLabel
+    ? `since ${coverageSinceLabel}`
+    : `over ${RANGE_LABELS[timeRange]}`;
+  const trendScopeDescription = !isLiveRange && coverageSinceLabel
+    ? `${RANGE_LABELS[timeRange]} view (indexed data since ${coverageSinceLabel})`
+    : `${RANGE_LABELS[timeRange]} view`;
+
   const chartPoints = useMemo<HeroChartPoint[]>(() => {
     if (isLiveRange) {
       return blocks
@@ -750,20 +750,18 @@ export default function BlobFeeHero() {
         }));
     }
 
-    const dayScale = isDayScaleRange(timeRange);
     return marketPoints.map((point) => ({
-      label: point.label || formatBucketLabel(point.timestamp, dayScale),
+      label: point.label || formatBucketLabel(point.timestamp, bucketLabelStyle),
       fee: parseGwei(point.average_blob_base_fee_gwei),
       blobCount: point.blob_count,
       maxBlobs: 0,
     }));
-  }, [isLiveRange, blocks, marketPoints, timeRange]);
+  }, [isLiveRange, blocks, marketPoints, bucketLabelStyle]);
 
   const rangeTrend = useMemo(
     () => computeFeeRangeTrend(chartPoints.map((point) => point.fee)),
     [chartPoints]
   );
-  const trendRangeLabel = RANGE_LABELS[timeRange];
   const trendChipLabel = TREND_CHIP_LABELS[timeRange];
 
   const chartReferenceFeeGwei = isLiveRange
@@ -783,8 +781,8 @@ export default function BlobFeeHero() {
     if (isLiveRange) {
       return buildBlockStripItems(stripBlocks);
     }
-    return buildBucketStripItems(stripBuckets, isDayScaleRange(timeRange));
-  }, [isLiveRange, stripBlocks, stripBuckets, timeRange]);
+    return buildBucketStripItems(stripBuckets, bucketLabelStyle);
+  }, [isLiveRange, stripBlocks, stripBuckets, bucketLabelStyle]);
   const stripTargetPercent = useMemo(() => (
     isLiveRange
       ? getBlockStripTargetPercent(stripBlocks)
@@ -792,7 +790,7 @@ export default function BlobFeeHero() {
   ), [isLiveRange, stripBlocks, marketPoints]);
   const stripCaption = isLiveRange
     ? `Last ${stripItems.length} blocks · click a bar for block details`
-    : `${RANGE_LABELS[timeRange]} · ${
+    : `${rangeCaption} · ${
       marketChart
         ? getBucketStripHint(marketChart, stripBuckets)
         : 'utilization buckets'
@@ -822,7 +820,7 @@ export default function BlobFeeHero() {
     const bucketed = countChartPointsAboveTarget(marketPoints);
     return {
       value: `${bucketed.aboveCount}/${bucketed.totalCount}`,
-      hint: BUCKET_HINTS[marketChart.granularity] ?? `${marketChart.granularity} buckets`,
+      hint: getBucketHint(marketChart),
     };
   }, [isLiveRange, blocks, rollingWindows, marketChart, marketPoints, timeRange]);
 
@@ -854,7 +852,7 @@ export default function BlobFeeHero() {
                       <button
                         type="button"
                         className={`inline-flex cursor-help items-center gap-1.5 rounded-xs h-[18px] px-1.5 pt-px shrink-0 border font-mono text-[0.625rem] leading-6 ${direction.chipClass}`}
-                        aria-label={`Fee direction over ${trendRangeLabel}: ${direction.label}`}
+                        aria-label={`Fee direction ${trendScopePhrase}: ${direction.label}`}
                       >
                         <DirectionIcon className="h-3 w-3" aria-hidden="true" />
                         {direction.label}
@@ -862,7 +860,7 @@ export default function BlobFeeHero() {
                       </button>
                     </InfoTooltipTrigger>
                     <InfoTooltipContent side="bottom" className="max-w-xs leading-relaxed">
-                      {getDirectionExplanation(direction, rangeTrend?.deltaPercent, trendRangeLabel)}
+                      {getDirectionExplanation(direction, rangeTrend?.deltaPercent, trendScopeDescription)}
                     </InfoTooltipContent>
                   </InfoTooltip>
                 </div>
@@ -891,7 +889,8 @@ export default function BlobFeeHero() {
                       >
                         {formatSignedPercent(rangeTrend.deltaPercent)}
                       </span>
-                      {' '}over {trendRangeLabel}
+                      {' '}
+                      {trendScopePhrase}
                     </p>
                   )}
                   <p>
@@ -946,7 +945,7 @@ export default function BlobFeeHero() {
                   <span>
                     {isLiveRange
                       ? `Blob base fee · ${RANGE_LABELS[timeRange]}`
-                      : `Avg blob base fee · ${RANGE_LABELS[timeRange]}`}
+                      : `Avg blob base fee · ${rangeCaption}`}
                   </span>
                   {headBlock && (
                     <span>

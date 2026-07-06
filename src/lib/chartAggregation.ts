@@ -31,6 +31,8 @@ const WINDOW_LABELS: Record<RollingWindowKey, string> = {
 const WINDOW_FALLBACK_ORDER: RollingWindowKey[] = ['30d', '7d', '24h', '1h', '5m'];
 const PRICING_API_MAX_BLOCKS = 300;
 const BLOB_GAS_PER_BLOB = 131_072;
+const DAY_SECONDS = 86_400;
+const HOUR_SECONDS = 3_600;
 const ESTIMATED_BLOCKS_PER_RANGE: Record<TimeRange, number> = {
   '1h': 300,
   '24h': 7_200,
@@ -125,7 +127,21 @@ function formatTwoDigit(value: number): string {
   return value.toString().padStart(2, '0');
 }
 
-function formatBucketLabel(timestamp: string, granularity: string): string {
+/**
+ * How to label a chart bucket. Day-wide buckets never need the time; sub-day
+ * buckets need the date whenever the plotted data spans more than one day,
+ * otherwise identical-looking labels repeat across days (most visible while
+ * the indexer backfills and a "30d" request covers only hours of data).
+ */
+export type BucketLabelStyle = 'day' | 'day-time' | 'time';
+
+export function getBucketLabelStyle(bucketSeconds: number, spanMs: number): BucketLabelStyle {
+  if (bucketSeconds >= DAY_SECONDS) return 'day';
+  if (spanMs > DAY_SECONDS * 1000) return 'day-time';
+  return 'time';
+}
+
+function formatBucketLabel(timestamp: string, style: BucketLabelStyle): string {
   const date = new Date(timestamp);
   const time = date.getTime();
   if (!Number.isFinite(time)) return timestamp;
@@ -135,9 +151,88 @@ function formatBucketLabel(timestamp: string, granularity: string): string {
   const hour = formatTwoDigit(date.getUTCHours());
   const minute = formatTwoDigit(date.getUTCMinutes());
 
-  if (granularity === 'day') return `${month}/${day}`;
-  if (granularity === 'hour') return `${hour}:00`;
+  if (style === 'day') return `${month}/${day}`;
+  if (style === 'day-time') return `${month}/${day} ${hour}:${minute}`;
   return `${hour}:${minute}`;
+}
+
+const GRANULARITY_FALLBACK_SECONDS: Record<string, number> = {
+  day: DAY_SECONDS,
+  hour: HOUR_SECONDS,
+  minute: 60,
+};
+
+/**
+ * Bucket width in seconds. Prefers `bucket_seconds`; when it is missing or
+ * invalid, falls back to the width implied by the `granularity` name (0 for
+ * "block" and unknown granularities, whose width is not a fixed duration).
+ */
+export function getBucketWidthSeconds(
+  response: Pick<BackendBlobMarketChartResponse, 'granularity' | 'bucket_seconds'>
+): number {
+  if (Number.isFinite(response.bucket_seconds) && response.bucket_seconds > 0) {
+    return response.bucket_seconds;
+  }
+  return GRANULARITY_FALLBACK_SECONDS[response.granularity] ?? 0;
+}
+
+/**
+ * Adjective for a bucket width in seconds, e.g. "hourly", "6-hour",
+ * "5-minute". The backend `granularity` field names the aggregation table the
+ * buckets came from ("hour"), not the actual bucket width, which only
+ * `bucket_seconds` carries; captions must use this instead of `granularity`.
+ */
+export function describeBucketSpan(seconds: number): string | null {
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  if (seconds === DAY_SECONDS) return 'daily';
+  if (seconds === HOUR_SECONDS) return 'hourly';
+  if (seconds === 60) return 'minute';
+  if (seconds % DAY_SECONDS === 0) return `${seconds / DAY_SECONDS}-day`;
+  if (seconds % HOUR_SECONDS === 0) return `${seconds / HOUR_SECONDS}-hour`;
+  if (seconds % 60 === 0) return `${seconds / 60}-minute`;
+  return `${seconds}-second`;
+}
+
+/**
+ * Wall-clock span actually covered by buckets that contain data. While the
+ * indexer backfills, the backend returns the full requested window but only
+ * the recently indexed tail is populated; labels and captions must describe
+ * this real coverage rather than the advertised range.
+ */
+export interface ChartDataCoverage {
+  /** Start of the earliest bucket with data. */
+  startMs: number;
+  /** End of the latest bucket with data (bucket start plus bucket width). */
+  endMs: number;
+  spanMs: number;
+  /** True when data starts more than one bucket after the requested range start. */
+  isPartial: boolean;
+}
+
+export function getChartDataCoverage(
+  response: Pick<BackendBlobMarketChartResponse, 'start_time' | 'granularity' | 'bucket_seconds'>,
+  points: Array<{ timestamp: string }>
+): ChartDataCoverage | null {
+  let firstMs = Number.POSITIVE_INFINITY;
+  let lastMs = Number.NEGATIVE_INFINITY;
+  for (const point of points) {
+    const pointMs = isoTimestamp(point.timestamp);
+    if (pointMs <= 0) continue;
+    if (pointMs < firstMs) firstMs = pointMs;
+    if (pointMs > lastMs) lastMs = pointMs;
+  }
+  if (!Number.isFinite(firstMs) || !Number.isFinite(lastMs)) return null;
+
+  const bucketMs = getBucketWidthSeconds(response) * 1000;
+  const requestedStartMs = isoTimestamp(response.start_time);
+  const endMs = lastMs + bucketMs;
+
+  return {
+    startMs: firstMs,
+    endMs,
+    spanMs: endMs - firstMs,
+    isPartial: requestedStartMs > 0 && firstMs - requestedStartMs > bucketMs,
+  };
 }
 
 function formatWindowLabel(window: string): string {
@@ -329,25 +424,38 @@ const NO_BUCKETS_COVERAGE_LABEL = 'no chart buckets in this view';
 interface BucketedChartResponse {
   range: BackendChartRange | string;
   granularity: string;
+  bucket_seconds: number;
 }
 
 function formatBucketCoverage(
   chart: BucketedChartResponse,
   pointCount: number,
-  timeRange: TimeRange
+  timeRange: TimeRange,
+  coverage: ChartDataCoverage | null
 ): string {
   if (pointCount === 0) return NO_BUCKETS_COVERAGE_LABEL;
 
+  const bucketWidthSeconds = getBucketWidthSeconds(chart);
+  const spanWord = describeBucketSpan(bucketWidthSeconds) ?? chart.granularity;
   const bucketLabel = pointCount === 1
-    ? `1 ${chart.granularity} bucket`
-    : `${pointCount.toLocaleString()} ${chart.granularity} buckets`;
+    ? `1 ${spanWord} bucket`
+    : `${pointCount.toLocaleString()} ${spanWord} buckets`;
   const rangeLabel = timeRange === 'All' && chart.range === '30d'
     ? '30d view'
     : timeRange === 'All'
       ? 'all available history'
       : `${timeRange} view`;
 
-  return `${bucketLabel} over the ${rangeLabel}`;
+  // During a backfill the indexed data covers only the tail of the requested
+  // range; say where it actually starts.
+  const coverageNote = coverage?.isPartial
+    ? ` (indexed data starts ${formatBucketLabel(
+      new Date(coverage.startMs).toISOString(),
+      bucketWidthSeconds >= DAY_SECONDS ? 'day' : 'day-time'
+    )} UTC)`
+    : '';
+
+  return `${bucketLabel} over the ${rangeLabel}${coverageNote}`;
 }
 
 function buildSelectedWindowFromMarket(
@@ -430,18 +538,22 @@ function sharesMarketBucketing(
 function transformMarketPoints(market: BackendBlobMarketChartResponse): {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
+  coverage: ChartDataCoverage | null;
 } {
   const sortedPoints = market.points.filter(marketPointHasData).sort((a, b) => {
     const timestampDiff = isoTimestamp(a.timestamp) - isoTimestamp(b.timestamp);
     return timestampDiff !== 0 ? timestampDiff : (a.end_block ?? 0) - (b.end_block ?? 0);
   });
 
+  const coverage = getChartDataCoverage(market, sortedPoints);
+  const labelStyle = getBucketLabelStyle(getBucketWidthSeconds(market), coverage?.spanMs ?? 0);
+
   const baseFee = sortedPoints.map((point) => ({
     timestamp: isoTimestamp(point.timestamp),
     label: point.label ?? (
       market.granularity === 'block' && point.end_block
         ? `#${point.end_block}`
-        : formatBucketLabel(point.timestamp, market.granularity)
+        : formatBucketLabel(point.timestamp, labelStyle)
     ),
     baseFeeGwei: roundTo(parseFiniteNumber(point.average_blob_base_fee_gwei), 6),
     blockNumber: point.end_block,
@@ -459,7 +571,7 @@ function transformMarketPoints(market: BackendBlobMarketChartResponse): {
       label: point.label ?? (
         market.granularity === 'block' && point.end_block
           ? `#${point.end_block}`
-          : formatBucketLabel(point.timestamp, market.granularity)
+          : formatBucketLabel(point.timestamp, labelStyle)
       ),
       blockNumber: point.end_block ?? point.start_block ?? 0,
       blobGasUsed: point.blob_gas_used,
@@ -470,15 +582,36 @@ function transformMarketPoints(market: BackendBlobMarketChartResponse): {
     };
   });
 
-  return { baseFee, gasUtilization };
+  return { baseFee, gasUtilization, coverage };
+}
+
+/**
+ * Drop buckets that predate the indexed data coverage (from the market
+ * chart). During a backfill the backend returns the full requested window,
+ * and buckets before the earliest indexed block would plot as false zeros.
+ * These endpoints are not guaranteed to bucket identically to the market
+ * chart, so a bucket survives if any part of it overlaps the coverage.
+ */
+function filterToCoverage<T extends { timestamp: string }>(
+  points: T[],
+  coverageStartMs: number | undefined,
+  bucketWidthMs: number
+): T[] {
+  if (coverageStartMs === undefined) return points;
+  return points.filter((point) => {
+    const startMs = isoTimestamp(point.timestamp);
+    return startMs >= coverageStartMs || startMs + bucketWidthMs > coverageStartMs;
+  });
 }
 
 function transformAttributionUsage(
   attribution: BackendAttributionUsageChartResponse,
-  emptyBucketTimestamps: Set<number>
+  emptyBucketTimestamps: Set<number>,
+  coverageStartMs?: number
 ): {
   l2Usage: L2UsageDataPoint[];
   l2UsageSeries: L2UsageSeries[];
+  coverage: ChartDataCoverage | null;
 } {
   const l2UsageSeries = attribution.series.map((series) => ({
     key: series.key,
@@ -487,40 +620,62 @@ function transformAttributionUsage(
     address: series.address,
   }));
 
-  const l2Usage = attribution.points
-    .filter((point) => !emptyBucketTimestamps.has(isoTimestamp(point.timestamp)))
-    .map((point) => {
-      const row: L2UsageDataPoint = {
-        timestamp: isoTimestamp(point.timestamp),
-        label: formatBucketLabel(point.timestamp, attribution.granularity),
-        total: 0,
-      };
+  const bucketWidthSeconds = getBucketWidthSeconds(attribution);
+  const points = filterToCoverage(
+    attribution.points.filter(
+      (point) => !emptyBucketTimestamps.has(isoTimestamp(point.timestamp))
+    ),
+    coverageStartMs,
+    bucketWidthSeconds * 1000
+  );
+  const coverage = getChartDataCoverage(attribution, points);
+  const labelStyle = getBucketLabelStyle(bucketWidthSeconds, coverage?.spanMs ?? 0);
 
-      for (const series of l2UsageSeries) {
-        const blobCount = point.values[series.key]?.blob_count ?? 0;
-        row[series.key] = blobCount;
-        row.total += blobCount;
-      }
+  const l2Usage = points.map((point) => {
+    const row: L2UsageDataPoint = {
+      timestamp: isoTimestamp(point.timestamp),
+      label: formatBucketLabel(point.timestamp, labelStyle),
+      total: 0,
+    };
 
-      return row;
-    });
+    for (const series of l2UsageSeries) {
+      const blobCount = point.values[series.key]?.blob_count ?? 0;
+      row[series.key] = blobCount;
+      row.total += blobCount;
+    }
 
-  return { l2Usage, l2UsageSeries };
+    return row;
+  });
+
+  return { l2Usage, l2UsageSeries, coverage };
 }
 
 function transformCostComparison(
   costComparison: BackendCostComparisonChartResponse,
-  emptyBucketTimestamps: Set<number>
-): CostComparisonDataPoint[] {
-  return costComparison.points
-    .filter((point) => !emptyBucketTimestamps.has(isoTimestamp(point.timestamp)))
-    .map((point) => ({
+  emptyBucketTimestamps: Set<number>,
+  coverageStartMs?: number
+): { points: CostComparisonDataPoint[]; coverage: ChartDataCoverage | null } {
+  const bucketWidthSeconds = getBucketWidthSeconds(costComparison);
+  const points = filterToCoverage(
+    costComparison.points.filter(
+      (point) => !emptyBucketTimestamps.has(isoTimestamp(point.timestamp))
+    ),
+    coverageStartMs,
+    bucketWidthSeconds * 1000
+  );
+  const coverage = getChartDataCoverage(costComparison, points);
+  const labelStyle = getBucketLabelStyle(bucketWidthSeconds, coverage?.spanMs ?? 0);
+
+  return {
+    points: points.map((point) => ({
       timestamp: isoTimestamp(point.timestamp),
-      label: formatBucketLabel(point.timestamp, costComparison.granularity),
+      label: formatBucketLabel(point.timestamp, labelStyle),
       blobCostEth: weiIntegerToEth(point.blob_cost_wei),
       calldataEquivEth: weiIntegerToEth(point.calldata_equivalent_cost_wei),
       savingsPct: roundTo(point.savings_percent, 2),
-    }));
+    })),
+    coverage,
+  };
 }
 
 export function buildChartDatasetFromResponses(
@@ -535,28 +690,36 @@ export function buildChartDatasetFromResponses(
   const selectedWindow =
     selectRollingWindow(rollingWindows, timeRange) ??
     buildSelectedWindowFromMarket(market, timeRange);
-  const { baseFee, gasUtilization } = transformMarketPoints(market);
+  const { baseFee, gasUtilization, coverage } = transformMarketPoints(market);
   const emptyBucketTimestamps = collectEmptyBucketTimestamps(market);
   const noFilter = new Set<number>();
-  const { l2Usage, l2UsageSeries } = transformAttributionUsage(
+  const { l2Usage, l2UsageSeries, coverage: l2UsageCoverage } = transformAttributionUsage(
     attribution,
-    sharesMarketBucketing(market, attribution) ? emptyBucketTimestamps : noFilter
+    sharesMarketBucketing(market, attribution) ? emptyBucketTimestamps : noFilter,
+    coverage?.startMs
   );
-  const costComparisonData = transformCostComparison(
+  const { points: costComparisonData, coverage: costComparisonCoverage } = transformCostComparison(
     costComparison,
-    sharesMarketBucketing(market, costComparison) ? emptyBucketTimestamps : noFilter
+    sharesMarketBucketing(market, costComparison) ? emptyBucketTimestamps : noFilter,
+    coverage?.startMs
   );
   const currentBaseFeeGwei = roundTo(parseFiniteNumber(market.summary.current_base_fee_gwei), 6);
   const averageBaseFeeGwei = selectedWindow.averageBaseFeeGwei;
   const rollingCoverageLabel = statsWindows
     ? formatRollingCoverage(timeRange, selectedWindow)
     : `${selectedWindow.label} chart summary`;
-  const blockCoverageLabel = formatBucketCoverage(market, baseFee.length, timeRange);
-  const l2UsageCoverageLabel = formatBucketCoverage(attribution, l2Usage.length, timeRange);
+  const blockCoverageLabel = formatBucketCoverage(market, baseFee.length, timeRange, coverage);
+  const l2UsageCoverageLabel = formatBucketCoverage(
+    attribution,
+    l2Usage.length,
+    timeRange,
+    l2UsageCoverage
+  );
   const costComparisonCoverageLabel = formatBucketCoverage(
     costComparison,
     costComparisonData.length,
-    timeRange
+    timeRange,
+    costComparisonCoverage
   );
   const chartRangeLabel = formatChartRangeLabel(timeRange, selectedWindow);
 
