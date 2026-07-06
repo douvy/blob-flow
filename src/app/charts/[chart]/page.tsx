@@ -12,7 +12,6 @@ import {
   ChartView,
   getChartView,
 } from '@/components/charts/chartViews';
-import type { ChartDataset } from '@/types';
 
 function ChartTabs({ activeId }: { activeId?: string }) {
   return (
@@ -51,14 +50,6 @@ function EmptyChartState() {
   );
 }
 
-function getCoverageLabel(view: ChartView, chartData: ChartDataset): string {
-  if (view.id === 'rolling-market-stats') {
-    return chartData.rollingCoverageLabel;
-  }
-
-  return chartData.blockCoverageLabel;
-}
-
 function ChartDetail({ view }: { view: ChartView }) {
   const { chartData, isLoading, error } = useChartData();
 
@@ -83,7 +74,7 @@ function ChartDetail({ view }: { view: ChartView }) {
             <div>
               <h2 className="text-xl font-medium text-white">{view.getTitle(chartData)}</h2>
               <p className="mt-1 text-sm text-[#6e7687]">
-                {getCoverageLabel(view, chartData)}
+                {view.getCoverageLabel(chartData)}
               </p>
             </div>
             <Link

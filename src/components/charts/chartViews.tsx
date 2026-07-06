@@ -26,6 +26,8 @@ export interface ChartView {
   dashboardFrameClassName: string;
   detailFrameClassName: string;
   getTitle: (chartData: ChartDataset) => string;
+  /** Coverage caption matching the data this view plots (see getPointCount). */
+  getCoverageLabel: (chartData: ChartDataset) => string;
   getPointCount: (chartData: ChartDataset) => number;
   render: (chartData: ChartDataset) => React.ReactNode;
 }
@@ -39,6 +41,7 @@ export const CHART_VIEWS: readonly ChartView[] = [
     dashboardFrameClassName: 'h-56 relative',
     detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
     getTitle: (chartData) => `Base Fee over ${chartData.chartRangeLabel} (Gwei)`,
+    getCoverageLabel: (chartData) => chartData.blockCoverageLabel,
     getPointCount: (chartData) => chartData.baseFee.length,
     render: (chartData) => (
       <BaseFeeChart
@@ -55,6 +58,7 @@ export const CHART_VIEWS: readonly ChartView[] = [
     dashboardFrameClassName: 'h-56 relative',
     detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
     getTitle: (chartData) => `Blob Gas Utilization over ${chartData.chartRangeLabel}`,
+    getCoverageLabel: (chartData) => chartData.blockCoverageLabel,
     getPointCount: (chartData) => chartData.gasUtilization.length,
     render: (chartData) => (
       <GasUtilizationChart
@@ -71,6 +75,7 @@ export const CHART_VIEWS: readonly ChartView[] = [
     dashboardFrameClassName: 'h-56 relative',
     detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
     getTitle: (chartData) => `L2 Usage over ${chartData.chartRangeLabel}`,
+    getCoverageLabel: (chartData) => chartData.l2UsageCoverageLabel,
     getPointCount: (chartData) => chartData.l2Usage.length,
     render: (chartData) => (
       <L2UsageChart
@@ -87,6 +92,7 @@ export const CHART_VIEWS: readonly ChartView[] = [
     dashboardFrameClassName: 'h-56 relative',
     detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
     getTitle: (chartData) => `Blob vs Calldata Cost over ${chartData.chartRangeLabel}`,
+    getCoverageLabel: (chartData) => chartData.costComparisonCoverageLabel,
     getPointCount: (chartData) => chartData.costComparison.length,
     render: (chartData) => (
       <CostComparisonChart data={chartData.costComparison} />
@@ -100,6 +106,7 @@ export const CHART_VIEWS: readonly ChartView[] = [
     dashboardFrameClassName: 'relative',
     detailFrameClassName: 'relative',
     getTitle: () => 'Rolling Market Stats',
+    getCoverageLabel: (chartData) => chartData.rollingCoverageLabel,
     getPointCount: (chartData) => chartData.rollingWindows.length,
     render: (chartData) => (
       <RollingWindowStats

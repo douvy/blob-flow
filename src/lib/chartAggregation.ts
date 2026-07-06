@@ -323,17 +323,25 @@ function normalizeGranularity(granularity: string): Granularity {
   return 'minute';
 }
 
-function formatMarketCoverage(
-  market: BackendBlobMarketChartResponse,
+const NO_BUCKETS_COVERAGE_LABEL = 'no chart buckets in this view';
+
+/** Shared shape of the bucketed chart responses, enough to caption coverage. */
+interface BucketedChartResponse {
+  range: BackendChartRange | string;
+  granularity: string;
+}
+
+function formatBucketCoverage(
+  chart: BucketedChartResponse,
   pointCount: number,
   timeRange: TimeRange
 ): string {
-  if (pointCount === 0) return 'no chart buckets in this view';
+  if (pointCount === 0) return NO_BUCKETS_COVERAGE_LABEL;
 
   const bucketLabel = pointCount === 1
-    ? `1 ${market.granularity} bucket`
-    : `${pointCount.toLocaleString()} ${market.granularity} buckets`;
-  const rangeLabel = timeRange === 'All' && market.range === '30d'
+    ? `1 ${chart.granularity} bucket`
+    : `${pointCount.toLocaleString()} ${chart.granularity} buckets`;
+  const rangeLabel = timeRange === 'All' && chart.range === '30d'
     ? '30d view'
     : timeRange === 'All'
       ? 'all available history'
@@ -492,7 +500,13 @@ export function buildChartDatasetFromResponses(
   const rollingCoverageLabel = statsWindows
     ? formatRollingCoverage(timeRange, selectedWindow)
     : `${selectedWindow.label} chart summary`;
-  const blockCoverageLabel = formatMarketCoverage(market, baseFee.length, timeRange);
+  const blockCoverageLabel = formatBucketCoverage(market, baseFee.length, timeRange);
+  const l2UsageCoverageLabel = formatBucketCoverage(attribution, l2Usage.length, timeRange);
+  const costComparisonCoverageLabel = formatBucketCoverage(
+    costComparison,
+    costComparisonData.length,
+    timeRange
+  );
   const chartRangeLabel = formatChartRangeLabel(timeRange, selectedWindow);
 
   return {
@@ -518,6 +532,8 @@ export function buildChartDatasetFromResponses(
     chartRangeLabel,
     rollingCoverageLabel,
     blockCoverageLabel,
+    l2UsageCoverageLabel,
+    costComparisonCoverageLabel,
     coverageLabel: `${rollingCoverageLabel}; charts show ${blockCoverageLabel}.`,
   };
 }
@@ -565,6 +581,8 @@ export function buildChartDataset(
     chartRangeLabel,
     rollingCoverageLabel,
     blockCoverageLabel,
+    l2UsageCoverageLabel: NO_BUCKETS_COVERAGE_LABEL,
+    costComparisonCoverageLabel: NO_BUCKETS_COVERAGE_LABEL,
     coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show the ${blockCoverageLabel}.`,
   };
 }

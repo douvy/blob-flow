@@ -335,6 +335,75 @@ describe('useChartData', () => {
     expect(result.current.chartData!.blockCoverageLabel).toContain('2 minute buckets');
   });
 
+  it('captions each chart with the bucket count that chart actually plots', async () => {
+    const fetchMock = createFetchMock(
+      {
+        ...mockMarket,
+        data: {
+          ...mockMarket.data,
+          points: [
+            ...mockMarket.data.points,
+            {
+              timestamp: '2026-01-01T00:02:00.000Z',
+              average_blob_base_fee_gwei: '0',
+              median_blob_base_fee_gwei: '0',
+              p95_blob_base_fee_gwei: '0',
+              blob_count: 0,
+              blob_gas_used: 0,
+              blob_gas_target: 1835008,
+              average_utilization: '0',
+              total_cost_wei: '0',
+              unique_senders: 0,
+            },
+          ],
+        },
+      },
+      {
+        ...mockAttribution,
+        data: {
+          ...mockAttribution.data,
+          points: [
+            ...mockAttribution.data.points,
+            {
+              timestamp: '2026-01-01T00:02:00.000Z',
+              values: {
+                base: { blob_count: 1, total_cost_wei: '100000000000000', blob_gas_used: 131072 },
+                unknown: { blob_count: 0, total_cost_wei: '0', blob_gas_used: 0 },
+              },
+            },
+          ],
+        },
+      },
+      {
+        ...mockCostComparison,
+        data: {
+          ...mockCostComparison.data,
+          points: mockCostComparison.data.points.slice(0, 1),
+        },
+      }
+    );
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { result } = renderHook(() => useChartData(), { wrapper: createQueryWrapper(wrapper) });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    const chartData = result.current.chartData!;
+
+    // The market endpoint keeps 2 buckets after dropping the empty one, while
+    // attribution returns 3 and cost comparison returns 1; each caption counts
+    // the points its own chart plots.
+    expect(chartData.baseFee).toHaveLength(2);
+    expect(chartData.blockCoverageLabel).toBe('2 minute buckets over the 1h view');
+    expect(chartData.l2Usage).toHaveLength(3);
+    expect(chartData.l2UsageCoverageLabel).toBe('3 minute buckets over the 1h view');
+    expect(chartData.costComparison).toHaveLength(1);
+    expect(chartData.costComparisonCoverageLabel).toBe('1 minute bucket over the 1h view');
+  });
+
   it('keeps chart summaries available when no market points are returned', async () => {
     const fetchMock = createFetchMock({
       ...mockMarket,
