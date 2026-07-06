@@ -129,7 +129,10 @@ describe('chartAggregation', () => {
     expect(getRequestedRollingWindow('7d')).toBe('7d');
     expect(getRequestedRollingWindow('30d')).toBe('30d');
     expect(getRequestedRollingWindow('All')).toBe('30d');
-    expect(getPricingBlockRequestLimit('24h')).toBe(100);
+    // The pricing API serves at most 300 blocks per request, enough for the
+    // full 1h live view; longer ranges clamp to that cap.
+    expect(getPricingBlockRequestLimit('1h')).toBe(300);
+    expect(getPricingBlockRequestLimit('24h')).toBe(300);
 
     const windows = transformStatsWindows(makeStatsWindows([
       makeWindow('5m', 300),

@@ -11,6 +11,7 @@ import {
   groupChartPointsForStrip,
   mergeRecentPricingBlocks,
   parseGwei,
+  trimBlocksToWindow,
 } from './blobFeeHero';
 import type {
   BackendBlobMarketChartPoint,
@@ -263,6 +264,73 @@ describe('mergeRecentPricingBlocks', () => {
   it('handles empty inputs', () => {
     expect(mergeRecentPricingBlocks([], [])).toEqual([]);
     expect(mergeRecentPricingBlocks([], [makeBlock(1)])).toHaveLength(1);
+  });
+});
+
+describe('trimBlocksToWindow', () => {
+  const newest = '2026-06-11T01:00:00Z';
+
+  it('drops blocks older than the window behind the newest block', () => {
+    const blocks = [
+      makeBlock(300, { blockTimestamp: newest }),
+      makeBlock(299, { blockTimestamp: '2026-06-11T00:30:00Z' }),
+      // Exactly at the cutoff stays in.
+      makeBlock(298, { blockTimestamp: '2026-06-11T00:00:00Z' }),
+      makeBlock(297, { blockTimestamp: '2026-06-10T23:59:59Z' }),
+    ];
+
+    const trimmed = trimBlocksToWindow(blocks, 3600);
+
+    expect(trimmed.map((block) => block.blockNumber)).toEqual([300, 299, 298]);
+  });
+
+  it('anchors the window to the newest block, not wall-clock now', () => {
+    const blocks = [
+      makeBlock(2, { blockTimestamp: '2020-01-01T01:00:00Z' }),
+      makeBlock(1, { blockTimestamp: '2020-01-01T00:00:00Z' }),
+    ];
+
+    expect(trimBlocksToWindow(blocks, 3600)).toHaveLength(2);
+  });
+
+  it('keeps blocks with unparseable timestamps', () => {
+    const blocks = [
+      makeBlock(3, { blockTimestamp: newest }),
+      makeBlock(2, { blockTimestamp: 'not-a-date' }),
+      makeBlock(1, { blockTimestamp: '2026-06-10T23:00:00Z' }),
+    ];
+
+    expect(trimBlocksToWindow(blocks, 3600).map((block) => block.blockNumber)).toEqual([3, 2]);
+  });
+
+  it('anchors to the newest parseable timestamp when the head row is malformed or stale', () => {
+    const malformedHead = [
+      makeBlock(301, { blockTimestamp: 'not-a-date' }),
+      makeBlock(300, { blockTimestamp: newest }),
+      makeBlock(299, { blockTimestamp: '2026-06-10T23:59:59Z' }),
+    ];
+    expect(trimBlocksToWindow(malformedHead, 3600).map((block) => block.blockNumber)).toEqual([
+      301, 300,
+    ]);
+
+    // The stale head row itself falls outside the window measured from the
+    // true newest timestamp, as does the older tail block.
+    const staleHead = [
+      makeBlock(301, { blockTimestamp: '2026-06-10T23:59:59Z' }),
+      makeBlock(300, { blockTimestamp: newest }),
+      makeBlock(299, { blockTimestamp: '2026-06-10T23:00:00Z' }),
+    ];
+    expect(trimBlocksToWindow(staleHead, 3600).map((block) => block.blockNumber)).toEqual([300]);
+  });
+
+  it('returns the input unchanged when the list is empty or no timestamp parses', () => {
+    expect(trimBlocksToWindow([], 3600)).toEqual([]);
+
+    const blocks = [
+      makeBlock(2, { blockTimestamp: 'not-a-date' }),
+      makeBlock(1, { blockTimestamp: 'also-not-a-date' }),
+    ];
+    expect(trimBlocksToWindow(blocks, 3600)).toHaveLength(2);
   });
 });
 
