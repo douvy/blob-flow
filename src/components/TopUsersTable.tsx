@@ -289,12 +289,12 @@ export default function TopUsersTable() {
 
   return (
     <section>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h2 className="text-2xl font-windsor-bold text-white">Top Blob Users</h2>
-        <span className="whitespace-nowrap rounded-full border border-divider bg-container px-2.5 py-0.5 text-xs text-secondaryText">
+      <h2 className="mb-4 flex flex-wrap items-center gap-3 text-2xl font-windsor-bold text-white">
+        Top Blob Users{' '}
+        <span className="whitespace-nowrap rounded-full border border-divider bg-container px-2.5 py-0.5 font-gt-flexa text-xs font-normal text-[#8a93a5]">
           {RANGE_LABELS[timeRange]}
         </span>
-      </div>
+      </h2>
 
       <DataStateWrapper
         isLoading={isLoading && !displayData}

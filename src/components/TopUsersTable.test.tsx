@@ -118,13 +118,16 @@ describe('TopUsersTable', () => {
     expect(screen.getByText('Base')).toBeInTheDocument();
   });
 
-  it('shows the selected timeframe next to the heading', () => {
+  it('shows the selected timeframe in the heading', () => {
     const { rerender } = renderTable();
 
-    expect(screen.getByText('Last hour')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Top Blob Users Last hour' })
+    ).toBeInTheDocument();
+    expect(vi.mocked(useApiData).mock.calls.at(-1)?.[1]).toContain('1h');
 
     vi.mocked(useTimeRange).mockReturnValue({
-      timeRange: '24h',
+      timeRange: 'All',
       setTimeRange: vi.fn(),
     });
     rerender(
@@ -133,8 +136,11 @@ describe('TopUsersTable', () => {
       </TooltipProvider>
     );
 
-    expect(screen.getByText('Last 24 hours')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Top Blob Users All time' })
+    ).toBeInTheDocument();
     expect(screen.queryByText('Last hour')).not.toBeInTheDocument();
+    expect(vi.mocked(useApiData).mock.calls.at(-1)?.[1]).toContain('all');
   });
 
   it('applies live updates scoped to the selected range', () => {
