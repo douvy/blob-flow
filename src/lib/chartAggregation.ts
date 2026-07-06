@@ -534,7 +534,7 @@ export function buildChartDatasetFromResponses(
     blockCoverageLabel,
     l2UsageCoverageLabel,
     costComparisonCoverageLabel,
-    coverageLabel: `${rollingCoverageLabel}; charts show ${blockCoverageLabel}.`,
+    coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show ${blockCoverageLabel}.`,
   };
 }
 

@@ -402,6 +402,12 @@ describe('useChartData', () => {
     expect(chartData.l2UsageCoverageLabel).toBe('3 minute buckets over the 1h view');
     expect(chartData.costComparison).toHaveLength(1);
     expect(chartData.costComparisonCoverageLabel).toBe('1 minute bucket over the 1h view');
+
+    // The dashboard's combined caption only claims the market bucket count for
+    // the charts that plot it.
+    expect(chartData.coverageLabel).toBe(
+      '1h rolling API window; fee and utilization charts show 2 minute buckets over the 1h view.'
+    );
   });
 
   it('keeps chart summaries available when no market points are returned', async () => {
