@@ -303,7 +303,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
       >
         <DialogTitle className="sr-only">Search BlobFlow</DialogTitle>
         <DialogDescription className="sr-only">
-          Search for blocks, blob IDs, transactions, and rollups.
+          Search for blocks, blob IDs, transactions, rollups, and addresses.
         </DialogDescription>
         <Command shouldFilter={false} value={selectedValue} onValueChange={setSelectedValue}>
           <div className="sticky top-0 z-10 flex items-center bg-[#14161a]">
