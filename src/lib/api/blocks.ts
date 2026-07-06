@@ -12,8 +12,10 @@ import { fetchApi } from './core';
 // A block with blobs but no recognized sender still gets 'Unknown'; blocks
 // with zero blobs have nothing to attribute, so callers pass blobCount to
 // distinguish the two (live blocks can have a count without blob details).
+// Blob records win over the count: if the pricing row and blob feed disagree,
+// attributions from actual blobs still apply.
 function getAttributions(blobs: BlobResponse[], blobCount: number): string[] {
-    if (blobCount <= 0) return [];
+    if (blobCount <= 0 && blobs.length === 0) return [];
 
     const attributions: string[] = Array.from(new Set(
         blobs

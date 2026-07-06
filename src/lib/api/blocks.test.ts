@@ -224,6 +224,7 @@ describe('api/blocks', () => {
       availableBlobs: 4,
       utilizationPercent: 33.33,
       baseFeeGwei: '0.25',
+      attribution: ['Unknown'],
     });
   });
 });
