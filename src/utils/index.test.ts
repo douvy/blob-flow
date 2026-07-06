@@ -169,7 +169,7 @@ describe('parseSearchQuery', () => {
     expect(parseSearchQuery('http://example.com')).toBeNull();
     expect(parseSearchQuery('block:')).toBeNull();
     expect(parseSearchQuery('')).toBeNull();
-    expect(parseSearchQuery('12 pending blobs from Optimism')).toBeNull();
+    expect(parseSearchQuery('recent rollup blob activity')).toBeNull();
     expect(parseSearchQuery('0')).toBeNull();
     expect(parseSearchQuery('0x1234')).toBeNull();
   });
