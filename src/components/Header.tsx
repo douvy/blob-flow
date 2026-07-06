@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Clock3, Globe, Menu, RadioTower, Search, TrendingUp } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, type LucideIcon } from 'lucide-react';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
@@ -20,6 +21,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+
+interface NavLink {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  // Route prefixes that mark this link active, so detail pages
+  // (e.g. /block/123) highlight their parent section.
+  activePrefixes: string[];
+}
+
+const NAV_LINKS: NavLink[] = [
+  { href: '/', label: 'Home', icon: Home, activePrefixes: [] },
+  { href: '/blocks', label: 'Blocks', icon: Blocks, activePrefixes: ['/blocks', '/block'] },
+  { href: '/mempool', label: 'Mempool', icon: Hourglass, activePrefixes: ['/mempool'] },
+];
 
 const LIVE_STATUS_STYLES: Record<BlobWebSocketConnectionState, { label: string; color: string }> = {
   connecting: { label: 'Connecting', color: 'bg-yellow-400' },
@@ -76,6 +92,7 @@ function LiveStatusIndicator({
 }
 
 export default function Header() {
+  const pathname = usePathname();
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
   const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
@@ -100,6 +117,15 @@ export default function Header() {
 
   const handleTimeRangeChange = (range: TimeRange) => {
     setSelectedTimeRange(range);
+  };
+
+  const isNavLinkActive = (link: NavLink) => {
+    if (link.href === '/') {
+      return pathname === '/';
+    }
+    return link.activePrefixes.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    );
   };
 
   const toggleSearchModal = useCallback(() => {
@@ -228,6 +254,30 @@ export default function Header() {
 
           </div>
         </div>
+
+        {/* Page Navigation - hidden on mobile, links live in the tray there */}
+        <nav className="hidden md:block border-t border-divider" aria-label="Primary">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center gap-1">
+              {NAV_LINKS.map((link) => {
+                const active = isNavLinkActive(link);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    aria-current={pathname === link.href ? 'page' : undefined}
+                    className={`px-3 py-1.5 text-sm border-b-2 transition-colors duration-75 ${active
+                      ? 'border-blue text-titleText'
+                      : 'border-transparent text-[#b8bdc7] hover:text-titleText'
+                      }`}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
       </header>
 
       {/* Mobile Menu Tray */}
@@ -326,7 +376,32 @@ export default function Header() {
             <div className="w-full flex items-center justify-center pt-3 pb-1">
               <div className="w-16 h-1 bg-gray-300/20 rounded-full"></div>
             </div>
-            <div className="p-5 space-y-5">
+            {/* Cap the height so short viewports (e.g. landscape phones) can scroll the menu */}
+            <div className="p-5 space-y-5 max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain">
+              {/* Page Navigation */}
+              <nav className="space-y-4" aria-label="Primary">
+                {NAV_LINKS.map((link) => {
+                  const active = isNavLinkActive(link);
+                  const Icon = link.icon;
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      aria-current={pathname === link.href ? 'page' : undefined}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3"
+                    >
+                      <Icon className="h-4 w-4 text-blue" aria-hidden="true" />
+                      <span className={active ? 'font-medium text-titleText' : 'text-bodyText'}>
+                        {link.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <div className="border-t border-divider" aria-hidden="true"></div>
+
               {/* Network Selector */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
