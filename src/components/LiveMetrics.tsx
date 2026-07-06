@@ -7,18 +7,17 @@ import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { selectRollingWindow, transformStatsWindows } from '../lib/chartAggregation';
 import { transformStatsResponse } from '../lib/api/stats';
-import { transformNewBlockData } from '../lib/api/blocks';
 import {
   BackendStatsWindowsResponse,
   Block,
-  LatestBlocksResponse,
   RollingWindowDataPoint,
   StatsResponse,
 } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import { useTimeRange } from '../contexts/TimeRangeContext';
-import { useLatestBlobEvent, useLiveBlobEvent } from '../contexts/LiveDataContext';
+import { useLatestBlobEvent } from '../contexts/LiveDataContext';
+import { useLiveBlockList } from '../hooks/useLiveBlockList';
 import { truncateAddress } from '../utils';
 import { useNow } from '../hooks/useNow';
 import { formatRelativeTime } from '../lib/api/core';
@@ -119,16 +118,11 @@ export default function LiveMetrics() {
   const { selectedNetwork } = useNetwork();
   const { timeRange } = useTimeRange();
   const statsUpdateEvent = useLatestBlobEvent('stats_update');
-  const newBlockEvent = useLatestBlobEvent('new_block');
   const network = selectedNetwork.apiParam;
 
   const fetchStats = useCallback(() => api.getStats(network), [network]);
   const fetchStatsWindows = useCallback(
     () => api.getStatsWindows(undefined, network),
-    [network]
-  );
-  const fetchLatestBlocks = useCallback(
-    () => api.getLatestBlocks(LATEST_BLOCKS_SAMPLE, network),
     [network]
   );
 
@@ -144,21 +138,14 @@ export default function LiveMetrics() {
     error: windowsError,
   } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, ['stats-windows', network]);
 
+  // The rolling sample behind Latest Block and Top User: every live block is
+  // folded over the REST baseline, so long sessions keep a current sample
+  // instead of drifting back toward mount-time blocks.
   const {
-    data: latestBlocks,
+    blocks: sampleBlocks,
     isLoading: blocksLoading,
     error: blocksError,
-    refetch: refetchLatestBlocks,
-  } = useApiData<LatestBlocksResponse>(fetchLatestBlocks, ['latest-blocks-metrics', network, LATEST_BLOCKS_SAMPLE]);
-
-  // Refresh the rolling sample used for Top User whenever a new block lands.
-  // The Latest Block card reads `newBlockEvent` directly (below) rather than
-  // relying on this refetch; fetchApi dedupes in-flight GETs, so an
-  // in-progress call started before the event would otherwise satisfy the
-  // refetch with stale data and leave the card a block behind.
-  useLiveBlobEvent('new_block', () => {
-    void refetchLatestBlocks();
-  });
+  } = useLiveBlockList(LATEST_BLOCKS_SAMPLE);
 
   const rollingWindows = useMemo(
     () => (statsWindows ? transformStatsWindows(statsWindows) : []),
@@ -175,25 +162,11 @@ export default function LiveMetrics() {
     : undefined;
   const displayStats = liveStats || statsData;
 
-  // Prefer the WebSocket-delivered block when it is at least as new as the
-  // most recently fetched one. The WS payload omits pricing params, so fall
-  // back to the polled block's `maxBlobs` for the "X/Y blobs" descriptor.
-  const fetchedLatest = latestBlocks?.data[0];
-  const latestBlock = useMemo<Block | undefined>(() => {
-    if (!newBlockEvent) return fetchedLatest;
-    if (fetchedLatest && newBlockEvent.data.block_number < fetchedLatest.id) {
-      return fetchedLatest;
-    }
-    const liveBlock = transformNewBlockData(newBlockEvent.data);
-    if (!liveBlock.maxBlobs && fetchedLatest?.maxBlobs) {
-      return { ...liveBlock, maxBlobs: fetchedLatest.maxBlobs };
-    }
-    return liveBlock;
-  }, [newBlockEvent, fetchedLatest]);
+  const latestBlock: Block | undefined = sampleBlocks[0];
 
   const topUser = useMemo(
-    () => computeTopUser(latestBlocks?.data ?? []),
-    [latestBlocks]
+    () => computeTopUser(sampleBlocks),
+    [sampleBlocks]
   );
 
   const now = useNow();
@@ -287,7 +260,7 @@ export default function LiveMetrics() {
         <p className="mt-3 text-xs text-red-300">
           Latest Block and Top User data unavailable:{' '}
           {blocksError.message}
-          {latestBlocks ? '. Showing the last successful sample.' : '.'}
+          {sampleBlocks.length > 0 ? '. Showing the most recent blocks available.' : '.'}
         </p>
       )}
     </section>
