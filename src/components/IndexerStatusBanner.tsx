@@ -37,7 +37,8 @@ export function computeLagSeconds(status: StatusResponse, nowMs: number): number
  * backfill run, whose range is arbitrary, so it is misleading as a coverage
  * number. Approximates the unindexed count with the active backfill's
  * remaining blocks, which holds while that remainder is the only gap.
- * Returns null when the backend does not report the needed fields.
+ * Returns null when the backend does not report the needed fields, or
+ * reports values that do not yield a finite percentage.
  */
 export function computeBackfillCoveragePercent(status: StatusResponse): number | null {
   const backfill = status.backfill;
@@ -48,12 +49,12 @@ export function computeBackfillCoveragePercent(status: StatusResponse): number |
   }
 
   const totalRange = head - earliest + 1;
-  if (totalRange <= 0) {
+  const coverage = ((totalRange - backfill.remaining_blocks) / totalRange) * 100;
+  if (totalRange <= 0 || !Number.isFinite(coverage)) {
     return null;
   }
 
-  const indexed = totalRange - backfill.remaining_blocks;
-  return Math.min(100, Math.max(0, (indexed / totalRange) * 100));
+  return Math.min(100, Math.max(0, coverage));
 }
 
 export default function IndexerStatusBanner() {

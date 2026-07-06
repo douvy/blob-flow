@@ -215,6 +215,28 @@ describe('computeBackfillCoveragePercent', () => {
     ).toBeNull();
   });
 
+  it('returns null when range fields are not finite numbers', () => {
+    // JSON like current_chain_head: 1e309 parses to Infinity.
+    expect(
+      computeBackfillCoveragePercent(
+        makeStatus({
+          earliest_indexed_block: 19426587,
+          current_chain_head: Infinity,
+          backfill: makeBackfill({ active: true, remaining_blocks: 5880887 }),
+        })
+      )
+    ).toBeNull();
+    expect(
+      computeBackfillCoveragePercent(
+        makeStatus({
+          earliest_indexed_block: 19426587,
+          current_chain_head: 25470973,
+          backfill: makeBackfill({ active: true, remaining_blocks: NaN }),
+        })
+      )
+    ).toBeNull();
+  });
+
   it('clamps coverage to the 0-100 range', () => {
     const overshoot = makeStatus({
       earliest_indexed_block: 25467016,
