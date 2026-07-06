@@ -20,6 +20,7 @@ import { transformPricingRecentBlock } from '@/lib/api/pricing';
 import {
   getBackendChartRange,
   getRequestedRollingWindow,
+  marketPointHasData,
   transformStatsWindows,
 } from '@/lib/chartAggregation';
 import { useTimeRange, type TimeRange } from '@/contexts/TimeRangeContext';
@@ -728,6 +729,13 @@ export default function BlobFeeHero() {
   }, [rollingWindows, currentFeeGwei]);
   const oneHourAverageGwei = comparisons.find((comparison) => comparison.window === '1h')?.averageGwei;
 
+  // Empty buckets (no indexed blocks yet) would plot as a false 0 Gwei plunge
+  // and inflate above-target denominators, so drop them like Data Trends does.
+  const marketPoints = useMemo(
+    () => (marketChart?.points ?? []).filter(marketPointHasData),
+    [marketChart]
+  );
+
   const chartPoints = useMemo<HeroChartPoint[]>(() => {
     if (isLiveRange) {
       return blocks
@@ -743,13 +751,13 @@ export default function BlobFeeHero() {
     }
 
     const dayScale = isDayScaleRange(timeRange);
-    return (marketChart?.points ?? []).map((point) => ({
+    return marketPoints.map((point) => ({
       label: point.label || formatBucketLabel(point.timestamp, dayScale),
       fee: parseGwei(point.average_blob_base_fee_gwei),
       blobCount: point.blob_count,
       maxBlobs: 0,
     }));
-  }, [isLiveRange, blocks, marketChart, timeRange]);
+  }, [isLiveRange, blocks, marketPoints, timeRange]);
 
   const rangeTrend = useMemo(
     () => computeFeeRangeTrend(chartPoints.map((point) => point.fee)),
@@ -768,8 +776,8 @@ export default function BlobFeeHero() {
   // Long ranges return hundreds of chart buckets; merge them down to the
   // strip's bar capacity so the row never overflows the card.
   const stripBuckets = useMemo(
-    () => (isLiveRange ? [] : groupChartPointsForStrip(marketChart?.points ?? [])),
-    [isLiveRange, marketChart]
+    () => (isLiveRange ? [] : groupChartPointsForStrip(marketPoints)),
+    [isLiveRange, marketPoints]
   );
   const stripItems = useMemo(() => {
     if (isLiveRange) {
@@ -780,8 +788,8 @@ export default function BlobFeeHero() {
   const stripTargetPercent = useMemo(() => (
     isLiveRange
       ? getBlockStripTargetPercent(stripBlocks)
-      : getBucketTargetPercent(marketChart?.points ?? [])
-  ), [isLiveRange, stripBlocks, marketChart]);
+      : getBucketTargetPercent(marketPoints)
+  ), [isLiveRange, stripBlocks, marketPoints]);
   const stripCaption = isLiveRange
     ? `Last ${stripItems.length} blocks · click a bar for block details`
     : `${RANGE_LABELS[timeRange]} · ${
@@ -808,15 +816,15 @@ export default function BlobFeeHero() {
         hint: `blocks · ${RANGE_LABELS[timeRange]}`,
       };
     }
-    if (!marketChart || marketChart.points.length === 0) {
+    if (!marketChart || marketPoints.length === 0) {
       return { value: '-', hint: RANGE_LABELS[timeRange] };
     }
-    const bucketed = countChartPointsAboveTarget(marketChart.points);
+    const bucketed = countChartPointsAboveTarget(marketPoints);
     return {
       value: `${bucketed.aboveCount}/${bucketed.totalCount}`,
       hint: BUCKET_HINTS[marketChart.granularity] ?? `${marketChart.granularity} buckets`,
     };
-  }, [isLiveRange, blocks, rollingWindows, marketChart, timeRange]);
+  }, [isLiveRange, blocks, rollingWindows, marketChart, marketPoints, timeRange]);
 
   const direction = getDirectionStyle(rangeTrend?.direction);
   const DirectionIcon = direction.Icon;

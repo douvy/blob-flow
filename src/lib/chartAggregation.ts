@@ -376,7 +376,7 @@ function buildSelectedWindowFromMarket(
  * zero on a real block (minimum 1 wei), so an all-zero bucket is missing data
  * and would plot as a false plunge to zero.
  */
-function marketPointHasData(point: BackendBlobMarketChartPoint): boolean {
+export function marketPointHasData(point: BackendBlobMarketChartPoint): boolean {
   return (
     point.blob_count > 0 ||
     point.blob_gas_used > 0 ||
