@@ -452,7 +452,7 @@ describe('getBucketLabelStyle', () => {
 });
 
 describe('getChartDataCoverage', () => {
-  const response = { start_time: '2026-06-06T06:00:00Z', bucket_seconds: 21600 };
+  const response = { start_time: '2026-06-06T06:00:00Z', granularity: 'hour', bucket_seconds: 21600 };
 
   it('reports full coverage when data reaches the requested start', () => {
     const coverage = getChartDataCoverage(response, [
@@ -490,6 +490,18 @@ describe('getChartDataCoverage', () => {
     expect(getChartDataCoverage(response, [])).toBeNull();
     expect(getChartDataCoverage(response, [{ timestamp: 'not-a-date' }])).toBeNull();
   });
+
+  it('falls back to the granularity name when bucket_seconds is invalid', () => {
+    const dayResponse = { start_time: '2026-06-06T00:00:00Z', granularity: 'day', bucket_seconds: 0 };
+    const coverage = getChartDataCoverage(dayResponse, [
+      { timestamp: '2026-06-07T00:00:00Z' },
+    ]);
+
+    // One missing leading bucket stays tolerated because the day width is
+    // inferred from the granularity.
+    expect(coverage?.isPartial).toBe(false);
+    expect(coverage?.spanMs).toBe(86_400_000);
+  });
 });
 
 describe('buildChartDatasetFromResponses during a backfill', () => {
@@ -526,6 +538,35 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
       '7/6 00:00',
     ]);
     expect(dataset.gasUtilization[0].label).toBe('7/5 00:00');
+  });
+
+  it('keeps wider companion buckets that overlap the indexed coverage', () => {
+    // Market coverage starts 07-05 06:00; a daily attribution bucket starting
+    // 07-05 00:00 overlaps that coverage and must survive, while the bucket
+    // ending exactly at 07-05 00:00 must not.
+    const offsetMarket = makeMarketResponse({
+      points: [
+        makeEmptyMarketPoint('2026-06-06T06:00:00Z'),
+        makeMarketPoint('2026-07-05T06:00:00Z'),
+        makeMarketPoint('2026-07-05T12:00:00Z'),
+      ],
+    });
+
+    const dataset = buildChartDatasetFromResponses(
+      offsetMarket,
+      makeAttributionResponse(['2026-07-04T00:00:00Z', '2026-07-05T00:00:00Z'], {
+        granularity: 'day',
+        bucket_seconds: 86400,
+      }),
+      makeCostResponse(['2026-07-04T00:00:00Z', '2026-07-05T00:00:00Z'], {
+        granularity: 'day',
+        bucket_seconds: 86400,
+      }),
+      '30d'
+    );
+
+    expect(dataset.l2Usage.map((point) => point.label)).toEqual(['7/5']);
+    expect(dataset.costComparison.map((point) => point.label)).toEqual(['7/5']);
   });
 
   it('drops attribution and cost buckets that predate the indexed coverage', () => {
@@ -581,6 +622,29 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
 
     expect(dataset.baseFee.map((point) => point.label)).toEqual(['6/6', '6/7', '6/8', '6/9']);
     expect(dataset.l2Usage).toHaveLength(4);
+    expect(dataset.blockCoverageLabel).toBe('4 daily buckets over the 30d view');
+  });
+
+  it('infers the bucket width from the granularity when bucket_seconds is invalid', () => {
+    const fullTimestamps = Array.from({ length: 4 }, (_, index) => {
+      const day = 6 + index;
+      return `2026-06-0${day}T00:00:00Z`;
+    });
+    const legacyMarket = makeMarketResponse({
+      bucket_seconds: 0,
+      granularity: 'day',
+      start_time: '2026-06-06T00:00:00Z',
+      points: fullTimestamps.map((timestamp) => makeMarketPoint(timestamp)),
+    });
+
+    const dataset = buildChartDatasetFromResponses(
+      legacyMarket,
+      makeAttributionResponse(fullTimestamps, { bucket_seconds: 0, granularity: 'day' }),
+      makeCostResponse(fullTimestamps, { bucket_seconds: 0, granularity: 'day' }),
+      '30d'
+    );
+
+    expect(dataset.baseFee.map((point) => point.label)).toEqual(['6/6', '6/7', '6/8', '6/9']);
     expect(dataset.blockCoverageLabel).toBe('4 daily buckets over the 30d view');
   });
 });

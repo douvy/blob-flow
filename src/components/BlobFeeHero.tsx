@@ -20,6 +20,7 @@ import { transformPricingRecentBlock } from '@/lib/api/pricing';
 import {
   getBackendChartRange,
   getBucketLabelStyle,
+  getBucketWidthSeconds,
   getChartDataCoverage,
   getRequestedRollingWindow,
   marketPointHasData,
@@ -110,13 +111,13 @@ function getDirectionStyle(direction: string | undefined): DirectionStyle {
 function getDirectionExplanation(
   direction: DirectionStyle,
   deltaPercent: number | undefined,
-  rangeLabel: string
+  scopeLabel: string
 ): string {
   if (deltaPercent === undefined) {
-    return `${direction.label} is based on the blob base fee data available in the selected ${rangeLabel} view.`;
+    return `${direction.label} is based on the blob base fee data available in the selected ${scopeLabel}.`;
   }
 
-  return `${direction.label} is based on the first and latest blob base fee points in the selected ${rangeLabel} view: ${formatSignedPercent(deltaPercent)} across the range.`;
+  return `${direction.label} is based on the first and latest blob base fee points in the selected ${scopeLabel}: ${formatSignedPercent(deltaPercent)} across the range.`;
 }
 
 const LIVE_BADGE_STYLES: Record<string, { label: string; dotClass: string; textClass: string }> = {
@@ -713,7 +714,7 @@ export default function BlobFeeHero() {
     [marketChart, marketPoints]
   );
   const bucketLabelStyle: BucketLabelStyle = marketChart
-    ? getBucketLabelStyle(marketChart.bucket_seconds, marketCoverage?.spanMs ?? 0)
+    ? getBucketLabelStyle(getBucketWidthSeconds(marketChart), marketCoverage?.spanMs ?? 0)
     : 'time';
   // Replaces "last 30 days" with "data since Jul 5, 06:00" when the indexed
   // history does not reach back to the start of the selected range.
@@ -726,6 +727,14 @@ export default function BlobFeeHero() {
   const rangeCaption = !isLiveRange && coverageSinceLabel
     ? `data since ${coverageSinceLabel}`
     : RANGE_LABELS[timeRange];
+  // The trend (and its chip) is computed from the plotted points, so its
+  // wording must follow the actual coverage too.
+  const trendScopePhrase = !isLiveRange && coverageSinceLabel
+    ? `since ${coverageSinceLabel}`
+    : `over ${RANGE_LABELS[timeRange]}`;
+  const trendScopeDescription = !isLiveRange && coverageSinceLabel
+    ? `${RANGE_LABELS[timeRange]} view (indexed data since ${coverageSinceLabel})`
+    : `${RANGE_LABELS[timeRange]} view`;
 
   const chartPoints = useMemo<HeroChartPoint[]>(() => {
     if (isLiveRange) {
@@ -753,7 +762,6 @@ export default function BlobFeeHero() {
     () => computeFeeRangeTrend(chartPoints.map((point) => point.fee)),
     [chartPoints]
   );
-  const trendRangeLabel = RANGE_LABELS[timeRange];
   const trendChipLabel = TREND_CHIP_LABELS[timeRange];
 
   const chartReferenceFeeGwei = isLiveRange
@@ -844,7 +852,7 @@ export default function BlobFeeHero() {
                       <button
                         type="button"
                         className={`inline-flex cursor-help items-center gap-1.5 rounded-xs h-[18px] px-1.5 pt-px shrink-0 border font-mono text-[0.625rem] leading-6 ${direction.chipClass}`}
-                        aria-label={`Fee direction over ${trendRangeLabel}: ${direction.label}`}
+                        aria-label={`Fee direction ${trendScopePhrase}: ${direction.label}`}
                       >
                         <DirectionIcon className="h-3 w-3" aria-hidden="true" />
                         {direction.label}
@@ -852,7 +860,7 @@ export default function BlobFeeHero() {
                       </button>
                     </InfoTooltipTrigger>
                     <InfoTooltipContent side="bottom" className="max-w-xs leading-relaxed">
-                      {getDirectionExplanation(direction, rangeTrend?.deltaPercent, trendRangeLabel)}
+                      {getDirectionExplanation(direction, rangeTrend?.deltaPercent, trendScopeDescription)}
                     </InfoTooltipContent>
                   </InfoTooltip>
                 </div>
@@ -882,9 +890,7 @@ export default function BlobFeeHero() {
                         {formatSignedPercent(rangeTrend.deltaPercent)}
                       </span>
                       {' '}
-                      {!isLiveRange && coverageSinceLabel
-                        ? `since ${coverageSinceLabel}`
-                        : `over ${trendRangeLabel}`}
+                      {trendScopePhrase}
                     </p>
                   )}
                   <p>

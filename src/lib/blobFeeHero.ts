@@ -3,7 +3,7 @@ import type {
   BlobPricingRecentBlock,
   RollingWindowDataPoint,
 } from '@/types';
-import { describeBucketSpan } from './chartAggregation';
+import { describeBucketSpan, getBucketWidthSeconds } from './chartAggregation';
 
 /** Number of recent blocks shown in the hero fee chart (1h of 12s mainnet slots). */
 export const HERO_CHART_BLOCKS = 300;
@@ -147,7 +147,7 @@ export function getBucketHint(
   chart: { granularity: string; bucket_seconds: number },
   bucketCount = 1
 ): string {
-  const spanWord = describeBucketSpan(chart.bucket_seconds * Math.max(1, bucketCount));
+  const spanWord = describeBucketSpan(getBucketWidthSeconds(chart) * Math.max(1, bucketCount));
   if (spanWord) return `${spanWord} buckets`;
   return GRANULARITY_BUCKET_HINTS[chart.granularity] ?? `${chart.granularity} buckets`;
 }
