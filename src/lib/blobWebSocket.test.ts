@@ -142,7 +142,7 @@ describe('blobWebSocket', () => {
     }
   });
 
-  it('parses users_update events and carries the range tag through', () => {
+  it('parses users_update events only when tagged with a known range', () => {
     const user = {
       address: '0x0000000000000000000000000000000000000001',
       name: 'Base',
@@ -160,13 +160,16 @@ describe('blobWebSocket', () => {
       expect(tagged.data).toEqual([user]);
     }
 
-    const untagged = parseBlobWebSocketEvent(
-      JSON.stringify({ type: 'users_update', data: [user] })
-    );
-    expect(untagged?.type).toBe('users_update');
-    if (untagged?.type === 'users_update') {
-      expect(untagged.range).toBeUndefined();
-    }
+    // Consumers scope these events to the selected window, so an event
+    // without a valid range tag is unusable and must be rejected.
+    expect(
+      parseBlobWebSocketEvent(JSON.stringify({ type: 'users_update', data: [user] }))
+    ).toBeNull();
+    expect(
+      parseBlobWebSocketEvent(
+        JSON.stringify({ type: 'users_update', range: '90d', data: [user] })
+      )
+    ).toBeNull();
   });
 
   it('opens one active socket and sends subscription filters after connect', () => {

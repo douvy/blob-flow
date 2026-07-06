@@ -8,11 +8,19 @@ export function transformUserResponses(usersResponse: UserResponse[]): TopUsersR
     // Calculate total blobs across all returned users for percentage calculation
     const totalBlobs = usersResponse.reduce((sum, user) => sum + user.blob_count, 0) || 1;
 
+    // Server-side shares are computed over all users in the window; the local
+    // fallback only sees the returned rows. The two denominators differ, so
+    // mixing them within one column would misstate shares — use the server
+    // values only when every row has one.
+    const hasServerShares =
+        usersResponse.length > 0 &&
+        usersResponse.every(
+            (user) => typeof user.blob_share_percent === 'number' && Number.isFinite(user.blob_share_percent)
+        );
+
     // Map the API response to our expected format
     const users: User[] = usersResponse.map((user: UserResponse, index: number) => {
-        // Prefer the server-side share: it is computed over all users in the
-        // window, while the local fallback only sees the returned rows.
-        const percentage = typeof user.blob_share_percent === 'number' && Number.isFinite(user.blob_share_percent)
+        const percentage = hasServerShares && typeof user.blob_share_percent === 'number'
             ? Math.round(user.blob_share_percent * 10) / 10
             : Math.round((user.blob_count / totalBlobs) * 1000) / 10;
 

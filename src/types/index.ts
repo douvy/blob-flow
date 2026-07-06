@@ -112,7 +112,7 @@ export interface UsersUpdateEvent {
   type: 'users_update';
   // Window the aggregates cover; clients drop events that don't match their
   // selected range instead of overwriting a differently-scoped view.
-  range?: BackendUsersRange | string;
+  range: BackendUsersRange;
   data: UserResponse[];
 }
 

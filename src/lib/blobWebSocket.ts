@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '@/constants';
 import {
+  BackendUsersRange,
   BlobWebSocketConnectionState,
   BlobWebSocketEvent,
   BlobWebSocketSubscribeMessage,
@@ -86,6 +87,12 @@ export function createBlobWebSocketSubscribeMessage(
   };
 }
 
+const BACKEND_USERS_RANGES: readonly BackendUsersRange[] = ['1h', '24h', '7d', '30d', 'all'];
+
+function isBackendUsersRange(value: unknown): value is BackendUsersRange {
+  return typeof value === 'string' && (BACKEND_USERS_RANGES as readonly string[]).includes(value);
+}
+
 export function parseBlobWebSocketEvent(message: string): BlobWebSocketEvent | null {
   let payload: unknown;
   const trimmedMessage = message.trim();
@@ -130,10 +137,12 @@ export function parseBlobWebSocketEvent(message: string): BlobWebSocketEvent | n
       }
       return null;
     case 'users_update':
-      if (Array.isArray(payload.data)) {
+      // The range tag is part of the contract: consumers scope these events
+      // to the user's selected window, so an untagged event is unusable.
+      if (isBackendUsersRange(payload.range) && Array.isArray(payload.data)) {
         return {
           type: 'users_update',
-          range: typeof payload.range === 'string' ? payload.range : undefined,
+          range: payload.range,
           data: payload.data.filter(isRecord) as unknown as UserResponse[],
         };
       }

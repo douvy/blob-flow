@@ -142,22 +142,30 @@ export default function TopUsersTable() {
   );
 
   // Live events carry the window they aggregate over; one scoped to a
-  // different window must not overwrite this view, so keep only the latest
-  // matching event and fall back to the REST data otherwise.
-  const [liveData, setLiveData] = React.useState<TopUsersResponse | null>(null);
+  // different window or network must never overwrite this view. Snapshots are
+  // stored with their scope and consulted only while it matches, so a scope
+  // switch falls back to the REST data on that same render — an effect-based
+  // reset alone would paint one frame of the old window's rows first.
+  const liveScopeKey = `${selectedNetwork.apiParam}:${usersRange}`;
+  const [liveUpdate, setLiveUpdate] = React.useState<{
+    scopeKey: string;
+    data: TopUsersResponse;
+  } | null>(null);
   useLiveBlobEvent('users_update', (event) => {
     if (event.range === usersRange) {
-      setLiveData(transformUserResponses(event.data));
+      setLiveUpdate({ scopeKey: liveScopeKey, data: transformUserResponses(event.data) });
     }
   });
   React.useEffect(() => {
-    setLiveData(null);
-  }, [usersRange, selectedNetwork.apiParam]);
+    // Drop snapshots from a previous scope so returning to it later starts
+    // from fresh REST data instead of the stale snapshot.
+    setLiveUpdate((current) => (current && current.scopeKey !== liveScopeKey ? null : current));
+  }, [liveScopeKey]);
 
-  const displayData = liveData ?? data;
+  const displayData = (liveUpdate?.scopeKey === liveScopeKey ? liveUpdate.data : null) ?? data;
   const tableData = displayData?.data ?? EMPTY_USERS;
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
-  useFlipRows(tbodyRef, `${selectedNetwork.apiParam}:${usersRange}`);
+  useFlipRows(tbodyRef, liveScopeKey);
 
   const columns = React.useMemo<ColumnDef<User>[]>(
     () => [
