@@ -28,7 +28,7 @@ const WINDOW_LABELS: Record<RollingWindowKey, string> = {
 };
 
 const WINDOW_FALLBACK_ORDER: RollingWindowKey[] = ['30d', '7d', '24h', '1h', '5m'];
-const PRICING_API_MAX_BLOCKS = 100;
+const PRICING_API_MAX_BLOCKS = 300;
 const BLOB_GAS_PER_BLOB = 131_072;
 const ESTIMATED_BLOCKS_PER_RANGE: Record<TimeRange, number> = {
   '1h': 300,

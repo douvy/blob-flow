@@ -4,8 +4,10 @@ import type {
   RollingWindowDataPoint,
 } from '@/types';
 
-/** Number of recent blocks shown in the hero fee chart (~20 min of mainnet blocks). */
-export const HERO_CHART_BLOCKS = 100;
+/** Number of recent blocks shown in the hero fee chart (1h of 12s mainnet slots). */
+export const HERO_CHART_BLOCKS = 300;
+/** Wall-clock span advertised by the live hero view ("last 1h"). */
+export const HERO_CHART_WINDOW_SECONDS = 3_600;
 /** Number of recent blocks shown in the hero fullness strip. */
 export const HERO_STRIP_BLOCKS = 24;
 /** Blocks to look back when computing the short-term fee trend (~2 min). */
@@ -36,6 +38,28 @@ export function mergeRecentPricingBlocks(
   return Array.from(byNumber.values())
     .sort((left, right) => right.blockNumber - left.blockNumber)
     .slice(0, cap);
+}
+
+/**
+ * Drop blocks older than `windowSeconds` before the newest block. Missed
+ * slots make HERO_CHART_BLOCKS blocks span more wall time than the
+ * advertised window, so the live view trims to keep "last 1h" exact.
+ * `blocks` must be newest-first; blocks with unparseable timestamps are kept.
+ */
+export function trimBlocksToWindow(
+  blocks: BlobPricingRecentBlock[],
+  windowSeconds = HERO_CHART_WINDOW_SECONDS
+): BlobPricingRecentBlock[] {
+  if (blocks.length === 0) return blocks;
+
+  const newestMs = Date.parse(blocks[0].blockTimestamp);
+  if (Number.isNaN(newestMs)) return blocks;
+
+  const cutoffMs = newestMs - windowSeconds * 1000;
+  return blocks.filter((block) => {
+    const timestampMs = Date.parse(block.blockTimestamp);
+    return Number.isNaN(timestampMs) || timestampMs >= cutoffMs;
+  });
 }
 
 export interface AboveTargetSummary {

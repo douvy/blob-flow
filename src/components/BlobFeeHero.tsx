@@ -35,6 +35,7 @@ import {
   formatSignedPercent,
   mergeRecentPricingBlocks,
   parseGwei,
+  trimBlocksToWindow,
 } from '@/lib/blobFeeHero';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
@@ -149,7 +150,7 @@ function stripGweiUnit(value: string): string {
 
 /** Header time ranges that the hero renders from bucketed chart data. */
 const RANGE_LABELS: Record<TimeRange, string> = {
-  '1h': 'last 100 blocks',
+  '1h': 'last 1h',
   '24h': 'last 24h',
   '7d': 'last 7 days',
   '30d': 'last 30 days',
@@ -157,7 +158,7 @@ const RANGE_LABELS: Record<TimeRange, string> = {
 };
 
 const TREND_RANGE_LABELS: Record<TimeRange, string> = {
-  '1h': 'last 100 blocks',
+  '1h': 'last 1h',
   '24h': 'last 24h',
   '7d': 'last 7 days',
   '30d': 'last 30 days',
@@ -165,7 +166,7 @@ const TREND_RANGE_LABELS: Record<TimeRange, string> = {
 };
 
 const TREND_CHIP_LABELS: Record<TimeRange, string> = {
-  '1h': '100 blocks',
+  '1h': '1h',
   '24h': '24h',
   '7d': '7d',
   '30d': '30d',
@@ -633,12 +634,16 @@ export default function BlobFeeHero() {
     void refetchPricing();
   });
 
+  // Trim to the advertised 1h window: missed slots stretch 300 blocks past
+  // an hour of wall time, and the chip promises "last 1h".
   const blocks = useMemo(
     () =>
-      mergeRecentPricingBlocks(
-        pricing?.recentBlocks ?? [],
-        liveState.network === network ? liveState.blocks : [],
-        HERO_CHART_BLOCKS
+      trimBlocksToWindow(
+        mergeRecentPricingBlocks(
+          pricing?.recentBlocks ?? [],
+          liveState.network === network ? liveState.blocks : [],
+          HERO_CHART_BLOCKS
+        )
       ),
     [pricing, liveState, network]
   );
@@ -729,7 +734,7 @@ export default function BlobFeeHero() {
   const aboveTargetStat = useMemo(() => {
     if (isLiveRange) {
       const live = countBlocksAboveTarget(blocks);
-      return { value: `${live.aboveCount}/${live.totalCount}`, hint: 'recent blocks' };
+      return { value: `${live.aboveCount}/${live.totalCount}`, hint: 'blocks · last 1h' };
     }
     const windowSummary = getWindowAboveTargetSummary(
       rollingWindows,
