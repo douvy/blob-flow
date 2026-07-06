@@ -265,7 +265,7 @@ export default function Header() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    aria-current={active ? 'page' : undefined}
+                    aria-current={pathname === link.href ? 'page' : undefined}
                     className={`px-3 py-1.5 text-sm border-b-2 transition-colors duration-75 ${active
                       ? 'border-blue text-titleText'
                       : 'border-transparent text-[#b8bdc7] hover:text-titleText'
@@ -376,7 +376,8 @@ export default function Header() {
             <div className="w-full flex items-center justify-center pt-3 pb-1">
               <div className="w-16 h-1 bg-gray-300/20 rounded-full"></div>
             </div>
-            <div className="p-5 space-y-5">
+            {/* Cap the height so short viewports (e.g. landscape phones) can scroll the menu */}
+            <div className="p-5 space-y-5 max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain">
               {/* Page Navigation */}
               <nav className="space-y-4" aria-label="Primary">
                 {NAV_LINKS.map((link) => {
@@ -386,7 +387,7 @@ export default function Header() {
                     <Link
                       key={link.href}
                       href={link.href}
-                      aria-current={active ? 'page' : undefined}
+                      aria-current={pathname === link.href ? 'page' : undefined}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="flex items-center gap-3"
                     >
