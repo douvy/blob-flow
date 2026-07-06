@@ -536,6 +536,10 @@ export interface StatusResponse {
   last_indexed_time: string;
   /** Absent on older backends. */
   current_chain_head?: number;
+  /** Absent on older backends. */
+  earliest_indexed_block?: number;
+  /** Absent on older backends. */
+  latest_indexed_block?: number;
   indexer_lag_blocks?: number;
   last_indexed_at?: string;
   chain_head_updated_at?: string;

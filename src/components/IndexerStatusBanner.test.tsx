@@ -4,7 +4,10 @@ import { DEFAULT_NETWORK } from '../constants';
 import { useApiData } from '../hooks/useApiData';
 import { useNetwork } from '../hooks/useNetwork';
 import { BackfillStatus, StatusResponse } from '../types';
-import IndexerStatusBanner, { computeLagSeconds } from './IndexerStatusBanner';
+import IndexerStatusBanner, {
+  computeBackfillCoveragePercent,
+  computeLagSeconds,
+} from './IndexerStatusBanner';
 
 vi.mock('../hooks/useApiData', () => ({
   useApiData: vi.fn(),
@@ -76,9 +79,30 @@ describe('IndexerStatusBanner', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows a backfill notice while a backfill is running', () => {
+  it('shows overall blob history coverage while a backfill is running', () => {
     mockStatus(
       makeStatus({
+        earliest_indexed_block: 19426587,
+        current_chain_head: 25470973,
+        backfill: makeBackfill({
+          active: true,
+          remaining_blocks: 5880887,
+          progress_percent: 0.5,
+        }),
+      })
+    );
+
+    render(<IndexerStatusBanner />);
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Indexer is backfilling history: 2.7% of blob history indexed, 5,880,887 blocks remaining.'
+    );
+  });
+
+  it('falls back to backfill run progress when coverage fields are absent', () => {
+    mockStatus(
+      makeStatus({
+        earliest_indexed_block: undefined,
         backfill: makeBackfill({
           active: true,
           remaining_blocks: 1240,
@@ -142,6 +166,8 @@ describe('IndexerStatusBanner', () => {
     mockStatus(
       makeStatus({
         indexer_lag_blocks: 100,
+        earliest_indexed_block: 25467016,
+        current_chain_head: 25468015,
         backfill: makeBackfill({ active: true, remaining_blocks: 500, progress_percent: 10 }),
       })
     );
@@ -150,7 +176,59 @@ describe('IndexerStatusBanner', () => {
 
     const banner = screen.getByRole('status');
     expect(banner).toHaveTextContent('behind the chain head');
-    expect(banner).toHaveTextContent('Backfilling: 10% complete.');
+    expect(banner).toHaveTextContent('Backfilling: 50% of blob history indexed.');
+  });
+});
+
+describe('computeBackfillCoveragePercent', () => {
+  it('measures coverage of the full indexed range, not the backfill run', () => {
+    const status = makeStatus({
+      earliest_indexed_block: 19426587,
+      current_chain_head: 25470973,
+      backfill: makeBackfill({
+        active: true,
+        remaining_blocks: 5880887,
+        progress_percent: 0.5,
+      }),
+    });
+
+    expect(computeBackfillCoveragePercent(status)).toBeCloseTo(2.705, 3);
+  });
+
+  it('returns null when the backend omits the range fields', () => {
+    expect(
+      computeBackfillCoveragePercent(makeStatus({ earliest_indexed_block: undefined }))
+    ).toBeNull();
+    expect(
+      computeBackfillCoveragePercent(
+        makeStatus({ earliest_indexed_block: 19426587, current_chain_head: undefined })
+      )
+    ).toBeNull();
+    expect(
+      computeBackfillCoveragePercent(
+        makeStatus({
+          earliest_indexed_block: 19426587,
+          current_chain_head: 25470973,
+          backfill: undefined,
+        })
+      )
+    ).toBeNull();
+  });
+
+  it('clamps coverage to the 0-100 range', () => {
+    const overshoot = makeStatus({
+      earliest_indexed_block: 25467016,
+      current_chain_head: 25468015,
+      backfill: makeBackfill({ active: true, remaining_blocks: 2000 }),
+    });
+    expect(computeBackfillCoveragePercent(overshoot)).toBe(0);
+
+    const caughtUp = makeStatus({
+      earliest_indexed_block: 25467016,
+      current_chain_head: 25468015,
+      backfill: makeBackfill({ active: true, remaining_blocks: 0 }),
+    });
+    expect(computeBackfillCoveragePercent(caughtUp)).toBe(100);
   });
 });
 

@@ -31,6 +31,31 @@ export function computeLagSeconds(status: StatusResponse, nowMs: number): number
   return Math.max(blockLagSeconds, timeLagSeconds, 0);
 }
 
+/**
+ * Percent of the full blob-era range (earliest indexed block to chain head)
+ * that is indexed. `backfill.progress_percent` only measures the current
+ * backfill run, whose range is arbitrary, so it is misleading as a coverage
+ * number. Approximates the unindexed count with the active backfill's
+ * remaining blocks, which holds while that remainder is the only gap.
+ * Returns null when the backend does not report the needed fields.
+ */
+export function computeBackfillCoveragePercent(status: StatusResponse): number | null {
+  const backfill = status.backfill;
+  const head = status.current_chain_head;
+  const earliest = status.earliest_indexed_block;
+  if (!backfill || head === undefined || earliest === undefined) {
+    return null;
+  }
+
+  const totalRange = head - earliest + 1;
+  if (totalRange <= 0) {
+    return null;
+  }
+
+  const indexed = totalRange - backfill.remaining_blocks;
+  return Math.min(100, Math.max(0, (indexed / totalRange) * 100));
+}
+
 export default function IndexerStatusBanner() {
   const { selectedNetwork } = useNetwork();
   const network = selectedNetwork.apiParam;
@@ -57,6 +82,12 @@ export default function IndexerStatusBanner() {
   const backfill = status.backfill;
   const backfillInProgress =
     backfill?.active && backfill.remaining_blocks >= BACKFILL_MIN_REMAINING_BLOCKS;
+  const coveragePercent = computeBackfillCoveragePercent(status);
+  const backfillProgressText = backfillInProgress
+    ? coveragePercent !== null
+      ? `${formatPercent(coveragePercent)} of blob history indexed`
+      : `${formatPercent(backfill.progress_percent)} complete`
+    : null;
   const lagSeconds = computeLagSeconds(status, now);
 
   if (lagSeconds > INDEXER_LAG_THRESHOLD_SECONDS) {
@@ -70,9 +101,7 @@ export default function IndexerStatusBanner() {
           <span>
             Indexer is {formatDuration(lagSeconds)} behind the chain head (last indexed block{' '}
             {formatNumber(status.last_indexed_block)}). Recent data may be incomplete.
-            {backfillInProgress && (
-              <> Backfilling: {formatPercent(backfill.progress_percent)} complete.</>
-            )}
+            {backfillProgressText && <> Backfilling: {backfillProgressText}.</>}
           </span>
         </div>
       </div>
@@ -88,7 +117,7 @@ export default function IndexerStatusBanner() {
         <div className="container mx-auto flex items-center gap-2 px-4 py-2 text-sm text-lightBlue">
           <DatabaseBackup className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
-            Indexer is backfilling history: {formatPercent(backfill.progress_percent)} complete,{' '}
+            Indexer is backfilling history: {backfillProgressText},{' '}
             {formatNumber(backfill.remaining_blocks)} blocks remaining. Data may be incomplete.
           </span>
         </div>
