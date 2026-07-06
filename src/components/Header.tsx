@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Clock3, Globe, Menu, RadioTower, Search, TrendingUp } from 'lucide-react';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
@@ -78,6 +79,8 @@ function LiveStatusIndicator({
 export default function Header() {
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
+  const pathname = usePathname();
+  const isHomePage = pathname === '/';
   const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -210,21 +213,23 @@ export default function Header() {
               </div>
             </div>
 
-            {/* Time Period Selector */}
-            <div className="hidden md:flex items-center space-x-1 bg-background/30 rounded-md p-0.5 ml-4">
-              {timeRangeOptions.map((range) => (
-                <button
-                  key={range}
-                  onClick={() => handleTimeRangeChange(range)}
-                  className={`px-3 py-1 text-sm rounded-md transition-none ${selectedTimeRange === range
-                    ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
-                    : 'text-white hover:text-white/90 border border-transparent'
-                    }`}
-                >
-                  {range}
-                </button>
-              ))}
-            </div>
+            {/* Time Period Selector - only shown on the home page */}
+            {isHomePage && (
+              <div className="hidden md:flex items-center space-x-1 bg-background/30 rounded-md p-0.5 ml-4">
+                {timeRangeOptions.map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => handleTimeRangeChange(range)}
+                    className={`px-3 py-1 text-sm rounded-md transition-none ${selectedTimeRange === range
+                      ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
+                      : 'text-white hover:text-white/90 border border-transparent'
+                      }`}
+                  >
+                    {range}
+                  </button>
+                ))}
+              </div>
+            )}
 
           </div>
         </div>
@@ -381,27 +386,29 @@ export default function Header() {
                 </div>
               </div>
 
-              {/* Time Period Selector */}
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <Clock3 className="h-4 w-4 text-blue" aria-hidden="true" />
-                  <span className="text-bodyText">Time Period</span>
+              {/* Time Period Selector - only shown on the home page */}
+              {isHomePage && (
+                <div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <Clock3 className="h-4 w-4 text-blue" aria-hidden="true" />
+                    <span className="text-bodyText">Time Period</span>
+                  </div>
+                  <div className="flex items-center space-x-1 bg-background/30 border border-divider rounded-md p-0.5">
+                    {timeRangeOptions.map((range) => (
+                      <button
+                        key={range}
+                        onClick={() => handleTimeRangeChange(range)}
+                        className={`px-3 py-1 text-sm rounded-md transition-none flex-1 ${selectedTimeRange === range
+                          ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
+                          : 'text-white hover:text-white/90 border border-transparent'
+                          }`}
+                      >
+                        {range}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-1 bg-background/30 border border-divider rounded-md p-0.5">
-                  {timeRangeOptions.map((range) => (
-                    <button
-                      key={range}
-                      onClick={() => handleTimeRangeChange(range)}
-                      className={`px-3 py-1 text-sm rounded-md transition-none flex-1 ${selectedTimeRange === range
-                        ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
-                        : 'text-white hover:text-white/90 border border-transparent'
-                        }`}
-                    >
-                      {range}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              )}
 
               {/* Close Button */}
               <div className="pt-2 border-t border-divider">
