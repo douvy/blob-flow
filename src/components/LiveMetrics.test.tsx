@@ -163,16 +163,19 @@ function makeNewBlockMessage(blockNumber: number, blobCount: number): string {
 
 // LiveMetrics reads three queries through the same mocked hook; dispatch on
 // the query key so each caller gets its own fixture.
-function mockApiData(latestBlocks: LatestBlocksResponse) {
+function mockApiData(
+  latestBlocks: LatestBlocksResponse | undefined,
+  blocksError: Error | null = null
+) {
   vi.mocked(useApiData).mockImplementation((fetchFunction, queryKey) => {
     const key = Array.isArray(queryKey) ? queryKey[0] : queryKey;
-    const data =
-      key === 'stats'
-        ? statsFixture
-        : key === 'stats-windows'
-          ? statsWindowsFixture
-          : latestBlocks;
-    return { data, isLoading: false, error: null, refetch: vi.fn() };
+    if (key === 'stats') {
+      return { data: statsFixture, isLoading: false, error: null, refetch: vi.fn() };
+    }
+    if (key === 'stats-windows') {
+      return { data: statsWindowsFixture, isLoading: false, error: null, refetch: vi.fn() };
+    }
+    return { data: latestBlocks, isLoading: false, error: blocksError, refetch: vi.fn() };
   });
 }
 
@@ -203,6 +206,13 @@ describe('LiveMetrics', () => {
 
   it('renders the metric cards from the REST baseline and rolling window', () => {
     renderLiveMetrics();
+
+    // The sample must come from the shared latest-blocks cache entry, not a
+    // component-private key.
+    expect(vi.mocked(useApiData)).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['latest-blocks', DEFAULT_NETWORK.apiParam, 30]
+    );
 
     expect(screen.getByText('Avg Base Fee (1h)')).toBeInTheDocument();
     expect(screen.getByText('1.50 Gwei')).toBeInTheDocument();
@@ -263,5 +273,28 @@ describe('LiveMetrics', () => {
 
     expect(screen.getByText('4.2K')).toBeInTheDocument();
     expect(screen.queryByText('1.2K')).not.toBeInTheDocument();
+  });
+
+  it('keeps headline cards and shows the footnote when the block sample fails', () => {
+    mockApiData(undefined, new Error('sample fetch failed'));
+    renderLiveMetrics();
+
+    expect(screen.getByText('1.50 Gwei')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for next block')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Latest Block and Top User data unavailable: sample fetch failed\.$/)
+    ).toBeInTheDocument();
+
+    // Live blocks still fill the sample, and the footnote stops implying a
+    // successful REST fetch ever happened.
+    act(() => {
+      MockWebSocket.instances[0].open();
+      MockWebSocket.instances[0].receive(makeNewBlockMessage(201, 1));
+    });
+
+    expect(screen.getByText('#201')).toBeInTheDocument();
+    expect(
+      screen.getByText(/sample fetch failed\. Showing the most recent blocks available\./)
+    ).toBeInTheDocument();
   });
 });

@@ -260,7 +260,7 @@ export default function LiveMetrics() {
         <p className="mt-3 text-xs text-red-300">
           Latest Block and Top User data unavailable:{' '}
           {blocksError.message}
-          {sampleBlocks.length > 0 ? '. Showing the last successful sample.' : '.'}
+          {sampleBlocks.length > 0 ? '. Showing the most recent blocks available.' : '.'}
         </p>
       )}
     </section>
