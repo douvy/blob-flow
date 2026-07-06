@@ -4,7 +4,7 @@ import React from 'react';
 
 export default function ExplainerSection() {
   return (
-    <section className="bg-[#171a22]/60 rounded-lg p-6 shadow-md border border-dividerBlue">
+    <section className="bg-[#14161a] rounded-lg p-6 border border-divider">
       
       <div className="prose prose-invert max-w-none">
         <p className="text-[#b8bdc7]">
@@ -23,7 +23,7 @@ export default function ExplainerSection() {
         </ul>
         
         <p className="text-[#b8bdc7] mt-4">
-        This dashboard tracks blob usage, costs, and attribution across rollup providers.
+        BlobFlow tracks blob usage, costs, and attribution across rollup providers in real time: fees, blocks, and mempool activity update live as each new block lands.
         </p>
         
         <div className="mt-6">

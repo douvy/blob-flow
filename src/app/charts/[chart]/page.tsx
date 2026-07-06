@@ -66,12 +66,12 @@ function ChartDetail({ view }: { view: ChartView }) {
     <div className={CHART_CARD_CLASS}>
       <div className="mb-5 flex items-start justify-between gap-4">
         <div className="space-y-2">
-          <div className="h-7 w-72 max-w-full rounded bg-[#202538] animate-pulse" />
-          <div className="h-4 w-96 max-w-full rounded bg-[#202538] animate-pulse" />
+          <div className="h-7 w-72 max-w-full rounded bg-[#26282e] animate-pulse" />
+          <div className="h-4 w-96 max-w-full rounded bg-[#26282e] animate-pulse" />
         </div>
-        <div className="h-8 w-24 rounded bg-[#202538] animate-pulse" />
+        <div className="h-8 w-24 rounded bg-[#26282e] animate-pulse" />
       </div>
-      <div className="h-[62vh] min-h-[360px] max-h-[720px] rounded bg-[#202538] animate-pulse" />
+      <div className="h-[62vh] min-h-[360px] max-h-[720px] rounded bg-[#26282e] animate-pulse" />
     </div>
   );
 
@@ -79,7 +79,7 @@ function ChartDetail({ view }: { view: ChartView }) {
     <DataStateWrapper isLoading={isLoading} error={error} loadingComponent={loadingComponent}>
       {chartData && (
         <div className={CHART_CARD_CLASS}>
-          <div className="relative z-10 mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className="text-xl font-medium text-white">{view.getTitle(chartData)}</h2>
               <p className="mt-1 text-sm text-[#6e7687]">
@@ -105,7 +105,7 @@ function ChartDetail({ view }: { view: ChartView }) {
 
 function UnknownChart({ chartId }: { chartId: string | undefined }) {
   return (
-    <div className="rounded-lg border border-divider bg-[#161a29]/80 p-6">
+    <div className="rounded-lg border border-divider bg-[#14161a] p-6">
       <h1 className="text-2xl font-windsor-bold text-white mb-2">Chart not found</h1>
       <p className="text-bodyText text-sm mb-5">
         {chartId ? `There is no chart named "${chartId}".` : 'No chart was selected.'}

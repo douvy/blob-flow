@@ -10,7 +10,7 @@ export function transformUserResponses(usersResponse: UserResponse[]): TopUsersR
 
     // Server-side shares are computed over all users in the window; the local
     // fallback only sees the returned rows. The two denominators differ, so
-    // mixing them within one column would misstate shares — use the server
+    // mixing them within one column would misstate shares: use the server
     // values only when every row has one.
     const hasServerShares =
         usersResponse.length > 0 &&

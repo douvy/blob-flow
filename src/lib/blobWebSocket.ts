@@ -305,7 +305,7 @@ export class BlobWebSocketClient {
         // A stale-but-OPEN socket is almost always half-dead (laptop sleep,
         // NAT rebind, dropped proxy tunnel): the server pings every 30s, so
         // silence past the stale timeout means nothing is arriving. Waiting
-        // for the TCP stack to notice can take minutes of missed events —
+        // for the TCP stack to notice can take minutes of missed events, so
         // tear the socket down and reconnect instead.
         this.forceReconnect();
       }
