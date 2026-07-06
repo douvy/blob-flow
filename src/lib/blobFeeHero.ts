@@ -128,6 +128,98 @@ export function parseGwei(value: string | number | undefined): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
+/** A hero-strip bar: one chart bucket, or several consecutive buckets merged. */
+export interface HeroStripBucket extends BackendBlobMarketChartPoint {
+  /** Timestamp of the last merged bucket (equals `timestamp` for a single bucket). */
+  end_timestamp: string;
+  /** How many chart buckets this bar covers. */
+  bucket_count: number;
+}
+
+/**
+ * Merge consecutive chart buckets so the hero fullness strip renders at most
+ * `maxItems` bars; long ranges return hundreds of buckets, far more than the
+ * strip can fit. Blob and gas counts are summed; `blob_gas_limit` survives
+ * only when every merged bucket reports one, mirroring the fill-percent
+ * fallback to `average_utilization`, which is averaged. Fee fields are
+ * averaged as an approximation; the strip does not display them.
+ */
+export function groupChartPointsForStrip(
+  points: BackendBlobMarketChartPoint[],
+  maxItems = HERO_STRIP_BLOCKS
+): HeroStripBucket[] {
+  if (points.length === 0 || maxItems < 1) return [];
+
+  // Balanced partition: group sizes differ by at most one, so a just-over-limit
+  // response (say 25 points) still fills the strip instead of collapsing to
+  // half the bars. The remainder goes to the oldest (leftmost) bars.
+  const groupCount = Math.min(maxItems, points.length);
+  const baseSize = Math.floor(points.length / groupCount);
+  let remainder = points.length % groupCount;
+
+  const groups: HeroStripBucket[] = [];
+  let start = 0;
+  while (start < points.length) {
+    const size = remainder > 0 ? baseSize + 1 : baseSize;
+    if (remainder > 0) remainder -= 1;
+    groups.push(mergeStripBuckets(points.slice(start, start + size)));
+    start += size;
+  }
+
+  return groups;
+}
+
+function mergeStripBuckets(buckets: BackendBlobMarketChartPoint[]): HeroStripBucket {
+  const first = buckets[0];
+  const last = buckets[buckets.length - 1];
+  if (buckets.length === 1) {
+    return { ...first, end_timestamp: first.timestamp, bucket_count: 1 };
+  }
+
+  const mean = (values: number[]) =>
+    values.reduce((sum, value) => sum + value, 0) / values.length;
+  const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+
+  const hasCompleteLimits = buckets.every(
+    (bucket) => bucket.blob_gas_limit !== undefined && bucket.blob_gas_limit > 0
+  );
+  const totalCostWei = buckets.reduce((total, bucket) => {
+    const cost = bucket.total_cost_wei?.trim() ?? '';
+    return /^\d+$/.test(cost) ? total + BigInt(cost) : total;
+  }, BigInt(0));
+
+  return {
+    timestamp: first.timestamp,
+    end_timestamp: last.timestamp,
+    bucket_count: buckets.length,
+    start_block: buckets.find((bucket) => bucket.start_block !== undefined)?.start_block,
+    end_block: buckets
+      .slice()
+      .reverse()
+      .find((bucket) => bucket.end_block !== undefined)?.end_block,
+    average_blob_base_fee_gwei: String(
+      mean(buckets.map((bucket) => parseGwei(bucket.average_blob_base_fee_gwei)))
+    ),
+    median_blob_base_fee_gwei: String(
+      mean(buckets.map((bucket) => parseGwei(bucket.median_blob_base_fee_gwei)))
+    ),
+    p95_blob_base_fee_gwei: String(
+      mean(buckets.map((bucket) => parseGwei(bucket.p95_blob_base_fee_gwei)))
+    ),
+    blob_count: sum(buckets.map((bucket) => bucket.blob_count)),
+    blob_gas_used: sum(buckets.map((bucket) => bucket.blob_gas_used)),
+    blob_gas_target: sum(buckets.map((bucket) => bucket.blob_gas_target)),
+    blob_gas_limit: hasCompleteLimits
+      ? sum(buckets.map((bucket) => bucket.blob_gas_limit ?? 0))
+      : undefined,
+    average_utilization: String(
+      mean(buckets.map((bucket) => parseGwei(bucket.average_utilization)))
+    ),
+    total_cost_wei: totalCostWei.toString(),
+    unique_senders: Math.max(...buckets.map((bucket) => bucket.unique_senders)),
+  };
+}
+
 export interface FeeTrend {
   /** Percent change of the newest block fee vs `comparedBlocks` blocks ago. */
   deltaPercent: number;

@@ -61,13 +61,23 @@ export type SubscribableBlobEventType =
 
 export type BlobWebSocketEventType = SubscribableBlobEventType | 'ping' | 'pong';
 
+// The indexer attaches pricing to every new_block broadcast and every
+// block_snapshot entry; a partial event is never sent, so live consumers can
+// rely on capacity data being present.
 export interface NewBlockData {
   block_number: number;
   blob_count: number;
   timestamp: string;
   blobs: BlobResponse[];
-  pricing?: BackendBlobPricingRecentBlock;
+  pricing: BackendBlobPricingRecentBlock;
 }
+
+// transformNewBlockData is also reused to rebuild blocks from REST blob
+// feeds, which carry no pricing payload; this looser shape keeps that path
+// typed without weakening the wire guarantee above.
+export type NewBlockInput = Omit<NewBlockData, 'pricing'> & {
+  pricing?: BackendBlobPricingRecentBlock;
+};
 
 export interface NewBlockEvent {
   type: 'new_block';
@@ -499,13 +509,32 @@ export interface BackendStatsWindowsResponse {
 }
 
 // Backend StatusResponse - matches api.StatusResponse from swagger
+export interface BackfillStatus {
+  active: boolean;
+  start_block: number;
+  current_block: number;
+  target_block: number;
+  remaining_blocks: number;
+  progress_percent: number;
+  updated_at: string;
+  completed_at?: string;
+}
+
 export interface StatusResponse {
-  network_id: number;
+  chain_id: number;
   network_name: string;
   last_indexed_block: number;
   indexer_version: string;
   uptime: string;
+  /** Timestamp of the last indexed block. */
   last_indexed_time: string;
+  /** Absent on older backends. */
+  current_chain_head?: number;
+  indexer_lag_blocks?: number;
+  last_indexed_at?: string;
+  chain_head_updated_at?: string;
+  websocket_freshness_at?: string;
+  backfill?: BackfillStatus;
 }
 
 // ---- Chart Data Types ----

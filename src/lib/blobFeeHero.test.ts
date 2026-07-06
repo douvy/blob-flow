@@ -8,6 +8,7 @@ import {
   getWindowAboveTargetSummary,
   formatFeeNumber,
   formatSignedPercent,
+  groupChartPointsForStrip,
   mergeRecentPricingBlocks,
   parseGwei,
   trimBlocksToWindow,
@@ -143,6 +144,99 @@ describe('countChartPointsAboveTarget', () => {
     const points = [makeChartPoint({ blob_gas_used: 100, blob_gas_target: 0 })];
 
     expect(countChartPointsAboveTarget(points)).toEqual({ aboveCount: 0, totalCount: 1 });
+  });
+});
+
+describe('groupChartPointsForStrip', () => {
+  it('passes points through untouched when they fit the strip', () => {
+    const points = [
+      makeChartPoint({ timestamp: '2026-06-11T00:00:00Z' }),
+      makeChartPoint({ timestamp: '2026-06-11T01:00:00Z' }),
+    ];
+
+    const grouped = groupChartPointsForStrip(points, 24);
+
+    expect(grouped).toHaveLength(2);
+    expect(grouped[0]).toEqual({
+      ...points[0],
+      end_timestamp: '2026-06-11T00:00:00Z',
+      bucket_count: 1,
+    });
+  });
+
+  it('merges consecutive buckets down to the requested bar count', () => {
+    const points = Array.from({ length: 6 }, (_, index) =>
+      makeChartPoint({
+        timestamp: `2026-06-11T0${index}:00:00Z`,
+        start_block: index * 10,
+        end_block: index * 10 + 9,
+        blob_count: 2,
+        blob_gas_used: 100,
+        blob_gas_target: 150,
+        blob_gas_limit: 200,
+        average_utilization: '0.5',
+        total_cost_wei: '10',
+      })
+    );
+
+    const grouped = groupChartPointsForStrip(points, 2);
+
+    expect(grouped).toHaveLength(2);
+    expect(grouped[0]).toMatchObject({
+      timestamp: '2026-06-11T00:00:00Z',
+      end_timestamp: '2026-06-11T02:00:00Z',
+      bucket_count: 3,
+      start_block: 0,
+      end_block: 29,
+      blob_count: 6,
+      blob_gas_used: 300,
+      blob_gas_target: 450,
+      blob_gas_limit: 600,
+      average_utilization: '0.5',
+      total_cost_wei: '30',
+    });
+    expect(grouped[1]).toMatchObject({
+      timestamp: '2026-06-11T03:00:00Z',
+      end_timestamp: '2026-06-11T05:00:00Z',
+      start_block: 30,
+      end_block: 59,
+    });
+  });
+
+  it('keeps group sizes balanced when the count does not divide evenly', () => {
+    const points = Array.from({ length: 25 }, (_, index) =>
+      makeChartPoint({ timestamp: `2026-06-11T00:${String(index).padStart(2, '0')}:00Z` })
+    );
+
+    const grouped = groupChartPointsForStrip(points, 24);
+
+    expect(grouped).toHaveLength(24);
+    expect(grouped.map((group) => group.bucket_count)).toEqual([2, ...Array(23).fill(1)]);
+  });
+
+  it('spreads the remainder across the oldest bars', () => {
+    const points = Array.from({ length: 8 }, (_, index) =>
+      makeChartPoint({ timestamp: `2026-06-11T0${index}:00:00Z` })
+    );
+
+    const grouped = groupChartPointsForStrip(points, 3);
+
+    expect(grouped.map((group) => group.bucket_count)).toEqual([3, 3, 2]);
+  });
+
+  it('drops the merged gas limit when any bucket lacks one', () => {
+    const points = [
+      makeChartPoint({ blob_gas_limit: 200 }),
+      makeChartPoint({ blob_gas_limit: undefined }),
+    ];
+
+    const [group] = groupChartPointsForStrip(points, 1);
+
+    expect(group.blob_gas_limit).toBeUndefined();
+  });
+
+  it('returns nothing for empty input', () => {
+    expect(groupChartPointsForStrip([], 24)).toEqual([]);
   });
 });
 

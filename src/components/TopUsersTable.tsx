@@ -157,12 +157,12 @@ export default function TopUsersTable() {
                 <button
                   type="button"
                   className="inline-flex rounded-sm text-[#6e7787] hover:text-bodyText focus:outline-none focus:ring-2 focus:ring-blue"
-                  aria-label="Count window"
+                  aria-label="Recent indexed activity"
                 >
                   <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Last 100 blocks</TooltipContent>
+              <TooltipContent>Recent indexed activity</TooltipContent>
             </Tooltip>
           </div>
         ),
@@ -233,7 +233,7 @@ export default function TopUsersTable() {
         </TableHeader>
         <TableBody className="divide-y divide-divider">
           {[...Array(5)].map((_, index) => (
-            <TableRow key={index} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
+            <TableRow key={index} className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
               <TableCell>
                 <div className="flex items-center">
                   <Skeleton className="mr-3 h-5 w-5 rounded-full" />
@@ -298,7 +298,7 @@ export default function TopUsersTable() {
                   <TableRow
                     key={row.original.address}
                     data-row-key={row.original.address}
-                    className="cursor-pointer bg-gradient-to-r from-[#161a29] to-[#19191e]/60 hover:bg-gradient-to-r hover:from-[#202538]/70 hover:to-[#242731]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
+                    className="cursor-pointer bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
                     onClick={() => goToUser(row.original.address)}
                     onKeyDown={(event) => handleRowKeyDown(event, row.original.address)}
                     tabIndex={0}

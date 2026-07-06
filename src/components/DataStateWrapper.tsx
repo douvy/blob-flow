@@ -24,8 +24,8 @@ export default function DataStateWrapper({
   const defaultLoadingComponent = (
     <div className="w-full flex items-center justify-center p-8">
       <div className="animate-pulse flex flex-col w-full gap-4">
-        <div className="h-8 bg-[#202538] rounded-md w-1/4"></div>
-        <div className="h-48 bg-[#202538] rounded-md w-full"></div>
+        <div className="h-8 bg-[#26282e] rounded-md w-1/4"></div>
+        <div className="h-48 bg-[#26282e] rounded-md w-full"></div>
       </div>
     </div>
   );
