@@ -401,6 +401,24 @@ function collectEmptyBucketTimestamps(market: BackendBlobMarketChartResponse): S
   return emptyTimestamps;
 }
 
+/**
+ * The empty-bucket filter keys on exact timestamps, so it is only safe when
+ * the other endpoint buckets identically to the market response. The three
+ * responses are fetched and cached independently, so a mismatched snapshot
+ * (for example a stale cache across a backend granularity change) must fail
+ * open rather than drop a wider bucket that shares a start timestamp with
+ * one empty market bucket.
+ */
+function sharesMarketBucketing(
+  market: BackendBlobMarketChartResponse,
+  other: { granularity: string; bucket_seconds: number }
+): boolean {
+  return (
+    other.granularity === market.granularity &&
+    other.bucket_seconds === market.bucket_seconds
+  );
+}
+
 function transformMarketPoints(market: BackendBlobMarketChartResponse): {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
@@ -511,8 +529,15 @@ export function buildChartDatasetFromResponses(
     buildSelectedWindowFromMarket(market, timeRange);
   const { baseFee, gasUtilization } = transformMarketPoints(market);
   const emptyBucketTimestamps = collectEmptyBucketTimestamps(market);
-  const { l2Usage, l2UsageSeries } = transformAttributionUsage(attribution, emptyBucketTimestamps);
-  const costComparisonData = transformCostComparison(costComparison, emptyBucketTimestamps);
+  const noFilter = new Set<number>();
+  const { l2Usage, l2UsageSeries } = transformAttributionUsage(
+    attribution,
+    sharesMarketBucketing(market, attribution) ? emptyBucketTimestamps : noFilter
+  );
+  const costComparisonData = transformCostComparison(
+    costComparison,
+    sharesMarketBucketing(market, costComparison) ? emptyBucketTimestamps : noFilter
+  );
   const currentBaseFeeGwei = roundTo(parseFiniteNumber(market.summary.current_base_fee_gwei), 6);
   const averageBaseFeeGwei = selectedWindow.averageBaseFeeGwei;
   const rollingCoverageLabel = statsWindows

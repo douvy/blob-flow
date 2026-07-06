@@ -417,6 +417,57 @@ describe('useChartData', () => {
     ]);
   });
 
+  it('skips the empty-bucket filter when bucketing metadata differs from the market response', async () => {
+    // The market response has an empty minute bucket at 00:00. A mismatched
+    // hourly attribution snapshot shares that start timestamp but covers a
+    // real hour of data, so it must not be dropped.
+    const fetchMock = createFetchMock(
+      {
+        ...mockMarket,
+        data: {
+          ...mockMarket.data,
+          points: [
+            {
+              ...mockMarket.data.points[0],
+              average_blob_base_fee_gwei: '0',
+              median_blob_base_fee_gwei: '0',
+              p95_blob_base_fee_gwei: '0',
+              blob_count: 0,
+              blob_gas_used: 0,
+              average_utilization: '0',
+              total_cost_wei: '0',
+              unique_senders: 0,
+            },
+            mockMarket.data.points[1],
+          ],
+        },
+      },
+      {
+        ...mockAttribution,
+        data: {
+          ...mockAttribution.data,
+          granularity: 'hour',
+          bucket_seconds: 3600,
+        },
+      }
+    );
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { result } = renderHook(() => useChartData(), { wrapper: createQueryWrapper(wrapper) });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // The matching cost response still filters; the mismatched attribution
+    // response keeps every bucket.
+    expect(result.current.chartData!.l2Usage.map((point) => point.total)).toEqual([2, 7]);
+    expect(result.current.chartData!.costComparison.map((point) => point.blobCostEth)).toEqual([
+      0.002,
+    ]);
+  });
+
   it('keeps chart summaries available when no market points are returned', async () => {
     const fetchMock = createFetchMock({
       ...mockMarket,
