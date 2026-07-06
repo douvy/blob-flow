@@ -80,7 +80,8 @@ export default function Header() {
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
   const pathname = usePathname();
-  const isHomePage = pathname === '/';
+  // Chart detail pages read the time range via useChartData, so they keep the filter too
+  const showTimeFilters = pathname === '/' || pathname.startsWith('/charts/');
   const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -213,8 +214,8 @@ export default function Header() {
               </div>
             </div>
 
-            {/* Time Period Selector - only shown on the home page */}
-            {isHomePage && (
+            {/* Time Period Selector - only on routes that use the time range */}
+            {showTimeFilters && (
               <div className="hidden md:flex items-center space-x-1 bg-background/30 rounded-md p-0.5 ml-4">
                 {timeRangeOptions.map((range) => (
                   <button
@@ -386,8 +387,8 @@ export default function Header() {
                 </div>
               </div>
 
-              {/* Time Period Selector - only shown on the home page */}
-              {isHomePage && (
+              {/* Time Period Selector - only on routes that use the time range */}
+              {showTimeFilters && (
                 <div>
                   <div className="flex items-center gap-3 mb-4">
                     <Clock3 className="h-4 w-4 text-blue" aria-hidden="true" />
