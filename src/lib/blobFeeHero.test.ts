@@ -8,8 +8,10 @@ import {
   getWindowAboveTargetSummary,
   formatFeeNumber,
   formatSignedPercent,
+  groupChartPointsForStrip,
   mergeRecentPricingBlocks,
   parseGwei,
+  trimBlocksToWindow,
 } from './blobFeeHero';
 import type {
   BackendBlobMarketChartPoint,
@@ -145,6 +147,99 @@ describe('countChartPointsAboveTarget', () => {
   });
 });
 
+describe('groupChartPointsForStrip', () => {
+  it('passes points through untouched when they fit the strip', () => {
+    const points = [
+      makeChartPoint({ timestamp: '2026-06-11T00:00:00Z' }),
+      makeChartPoint({ timestamp: '2026-06-11T01:00:00Z' }),
+    ];
+
+    const grouped = groupChartPointsForStrip(points, 24);
+
+    expect(grouped).toHaveLength(2);
+    expect(grouped[0]).toEqual({
+      ...points[0],
+      end_timestamp: '2026-06-11T00:00:00Z',
+      bucket_count: 1,
+    });
+  });
+
+  it('merges consecutive buckets down to the requested bar count', () => {
+    const points = Array.from({ length: 6 }, (_, index) =>
+      makeChartPoint({
+        timestamp: `2026-06-11T0${index}:00:00Z`,
+        start_block: index * 10,
+        end_block: index * 10 + 9,
+        blob_count: 2,
+        blob_gas_used: 100,
+        blob_gas_target: 150,
+        blob_gas_limit: 200,
+        average_utilization: '0.5',
+        total_cost_wei: '10',
+      })
+    );
+
+    const grouped = groupChartPointsForStrip(points, 2);
+
+    expect(grouped).toHaveLength(2);
+    expect(grouped[0]).toMatchObject({
+      timestamp: '2026-06-11T00:00:00Z',
+      end_timestamp: '2026-06-11T02:00:00Z',
+      bucket_count: 3,
+      start_block: 0,
+      end_block: 29,
+      blob_count: 6,
+      blob_gas_used: 300,
+      blob_gas_target: 450,
+      blob_gas_limit: 600,
+      average_utilization: '0.5',
+      total_cost_wei: '30',
+    });
+    expect(grouped[1]).toMatchObject({
+      timestamp: '2026-06-11T03:00:00Z',
+      end_timestamp: '2026-06-11T05:00:00Z',
+      start_block: 30,
+      end_block: 59,
+    });
+  });
+
+  it('keeps group sizes balanced when the count does not divide evenly', () => {
+    const points = Array.from({ length: 25 }, (_, index) =>
+      makeChartPoint({ timestamp: `2026-06-11T00:${String(index).padStart(2, '0')}:00Z` })
+    );
+
+    const grouped = groupChartPointsForStrip(points, 24);
+
+    expect(grouped).toHaveLength(24);
+    expect(grouped.map((group) => group.bucket_count)).toEqual([2, ...Array(23).fill(1)]);
+  });
+
+  it('spreads the remainder across the oldest bars', () => {
+    const points = Array.from({ length: 8 }, (_, index) =>
+      makeChartPoint({ timestamp: `2026-06-11T0${index}:00:00Z` })
+    );
+
+    const grouped = groupChartPointsForStrip(points, 3);
+
+    expect(grouped.map((group) => group.bucket_count)).toEqual([3, 3, 2]);
+  });
+
+  it('drops the merged gas limit when any bucket lacks one', () => {
+    const points = [
+      makeChartPoint({ blob_gas_limit: 200 }),
+      makeChartPoint({ blob_gas_limit: undefined }),
+    ];
+
+    const [group] = groupChartPointsForStrip(points, 1);
+
+    expect(group.blob_gas_limit).toBeUndefined();
+  });
+
+  it('returns nothing for empty input', () => {
+    expect(groupChartPointsForStrip([], 24)).toEqual([]);
+  });
+});
+
 describe('mergeRecentPricingBlocks', () => {
   it('merges fetched and live blocks newest-first without duplicates', () => {
     const fetched = [makeBlock(102), makeBlock(101), makeBlock(100)];
@@ -169,6 +264,73 @@ describe('mergeRecentPricingBlocks', () => {
   it('handles empty inputs', () => {
     expect(mergeRecentPricingBlocks([], [])).toEqual([]);
     expect(mergeRecentPricingBlocks([], [makeBlock(1)])).toHaveLength(1);
+  });
+});
+
+describe('trimBlocksToWindow', () => {
+  const newest = '2026-06-11T01:00:00Z';
+
+  it('drops blocks older than the window behind the newest block', () => {
+    const blocks = [
+      makeBlock(300, { blockTimestamp: newest }),
+      makeBlock(299, { blockTimestamp: '2026-06-11T00:30:00Z' }),
+      // Exactly at the cutoff stays in.
+      makeBlock(298, { blockTimestamp: '2026-06-11T00:00:00Z' }),
+      makeBlock(297, { blockTimestamp: '2026-06-10T23:59:59Z' }),
+    ];
+
+    const trimmed = trimBlocksToWindow(blocks, 3600);
+
+    expect(trimmed.map((block) => block.blockNumber)).toEqual([300, 299, 298]);
+  });
+
+  it('anchors the window to the newest block, not wall-clock now', () => {
+    const blocks = [
+      makeBlock(2, { blockTimestamp: '2020-01-01T01:00:00Z' }),
+      makeBlock(1, { blockTimestamp: '2020-01-01T00:00:00Z' }),
+    ];
+
+    expect(trimBlocksToWindow(blocks, 3600)).toHaveLength(2);
+  });
+
+  it('keeps blocks with unparseable timestamps', () => {
+    const blocks = [
+      makeBlock(3, { blockTimestamp: newest }),
+      makeBlock(2, { blockTimestamp: 'not-a-date' }),
+      makeBlock(1, { blockTimestamp: '2026-06-10T23:00:00Z' }),
+    ];
+
+    expect(trimBlocksToWindow(blocks, 3600).map((block) => block.blockNumber)).toEqual([3, 2]);
+  });
+
+  it('anchors to the newest parseable timestamp when the head row is malformed or stale', () => {
+    const malformedHead = [
+      makeBlock(301, { blockTimestamp: 'not-a-date' }),
+      makeBlock(300, { blockTimestamp: newest }),
+      makeBlock(299, { blockTimestamp: '2026-06-10T23:59:59Z' }),
+    ];
+    expect(trimBlocksToWindow(malformedHead, 3600).map((block) => block.blockNumber)).toEqual([
+      301, 300,
+    ]);
+
+    // The stale head row itself falls outside the window measured from the
+    // true newest timestamp, as does the older tail block.
+    const staleHead = [
+      makeBlock(301, { blockTimestamp: '2026-06-10T23:59:59Z' }),
+      makeBlock(300, { blockTimestamp: newest }),
+      makeBlock(299, { blockTimestamp: '2026-06-10T23:00:00Z' }),
+    ];
+    expect(trimBlocksToWindow(staleHead, 3600).map((block) => block.blockNumber)).toEqual([300]);
+  });
+
+  it('returns the input unchanged when the list is empty or no timestamp parses', () => {
+    expect(trimBlocksToWindow([], 3600)).toEqual([]);
+
+    const blocks = [
+      makeBlock(2, { blockTimestamp: 'not-a-date' }),
+      makeBlock(1, { blockTimestamp: 'also-not-a-date' }),
+    ];
+    expect(trimBlocksToWindow(blocks, 3600)).toHaveLength(2);
   });
 });
 

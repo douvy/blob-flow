@@ -38,7 +38,7 @@ function safeCancel(animation: Animation): void {
  *
  * Important: live tables in this app re-render whenever their event type
  * fires (e.g. every `mempool_update`), not just when their visible row set
- * changes — many events leave the rendered rows identical. We therefore:
+ * changes; many events leave the rendered rows identical. We therefore:
  *   1. Gate on a row-key signature, so unrelated re-renders are no-ops; and
  *   2. Finish any FLIP animations we previously started before re-measuring,
  *      so `getBoundingClientRect()` returns clean layout positions instead of

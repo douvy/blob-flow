@@ -24,10 +24,7 @@ export default function MetricCard({
   ariaLabel,
 }: MetricCardProps) {
   const Icon = icon;
-  const cardClassName = "relative block rounded-lg p-4 shadow-md transition-all hover:shadow-lg border border-divider h-full";
-  const cardStyle = {
-    background: `url('/images/subtle-pattern.png') repeat, #141519`,
-  };
+  const cardClassName = "block rounded-lg border border-divider bg-[#14161a] p-4 h-full";
   const cardContent = (
     <>
       <div className="flex justify-between items-start mb-2">
@@ -49,25 +46,15 @@ export default function MetricCard({
     </>
   );
 
-  return (
-    <div className="relative h-full">
-      {/* Blue outer glow/border */}
-      <div className="absolute -inset-[2px] rounded-lg bg-blue/40"></div>
-
-      {href ? (
-        <Link
-          href={href}
-          aria-label={ariaLabel || `View ${title}`}
-          className={`${cardClassName} focus:outline-none focus:ring-2 focus:ring-blue focus:ring-offset-2 focus:ring-offset-[#0b0c10]`}
-          style={cardStyle}
-        >
-          {cardContent}
-        </Link>
-      ) : (
-        <div className={cardClassName} style={cardStyle}>
-          {cardContent}
-        </div>
-      )}
-    </div>
+  return href ? (
+    <Link
+      href={href}
+      aria-label={ariaLabel || `View ${title}`}
+      className={`${cardClassName} transition-colors hover:bg-[#1a1d23] hover:border-[#3a4154] focus:outline-none focus:ring-2 focus:ring-blue focus:ring-offset-2 focus:ring-offset-[#0b0c10]`}
+    >
+      {cardContent}
+    </Link>
+  ) : (
+    <div className={cardClassName}>{cardContent}</div>
   );
 }

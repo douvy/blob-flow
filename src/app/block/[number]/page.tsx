@@ -79,20 +79,20 @@ export default function BlockDetailPage() {
 
   const loadingComponent = (
     <div className="space-y-6">
-      <div className="h-8 bg-[#202538] rounded w-64 animate-pulse" />
+      <div className="h-8 bg-[#26282e] rounded w-64 animate-pulse" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
-            <div className="h-3 bg-[#202538] rounded w-20 animate-pulse mb-2" />
-            <div className="h-6 bg-[#202538] rounded w-24 animate-pulse" />
+            <div className="h-3 bg-[#26282e] rounded w-20 animate-pulse mb-2" />
+            <div className="h-6 bg-[#26282e] rounded w-24 animate-pulse" />
           </div>
         ))}
       </div>
       <div className="border border-divider rounded-lg p-6">
-        <div className="h-5 bg-[#202538] rounded w-40 animate-pulse mb-4" />
+        <div className="h-5 bg-[#26282e] rounded w-40 animate-pulse mb-4" />
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-12 bg-[#202538] rounded animate-pulse" />
+            <div key={i} className="h-12 bg-[#26282e] rounded animate-pulse" />
           ))}
         </div>
       </div>
@@ -110,7 +110,7 @@ export default function BlockDetailPage() {
         </Link>
 
         {!isValidNumber ? (
-          <div className="rounded-lg border border-divider bg-[#161a29]/80 p-6">
+          <div className="rounded-lg border border-divider bg-[#14161a] p-6">
             <h1 className="text-2xl font-windsor-bold text-white mb-2">Invalid block</h1>
             <p className="text-bodyText text-sm">
               &ldquo;{rawNumber}&rdquo; is not a valid block number.
@@ -119,7 +119,7 @@ export default function BlockDetailPage() {
         ) : (
           <DataStateWrapper isLoading={isLoading} error={error} loadingComponent={loadingComponent}>
             {block === null ? (
-              <div className="rounded-lg border border-divider bg-[#161a29]/80 p-6">
+              <div className="rounded-lg border border-divider bg-[#14161a] p-6">
                 <h1 className="text-2xl font-windsor-bold text-white mb-2">
                   Block {blockNumber.toLocaleString()}
                 </h1>
