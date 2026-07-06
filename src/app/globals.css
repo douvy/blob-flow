@@ -56,6 +56,13 @@
   --header-height: 52px;
 }
 
+/* The primary nav row inside the header only renders at md and up */
+@media (min-width: 48rem) {
+  :root {
+    --header-height: 87px;
+  }
+}
+
 @layer base {
   html, body {
     @apply h-full w-full m-0 p-0;

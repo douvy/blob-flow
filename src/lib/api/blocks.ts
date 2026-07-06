@@ -9,7 +9,14 @@ import {
 } from '../../types';
 import { fetchApi } from './core';
 
-function getAttributions(blobs: BlobResponse[]): string[] {
+// A block with blobs but no recognized sender still gets 'Unknown'; blocks
+// with zero blobs have nothing to attribute, so callers pass blobCount to
+// distinguish the two (live blocks can have a count without blob details).
+// Blob records win over the count: if the pricing row and blob feed disagree,
+// attributions from actual blobs still apply.
+function getAttributions(blobs: BlobResponse[], blobCount: number): string[] {
+    if (blobCount <= 0 && blobs.length === 0) return [];
+
     const attributions: string[] = Array.from(new Set(
         blobs
             .map(blob => blob.user_attribution)
@@ -40,12 +47,13 @@ export function transformNewBlockData(
     const maxBlobs = blockPricing?.max_blobs ?? 0;
     const targetBlobs = blockPricing?.target_blobs || 0;
     const utilizationPercent = blockPricing?.utilization_percent ?? 0;
+    const blobCount = blockPricing?.blob_count ?? blockData.blob_count;
 
     return {
         id: blockData.block_number,
         number: blockData.block_number.toString(),
         blockUrl: getBlockUrl(blockData.blobs),
-        blobCount: blockPricing?.blob_count ?? blockData.blob_count,
+        blobCount,
         blobGasUsed: blockPricing?.blob_gas_used ?? getBlobGasUsed(blockData.blobs),
         blobGasTarget: blockPricing?.blob_gas_target ?? 0,
         blobGasLimit: blockPricing?.blob_gas_limit ?? 0,
@@ -57,7 +65,7 @@ export function transformNewBlockData(
         isFull: blockPricing?.is_full ?? false,
         isAboveTarget: blockPricing?.is_above_target ?? false,
         timestamp: blockData.timestamp,
-        attribution: getAttributions(blockData.blobs),
+        attribution: getAttributions(blockData.blobs, blobCount),
         blobs: blockData.blobs
     };
 }

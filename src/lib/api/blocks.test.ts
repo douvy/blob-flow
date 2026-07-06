@@ -126,7 +126,7 @@ describe('api/blocks', () => {
       attribution: ['Optimism'],
     });
     expect(result.data[0].blobs.map((blob) => blob.tx_hash)).toEqual(['0xabc', '0xdef']);
-    expect(result.data[1].attribution).toEqual(['Unknown']);
+    expect(result.data[1].attribution).toEqual([]);
   });
 
   it('fetches a blob by transaction hash', async () => {
@@ -224,6 +224,7 @@ describe('api/blocks', () => {
       availableBlobs: 4,
       utilizationPercent: 33.33,
       baseFeeGwei: '0.25',
+      attribution: ['Unknown'],
     });
   });
 });
