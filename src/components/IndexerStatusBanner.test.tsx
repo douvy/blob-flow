@@ -45,11 +45,12 @@ function makeStatus(overrides: Partial<StatusResponse> = {}): StatusResponse {
   };
 }
 
-function mockStatus(status: StatusResponse | undefined) {
+function mockStatus(status: StatusResponse | undefined, dataUpdatedAt: number = Date.now()) {
   vi.mocked(useApiData<StatusResponse>).mockReturnValue({
     data: status,
     isLoading: false,
     error: null,
+    dataUpdatedAt,
     refetch: vi.fn(),
   });
 }
@@ -147,6 +148,37 @@ describe('IndexerStatusBanner', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'Indexer is 20 min behind the chain head (last indexed block 25,467,915).'
     );
+  });
+
+  it('refetches indexer status on window focus so a backgrounded tab refreshes on return', () => {
+    mockStatus(makeStatus());
+
+    render(<IndexerStatusBanner />);
+
+    expect(vi.mocked(useApiData)).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.anything(),
+      expect.objectContaining({ refetchOnWindowFocus: true })
+    );
+  });
+
+  it('does not warn when a stale snapshot only looks behind because the tab was backgrounded', () => {
+    // Tab was in the background for 10 minutes, so polling was frozen: the
+    // snapshot is old, but at fetch time the indexer was healthy (last indexed
+    // 5s before the fetch). Lag must be measured against the fetch time, not
+    // the live clock, or this would falsely report ~10 min of lag.
+    const fetchedAt = Date.now() - 10 * 60 * 1000;
+    mockStatus(
+      makeStatus({
+        indexer_lag_blocks: 0,
+        last_indexed_time: new Date(fetchedAt - 5_000).toISOString(),
+      }),
+      fetchedAt
+    );
+
+    const { container } = render(<IndexerStatusBanner />);
+
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('falls back to last indexed time when block lag is unreported', () => {
