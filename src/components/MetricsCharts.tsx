@@ -8,6 +8,10 @@ import DataStateWrapper from './DataStateWrapper';
 import { CHART_VIEWS } from './charts/chartViews';
 import { CHART_CARD_CLASS } from '../constants/chartTheme';
 
+// The base fee trend already leads the hero, so it's omitted here to avoid a
+// duplicate graph. Its enlarged view stays reachable at /charts/base-fee.
+const DATA_TRENDS_VIEWS = CHART_VIEWS.filter((view) => view.id !== 'base-fee');
+
 export default function MetricsCharts() {
   const { chartData, isLoading, error } = useChartData();
 
@@ -28,7 +32,7 @@ export default function MetricsCharts() {
       <DataStateWrapper isLoading={isLoading} error={error} loadingComponent={loadingComponent}>
         {chartData && (
           <div className="flex flex-col space-y-6">
-            {CHART_VIEWS.map((view) => (
+            {DATA_TRENDS_VIEWS.map((view) => (
               <div key={view.id} className={CHART_CARD_CLASS}>
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <h3 className="text-md font-medium text-white">
