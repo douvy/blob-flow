@@ -23,6 +23,7 @@ import {
   L2_COLORS,
 } from '../../constants/chartTheme';
 import { ChartTooltipFrame, ChartTooltipRow } from './ChartTooltip';
+import { isolateLegendKey } from './legendIsolation';
 
 interface L2UsageChartProps {
   data: L2UsageDataPoint[];
@@ -53,16 +54,8 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
   const usePie = data.length <= 3;
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
-  const toggleKey = (key: string) => {
-    setHiddenKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
+  const isolateKey = (key: string, allKeys: string[]) => {
+    setHiddenKeys((prev) => isolateLegendKey(prev, allKeys, key));
   };
 
   const pieData = useMemo(() => {
@@ -88,6 +81,13 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
     [data, series]
   );
 
+  // A data refresh can drop the isolated series out of the legend, leaving
+  // every remaining key hidden; treat that as no filter so the chart never
+  // renders empty.
+  const allCurrentHidden =
+    legendEntries.length > 0 && legendEntries.every((entry) => hiddenKeys.has(entry.key));
+  const effectiveHiddenKeys = allCurrentHidden ? new Set<string>() : hiddenKeys;
+
   if (series.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-sm text-[#6e7687]">
@@ -97,7 +97,7 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
   }
 
   if (usePie && pieData.length > 0) {
-    const visiblePieData = pieData.filter((entry) => !hiddenKeys.has(entry.key));
+    const visiblePieData = pieData.filter((entry) => !effectiveHiddenKeys.has(entry.key));
     const total = visiblePieData.reduce((s, d) => s + d.value, 0);
     return (
       <div className="flex items-center justify-center h-full">
@@ -136,13 +136,13 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
         </div>
         <div className="flex flex-col gap-1.5 ml-2">
           {pieData.map((entry) => {
-            const hidden = hiddenKeys.has(entry.key);
+            const hidden = effectiveHiddenKeys.has(entry.key);
             const pct = total > 0 && !hidden ? Math.round((entry.value / total) * 100) : 0;
             return (
               <button
                 key={entry.key}
                 type="button"
-                onClick={() => toggleKey(entry.key)}
+                onClick={() => isolateKey(entry.key, pieData.map((d) => d.key))}
                 aria-pressed={!hidden}
                 className={`flex items-center gap-1.5 text-xs cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hidden ? 'opacity-40' : ''}`}
               >
@@ -210,19 +210,19 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
               fill={entry.color}
               fillOpacity={0.6}
               name={entry.name}
-              hide={hiddenKeys.has(entry.key)}
+              hide={effectiveHiddenKeys.has(entry.key)}
             />
           ))}
         </AreaChart>
       </ResponsiveContainer>
       <div className="absolute bottom-0 left-0 right-0 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-[#6e7687]">
         {legendEntries.map((entry) => {
-          const hidden = hiddenKeys.has(entry.key);
+          const hidden = effectiveHiddenKeys.has(entry.key);
           return (
             <button
               key={entry.key}
               type="button"
-              onClick={() => toggleKey(entry.key)}
+              onClick={() => isolateKey(entry.key, legendEntries.map((d) => d.key))}
               aria-pressed={!hidden}
               className={`inline-flex items-center cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hidden ? 'opacity-40' : ''}`}
             >
