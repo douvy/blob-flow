@@ -51,6 +51,17 @@ export default function Footer() {
               </Link>
               <span className="hidden md:inline mx-4">•</span>
             </p>
+
+            <p className="mt-3 md:mt-2 text-xs text-[#7d8590]">
+              <Link
+                href={`https://github.com/douvy/blob-flow/releases/tag/v${process.env.NEXT_PUBLIC_APP_VERSION}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="decoration-[#4a5568] underline underline-offset-2 hover:text-[#d9d9d9] hover:decoration-[#d9d9d9]"
+              >
+                v{process.env.NEXT_PUBLIC_APP_VERSION}
+              </Link>
+            </p>
             
             {/* Mobile GitHub link */}
             <div className="block md:hidden text-left">
