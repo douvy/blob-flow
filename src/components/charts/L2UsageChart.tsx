@@ -21,6 +21,7 @@ import {
   AXIS_TICK,
   L2_COLORS,
 } from '../../constants/chartTheme';
+import { isolateLegendKey } from './legendIsolation';
 
 interface L2UsageChartProps {
   data: L2UsageDataPoint[];
@@ -51,16 +52,8 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
   const usePie = data.length <= 3;
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
-  const toggleKey = (key: string) => {
-    setHiddenKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
+  const isolateKey = (key: string, allKeys: string[]) => {
+    setHiddenKeys((prev) => isolateLegendKey(prev, allKeys, key));
   };
 
   const pieData = useMemo(() => {
@@ -139,7 +132,7 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
               <button
                 key={entry.key}
                 type="button"
-                onClick={() => toggleKey(entry.key)}
+                onClick={() => isolateKey(entry.key, pieData.map((d) => d.key))}
                 aria-pressed={!hidden}
                 className={`flex items-center gap-1.5 text-xs cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hidden ? 'opacity-40' : ''}`}
               >
@@ -218,7 +211,7 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
             <button
               key={entry.key}
               type="button"
-              onClick={() => toggleKey(entry.key)}
+              onClick={() => isolateKey(entry.key, legendEntries.map((d) => d.key))}
               aria-pressed={!hidden}
               className={`inline-flex items-center cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hidden ? 'opacity-40' : ''}`}
             >

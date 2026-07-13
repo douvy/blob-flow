@@ -19,10 +19,13 @@ import {
   AXIS_TICK,
   COLORS,
 } from '../../constants/chartTheme';
+import { isolateLegendKey } from './legendIsolation';
 
 interface CostComparisonChartProps {
   data: CostComparisonDataPoint[];
 }
+
+const SERIES_KEYS = ['blobCostEth', 'calldataEquivEth'];
 
 function formatEth(value: number): string {
   if (value === 0) return '0';
@@ -35,16 +38,8 @@ function formatEth(value: number): string {
 export default function CostComparisonChart({ data }: CostComparisonChartProps) {
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
-  const toggleKey = (key: string) => {
-    setHiddenKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
+  const isolateKey = (key: string) => {
+    setHiddenKeys((prev) => isolateLegendKey(prev, SERIES_KEYS, key));
   };
 
   const avgSavings = useMemo(() => {
@@ -132,7 +127,7 @@ export default function CostComparisonChart({ data }: CostComparisonChartProps) 
       <div className="absolute bottom-0 left-0 right-0 text-center text-xs text-[#6e7687]">
         <button
           type="button"
-          onClick={() => toggleKey('blobCostEth')}
+          onClick={() => isolateKey('blobCostEth')}
           aria-pressed={!hiddenKeys.has('blobCostEth')}
           className={`inline-flex items-center mr-4 cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hiddenKeys.has('blobCostEth') ? 'opacity-40' : ''}`}
         >
@@ -141,16 +136,18 @@ export default function CostComparisonChart({ data }: CostComparisonChartProps) 
         </button>
         <button
           type="button"
-          onClick={() => toggleKey('calldataEquivEth')}
+          onClick={() => isolateKey('calldataEquivEth')}
           aria-pressed={!hiddenKeys.has('calldataEquivEth')}
           className={`inline-flex items-center mr-4 cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hiddenKeys.has('calldataEquivEth') ? 'opacity-40' : ''}`}
         >
           <span className="inline-block w-3 h-0.5 mr-1" style={{ backgroundColor: COLORS.purple }} />
           <span className={hiddenKeys.has('calldataEquivEth') ? 'line-through' : ''}>Calldata Equiv.</span>
         </button>
-        <span className="inline-flex items-center">
-          <span className="text-green">~{avgSavings}% savings</span>
-        </span>
+        {!hiddenKeys.has('blobCostEth') && !hiddenKeys.has('calldataEquivEth') && (
+          <span className="inline-flex items-center">
+            <span className="text-green">~{avgSavings}% savings</span>
+          </span>
+        )}
       </div>
     </>
   );
