@@ -9,8 +9,10 @@ import { describeBucketSpan, getBucketWidthSeconds } from './chartAggregation';
 export const HERO_CHART_BLOCKS = 300;
 /** Wall-clock span advertised by the live hero view ("last 1h"). */
 export const HERO_CHART_WINDOW_SECONDS = 3_600;
-/** Number of recent blocks shown in the hero fullness strip. */
-export const HERO_STRIP_BLOCKS = 24;
+/** Number of recent blocks shown in the hero fullness strip (wide screens). */
+export const HERO_STRIP_BLOCKS = 48;
+/** Fewer bars on narrow screens so each block stays a usable tap target. */
+export const HERO_STRIP_BLOCKS_COMPACT = 24;
 /** Blocks to look back when computing the short-term fee trend (~2 min). */
 export const HERO_TREND_LOOKBACK_BLOCKS = 10;
 

@@ -31,6 +31,7 @@ import { useTimeRange, type TimeRange } from '@/contexts/TimeRangeContext';
 import {
   HERO_CHART_BLOCKS,
   HERO_STRIP_BLOCKS,
+  HERO_STRIP_BLOCKS_COMPACT,
   compareToWindows,
   computeFeeRangeTrend,
   countBlocksAboveTarget,
@@ -47,6 +48,7 @@ import {
   type HeroStripBucket,
 } from '@/lib/blobFeeHero';
 import { useApiData } from '@/hooks/useApiData';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useMempoolPressure } from '@/hooks/useMempoolPressure';
 import { useNetwork } from '@/hooks/useNetwork';
 import { useNow } from '@/hooks/useNow';
@@ -217,9 +219,11 @@ interface FullnessStripItem {
 const HeroFeeChart = React.memo(function HeroFeeChart({
   points,
   referenceFeeGwei,
+  referenceLabel = 'average',
 }: {
   points: HeroChartPoint[];
   referenceFeeGwei?: number;
+  referenceLabel?: string;
 }) {
   const router = useRouter();
 
@@ -270,23 +274,32 @@ const HeroFeeChart = React.memo(function HeroFeeChart({
           tickFormatter={(value: number) => formatFeeNumber(value)}
         />
         <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          labelStyle={CHART_LABEL_STYLE}
-          itemStyle={CHART_ITEM_STYLE}
-          labelFormatter={(label, payload) => {
-            const point = payload?.[0]?.payload as HeroChartPoint | undefined;
-            if (!point) return label;
+          cursor={{ stroke: '#333' }}
+          content={({ active, payload, label }) => {
+            if (!active || !payload?.length) return null;
+            const point = payload[0]?.payload as HeroChartPoint | undefined;
+            if (!point) return null;
+            const rawValue = payload[0]?.value;
+            const numericValue = typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
             const blobs = point.maxBlobs > 0
               ? `${point.blobCount}/${point.maxBlobs} blobs`
               : `${point.blobCount.toLocaleString()} blobs`;
-            if (point.blockNumber === undefined) {
-              return `${label} · ${blobs}`;
-            }
-            return `Block ${point.blockNumber.toLocaleString()} · ${blobs} · ${label}`;
-          }}
-          formatter={(value) => {
-            const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
-            return [`${formatFeeNumber(numericValue)} Gwei`, 'Blob base fee'];
+            const heading = point.blockNumber === undefined
+              ? `${label} · ${blobs}`
+              : `Block ${point.blockNumber.toLocaleString()} · ${blobs} · ${label}`;
+            return (
+              <div style={CHART_TOOLTIP_STYLE}>
+                <div style={{ ...CHART_LABEL_STYLE, marginBottom: '4px' }}>{heading}</div>
+                <div style={CHART_ITEM_STYLE}>
+                  Blob base fee: {formatFeeNumber(numericValue)} Gwei
+                </div>
+                {referenceFeeGwei !== undefined && referenceFeeGwei > 0 && (
+                  <div style={{ color: COLORS.purple, fontSize: '12px', marginTop: '2px' }}>
+                    {referenceLabel}: {formatFeeNumber(referenceFeeGwei)} Gwei
+                  </div>
+                )}
+              </div>
+            );
           }}
         />
         {referenceFeeGwei !== undefined && referenceFeeGwei > 0 && (
@@ -326,7 +339,7 @@ const BlockFullnessStrip = React.memo(function BlockFullnessStrip({
 
   return (
     <div>
-      <div className="relative flex h-7 items-end gap-2">
+      <div className="relative flex h-7 items-end gap-1">
         {targetPercent !== null && (
           <div
             aria-hidden="true"
@@ -767,12 +780,20 @@ export default function BlobFeeHero() {
       ? parseGwei(marketChart.summary.average_blob_base_fee_gwei)
       : undefined;
 
-  const stripBlocks = useMemo(() => blocks.slice(0, HERO_STRIP_BLOCKS), [blocks]);
+  // Below the two-column `lg` breakpoint (1024px) the strip spans a narrower
+  // card, so show fewer bars to keep each block a usable tap target. Use the
+  // exact complement of Tailwind's `min-width: 1024px` so JS and CSS can't drift.
+  const isCompactStrip = useMediaQuery('not all and (min-width: 1024px)');
+  const stripBlockCount = isCompactStrip ? HERO_STRIP_BLOCKS_COMPACT : HERO_STRIP_BLOCKS;
+  const stripBlocks = useMemo(
+    () => blocks.slice(0, stripBlockCount),
+    [blocks, stripBlockCount]
+  );
   // Long ranges return hundreds of chart buckets; merge them down to the
   // strip's bar capacity so the row never overflows the card.
   const stripBuckets = useMemo(
-    () => (isLiveRange ? [] : groupChartPointsForStrip(marketPoints)),
-    [isLiveRange, marketPoints]
+    () => (isLiveRange ? [] : groupChartPointsForStrip(marketPoints, stripBlockCount)),
+    [isLiveRange, marketPoints, stripBlockCount]
   );
   const stripItems = useMemo(() => {
     if (isLiveRange) {
@@ -939,7 +960,7 @@ export default function BlobFeeHero() {
               </div>
 
               {/* Recent past */}
-              <div className="lg:col-span-6 lg:col-start-7">
+              <div className="flex h-full flex-col lg:col-span-6 lg:col-start-7">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6e7687]">
                   <span>
                     {isLiveRange
@@ -969,9 +990,13 @@ export default function BlobFeeHero() {
                     </Link>
                   </span>
                 </div>
-                <div className="h-44 sm:h-52">
+                <div className="mt-3 min-h-56 flex-1 sm:min-h-64">
                   {chartPoints.length > 1 ? (
-                    <HeroFeeChart points={chartPoints} referenceFeeGwei={chartReferenceFeeGwei} />
+                    <HeroFeeChart
+                      points={chartPoints}
+                      referenceFeeGwei={chartReferenceFeeGwei}
+                      referenceLabel={isLiveRange ? '1h average' : 'range average'}
+                    />
                   ) : !isLiveRange && marketChartError ? (
                     <div className="flex h-full items-center justify-center px-6 text-center text-sm text-[#6e7687]">
                       Couldn&apos;t load {RANGE_LABELS[timeRange]} fee history. The live view (1h) is unaffected.
@@ -984,24 +1009,30 @@ export default function BlobFeeHero() {
                     </div>
                   )}
                 </div>
+                {/* The dashed reference line's meaning lives in the hover
+                    tooltip; expose it to non-pointer and assistive-tech users
+                    too. sr-only is absolutely positioned, so it does not affect
+                    the chart's flex height or the column alignment. */}
                 {chartReferenceFeeGwei !== undefined && chartReferenceFeeGwei > 0 && chartPoints.length > 1 && (
-                  <p className="mt-1 text-right text-[11px] text-[#6e7687]">
-                    <span className="text-purple">- - -</span> {isLiveRange ? '1h average' : 'range average'}
+                  <p className="sr-only">
+                    {isLiveRange ? '1h average' : 'Range average'} blob base fee {formatFeeNumber(chartReferenceFeeGwei)} Gwei, shown as the dashed reference line.
                   </p>
                 )}
-                <div className="mt-4">
-                  {stripItems.length > 0 ? (
-                    <BlockFullnessStrip
-                      items={stripItems}
-                      targetPercent={stripTargetPercent}
-                      caption={stripCaption}
-                    />
-                  ) : !isLiveRange && marketChartLoading ? (
-                    <div className="h-14 animate-pulse rounded bg-[#26282e]" />
-                  ) : null}
-                </div>
               </div>
             </div>
+            {stripItems.length > 0 ? (
+              <div className="mt-6 border-t border-divider pt-5">
+                <BlockFullnessStrip
+                  items={stripItems}
+                  targetPercent={stripTargetPercent}
+                  caption={stripCaption}
+                />
+              </div>
+            ) : !isLiveRange && marketChartLoading ? (
+              <div className="mt-6 border-t border-divider pt-5">
+                <div className="h-14 animate-pulse rounded bg-[#26282e]" />
+              </div>
+            ) : null}
           </article>
         )}
       </DataStateWrapper>
