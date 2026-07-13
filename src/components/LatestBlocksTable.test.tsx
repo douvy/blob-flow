@@ -1,7 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { DEFAULT_NETWORK } from '../constants';
-import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { useApiData } from '../hooks/useApiData';
 import { useNetwork } from '../hooks/useNetwork';
 import { Block, BlobResponse, LatestBlocksResponse } from '../types';
@@ -19,8 +18,10 @@ vi.mock('../hooks/useNetwork', () => ({
   useNetwork: vi.fn(),
 }));
 
+// The table reads live data through useLiveBlockList, which subscribes via
+// useLiveBlobEvent; a no-op subscription pins these tests to the REST path.
 vi.mock('../contexts/LiveDataContext', () => ({
-  useLatestBlobEvent: vi.fn(),
+  useLiveBlobEvent: vi.fn(),
 }));
 
 vi.mock('../hooks/useFlipRows', () => ({
@@ -78,7 +79,6 @@ describe('LatestBlocksTable', () => {
       setSelectedNetwork: vi.fn(),
       networkOptions: [DEFAULT_NETWORK],
     });
-    vi.mocked(useLatestBlobEvent).mockReturnValue(null);
     vi.mocked(useApiData<LatestBlocksResponse>).mockReturnValue({
       data: {
         data: [
@@ -102,5 +102,27 @@ describe('LatestBlocksTable', () => {
 
     expect(screen.getByText('Blob details')).toBeInTheDocument();
     expect(screen.getByText('Blob #0')).toBeInTheDocument();
+  });
+
+  it('falls back to total_cost_eth when total_cost_wei is invalid', () => {
+    vi.mocked(useApiData<LatestBlocksResponse>).mockReturnValue({
+      data: {
+        data: [
+          makeBlock(200, [{
+            ...blob,
+            realized_cost_wei: undefined,
+            total_cost_wei: 'not-wei',
+            total_cost_eth: '0.001',
+          }]),
+        ],
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<LatestBlocksTable />);
+
+    expect(screen.getAllByText('0.001 ETH')).toHaveLength(2);
   });
 });

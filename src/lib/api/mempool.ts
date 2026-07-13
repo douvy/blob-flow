@@ -20,7 +20,7 @@ import {
 export function transformBlobToMempoolTransaction(blob: BlobResponse, index: number): MempoolTransaction {
     const realizedCost = blob.realized_cost_wei
         ? formatBlobWeiCost(blob.realized_cost_wei)
-        : formatBlobTotalCost(blob.total_cost_eth);
+        : formatBlobTotalCost(blob.total_cost_wei || blob.total_cost_eth);
 
     return {
         id: index + 1,

@@ -1,6 +1,8 @@
 /**
  * Utility functions for the application
  */
+import { SearchTarget } from '@/types';
+
 const ATTRIBUTION_IMAGE_NAMES: Record<string, string> = {
   arbitrum: 'arbitrum',
   'arbitrum one': 'arbitrum',
@@ -23,6 +25,21 @@ export function formatNumber(num: number): string {
 export function truncateAddress(address: string, length: number = 6): string {
   if (!address) return '';
   return `${address.substring(0, length)}...${address.substring(address.length - 4)}`;
+}
+
+/**
+ * Explorer URLs come from the backend; only pass through http(s) links so a
+ * malformed payload cannot inject javascript: or data: hrefs into anchors.
+ */
+export function safeExplorerUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? url : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function getAttributionImageSrc(name: string): string | null {
@@ -315,4 +332,58 @@ function groupIntegerPart(value: string): string {
 
 function shouldRoundUp(value: string): boolean {
   return value >= '5' && value <= '9';
+}
+
+const SEARCH_PREFIXES = ['block', 'tx', 'blob', 'rollup'] as const;
+type SearchPrefix = (typeof SEARCH_PREFIXES)[number];
+
+const BLOCK_NUMBER_PATTERN = /^\d+$/;
+const ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/i;
+const HASH_64_PATTERN = /^0x[0-9a-f]{64}$/i;
+
+/**
+ * Parse a search query into a navigable target. Accepts a bare block number,
+ * address, transaction hash, or blob versioned hash, optionally qualified
+ * with one of the `block:` / `tx:` / `blob:` / `rollup:` prefixes offered in
+ * the search modal. A bare 64-hex hash starting `0x01` is treated as a blob
+ * versioned hash (their version byte is always 0x01), any other as a
+ * transaction hash. Returns null when the query doesn't resolve to a
+ * destination.
+ */
+export function parseSearchQuery(query: string): SearchTarget | null {
+  let value = query.trim();
+  let prefix: SearchPrefix | null = null;
+
+  const prefixMatch = value.match(/^([a-z]+):\s*(.*)$/i);
+  if (prefixMatch) {
+    const candidate = prefixMatch[1].toLowerCase();
+    if (!(SEARCH_PREFIXES as readonly string[]).includes(candidate)) return null;
+    prefix = candidate as SearchPrefix;
+    value = prefixMatch[2].trim();
+  }
+  if (!value) return null;
+
+  const blockNumber = value.replace(/,/g, '');
+  if ((prefix === null || prefix === 'block') && BLOCK_NUMBER_PATTERN.test(blockNumber)) {
+    return Number(blockNumber) > 0 ? { kind: 'block', blockNumber } : null;
+  }
+  if ((prefix === null || prefix === 'rollup') && ADDRESS_PATTERN.test(value)) {
+    return { kind: 'address', address: value.toLowerCase() };
+  }
+  if (HASH_64_PATTERN.test(value)) {
+    const hash = value.toLowerCase();
+    const isVersionedBlobHash = hash.startsWith('0x01');
+    if (prefix === 'blob') {
+      return isVersionedBlobHash ? { kind: 'blob', versionedHash: hash } : null;
+    }
+    if (prefix === 'tx') {
+      return { kind: 'transaction', txHash: hash };
+    }
+    if (prefix === null) {
+      return isVersionedBlobHash
+        ? { kind: 'blob', versionedHash: hash }
+        : { kind: 'transaction', txHash: hash };
+    }
+  }
+  return null;
 }

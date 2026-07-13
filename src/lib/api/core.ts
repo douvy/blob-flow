@@ -6,6 +6,24 @@ import { API_BASE_URL } from '../../constants';
 export const DEFAULT_TIMEOUT_MS = 10000;
 export const MAX_RETRIES = 2;
 
+/**
+ * HTTP-level API failure carrying the response status, so callers can treat
+ * 404 ("not indexed") differently from transport or server errors.
+ */
+export class ApiError extends Error {
+    readonly status: number;
+
+    constructor(status: number, statusText: string) {
+        super(`API error: ${status} ${statusText}`);
+        this.name = 'ApiError';
+        this.status = status;
+    }
+}
+
+export function isNotFoundError(error: unknown): boolean {
+    return error instanceof ApiError && error.status === 404;
+}
+
 const inFlightGetRequests = new Map<string, Promise<unknown>>();
 
 /**
@@ -109,7 +127,7 @@ async function performFetchApi<T>(
                 return fetchApi<T>(endpoint, network, options, timeoutMs, retries + 1);
             }
 
-            throw new Error(`API error: ${response.status} ${response.statusText}`);
+            throw new ApiError(response.status, response.statusText);
         }
 
         const data = await response.json();
@@ -117,6 +135,9 @@ async function performFetchApi<T>(
     } catch (error: unknown) {
         clearTimeout(timeoutId);
         console.error('API fetch error:', error);
+        if (error instanceof ApiError) {
+            throw error;
+        }
         throw new Error('API request failed');
     }
 }

@@ -4,8 +4,6 @@ import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Minimize2 } from 'lucide-react';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { useChartData } from '@/hooks/useChartData';
 import { CHART_CARD_CLASS } from '@/constants/chartTheme';
@@ -14,7 +12,6 @@ import {
   ChartView,
   getChartView,
 } from '@/components/charts/chartViews';
-import type { ChartDataset } from '@/types';
 
 function ChartTabs({ activeId }: { activeId?: string }) {
   return (
@@ -53,14 +50,6 @@ function EmptyChartState() {
   );
 }
 
-function getCoverageLabel(view: ChartView, chartData: ChartDataset): string {
-  if (view.id === 'rolling-market-stats') {
-    return chartData.rollingCoverageLabel;
-  }
-
-  return chartData.blockCoverageLabel;
-}
-
 function ChartDetail({ view }: { view: ChartView }) {
   const { chartData, isLoading, error } = useChartData();
 
@@ -68,12 +57,12 @@ function ChartDetail({ view }: { view: ChartView }) {
     <div className={CHART_CARD_CLASS}>
       <div className="mb-5 flex items-start justify-between gap-4">
         <div className="space-y-2">
-          <div className="h-7 w-72 max-w-full rounded bg-[#202538] animate-pulse" />
-          <div className="h-4 w-96 max-w-full rounded bg-[#202538] animate-pulse" />
+          <div className="h-7 w-72 max-w-full rounded bg-[#26282e] animate-pulse" />
+          <div className="h-4 w-96 max-w-full rounded bg-[#26282e] animate-pulse" />
         </div>
-        <div className="h-8 w-24 rounded bg-[#202538] animate-pulse" />
+        <div className="h-8 w-24 rounded bg-[#26282e] animate-pulse" />
       </div>
-      <div className="h-[62vh] min-h-[360px] max-h-[720px] rounded bg-[#202538] animate-pulse" />
+      <div className="h-[62vh] min-h-[360px] max-h-[720px] rounded bg-[#26282e] animate-pulse" />
     </div>
   );
 
@@ -81,11 +70,11 @@ function ChartDetail({ view }: { view: ChartView }) {
     <DataStateWrapper isLoading={isLoading} error={error} loadingComponent={loadingComponent}>
       {chartData && (
         <div className={CHART_CARD_CLASS}>
-          <div className="relative z-10 mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
               <h2 className="text-xl font-medium text-white">{view.getTitle(chartData)}</h2>
               <p className="mt-1 text-sm text-[#6e7687]">
-                {getCoverageLabel(view, chartData)}
+                {view.getCoverageLabel(chartData)}
               </p>
             </div>
             <Link
@@ -107,7 +96,7 @@ function ChartDetail({ view }: { view: ChartView }) {
 
 function UnknownChart({ chartId }: { chartId: string | undefined }) {
   return (
-    <div className="rounded-lg border border-divider bg-[#161a29]/80 p-6">
+    <div className="rounded-lg border border-divider bg-[#14161a] p-6">
       <h1 className="text-2xl font-windsor-bold text-white mb-2">Chart not found</h1>
       <p className="text-bodyText text-sm mb-5">
         {chartId ? `There is no chart named "${chartId}".` : 'No chart was selected.'}
@@ -123,9 +112,7 @@ export default function ChartDetailPage() {
   const view = getChartView(chartId);
 
   return (
-    <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
-      <Header />
-      <div className="container mx-auto px-4 py-8 max-w-[1600px]">
+    <div className="container mx-auto px-4 py-8 max-w-[1600px]">
         <Link
           href="/#data-trends"
           className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2"
@@ -153,8 +140,6 @@ export default function ChartDetailPage() {
         ) : (
           <UnknownChart chartId={chartId} />
         )}
-      </div>
-      <Footer />
-    </main>
+    </div>
   );
 }

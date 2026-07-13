@@ -14,6 +14,7 @@ import {
   truncateAddress,
 } from '../utils';
 import { RelativeTime } from './RelativeTime';
+import { FEE_HEADROOM_TOOLTIP } from '../constants';
 
 function truncateTxHash(hash: string): string {
   if (hash.length <= 14) return hash;
@@ -70,7 +71,7 @@ function BlobDetailField({
 
 export function BlobDetailsContent({ block }: { block: Block }) {
   return (
-    <div className="px-4 sm:px-6 py-4 border-t border-dividerBlue/50">
+    <div className="px-4 sm:px-6 py-4 border-t border-divider">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <h3 className="text-sm font-medium text-white">Blob details</h3>
         <span className="text-xs text-[#6e7787]">
@@ -85,7 +86,7 @@ export function BlobDetailsContent({ block }: { block: Block }) {
           {block.blobs.map((blob) => {
             const realizedCost = blob.realized_cost_wei
               ? formatBlobWeiCost(blob.realized_cost_wei)
-              : formatBlobTotalCost(blob.total_cost_eth);
+              : formatBlobTotalCost(blob.total_cost_wei || blob.total_cost_eth);
             const maxCost = formatBlobWeiCost(blob.max_cost_wei);
             const baseFee = formatBlobFee(blob.base_fee_per_blob_gas_gwei, blob.base_fee_per_blob_gas);
             const tip = formatBlobFee(blob.tip_per_blob_gas_gwei, blob.tip_per_blob_gas);
@@ -143,7 +144,7 @@ export function BlobDetailsContent({ block }: { block: Block }) {
                   <BlobDetailField label="Max Fee" title={maxFee}>
                     {maxFee}
                   </BlobDetailField>
-                  <BlobDetailField label="Headroom">{headroom}</BlobDetailField>
+                  <BlobDetailField label="Headroom" title={FEE_HEADROOM_TOOLTIP}>{headroom}</BlobDetailField>
                   <BlobDetailField label="Time"><RelativeTime timestamp={blob.timestamp} /></BlobDetailField>
                   <BlobDetailField label="Status">
                     {blob.confirmed ? 'Confirmed' : 'Pending'}

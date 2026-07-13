@@ -1,4 +1,4 @@
-import { fetchApi, formatRelativeTime, truncateAddress } from './core';
+import { ApiError, fetchApi, formatRelativeTime, isNotFoundError, truncateAddress } from './core';
 
 const originalFetch = global.fetch;
 
@@ -122,7 +122,7 @@ describe('api/core', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('throws a generic API failure for non-retryable errors', async () => {
+  it('throws a typed ApiError carrying the status for non-retryable HTTP errors', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 400,
@@ -131,8 +131,30 @@ describe('api/core', () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    await expect(fetchApi('/status')).rejects.toThrow('API request failed');
+    await expect(fetchApi('/status')).rejects.toThrow('API error: 400 bad request');
+    await expect(fetchApi('/status')).rejects.toBeInstanceOf(ApiError);
     expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('identifies 404 responses via isNotFoundError', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: 'Not Found',
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    let caught: unknown;
+    try {
+      await fetchApi('/block/1');
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiError);
+    expect(isNotFoundError(caught)).toBe(true);
+    expect(isNotFoundError(new Error('API request failed'))).toBe(false);
   });
 
   it('throws a generic API failure when fetch rejects', async () => {

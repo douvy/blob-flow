@@ -6,10 +6,18 @@ import {
     Block,
     LatestBlocksResponse,
     NewBlockData,
+    NewBlockInput,
 } from '../../types';
-import { fetchApi } from './core';
+import { fetchApi, isNotFoundError } from './core';
 
-function getAttributions(blobs: BlobResponse[]): string[] {
+// A block with blobs but no recognized sender still gets 'Unknown'; blocks
+// with zero blobs have nothing to attribute, so callers pass blobCount to
+// distinguish the two (live blocks can have a count without blob details).
+// Blob records win over the count: if the pricing row and blob feed disagree,
+// attributions from actual blobs still apply.
+function getAttributions(blobs: BlobResponse[], blobCount: number): string[] {
+    if (blobCount <= 0 && blobs.length === 0) return [];
+
     const attributions: string[] = Array.from(new Set(
         blobs
             .map(blob => blob.user_attribution)
@@ -33,30 +41,32 @@ function getBlobGasUsed(blobs: BlobResponse[]): number {
 }
 
 export function transformNewBlockData(
-    blockData: NewBlockData,
+    blockData: NewBlockInput,
     pricingBlock?: BackendBlobPricingRecentBlock
 ): Block {
-    const maxBlobs = pricingBlock?.max_blobs ?? 0;
-    const targetBlobs = pricingBlock?.target_blobs || 0;
-    const utilizationPercent = pricingBlock?.utilization_percent ?? 0;
+    const blockPricing = pricingBlock ?? blockData.pricing;
+    const maxBlobs = blockPricing?.max_blobs ?? 0;
+    const targetBlobs = blockPricing?.target_blobs || 0;
+    const utilizationPercent = blockPricing?.utilization_percent ?? 0;
+    const blobCount = blockPricing?.blob_count ?? blockData.blob_count;
 
     return {
         id: blockData.block_number,
         number: blockData.block_number.toString(),
         blockUrl: getBlockUrl(blockData.blobs),
-        blobCount: pricingBlock?.blob_count ?? blockData.blob_count,
-        blobGasUsed: pricingBlock?.blob_gas_used ?? getBlobGasUsed(blockData.blobs),
-        blobGasTarget: pricingBlock?.blob_gas_target ?? 0,
-        blobGasLimit: pricingBlock?.blob_gas_limit ?? 0,
+        blobCount,
+        blobGasUsed: blockPricing?.blob_gas_used ?? getBlobGasUsed(blockData.blobs),
+        blobGasTarget: blockPricing?.blob_gas_target ?? 0,
+        blobGasLimit: blockPricing?.blob_gas_limit ?? 0,
         targetBlobs,
         maxBlobs,
-        availableBlobs: pricingBlock?.available_blobs ?? 0,
-        baseFeeGwei: pricingBlock?.blob_base_fee_gwei ?? getBlockBaseFeeGwei(blockData.blobs),
+        availableBlobs: blockPricing?.available_blobs ?? 0,
+        baseFeeGwei: blockPricing?.blob_base_fee_gwei ?? getBlockBaseFeeGwei(blockData.blobs),
         utilizationPercent,
-        isFull: pricingBlock?.is_full ?? false,
-        isAboveTarget: pricingBlock?.is_above_target ?? false,
+        isFull: blockPricing?.is_full ?? false,
+        isAboveTarget: blockPricing?.is_above_target ?? false,
         timestamp: blockData.timestamp,
-        attribution: getAttributions(blockData.blobs),
+        attribution: getAttributions(blockData.blobs, blobCount),
         blobs: blockData.blobs
     };
 }
@@ -134,18 +144,50 @@ export async function getBlobByTxHash(txHash: string, network?: string): Promise
 }
 
 /**
- * Get a single block by number. The backend has no per-block endpoint, so this
- * walks the latest pricing window and returns the matching block (with blob
- * details) if it falls within the most recent {@link limit} blocks.
+ * Get the blob transaction carrying a given EIP-4844 versioned blob hash
+ * (0x01-prefixed, 32 bytes). Returns null when no indexed blob carries it.
+ * @param versionedHash - Versioned blob hash to retrieve
+ * @param network - Optional network parameter
+ */
+export async function getBlobByVersionedHash(
+    versionedHash: string,
+    network?: string,
+): Promise<BlobResponse | null> {
+    try {
+        const response = await fetchApi<ApiResponse<BlobResponse>>(
+            `/blob/by-hash/${versionedHash}`,
+            network
+        );
+        return response.data ?? null;
+    } catch (error) {
+        if (isNotFoundError(error)) {
+            return null;
+        }
+        throw error;
+    }
+}
+
+/**
+ * Get a single block by number, with blob details and block-level pricing.
+ * Returns null when the block is not indexed (missed slot, ahead of the chain
+ * head, or outside the indexed range).
  * @param blockNumber - Block number to retrieve
  * @param network - Optional network parameter
- * @param limit - How many recent blocks to scan
  */
 export async function getBlockByNumber(
     blockNumber: number,
     network?: string,
-    limit = 100,
 ): Promise<Block | null> {
-    const { data } = await getLatestBlocks(limit, network);
-    return data.find((block) => block.number === blockNumber.toString()) ?? null;
+    try {
+        const response = await fetchApi<ApiResponse<NewBlockData>>(
+            `/block/${blockNumber}`,
+            network
+        );
+        return transformNewBlockData(response.data);
+    } catch (error) {
+        if (isNotFoundError(error)) {
+            return null;
+        }
+        throw error;
+    }
 }

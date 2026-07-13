@@ -1,4 +1,10 @@
-import { getBlobByTxHash, getLatestBlocks, transformNewBlockData } from './blocks';
+import {
+  getBlobByTxHash,
+  getBlobByVersionedHash,
+  getBlockByNumber,
+  getLatestBlocks,
+  transformNewBlockData,
+} from './blocks';
 
 const originalFetch = global.fetch;
 
@@ -126,7 +132,7 @@ describe('api/blocks', () => {
       attribution: ['Optimism'],
     });
     expect(result.data[0].blobs.map((blob) => blob.tx_hash)).toEqual(['0xabc', '0xdef']);
-    expect(result.data[1].attribution).toEqual(['Unknown']);
+    expect(result.data[1].attribution).toEqual([]);
   });
 
   it('fetches a blob by transaction hash', async () => {
@@ -144,6 +150,106 @@ describe('api/blocks', () => {
       expect.any(Object)
     );
     expect(result.success).toBe(true);
+  });
+
+  it('fetches a block by number from the dedicated endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: {
+          block_number: 25467750,
+          blob_count: 1,
+          timestamp: '2026-01-01T00:00:00.000Z',
+          blobs: [
+            {
+              block_number: 25467750,
+              timestamp: '2026-01-01T00:00:00.000Z',
+              tx_hash: '0xabc',
+              user_attribution: 'Base',
+            },
+          ],
+          pricing: {
+            block_number: 25467750,
+            block_timestamp: '2026-01-01T00:00:00.000Z',
+            blob_count: 1,
+            blob_gas_used: 131072,
+            blob_gas_target: 393216,
+            blob_gas_limit: 786432,
+            blob_base_fee_gwei: '0.25',
+            target_blobs: 3,
+            max_blobs: 6,
+            available_blobs: 5,
+            utilization_percent: 16.67,
+            is_full: false,
+            is_above_target: false,
+          },
+        },
+      }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const block = await getBlockByNumber(25467750, 'mainnet');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/block/25467750?network=mainnet'),
+      expect.any(Object)
+    );
+    expect(block).toMatchObject({
+      number: '25467750',
+      blobCount: 1,
+      maxBlobs: 6,
+      availableBlobs: 5,
+      baseFeeGwei: '0.25',
+      attribution: ['Base'],
+    });
+  });
+
+  it('returns null when the block is not indexed', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' }) as unknown as typeof fetch;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(getBlockByNumber(1, 'mainnet')).resolves.toBeNull();
+  });
+
+  it('rethrows non-404 block lookup failures', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 400, statusText: 'Bad Request' }) as unknown as typeof fetch;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(getBlockByNumber(1, 'mainnet')).rejects.toThrow('API error: 400');
+  });
+
+  it('fetches a blob by versioned hash', async () => {
+    const versionedHash = `0x01${'ab'.repeat(31)}`;
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: { tx_hash: '0xabc', block_number: 100, versioned_hash: versionedHash },
+      }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const blob = await getBlobByVersionedHash(versionedHash, 'sepolia');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/blob/by-hash/${versionedHash}?network=sepolia`),
+      expect.any(Object)
+    );
+    expect(blob).toMatchObject({ tx_hash: '0xabc', block_number: 100 });
+  });
+
+  it('returns null when no blob carries the versioned hash', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' }) as unknown as typeof fetch;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(getBlobByVersionedHash(`0x01${'ab'.repeat(31)}`)).resolves.toBeNull();
   });
 
   it('does not infer capacity for live blocks without pricing data', () => {
@@ -183,6 +289,48 @@ describe('api/blocks', () => {
       isAboveTarget: false,
       attribution: ['Base'],
       baseFeeGwei: '1',
+    });
+  });
+
+  it('uses websocket block pricing when present on live block data', () => {
+    const block = transformNewBlockData({
+      block_number: 103,
+      blob_count: 2,
+      timestamp: '2026-01-01T00:00:30.000Z',
+      blobs: [],
+      pricing: {
+        block_number: 103,
+        block_timestamp: '2026-01-01T00:00:30.000Z',
+        blob_count: 2,
+        blob_gas_used: 262144,
+        blob_gas_target: 393216,
+        blob_gas_limit: 786432,
+        excess_blob_gas: 0,
+        blob_base_fee: '250000000',
+        blob_base_fee_gwei: '0.25',
+        utilization_ratio: '0.3333',
+        blob_params_target: 3,
+        blob_params_max: 6,
+        target_blobs: 3,
+        max_blobs: 6,
+        available_blobs: 4,
+        utilization_percent: 33.33,
+        is_full: false,
+        is_above_target: false,
+        update_fraction: 3338477,
+      },
+    });
+
+    expect(block).toMatchObject({
+      blobCount: 2,
+      blobGasUsed: 262144,
+      blobGasTarget: 393216,
+      maxBlobs: 6,
+      targetBlobs: 3,
+      availableBlobs: 4,
+      utilizationPercent: 33.33,
+      baseFeeGwei: '0.25',
+      attribution: ['Unknown'],
     });
   });
 });

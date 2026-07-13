@@ -30,6 +30,7 @@ export interface BlobResponse {
   base_fee_per_blob_gas_gwei?: string;
   tip_per_blob_gas: string;
   tip_per_blob_gas_gwei?: string;
+  total_cost_wei?: string;
   total_cost_eth: string;
   timestamp: string;
   confirmed: boolean;
@@ -41,6 +42,10 @@ export interface BlobResponse {
   max_cost_wei?: string;
   fee_cap_headroom_wei?: string;
   fee_cap_headroom_percent?: string;
+  /** This blob's own EIP-4844 versioned hash (0x01-prefixed). Omitted for rows indexed before versioned hashes were stored. */
+  versioned_hash?: string;
+  /** All versioned hashes carried by this blob's transaction. Omitted for rows indexed before versioned hashes were stored. */
+  versioned_hashes?: string[];
 }
 
 // ---- WebSocket Live Data Types ----
@@ -60,16 +65,38 @@ export type SubscribableBlobEventType =
 
 export type BlobWebSocketEventType = SubscribableBlobEventType | 'ping' | 'pong';
 
+// The indexer attaches pricing to every new_block broadcast and every
+// block_snapshot entry; a partial event is never sent, so live consumers can
+// rely on capacity data being present.
 export interface NewBlockData {
   block_number: number;
   blob_count: number;
   timestamp: string;
   blobs: BlobResponse[];
+  pricing: BackendBlobPricingRecentBlock;
 }
+
+// transformNewBlockData is also reused to rebuild blocks from REST blob
+// feeds, which carry no pricing payload; this looser shape keeps that path
+// typed without weakening the wire guarantee above.
+export type NewBlockInput = Omit<NewBlockData, 'pricing'> & {
+  pricing?: BackendBlobPricingRecentBlock;
+};
 
 export interface NewBlockEvent {
   type: 'new_block';
   data: NewBlockData;
+}
+
+export interface BlockSnapshotData {
+  blocks: NewBlockData[];
+}
+
+// Sent once by the server on every (re)connect with the most recent blocks,
+// newest first, so blocks broadcast during a reconnect window are recovered.
+export interface BlockSnapshotEvent {
+  type: 'block_snapshot';
+  data: BlockSnapshotData;
 }
 
 export type MempoolUpdateData =
@@ -97,6 +124,9 @@ export interface StatsUpdateEvent {
 
 export interface UsersUpdateEvent {
   type: 'users_update';
+  // Window the aggregates cover; clients drop events that don't match their
+  // selected range instead of overwriting a differently-scoped view.
+  range: BackendUsersRange;
   data: UserResponse[];
 }
 
@@ -112,6 +142,7 @@ export type HeartbeatEvent = PingEvent | PongEvent;
 
 export type BlobWebSocketEvent =
   | NewBlockEvent
+  | BlockSnapshotEvent
   | MempoolUpdateEvent
   | StatsUpdateEvent
   | UsersUpdateEvent
@@ -121,10 +152,15 @@ export type LiveBlobWebSocketEvent = Exclude<BlobWebSocketEvent, HeartbeatEvent>
 
 export interface BlobWebSocketEventMap {
   new_block: NewBlockEvent;
+  block_snapshot: BlockSnapshotEvent;
   mempool_update: MempoolUpdateEvent;
   stats_update: StatsUpdateEvent;
   users_update: UsersUpdateEvent;
 }
+
+// Every event type deliverable to live subscribers: the subscribable set plus
+// the connection-lifecycle block_snapshot the server always sends.
+export type LiveBlobEventType = keyof BlobWebSocketEventMap;
 
 export type LatestBlobWebSocketEvents = {
   [EventType in SubscribableBlobEventType]?: BlobWebSocketEventMap[EventType];
@@ -379,6 +415,9 @@ export interface BlobPricing {
   recentBlocks: BlobPricingRecentBlock[];
 }
 
+// Time window accepted by /users and echoed on users_update events
+export type BackendUsersRange = '1h' | '24h' | '7d' | '30d' | 'all';
+
 // Backend UserResponse - matches api.UserResponse from swagger
 export interface UserResponse {
   network_id: number;
@@ -387,6 +426,7 @@ export interface UserResponse {
   name?: string;
   category?: string;
   blob_count: number;
+  total_cost_wei?: string;
   total_cost_eth: string;
   last_timestamp: string;
   blob_share_percent?: number;
@@ -401,6 +441,7 @@ export interface User {
   dataCount: number;
   percentage: number;
   totalCostEth: string;
+  totalCostWei?: string;
   lastTimestamp: string;
 }
 
@@ -416,6 +457,9 @@ export interface BackendStatsResponse {
   total_blobs: number;
   total_confirmed_blobs: number;
   total_pending_blobs: number;
+  average_base_fee_per_blob_gas_wei?: string;
+  average_tip_per_blob_gas_wei?: string;
+  average_total_cost_wei?: string;
   average_base_fee: string;
   average_tip: string;
   average_total_cost: string;
@@ -449,14 +493,22 @@ export interface BackendStatsWindow {
   duration_seconds: number;
   start_time: string;
   end_time: string;
-  average_blob_base_fee: string;
-  median_blob_base_fee: string;
-  p95_blob_base_fee: string;
+  average_blob_base_fee?: string;
+  average_blob_base_fee_wei?: string;
+  median_blob_base_fee?: string;
+  median_blob_base_fee_wei?: string;
+  p95_blob_base_fee?: string;
+  p95_blob_base_fee_wei?: string;
   total_blobs: number;
   total_blob_gas_used: number;
   average_utilization: string;
-  total_cost_eth: string;
+  total_cost_eth?: string;
+  total_cost_wei?: string;
   unique_senders: number;
+  /** Blocks indexed within the window. Absent on older backends. */
+  total_blocks?: number;
+  /** Blocks in the window with blob gas usage above target. Absent on older backends. */
+  blocks_above_target?: number;
 }
 
 export interface BackendStatsWindowsResponse {
@@ -467,16 +519,172 @@ export interface BackendStatsWindowsResponse {
 }
 
 // Backend StatusResponse - matches api.StatusResponse from swagger
+export interface BackfillStatus {
+  active: boolean;
+  start_block: number;
+  current_block: number;
+  target_block: number;
+  remaining_blocks: number;
+  progress_percent: number;
+  updated_at: string;
+  completed_at?: string;
+}
+
 export interface StatusResponse {
-  network_id: number;
+  chain_id: number;
   network_name: string;
   last_indexed_block: number;
   indexer_version: string;
   uptime: string;
+  /** Timestamp of the last indexed block. */
   last_indexed_time: string;
+  /** Absent on older backends. */
+  current_chain_head?: number;
+  /** Absent on older backends. */
+  earliest_indexed_block?: number;
+  /** Absent on older backends. */
+  latest_indexed_block?: number;
+  indexer_lag_blocks?: number;
+  last_indexed_at?: string;
+  chain_head_updated_at?: string;
+  websocket_freshness_at?: string;
+  backfill?: BackfillStatus;
 }
 
 // ---- Chart Data Types ----
+
+export type BackendChartRange = '1h' | '24h' | '7d' | '30d' | 'all';
+export type BackendChartGranularity = 'auto' | 'block' | 'minute' | 'hour' | 'day';
+
+export interface BackendBlobMarketChartPoint {
+  timestamp: string;
+  label?: string;
+  start_block?: number;
+  end_block?: number;
+  average_blob_base_fee_gwei: string;
+  median_blob_base_fee_gwei: string;
+  p95_blob_base_fee_gwei: string;
+  blob_count: number;
+  blob_gas_used: number;
+  blob_gas_target: number;
+  blob_gas_limit?: number;
+  average_utilization: string;
+  total_cost_wei: string;
+  unique_senders: number;
+}
+
+export interface BackendBlobMarketChartSummary {
+  current_base_fee_gwei: string;
+  average_blob_base_fee_gwei: string;
+  median_blob_base_fee_gwei: string;
+  p95_blob_base_fee_gwei: string;
+  total_blobs: number;
+  total_blob_gas_used: number;
+  average_utilization: string;
+  total_cost_wei: string;
+  unique_senders: number;
+}
+
+export interface BackendBlobMarketChartResponse {
+  network_id: number;
+  network_name: string;
+  range: BackendChartRange | string;
+  granularity: Exclude<BackendChartGranularity, 'auto'> | string;
+  bucket_seconds: number;
+  start_time: string;
+  end_time: string;
+  generated_at: string;
+  points: BackendBlobMarketChartPoint[];
+  summary: BackendBlobMarketChartSummary;
+}
+
+export interface BackendAttributionUsageSeries {
+  key: string;
+  name: string;
+  category: string;
+  address?: string;
+}
+
+export interface BackendAttributionUsageValue {
+  blob_count: number;
+  total_cost_wei: string;
+  blob_gas_used: number;
+}
+
+export interface BackendAttributionUsagePoint {
+  timestamp: string;
+  start_block?: number;
+  end_block?: number;
+  values: Record<string, BackendAttributionUsageValue>;
+}
+
+export interface BackendAttributionUsageShare {
+  key: string;
+  name: string;
+  category: string;
+  blob_count: number;
+  total_cost_wei: string;
+  blob_share_percent: number;
+  spend_share_percent: number;
+}
+
+export interface BackendAttributionUsageSummary {
+  total_blobs: number;
+  total_cost_wei: string;
+  shares: BackendAttributionUsageShare[];
+}
+
+export interface BackendAttributionUsageChartResponse {
+  network_id: number;
+  network_name: string;
+  range: BackendChartRange | string;
+  granularity: Exclude<BackendChartGranularity, 'auto'> | string;
+  bucket_seconds: number;
+  start_time: string;
+  end_time: string;
+  generated_at: string;
+  series: BackendAttributionUsageSeries[];
+  points: BackendAttributionUsagePoint[];
+  summary: BackendAttributionUsageSummary;
+}
+
+export interface BackendCostComparisonChartPoint {
+  timestamp: string;
+  blob_count: number;
+  blob_bytes: number;
+  blob_cost_wei: string;
+  calldata_equivalent_cost_wei: string;
+  savings_wei: string;
+  savings_percent: number;
+  average_execution_base_fee_wei?: string;
+}
+
+export interface BackendCostComparisonModel {
+  calldata_gas_per_byte: number;
+  blob_size_bytes: number;
+  description: string;
+}
+
+export interface BackendCostComparisonSummary {
+  blob_cost_wei: string;
+  calldata_equivalent_cost_wei: string;
+  savings_wei: string;
+  savings_percent: number;
+}
+
+export interface BackendCostComparisonChartResponse {
+  network_id: number;
+  network_name: string;
+  range: BackendChartRange | string;
+  granularity: Exclude<BackendChartGranularity, 'auto'> | string;
+  bucket_seconds: number;
+  start_time: string;
+  end_time: string;
+  generated_at: string;
+  model: BackendCostComparisonModel;
+  points: BackendCostComparisonChartPoint[];
+  summary: BackendCostComparisonSummary;
+}
 
 export interface BaseFeeDataPoint {
   timestamp: number;
@@ -491,6 +699,7 @@ export interface GasUtilizationDataPoint {
   blockNumber: number;
   blobGasUsed: number;
   targetGas: number;
+  maxGas: number;
   blobCount: number;
   utilizationPct: number;
 }
@@ -498,12 +707,15 @@ export interface GasUtilizationDataPoint {
 export interface L2UsageDataPoint {
   timestamp: number;
   label: string;
-  arbitrum: number;
-  optimism: number;
-  base: number;
-  zksync: number;
-  unknown: number;
   total: number;
+  [seriesKey: string]: string | number;
+}
+
+export interface L2UsageSeries {
+  key: string;
+  name: string;
+  category: string;
+  address?: string;
 }
 
 export interface CostComparisonDataPoint {
@@ -522,7 +734,7 @@ export interface FeeMarketIndicators {
   recentBaseFeeSparkline: number[];
 }
 
-export type Granularity = 'block' | 'hourly' | 'daily';
+export type Granularity = 'block' | 'minute' | 'hour' | 'day';
 
 export interface RollingWindowDataPoint {
   window: RollingWindowKey | string;
@@ -538,12 +750,17 @@ export interface RollingWindowDataPoint {
   averageUtilizationPct: number;
   totalCostEth: number;
   uniqueSenders: number;
+  /** Blocks indexed within the window. Absent on older backends. */
+  totalBlocks?: number;
+  /** Blocks in the window with blob gas usage above target. Absent on older backends. */
+  blocksAboveTarget?: number;
 }
 
 export interface ChartDataset {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
   l2Usage: L2UsageDataPoint[];
+  l2UsageSeries: L2UsageSeries[];
   costComparison: CostComparisonDataPoint[];
   rollingWindows: RollingWindowDataPoint[];
   selectedWindow: RollingWindowDataPoint | null;
@@ -553,5 +770,33 @@ export interface ChartDataset {
   chartRangeLabel: string;
   coverageLabel: string;
   rollingCoverageLabel: string;
+  /** Coverage caption for the fee and utilization charts (blob-market buckets). */
   blockCoverageLabel: string;
+  /** Coverage caption for the L2 usage chart (attribution-usage buckets). */
+  l2UsageCoverageLabel: string;
+  /** Coverage caption for the cost savings chart (cost-comparison buckets). */
+  costComparisonCoverageLabel: string;
+}
+
+// ---- Search ----
+
+/** A navigable destination parsed from a search query. */
+export type SearchTarget =
+  | { kind: 'block'; blockNumber: string }
+  | { kind: 'address'; address: string }
+  | { kind: 'transaction'; txHash: string }
+  | { kind: 'blob'; versionedHash: string };
+
+// Backend SearchMatchResponse - matches api.SearchMatchResponse from swagger.
+// `type` discriminates which of the remaining fields are populated;
+// block_number is omitted on matches still pending in the mempool.
+export interface SearchMatchResponse {
+  type: 'block' | 'transaction' | 'blob' | 'address' | 'rollup';
+  block_number?: number;
+  tx_hash?: string;
+  versioned_hash?: string;
+  address?: string;
+  user_attribution?: string;
+  name?: string;
+  addresses?: string[];
 }

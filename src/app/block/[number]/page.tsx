@@ -3,14 +3,13 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { BlobDetailsContent } from '@/components/BlobDetailsContent';
 import { useApiData } from '@/hooks/useApiData';
+import { useIndexerStatus } from '@/hooks/useIndexerStatus';
 import { api } from '@/lib/api';
 import { useNetwork } from '@/hooks/useNetwork';
-import { Block } from '@/types';
+import { Block, StatusResponse } from '@/types';
 import { formatBlobFee, formatUtilizationPercent } from '@/utils';
 
 function formatBaseFee(block: Block): string {
@@ -26,6 +25,24 @@ function formatBlobCapacity(block: Block): string {
 function formatUtilization(block: Block): string {
   if (block.maxBlobs <= 0) return '-';
   return formatUtilizationPercent(block.utilizationPercent);
+}
+
+function isAheadOfIndex(blockNumber: number, coverage?: StatusResponse): boolean {
+  return coverage?.latest_indexed_block != null && blockNumber > coverage.latest_indexed_block;
+}
+
+function describeMissingBlock(
+  blockNumber: number,
+  networkName: string,
+  coverage?: StatusResponse
+): string {
+  if (coverage?.earliest_indexed_block != null && blockNumber < coverage.earliest_indexed_block) {
+    return `This block is older than the indexer's retention window for ${networkName} — the earliest indexed block is ${coverage.earliest_indexed_block.toLocaleString()}.`;
+  }
+  if (coverage?.latest_indexed_block != null && blockNumber > coverage.latest_indexed_block) {
+    return `This block is ahead of the latest indexed block for ${networkName} (${coverage.latest_indexed_block.toLocaleString()}). It may not exist on chain yet.`;
+  }
+  return `This block isn't indexed for ${networkName}. The slot may have been missed, or the indexer may still be catching up.`;
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
@@ -52,22 +69,27 @@ export default function BlockDetailPage() {
     ['block-by-number', selectedNetwork.apiParam, rawNumber]
   );
 
+  // Indexed coverage bounds, fetched alongside the block so the not-found
+  // state can say why the block is missing. Best-effort: failures or absent
+  // bounds fall back to the generic message.
+  const { data: coverage } = useIndexerStatus();
+
   const loadingComponent = (
     <div className="space-y-6">
-      <div className="h-8 bg-[#202538] rounded w-64 animate-pulse" />
+      <div className="h-8 bg-[#26282e] rounded w-64 animate-pulse" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
-            <div className="h-3 bg-[#202538] rounded w-20 animate-pulse mb-2" />
-            <div className="h-6 bg-[#202538] rounded w-24 animate-pulse" />
+            <div className="h-3 bg-[#26282e] rounded w-20 animate-pulse mb-2" />
+            <div className="h-6 bg-[#26282e] rounded w-24 animate-pulse" />
           </div>
         ))}
       </div>
       <div className="border border-divider rounded-lg p-6">
-        <div className="h-5 bg-[#202538] rounded w-40 animate-pulse mb-4" />
+        <div className="h-5 bg-[#26282e] rounded w-40 animate-pulse mb-4" />
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-12 bg-[#202538] rounded animate-pulse" />
+            <div key={i} className="h-12 bg-[#26282e] rounded animate-pulse" />
           ))}
         </div>
       </div>
@@ -75,9 +97,7 @@ export default function BlockDetailPage() {
   );
 
   return (
-    <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
-      <Header />
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
         <Link
           href="/blocks"
           className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2"
@@ -87,7 +107,7 @@ export default function BlockDetailPage() {
         </Link>
 
         {!isValidNumber ? (
-          <div className="rounded-lg border border-divider bg-[#161a29]/80 p-6">
+          <div className="rounded-lg border border-divider bg-[#14161a] p-6">
             <h1 className="text-2xl font-windsor-bold text-white mb-2">Invalid block</h1>
             <p className="text-bodyText text-sm">
               &ldquo;{rawNumber}&rdquo; is not a valid block number.
@@ -96,23 +116,24 @@ export default function BlockDetailPage() {
         ) : (
           <DataStateWrapper isLoading={isLoading} error={error} loadingComponent={loadingComponent}>
             {block === null ? (
-              <div className="rounded-lg border border-divider bg-[#161a29]/80 p-6">
+              <div className="rounded-lg border border-divider bg-[#14161a] p-6">
                 <h1 className="text-2xl font-windsor-bold text-white mb-2">
                   Block {blockNumber.toLocaleString()}
                 </h1>
                 <p className="text-bodyText text-sm mb-4">
-                  This block isn&rsquo;t available in the latest indexed window for{' '}
-                  {selectedNetwork.name}. It may be older than the indexer&rsquo;s retention.
+                  {describeMissingBlock(blockNumber, selectedNetwork.name, coverage)}
                 </p>
-                <a
-                  href={`https://etherscan.io/block/${blockNumber}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue hover:underline text-sm inline-flex items-center gap-2"
-                >
-                  View on Etherscan
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                </a>
+                {!isAheadOfIndex(blockNumber, coverage) && (
+                  <a
+                    href={`https://etherscan.io/block/${blockNumber}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue hover:underline text-sm inline-flex items-center gap-2"
+                  >
+                    View on Etherscan
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  </a>
+                )}
               </div>
             ) : block ? (
               <>
@@ -165,8 +186,6 @@ export default function BlockDetailPage() {
             ) : null}
           </DataStateWrapper>
         )}
-      </div>
-      <Footer />
-    </main>
+    </div>
   );
 }

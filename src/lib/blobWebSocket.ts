@@ -1,8 +1,10 @@
 import { API_BASE_URL } from '@/constants';
 import {
+  BackendUsersRange,
   BlobWebSocketConnectionState,
   BlobWebSocketEvent,
   BlobWebSocketSubscribeMessage,
+  BlockSnapshotData,
   LiveBlobWebSocketEvent,
   MempoolUpdateData,
   NewBlockData,
@@ -85,6 +87,12 @@ export function createBlobWebSocketSubscribeMessage(
   };
 }
 
+const BACKEND_USERS_RANGES: readonly BackendUsersRange[] = ['1h', '24h', '7d', '30d', 'all'];
+
+function isBackendUsersRange(value: unknown): value is BackendUsersRange {
+  return typeof value === 'string' && (BACKEND_USERS_RANGES as readonly string[]).includes(value);
+}
+
 export function parseBlobWebSocketEvent(message: string): BlobWebSocketEvent | null {
   let payload: unknown;
   const trimmedMessage = message.trim();
@@ -113,6 +121,11 @@ export function parseBlobWebSocketEvent(message: string): BlobWebSocketEvent | n
         return { type: 'new_block', data: payload.data as unknown as NewBlockData };
       }
       return null;
+    case 'block_snapshot':
+      if (isRecord(payload.data) && Array.isArray(payload.data.blocks)) {
+        return { type: 'block_snapshot', data: payload.data as unknown as BlockSnapshotData };
+      }
+      return null;
     case 'mempool_update':
       if (isMempoolUpdateData(payload.data)) {
         return { type: 'mempool_update', data: payload.data };
@@ -124,8 +137,14 @@ export function parseBlobWebSocketEvent(message: string): BlobWebSocketEvent | n
       }
       return null;
     case 'users_update':
-      if (Array.isArray(payload.data)) {
-        return { type: 'users_update', data: payload.data.filter(isRecord) as unknown as UserResponse[] };
+      // The range tag is part of the contract: consumers scope these events
+      // to the user's selected window, so an untagged event is unusable.
+      if (isBackendUsersRange(payload.range) && Array.isArray(payload.data)) {
+        return {
+          type: 'users_update',
+          range: payload.range,
+          data: payload.data.filter(isRecord) as unknown as UserResponse[],
+        };
       }
       return null;
     default:
@@ -283,12 +302,40 @@ export class BlobWebSocketClient {
     this.staleTimer = setTimeout(() => {
       if (this.socket?.readyState === SOCKET_OPEN) {
         this.setConnectionState('stale');
+        // A stale-but-OPEN socket is almost always half-dead (laptop sleep,
+        // NAT rebind, dropped proxy tunnel): the server pings every 30s, so
+        // silence past the stale timeout means nothing is arriving. Waiting
+        // for the TCP stack to notice can take minutes of missed events, so
+        // tear the socket down and reconnect instead.
+        this.forceReconnect();
       }
     }, staleTimeoutMs);
 
     if (this.connectionState === 'stale') {
       this.setConnectionState('connected');
     }
+  }
+
+  // forceReconnect abandons the current socket (detaching handlers so its
+  // eventual close event cannot double-schedule) and enters the reconnect
+  // path immediately.
+  private forceReconnect() {
+    const socket = this.socket;
+    this.socket = null;
+    this.clearStaleTimer();
+
+    if (socket) {
+      socket.onopen = null;
+      socket.onmessage = null;
+      socket.onclose = null;
+      socket.onerror = null;
+
+      if (socket.readyState === SOCKET_CONNECTING || socket.readyState === SOCKET_OPEN) {
+        socket.close();
+      }
+    }
+
+    this.scheduleReconnect();
   }
 
   private setConnectionState(state: BlobWebSocketConnectionState) {

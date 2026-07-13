@@ -1,52 +1,49 @@
-"use client";
-
 import React from 'react';
-import Header from '@/components/Header';
+import type { Metadata } from 'next';
+import BlobFeeHero from '@/components/BlobFeeHero';
 import LiveMetrics from '@/components/LiveMetrics';
-import BlobMarketPanels from '@/components/BlobMarketPanels';
 import MetricsCharts from '@/components/MetricsCharts';
 import RecentBlocksPanel from '@/components/RecentBlocksPanel';
 import TopUsersTable from '@/components/TopUsersTable';
-import MempoolTable from '@/components/MempoolTable';
+import MempoolSummary from '@/components/MempoolSummary';
 import ExplainerSection from '@/components/ExplainerSection';
-import Footer from '@/components/Footer';
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: '/',
+  },
+};
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-background bg-grid-pattern bg-grid-size">
-      <Header />
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="mb-12">
-          <LiveMetrics />
-        </div>
+    <>
+      <div className="container mx-auto px-4 py-12 max-w-7xl">
+        <h1 className="sr-only">Real-time Ethereum blob analytics</h1>
+        <BlobFeeHero />
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start mb-12">
-          <div className="space-y-12">
+      <div className="border-t border-frameLine" />
+
+      <div className="container mx-auto px-4 py-12 max-w-7xl">
+        <LiveMetrics />
+      </div>
+
+      <div className="border-t border-frameLine" />
+
+      <div className="container mx-auto px-4 py-12 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          <div className="space-y-8">
             <RecentBlocksPanel />
-            <BlobMarketPanels />
+            <MempoolSummary />
+            <TopUsersTable />
+            <section>
+              <h2 className="text-2xl font-windsor-bold text-white mb-4">What are blobs?</h2>
+              <ExplainerSection />
+            </section>
           </div>
           <MetricsCharts />
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
-          <div className="lg:col-span-3 space-y-8">
-            <div className="mb-12">
-              <TopUsersTable />
-            </div>
-            <div className="mb-12">
-              <MempoolTable />
-            </div>
-          </div>
-
-          <div className="lg:col-span-2 space-y-8">
-            <div className="mb-12 pt-2">
-              <h2 className="text-2xl font-windsor-bold text-white mb-3">What are blobs?</h2>
-              <ExplainerSection />
-            </div>
-          </div>
-        </div>
       </div>
-      <Footer />
-    </main>
+    </>
   );
 }

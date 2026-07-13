@@ -4,8 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useApiData } from '../hooks/useApiData';
-import { api } from '../lib/api';
+import { useLiveBlockList } from '../hooks/useLiveBlockList';
 import { Block, BlobResponse, LatestBlocksResponse } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
@@ -17,8 +16,6 @@ import {
   getAttributionImageSrc,
   getAttributionInitial,
 } from '../utils';
-import { useLatestBlobEvent } from '../contexts/LiveDataContext';
-import { transformNewBlockData } from '../lib/api/blocks';
 import { BlobDetailsContent } from './BlobDetailsContent';
 import { BLOCKS_PAGE_LIMIT, BLOCKS_PAGE_SIZE } from '../constants';
 import { useFlipRows } from '../hooks/useFlipRows';
@@ -65,6 +62,9 @@ function getBlobPaidWei(blob: BlobResponse): bigint | null {
   const realizedCost = parseWeiString(blob.realized_cost_wei);
   if (realizedCost !== null) return realizedCost;
 
+  const totalCostWei = parseWeiString(blob.total_cost_wei);
+  if (totalCostWei !== null) return totalCostWei;
+
   if (!blob.total_cost_eth) return null;
   if (blob.total_cost_eth.includes('.')) return parseEthToWei(blob.total_cost_eth);
   return parseWeiString(blob.total_cost_eth);
@@ -87,6 +87,10 @@ function formatBlockPaid(block: Block): string {
 }
 
 function AttributionDisplay({ attribution }: { attribution: string[] }) {
+  if (attribution.length === 0) {
+    return <span>-</span>;
+  }
+
   if (attribution.length === 1) {
     const imageSrc = getAttributionImageSrc(attribution[0]);
 
@@ -149,7 +153,7 @@ function BlobDetailsRow({ block }: { block: Block }) {
     <tr
       id={getBlockDetailsId(block.id)}
       data-row-key={`details-${block.id}`}
-      className="bg-[#111522]"
+      className="bg-[#101114]"
     >
       <td colSpan={6} className="p-0">
         <BlobDetailsContent block={block} />
@@ -160,7 +164,6 @@ function BlobDetailsRow({ block }: { block: Block }) {
 
 export default function LatestBlocksTable() {
   const { selectedNetwork } = useNetwork();
-  const liveBlockEvent = useLatestBlobEvent('new_block');
   // Tracks the user's most recent selection per-network: `id` is null when they
   // collapsed the auto-expanded default, otherwise the id they expanded.
   const [userSelection, setUserSelection] = React.useState<{ network: string; id: number | null } | null>(null);
@@ -172,23 +175,9 @@ export default function LatestBlocksTable() {
     setPage(1);
   }
 
-  const { data, isLoading, error } = useApiData<LatestBlocksResponse>(
-    () => api.getLatestBlocks(BLOCKS_PAGE_LIMIT, selectedNetwork.apiParam),
-    ['latest-blocks', selectedNetwork.apiParam, BLOCKS_PAGE_LIMIT]
-  );
+  const { blocks: mergedBlocks, isLoading, error } = useLiveBlockList(BLOCKS_PAGE_LIMIT);
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   useFlipRows(tbodyRef, selectedNetwork.apiParam);
-
-  const mergedBlocks = React.useMemo<Block[]>(() => {
-    const baseBlocks = data?.data ?? [];
-    if (!liveBlockEvent) return baseBlocks;
-
-    const liveBlock = transformNewBlockData(liveBlockEvent.data);
-    return [
-      liveBlock,
-      ...baseBlocks.filter((block) => block.number !== liveBlock.number),
-    ].slice(0, BLOCKS_PAGE_LIMIT);
-  }, [data, liveBlockEvent]);
 
   const totalPages = Math.max(1, Math.ceil(mergedBlocks.length / BLOCKS_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -200,7 +189,7 @@ export default function LatestBlocksTable() {
 
   // Derive the expanded block id from the user's selection (if it still
   // applies to the current network and the block is still on the page). Rows
-  // are collapsed by default — no auto-expand. Doing this in a memo rather
+  // are collapsed by default, no auto-expand. Doing this in a memo rather
   // than an effect avoids set-state-in-effect.
   const expandedBlockId = React.useMemo(() => {
     if (!displayData) return null;
@@ -243,26 +232,26 @@ export default function LatestBlocksTable() {
         </thead>
         <tbody className="divide-y divide-divider">
           {[...Array(5)].map((_, index) => (
-            <tr key={index} className="bg-gradient-to-r from-[#161a29] to-[#19191e]/60">
+            <tr key={index} className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
               <td className="py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-20 animate-pulse mb-2"></div>
-                <div className="h-3 bg-[#202538] rounded w-16 animate-pulse sm:hidden"></div>
+                <div className="h-5 bg-[#26282e] rounded w-20 animate-pulse mb-2"></div>
+                <div className="h-3 bg-[#26282e] rounded w-16 animate-pulse sm:hidden"></div>
               </td>
               <td className="py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-8 animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-8 animate-pulse"></div>
               </td>
               <td className="py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-12 animate-pulse mb-2"></div>
-                <div className="h-2 bg-[#202538] rounded w-24 animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-12 animate-pulse mb-2"></div>
+                <div className="h-2 bg-[#26282e] rounded w-24 animate-pulse"></div>
               </td>
               <td className="hidden sm:table-cell py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-16 animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-16 animate-pulse"></div>
               </td>
               <td className="hidden md:table-cell py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-16 animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-16 animate-pulse"></div>
               </td>
               <td className="hidden lg:table-cell py-3 px-3 sm:px-4">
-                <div className="h-5 bg-[#202538] rounded w-20 animate-pulse"></div>
+                <div className="h-5 bg-[#26282e] rounded w-20 animate-pulse"></div>
               </td>
             </tr>
           ))}
@@ -308,8 +297,8 @@ export default function LatestBlocksTable() {
                         data-row-key={`block-${block.id}`}
                         className={`bg-gradient-to-r transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset ${
                           isExpanded
-                            ? 'from-[#202538]/80 to-[#242731]/70'
-                            : 'from-[#161a29] to-[#19191e]/60 hover:from-[#202538]/70 hover:to-[#242731]/70'
+                            ? 'from-[#1f2127]/80 to-[#23252b]/70'
+                            : 'from-[#17181b] to-[#141519]/60 hover:from-[#1f2127]/70 hover:to-[#23252b]/70'
                         }`}
                         onClick={() => toggleBlock(block.id)}
                         onKeyDown={(event) => handleBlockRowKeyDown(event, block.id)}

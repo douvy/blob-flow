@@ -19,6 +19,8 @@ import {
   getAttributionInitial,
   getBlobCount,
   getNetworkIconSrc,
+  parseSearchQuery,
+  safeExplorerUrl,
   truncateAddress,
 } from './index';
 
@@ -30,6 +32,16 @@ describe('utils', () => {
   it('truncates addresses with default length', () => {
     expect(truncateAddress('0x1234567890abcdef')).toBe('0x1234...cdef');
     expect(truncateAddress('')).toBe('');
+  });
+
+  it('passes through http(s) explorer urls and rejects other schemes', () => {
+    expect(safeExplorerUrl('https://etherscan.io/tx/0xabc')).toBe('https://etherscan.io/tx/0xabc');
+    expect(safeExplorerUrl('http://localhost:3000/tx/0xabc')).toBe('http://localhost:3000/tx/0xabc');
+    expect(safeExplorerUrl('javascript:alert(1)')).toBeUndefined();
+    expect(safeExplorerUrl('data:text/html,hi')).toBeUndefined();
+    expect(safeExplorerUrl('not a url')).toBeUndefined();
+    expect(safeExplorerUrl('')).toBeUndefined();
+    expect(safeExplorerUrl(undefined)).toBeUndefined();
   });
 
   it('maps known network names to local icons', () => {
@@ -107,5 +119,58 @@ describe('utils', () => {
     expect(formatBlobWeiCost('9065041362944')).toBe('0.000009 ETH');
     expect(formatBlobTotalCost('0.001')).toBe('0.001 ETH');
     expect(formatBlobTotalCost('9065041362944')).toBe('0.000009 ETH');
+  });
+});
+
+describe('parseSearchQuery', () => {
+  const address = '0x1234567890abcdef1234567890abcdef12345678';
+  const txHash = '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890';
+
+  it('parses a bare block number', () => {
+    expect(parseSearchQuery('25467750')).toEqual({ kind: 'block', blockNumber: '25467750' });
+  });
+
+  it('parses block numbers with prefix, commas, and whitespace', () => {
+    expect(parseSearchQuery('block:25467750')).toEqual({ kind: 'block', blockNumber: '25467750' });
+    expect(parseSearchQuery('BLOCK: 25,467,750')).toEqual({ kind: 'block', blockNumber: '25467750' });
+    expect(parseSearchQuery('  25467750  ')).toEqual({ kind: 'block', blockNumber: '25467750' });
+  });
+
+  it('parses addresses bare and with the rollup prefix', () => {
+    expect(parseSearchQuery(address)).toEqual({ kind: 'address', address });
+    expect(parseSearchQuery(`rollup:${address.toUpperCase().replace('0X', '0x')}`)).toEqual({
+      kind: 'address',
+      address,
+    });
+  });
+
+  it('parses transaction hashes bare and with the tx prefix', () => {
+    expect(parseSearchQuery(txHash)).toEqual({ kind: 'transaction', txHash });
+    expect(parseSearchQuery(`tx:${txHash}`)).toEqual({ kind: 'transaction', txHash });
+  });
+
+  it('parses 0x01-prefixed hashes as blob versioned hashes', () => {
+    const blobHash = `0x01${'ab'.repeat(31)}`;
+    expect(parseSearchQuery(blobHash)).toEqual({ kind: 'blob', versionedHash: blobHash });
+    expect(parseSearchQuery(`blob:${blobHash}`)).toEqual({ kind: 'blob', versionedHash: blobHash });
+    // An explicit tx: prefix overrides the version-byte heuristic.
+    expect(parseSearchQuery(`tx:${blobHash}`)).toEqual({ kind: 'transaction', txHash: blobHash });
+    // blob: requires a plausible versioned hash.
+    expect(parseSearchQuery(`blob:${txHash}`)).toBeNull();
+  });
+
+  it('rejects values that do not match their prefix', () => {
+    expect(parseSearchQuery(`block:${txHash}`)).toBeNull();
+    expect(parseSearchQuery('tx:25467750')).toBeNull();
+    expect(parseSearchQuery(`rollup:${txHash}`)).toBeNull();
+  });
+
+  it('rejects unknown prefixes, empty values, and free text', () => {
+    expect(parseSearchQuery('http://example.com')).toBeNull();
+    expect(parseSearchQuery('block:')).toBeNull();
+    expect(parseSearchQuery('')).toBeNull();
+    expect(parseSearchQuery('recent rollup blob activity')).toBeNull();
+    expect(parseSearchQuery('0')).toBeNull();
+    expect(parseSearchQuery('0x1234')).toBeNull();
   });
 });

@@ -4,7 +4,7 @@
   --font-gt-flexa: 'GT Flexa', sans-serif;
   --font-windsor-bold: 'Windsor Bold', serif;
 
-  --color-background: #131720;
+  --color-background: #121316;
   --color-container: #141519;
   --color-titleText: #f0f0f0;
   --color-bodyText: #f1f2f4;
@@ -12,12 +12,13 @@
   --color-divider: #23252a;
   --color-dividerBlue: #27364e;
   --color-blue: #3b55e6;
-  --color-darkBlue: #1e2747;
+  --color-darkBlue: #19202f;
   --color-lightBlue: #9ac4fd;
   --color-purple: #6a5acd;
   --color-green: #66cc99;
   --color-red: #ff6b6b;
   --color-yellow: #ffff00;
+  --color-frameLine: rgba(50, 60, 80, 0.4);
 }
 
 @utility bg-grid-pattern {
@@ -26,7 +27,7 @@
 }
 
 @utility bg-grid-size {
-  background-size: 20px 20px;
+  background-size: 12px 12px;
 }
 
 /* Font face declarations */
@@ -49,22 +50,26 @@
 }
 
 :root {
-  --title-color: #f0f0f0;
-  --body-text: #b8bdc7;
-  --background: #131720;
-  --container: #0e0f11;
+  /* Midpoint between the 80rem content edge and the viewport edge */
+  --gutter-offset: calc((100vw - 80rem) / 4);
+  /* Must match the rendered height of the sticky <Header> */
+  --header-height: 52px;
+}
+
+/* The primary nav row inside the header only renders at md and up */
+@media (min-width: 48rem) {
+  :root {
+    --header-height: 87px;
+  }
 }
 
 @layer base {
   html, body {
     @apply h-full w-full m-0 p-0;
   }
-  
+
   body {
     @apply text-bodyText bg-background font-gt-flexa;
-    background-image: linear-gradient(#1a1f2e 1px, transparent 1px),
-                      linear-gradient(90deg, #1a1f2e 1px, transparent 1px);
-    background-size: 20px 20px;
   }
 }
 
@@ -77,5 +82,174 @@
   100% {
     opacity: 0;
     transform: scale(2.4);
+  }
+}
+
+/* New-block tick on the hero fee readout: nudge from the direction the fee moved. */
+@keyframes fee-tick-up {
+  0% {
+    color: #ff6b6b;
+    transform: translateY(6px);
+    opacity: 0.6;
+  }
+
+  100% {
+    color: #ffffff;
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fee-tick-down {
+  0% {
+    color: #66cc99;
+    transform: translateY(-6px);
+    opacity: 0.6;
+  }
+
+  100% {
+    color: #ffffff;
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* New bars in the hero fullness strip grow up from the baseline. */
+@keyframes bar-grow-in {
+  0% {
+    transform: scaleY(0);
+  }
+
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+/* Content area with solid background - spans between gutter lines */
+@utility content-area {
+  background: var(--color-background);
+
+  @media (min-width: 80rem) {
+    margin-left: var(--gutter-offset);
+    margin-right: var(--gutter-offset);
+  }
+}
+
+/* Vertical gutter lines with caps - positioned midway between content and viewport edge */
+/* Hidden on mobile where there's no gutter space */
+@utility gutter-lines {
+  display: none;
+
+  @media (min-width: 80rem) {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background: var(--color-frameLine);
+  }
+
+  &::before {
+    left: var(--gutter-offset);
+  }
+
+  &::after {
+    right: var(--gutter-offset);
+  }
+}
+
+/* Vertical caps at top of lines - short thick bars with intro animation */
+/* Hidden on mobile where there's no gutter space */
+@utility gutter-line-cap {
+  display: none;
+
+  @media (min-width: 80rem) {
+    display: block;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    width: 100%;
+    height: calc(100vh - var(--header-height));
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 5px;
+    height: 14px;
+    background: #010409;
+    border: 1px solid #20232d;
+    box-sizing: border-box;
+    animation: cap-slide-down 5s linear forwards;
+    animation-delay: 0.5s;
+    opacity: 0;
+  }
+
+  &::before {
+    left: calc(var(--gutter-offset) - 2px);
+  }
+
+  &::after {
+    right: calc(var(--gutter-offset) - 2px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::before,
+    &::after {
+      animation: none;
+      opacity: 1;
+    }
+  }
+}
+
+@keyframes cap-slide-down {
+  0% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(calc(100vh - var(--header-height) - 11px));
+    opacity: 1;
+  }
+  85% {
+    transform: translateY(calc(100vh - var(--header-height) - 11px));
+    opacity: 0;
+  }
+  86% {
+    transform: translateY(-24px);
+    opacity: 0;
+  }
+  87% {
+    transform: translateY(-24px);
+    opacity: 1;
+  }
+  96% {
+    transform: translateY(2px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
   }
 }

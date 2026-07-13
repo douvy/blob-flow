@@ -78,7 +78,7 @@ export default function RollingWindowStats({
               return (
                 <tr
                   key={window.window}
-                  className={`border-b border-divider/60 ${isSelected ? 'bg-[#202538]/60 text-white' : 'text-[#b8bdc7]'}`}
+                  className={`border-b border-divider/60 ${isSelected ? 'bg-[#26282e]/60 text-white' : 'text-[#b8bdc7]'}`}
                 >
                   <td className="py-2 pr-2 font-medium">{window.label}</td>
                   <td className="py-2 px-2 text-right">{formatGwei(window.averageBaseFeeGwei)}</td>
