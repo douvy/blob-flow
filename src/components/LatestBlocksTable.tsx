@@ -30,9 +30,9 @@ function formatBlockBaseFee(block: Block): string {
   return formatBlobFee(block.baseFeeGwei);
 }
 
-function formatBlockOpenCapacity(block: Block): string {
+function formatBlockBlobCapacity(block: Block): string {
   if (block.maxBlobs <= 0) return '-';
-  return `${block.availableBlobs}/${block.maxBlobs} open`;
+  return `${block.blobCount}/${block.maxBlobs} used`;
 }
 
 function formatBlockUtilization(block: Block): string {
@@ -330,7 +330,7 @@ export default function LatestBlocksTable() {
                         <td className="py-3 px-3 sm:px-4 text-sm text-white">
                           <div className="whitespace-nowrap">{formatBlobCount(block.blobCount)}</div>
                           <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">
-                            {formatBlockOpenCapacity(block)}
+                            {formatBlockBlobCapacity(block)}
                           </div>
                           <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap md:hidden">
                             {paidCost}

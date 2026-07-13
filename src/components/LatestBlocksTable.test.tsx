@@ -95,6 +95,7 @@ describe('LatestBlocksTable', () => {
   it('does not auto-expand a block row on initial load', () => {
     render(<LatestBlocksTable />);
 
+    expect(screen.getByText('1/6 used')).toBeInTheDocument();
     expect(screen.queryByText('Blob details')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'View blob details for block 200' }));
