@@ -20,12 +20,13 @@ import {
   formatFeeHeadroom,
   getAttributionImageSrc,
   getAttributionInitial,
+  getAttributionSuggestionUrl,
   getBlobCount,
   safeExplorerUrl,
   truncateAddress,
 } from '@/utils';
 import { RelativeTime } from '@/components/RelativeTime';
-import { FEE_HEADROOM_TOOLTIP } from '@/constants';
+import { ATTRIBUTION_CONTRIBUTING_URL, FEE_HEADROOM_TOOLTIP } from '@/constants';
 
 const USER_BLOB_LIMIT = 20;
 
@@ -191,6 +192,12 @@ export default function UserDetailPage() {
 
   const userName = user?.name || truncateAddress(address);
   const userImageSrc = user?.name ? getAttributionImageSrc(user.name) : null;
+  // Null when the route param is not a parseable address; the callout then
+  // only links to the contribution guide instead of a prefilled file.
+  const attributionSuggestionUrl = getAttributionSuggestionUrl(
+    address,
+    selectedNetwork.apiParam
+  );
 
   // The backend user endpoint carries no explorer link, but every blob from
   // this address shares one, so surface it from whichever list has loaded.
@@ -289,6 +296,40 @@ export default function UserDetailPage() {
                   </a>
                 )}
               </div>
+
+              {!user.name && (
+                <div className="mb-6 rounded-lg border border-divider bg-gradient-to-r from-[#17181b] to-[#141519]/60 p-4">
+                  <p className="text-sm text-bodyText">
+                    This address isn&apos;t attributed to a known entity yet. If you know
+                    which project it belongs to, you can add it to the public blob-list
+                    registry.
+                    {attributionSuggestionUrl &&
+                      ' The suggestion link opens a prefilled entity file on GitHub; committing it starts a pull request.'}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                    {attributionSuggestionUrl && (
+                      <a
+                        href={attributionSuggestionUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-blue hover:underline text-sm"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                        Suggest an attribution
+                      </a>
+                    )}
+                    <a
+                      href={ATTRIBUTION_CONTRIBUTING_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-blue hover:underline text-sm"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                      How attribution works
+                    </a>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
