@@ -17,6 +17,7 @@ import {
   formatWeiToReadable,
   getAttributionImageSrc,
   getAttributionInitial,
+  getAttributionSuggestionUrl,
   getBlobCount,
   getNetworkIconSrc,
   parseSearchQuery,
@@ -98,6 +99,48 @@ describe('utils', () => {
     expect(getAttributionImageSrc('Arbitrum One')).toBe('/images/arbitrum.png');
     expect(getAttributionImageSrc('Taiko')).toBeNull();
     expect(getAttributionInitial('Taiko')).toBe('T');
+  });
+
+  it('builds a prefilled blob-list suggestion URL with a checksummed address', () => {
+    const url = getAttributionSuggestionUrl(
+      '0x000000633b68f5d8d3a86593ebb815b4663bcbe0',
+      'mainnet'
+    );
+    expect(url?.startsWith('https://github.com/tirante-dev/blob-list/new/main?')).toBe(true);
+
+    const params = new URL(url ?? '').searchParams;
+    expect(params.get('filename')).toBe('entities/your-entity-id.yaml');
+
+    const template = params.get('value') ?? '';
+    expect(template).toContain('address: "0x000000633b68f5D8D3a86593ebB815b4663BCBe0"');
+    expect(template).toContain('submission_chain: eip155-1');
+    expect(template).toContain(
+      'url: https://etherscan.io/address/0x000000633b68f5D8D3a86593ebB815b4663BCBe0'
+    );
+  });
+
+  it('targets the sepolia chain and explorer for sepolia suggestions', () => {
+    const url = getAttributionSuggestionUrl(
+      '0x000000633b68f5d8d3a86593ebb815b4663bcbe0',
+      'sepolia'
+    );
+    const template = new URL(url ?? '').searchParams.get('value') ?? '';
+    expect(template).toContain('submission_chain: eip155-11155111');
+    expect(template).toContain('url: https://sepolia.etherscan.io/address/');
+  });
+
+  it('returns null for unparseable addresses instead of templating them', () => {
+    expect(getAttributionSuggestionUrl('not-an-address')).toBeNull();
+    expect(getAttributionSuggestionUrl('0x1234')).toBeNull();
+    expect(
+      getAttributionSuggestionUrl('0x1234\n  evil: yaml\n#', 'mainnet')
+    ).toBeNull();
+  });
+
+  it('defaults to mainnet when no network is given', () => {
+    const url = getAttributionSuggestionUrl('0x000000633b68f5d8d3a86593ebb815b4663bcbe0');
+    const template = new URL(url ?? '').searchParams.get('value') ?? '';
+    expect(template).toContain('submission_chain: eip155-1');
   });
 
   it('formats blob gas fees in gwei', () => {

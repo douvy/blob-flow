@@ -82,6 +82,13 @@ export const THEME = {
 };
 
 /**
+ * Public registry mapping blob-submitting addresses to entities. Unattributed
+ * user pages link here so visitors can contribute an attribution.
+ */
+export const ATTRIBUTION_REPO_URL = 'https://github.com/tirante-dev/blob-list';
+export const ATTRIBUTION_CONTRIBUTING_URL = `${ATTRIBUTION_REPO_URL}/blob/main/CONTRIBUTING.md`;
+
+/**
  * How many pending transactions to sample for mempool views. Shared so the
  * homepage summary and the /mempool page hit the same React Query cache entry.
  */

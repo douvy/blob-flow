@@ -1,7 +1,9 @@
 /**
  * Utility functions for the application
  */
+import { getAddress } from 'viem';
 import { SearchTarget } from '@/types';
+import { ATTRIBUTION_CONTRIBUTING_URL, ATTRIBUTION_REPO_URL } from '@/constants';
 
 const ATTRIBUTION_IMAGE_NAMES: Record<string, string> = {
   arbitrum: 'arbitrum',
@@ -53,6 +55,76 @@ export function getAttributionInitial(name: string): string {
 
 export function getNetworkIconSrc(name?: string | null): string | null {
   return name ? getAttributionImageSrc(name) : null;
+}
+
+const ATTRIBUTION_CHAINS: Record<string, { caip2: string; explorerUrl: string }> = {
+  mainnet: { caip2: 'eip155-1', explorerUrl: 'https://etherscan.io' },
+  sepolia: { caip2: 'eip155-11155111', explorerUrl: 'https://sepolia.etherscan.io' },
+};
+
+/**
+ * Prefilled GitHub "new file" URL for suggesting an attribution in the
+ * blob-list registry. When a contributor without write access commits the
+ * prefilled file, GitHub forks the repo and opens a pull request, so the
+ * link doubles as a lightweight PR form.
+ *
+ * Returns null when the address does not parse: route params are user input,
+ * and anything that is not a real address has no place in the template.
+ */
+export function getAttributionSuggestionUrl(
+  address: string,
+  networkApiParam?: string
+): string | null {
+  const chain =
+    ATTRIBUTION_CHAINS[networkApiParam ?? 'mainnet'] ?? ATTRIBUTION_CHAINS.mainnet;
+
+  // The registry schema requires checksummed addresses; route params can
+  // arrive lowercased, so normalize.
+  let checksummedAddress: string;
+  try {
+    checksummedAddress = getAddress(address);
+  } catch {
+    return null;
+  }
+
+  const template = `# Attribution suggestion for ${checksummedAddress}
+# Full schema and evidence rules: ${ATTRIBUTION_CONTRIBUTING_URL}
+# 1. Rename this file to match the id field below (entities/<id>.yaml).
+# 2. Replace the placeholder entity fields.
+# 3. Keep at least one piece of public, durable evidence per address.
+schema_version: 1
+id: your-entity-id
+name: Your Entity Name
+category: rollup
+status: active
+description: One-line description of the entity.
+website: https://example.com
+chain_refs:
+  - caip2: ${chain.caip2}
+    relationship: settlement_chain
+addresses:
+  - submission_chain: ${chain.caip2}
+    address: "${checksummedAddress}"
+    role: batcher # pick one: batcher, sequencer, proposer, operator, unknown, ...
+    label: Your Entity blob submitter
+    status: active
+    confidence: probable
+    valid_from:
+      block: 0 # replace with the first block this address submitted blobs in
+    valid_to: null
+    evidence:
+      # Prefer strong public sources: official docs, verified contracts,
+      # official repos. An explorer link alone usually only supports
+      # probable/inferred confidence.
+      - type: analysis
+        url: ${chain.explorerUrl}/address/${checksummedAddress}
+`;
+
+  const params = new URLSearchParams({
+    filename: 'entities/your-entity-id.yaml',
+    value: template,
+  });
+  return `${ATTRIBUTION_REPO_URL}/new/main?${params.toString()}`;
 }
 
 export function formatDate(date: Date): string {
