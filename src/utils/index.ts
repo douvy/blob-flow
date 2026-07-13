@@ -252,13 +252,55 @@ export function formatWeiToReadable(weiValue: string | number): string {
 export function formatWeiToGwei(weiValue: string | number, maximumFractionDigits = 6): string {
   const rawWeiValue = normalizeDecimalString(weiValue);
   const gweiValue = formatDecimalUnits(rawWeiValue, 9);
+  const compact = compactLargeGwei(gweiValue);
+  if (compact) return `${compact} Gwei`;
   return `${formatDecimalString(gweiValue, maximumFractionDigits)} Gwei`;
 }
 
 export function formatGwei(gweiValue: string | number, maximumFractionDigits = 6): string {
   const rawGweiValue = normalizeDecimalString(gweiValue);
+  const compact = compactLargeGwei(rawGweiValue);
+  if (compact) return `${compact} Gwei`;
   return `${formatDecimalString(rawGweiValue, maximumFractionDigits)} Gwei`;
 }
+
+/**
+ * A blob base fee at or above 1 Gwei per blob gas is already 1e9 Gwei, i.e.
+ * 1 ETH per blob gas. That never occurs on a real network and only appears
+ * when a congested testnet's EIP-4844 fee runs away exponentially. Values
+ * this large are unreadable as 20+ digit grouped strings (and the trailing
+ * fractional digits are meaningless noise), so we switch to compact
+ * scientific notation once the whole-number part reaches this width.
+ */
+const LARGE_GWEI_INTEGER_DIGITS = 10; // 1e9 Gwei == "1000000000" (10 digits)
+
+/**
+ * Render a compact scientific string (no unit) for runaway Gwei magnitudes,
+ * e.g. "2.84e22". Returns null when the value is small enough to read in
+ * ordinary positional notation, letting callers fall through to their normal
+ * decimal formatting. Input must be a normalized non-negative decimal string.
+ */
+function compactLargeGwei(gweiDecimalString: string): string | null {
+  const wholePart = gweiDecimalString.split('.')[0];
+  if (wholePart.length < LARGE_GWEI_INTEGER_DIGITS) return null;
+  return formatScientific(Number(gweiDecimalString));
+}
+
+/**
+ * Compact scientific notation with a lowercase exponent, e.g. "2.84e22".
+ * Non-finite input falls back to Intl's own rendering ("∞" / "NaN").
+ */
+export function formatScientific(value: number, maximumFractionDigits = 2): string {
+  return new Intl.NumberFormat('en-US', {
+    notation: 'scientific',
+    maximumFractionDigits,
+  })
+    .format(value)
+    .toLowerCase();
+}
+
+/** Gwei magnitude at or above which fee readouts switch to scientific form. */
+export const RUNAWAY_GWEI_THRESHOLD = 1e9;
 
 export function formatDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) {

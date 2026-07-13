@@ -433,6 +433,14 @@ describe('formatFeeNumber', () => {
     expect(formatFeeNumber(0)).toBe('0');
     expect(formatFeeNumber(Number.NaN)).toBe('0');
   });
+
+  it('switches to compact scientific notation for runaway fees', () => {
+    expect(formatFeeNumber(2.838e22)).toBe('2.84e22');
+    expect(formatFeeNumber(55.32e21)).toBe('5.53e22');
+    // Below the 1e9 Gwei threshold stays positional.
+    expect(formatFeeNumber(999_999_999)).toBe('1,000,000,000');
+    expect(formatFeeNumber(1e9)).toBe('1e9');
+  });
 });
 
 describe('formatSignedPercent', () => {

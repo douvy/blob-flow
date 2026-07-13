@@ -148,10 +148,18 @@ describe('utils', () => {
   it('formats blob gas fees in gwei', () => {
     expect(formatWeiToGwei('9389122')).toBe('0.009389 Gwei');
     expect(formatWeiToGwei('1000000000')).toBe('1 Gwei');
-    expect(formatWeiToGwei('123456789012345678901234567890')).toBe(
-      '123,456,789,012,345,678,901.234568 Gwei'
-    );
     expect(formatGwei('0.008487503')).toBe('0.008488 Gwei');
+  });
+
+  it('collapses runaway blob fees to compact scientific notation', () => {
+    // 1.2345...e29 wei == 1.2345...e20 Gwei: too large to spell out.
+    expect(formatWeiToGwei('123456789012345678901234567890')).toBe('1.23e20 Gwei');
+    // 2.838e31 wei == 2.838e22 Gwei, matching the observed Hoodi readout.
+    expect(formatWeiToGwei('28380000000000000000000000000000')).toBe('2.84e22 Gwei');
+    expect(formatGwei('28380000000000000000000')).toBe('2.84e22 Gwei');
+    // Just below the 1e9 Gwei threshold stays in positional notation.
+    expect(formatGwei('999999999')).toBe('999,999,999 Gwei');
+    expect(formatGwei('1000000000')).toBe('1e9 Gwei');
   });
 
   it('formats durations and percentages compactly', () => {
