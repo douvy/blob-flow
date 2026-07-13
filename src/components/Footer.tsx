@@ -51,6 +51,10 @@ export default function Footer() {
               </Link>
               <span className="hidden md:inline mx-4">•</span>
             </p>
+
+            <p className="mt-3 md:mt-2 text-xs text-[#7d8590]">
+              v{process.env.NEXT_PUBLIC_APP_VERSION}
+            </p>
             
             {/* Mobile GitHub link */}
             <div className="block md:hidden text-left">
