@@ -624,7 +624,8 @@ export default function BlobFeeHero() {
 
   // Mempool demand signal. Also optional. Reads the shared pressure snapshot
   // so the Pending stat matches Live Metrics and the /mempool page.
-  const { data: mempoolPressure } = useMempoolPressure(network);
+  const { data: mempoolPressure, error: mempoolPressureError } =
+    useMempoolPressure(network);
 
   // Blocks accumulated live from the WebSocket between pricing refetches.
   const [liveState, setLiveState] = useState<{
@@ -924,7 +925,9 @@ export default function BlobFeeHero() {
                     value={mempoolPressure ? mempoolPressure.pendingBlobCount.toLocaleString() : '-'}
                     hint={
                       mempoolPressure
-                        ? `${mempoolPressure.includability.likelyIncludableCount} includable`
+                        ? `${mempoolPressure.includability.likelyIncludableCount} includable${
+                          mempoolPressureError ? ' · refresh failed' : ''
+                        }`
                         : 'mempool blobs'
                     }
                   />

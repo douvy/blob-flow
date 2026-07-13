@@ -133,8 +133,11 @@ export default function LiveMetrics() {
   // entry behind the hero's Pending stat and the /mempool page, so those
   // numbers can never disagree. Optional: the card degrades to "-" if the
   // pressure endpoint is down.
-  const { data: mempoolPressure, isLoading: pressureLoading } =
-    useMempoolPressure(network);
+  const {
+    data: mempoolPressure,
+    isLoading: pressureLoading,
+    error: pressureError,
+  } = useMempoolPressure(network);
 
   // The rolling sample behind Latest Block and Top User: every live block is
   // folded over the REST baseline, so long sessions keep a current sample
@@ -190,8 +193,13 @@ export default function LiveMetrics() {
       title: 'Pending Blobs',
       value: pressure ? formatCompactNumber(pressure.pendingBlobCount) : '-',
       trend: 'neutral' as const,
+      // A failed refetch keeps the last snapshot on screen (React Query
+      // retains data on error), so disclose the staleness like the mempool
+      // strip does instead of silently presenting an old count as current.
       description: pressure
-        ? `${formatCompactNumber(pressure.pendingUniqueSenders)} senders · public mempool`
+        ? `${formatCompactNumber(pressure.pendingUniqueSenders)} senders · public mempool${
+          pressureError ? ' · refresh failed' : ''
+        }`
         : 'public mempool',
       icon: Hourglass,
     },

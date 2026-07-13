@@ -187,12 +187,18 @@ function makeNewBlockMessage(blockNumber: number, blobCount: number): string {
 function mockApiData(
   latestBlocks: LatestBlocksResponse | undefined,
   blocksError: Error | null = null,
-  pressure: MempoolPressure | null = pressureFixture
+  pressure: MempoolPressure | null = pressureFixture,
+  pressureError: Error | null = null
 ) {
   vi.mocked(useApiData).mockImplementation((fetchFunction, queryKey) => {
     const key = Array.isArray(queryKey) ? queryKey[0] : queryKey;
     if (key === 'mempool-pressure') {
-      return { data: pressure ?? undefined, isLoading: false, error: null, refetch: vi.fn() };
+      return {
+        data: pressure ?? undefined,
+        isLoading: false,
+        error: pressureError,
+        refetch: vi.fn(),
+      };
     }
     if (key === 'stats-windows') {
       return { data: statsWindowsFixture, isLoading: false, error: null, refetch: vi.fn() };
@@ -275,6 +281,23 @@ describe('LiveMetrics', () => {
     // alongside the two baseline blocks; only merging the newest event would
     // leave three.
     expect(screen.getByText('100% of last 5 blocks')).toBeInTheDocument();
+  });
+
+  it('discloses a failed pressure refetch instead of presenting the stale count as current', () => {
+    mockApiData(
+      { data: [makeRestBlock(200, 1), makeRestBlock(199, 2)] },
+      null,
+      pressureFixture,
+      new Error('pressure refetch failed')
+    );
+    renderLiveMetrics();
+
+    // React Query keeps the last snapshot on error; the hero renders the same
+    // cache entry, so the value stays visible but the staleness is labeled.
+    expect(screen.getByText('1.2K')).toBeInTheDocument();
+    expect(
+      screen.getByText('12 senders · public mempool · refresh failed')
+    ).toBeInTheDocument();
   });
 
   it('degrades the pending blobs card instead of the whole section when pressure is unavailable', () => {

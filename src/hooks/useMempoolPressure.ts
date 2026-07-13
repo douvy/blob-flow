@@ -47,7 +47,12 @@ export function useMempoolPressure(network?: string) {
     if (debounceRef.current !== null) return;
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null;
-      void queryClient.invalidateQueries({ queryKey });
+      // Several mounted consumers each hold their own debounce timer, so one
+      // event burst can invalidate more than once in the same tick. Without
+      // cancelRefetch: false, the second invalidation would cancel and restart
+      // the in-flight refetch; our queryFn ignores the abort signal, so that
+      // means two live requests instead of one shared one.
+      void queryClient.invalidateQueries({ queryKey }, { cancelRefetch: false });
     }, MEMPOOL_PRESSURE_EVENT_DEBOUNCE_MS);
   });
 
