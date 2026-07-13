@@ -6,17 +6,16 @@ import MetricCard from './MetricCard';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { selectRollingWindow, transformStatsWindows } from '../lib/chartAggregation';
-import { transformStatsResponse } from '../lib/api/stats';
 import {
   BackendStatsWindowsResponse,
   Block,
+  MempoolPressure,
   RollingWindowDataPoint,
-  StatsResponse,
 } from '../types';
 import DataStateWrapper from './DataStateWrapper';
+import { useMempoolPressure } from '../hooks/useMempoolPressure';
 import { useNetwork } from '../hooks/useNetwork';
 import { useTimeRange } from '../contexts/TimeRangeContext';
-import { useLatestBlobEvent } from '../contexts/LiveDataContext';
 import { useLiveBlockList } from '../hooks/useLiveBlockList';
 import { truncateAddress } from '../utils';
 import { useNow } from '../hooks/useNow';
@@ -117,26 +116,25 @@ function getAttributedName(attribution?: string): string | undefined {
 export default function LiveMetrics() {
   const { selectedNetwork } = useNetwork();
   const { timeRange } = useTimeRange();
-  const statsUpdateEvent = useLatestBlobEvent('stats_update');
   const network = selectedNetwork.apiParam;
 
-  const fetchStats = useCallback(() => api.getStats(network), [network]);
   const fetchStatsWindows = useCallback(
     () => api.getStatsWindows(undefined, network),
     [network]
   );
 
   const {
-    data: statsData,
-    isLoading: statsLoading,
-    error: statsError,
-  } = useApiData<StatsResponse>(fetchStats, ['stats', network]);
-
-  const {
     data: statsWindows,
     isLoading: windowsLoading,
     error: windowsError,
   } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, ['stats-windows', network]);
+
+  // Pending Blobs reads the shared mempool pressure snapshot, the same cache
+  // entry behind the hero's Pending stat and the /mempool page, so those
+  // numbers can never disagree. Optional: the card degrades to "-" if the
+  // pressure endpoint is down.
+  const { data: mempoolPressure, isLoading: pressureLoading } =
+    useMempoolPressure(network);
 
   // The rolling sample behind Latest Block and Top User: every live block is
   // folded over the REST baseline, so long sessions keep a current sample
@@ -157,11 +155,6 @@ export default function LiveMetrics() {
     [rollingWindows, timeRange]
   );
 
-  const liveStats = statsUpdateEvent
-    ? transformStatsResponse(statsUpdateEvent.data)
-    : undefined;
-  const displayStats = liveStats || statsData;
-
   const latestBlock: Block | undefined = sampleBlocks[0];
 
   const topUser = useMemo(
@@ -172,7 +165,7 @@ export default function LiveMetrics() {
   const now = useNow();
 
   const getMetrics = (
-    stats: StatsResponse,
+    pressure: MempoolPressure | undefined,
     window: RollingWindowDataPoint,
     block: Block | undefined,
     user: TopUserStat | null,
@@ -195,9 +188,11 @@ export default function LiveMetrics() {
     },
     {
       title: 'Pending Blobs',
-      value: formatCompactNumber(stats.data.pendingBlobsCount),
+      value: pressure ? formatCompactNumber(pressure.pendingBlobCount) : '-',
       trend: 'neutral' as const,
-      description: `${formatCompactNumber(window.uniqueSenders)} senders · ${window.label}`,
+      description: pressure
+        ? `${formatCompactNumber(pressure.pendingUniqueSenders)} senders · public mempool`
+        : 'public mempool',
       icon: Hourglass,
     },
     {
@@ -213,9 +208,9 @@ export default function LiveMetrics() {
     },
   ];
 
-  const isLoading = statsLoading || windowsLoading || blocksLoading;
-  const headlineError = statsError || windowsError;
-  const haveHeadline = Boolean(displayStats && selectedWindow);
+  const isLoading = windowsLoading || pressureLoading || blocksLoading;
+  const headlineError = windowsError;
+  const haveHeadline = Boolean(selectedWindow);
 
   const loadingComponent = (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
@@ -238,9 +233,9 @@ export default function LiveMetrics() {
         error={haveHeadline ? null : headlineError || blocksError}
         loadingComponent={loadingComponent}
       >
-        {displayStats && selectedWindow && (
+        {selectedWindow && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {getMetrics(displayStats, selectedWindow, latestBlock, topUser).map((metric, index) => (
+            {getMetrics(mempoolPressure, selectedWindow, latestBlock, topUser).map((metric, index) => (
               <MetricCard
                 key={index}
                 title={metric.title}

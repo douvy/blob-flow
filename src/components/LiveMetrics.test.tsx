@@ -10,7 +10,7 @@ import {
   BlobResponse,
   Block,
   LatestBlocksResponse,
-  StatsResponse,
+  MempoolPressure,
 } from '../types';
 import LiveMetrics from './LiveMetrics';
 
@@ -51,18 +51,39 @@ class MockWebSocket {
   }
 }
 
-const statsFixture: StatsResponse = {
-  data: {
-    averageBaseFee: '1.00 Gwei',
-    totalBlobs: 100000,
-    totalConfirmedBlobs: 99000,
-    pendingBlobsCount: 1200,
-    avgBlobsPerBlock: 3.1,
-    averageTip: '0.10 Gwei',
-    averageTotalCost: '0.001 ETH',
-    lastIndexedBlock: 200,
-    lastIndexedTime: '2026-01-01T00:00:00.000Z',
+const pressureFixture: MempoolPressure = {
+  networkId: 1,
+  networkName: 'mainnet',
+  pendingBlobCount: 1200,
+  pendingBlobGas: 1200 * 131072,
+  pendingUniqueSenders: 12,
+  feeDistribution: {
+    min: '1.00',
+    avg: '1.50',
+    median: '1.25',
+    p95: '2.00',
+    max: '2.50',
   },
+  pendingTransactionAge: {
+    oldest: '2m',
+    newest: '5s',
+    average: '1m',
+    oldestSeconds: 120,
+    newestSeconds: 5,
+    averageSeconds: 60,
+    oldestTimestamp: '2026-01-01T00:00:00.000Z',
+    newestTimestamp: '2026-01-01T00:01:55.000Z',
+  },
+  includability: {
+    latestBlobBaseFee: '1.00',
+    pricingAvailable: true,
+    likelyIncludableCount: 1180,
+    underpricedCount: 20,
+    unknownPricingCount: 0,
+  },
+  sampleLimit: 50,
+  sampleTruncated: false,
+  generatedAt: '2026-01-01T00:02:00.000Z',
 };
 
 const statsWindowsFixture: BackendStatsWindowsResponse = {
@@ -165,12 +186,13 @@ function makeNewBlockMessage(blockNumber: number, blobCount: number): string {
 // the query key so each caller gets its own fixture.
 function mockApiData(
   latestBlocks: LatestBlocksResponse | undefined,
-  blocksError: Error | null = null
+  blocksError: Error | null = null,
+  pressure: MempoolPressure | null = pressureFixture
 ) {
   vi.mocked(useApiData).mockImplementation((fetchFunction, queryKey) => {
     const key = Array.isArray(queryKey) ? queryKey[0] : queryKey;
-    if (key === 'stats') {
-      return { data: statsFixture, isLoading: false, error: null, refetch: vi.fn() };
+    if (key === 'mempool-pressure') {
+      return { data: pressure ?? undefined, isLoading: false, error: null, refetch: vi.fn() };
     }
     if (key === 'stats-windows') {
       return { data: statsWindowsFixture, isLoading: false, error: null, refetch: vi.fn() };
@@ -214,6 +236,14 @@ describe('LiveMetrics', () => {
       ['latest-blocks', DEFAULT_NETWORK.apiParam, 30]
     );
 
+    // Pending Blobs must read the shared pressure cache entry (the same key
+    // the hero and /mempool use), so the homepage shows one snapshot.
+    expect(vi.mocked(useApiData)).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['mempool-pressure', DEFAULT_NETWORK.apiParam],
+      expect.objectContaining({ refetchInterval: expect.any(Number) })
+    );
+
     expect(screen.getByText('Avg Base Fee (1h)')).toBeInTheDocument();
     expect(screen.getByText('1.50 Gwei')).toBeInTheDocument();
     expect(screen.getByText('Median 1.00 Gwei · p95 2.00 Gwei')).toBeInTheDocument();
@@ -222,7 +252,7 @@ describe('LiveMetrics', () => {
     expect(screen.getByText(/^1\/6 blobs/)).toBeInTheDocument();
 
     expect(screen.getByText('1.2K')).toBeInTheDocument();
-    expect(screen.getByText('12 senders · 1h')).toBeInTheDocument();
+    expect(screen.getByText('12 senders · public mempool')).toBeInTheDocument();
 
     expect(screen.getByText('Base')).toBeInTheDocument();
     expect(screen.getByText('100% of last 2 blocks')).toBeInTheDocument();
@@ -247,32 +277,17 @@ describe('LiveMetrics', () => {
     expect(screen.getByText('100% of last 5 blocks')).toBeInTheDocument();
   });
 
-  it('applies stats_update events to the pending blobs metric', () => {
+  it('degrades the pending blobs card instead of the whole section when pressure is unavailable', () => {
+    mockApiData({ data: [makeRestBlock(200, 1), makeRestBlock(199, 2)] }, null, null);
     renderLiveMetrics();
 
-    expect(screen.getByText('1.2K')).toBeInTheDocument();
+    expect(screen.getByText('Pending Blobs')).toBeInTheDocument();
+    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('public mempool')).toBeInTheDocument();
 
-    act(() => {
-      MockWebSocket.instances[0].open();
-      MockWebSocket.instances[0].receive(
-        JSON.stringify({
-          type: 'stats_update',
-          data: {
-            total_blobs: 100500,
-            total_confirmed_blobs: 99500,
-            total_pending_blobs: 4200,
-            average_base_fee: '1000000000',
-            average_tip: '100000000',
-            average_total_cost: '1000000000000000',
-            last_indexed_block: 203,
-            last_indexed_time: '2026-01-01T00:05:00.000Z',
-          },
-        })
-      );
-    });
-
-    expect(screen.getByText('4.2K')).toBeInTheDocument();
-    expect(screen.queryByText('1.2K')).not.toBeInTheDocument();
+    // The headline cards keep rendering from the rolling window.
+    expect(screen.getByText('1.50 Gwei')).toBeInTheDocument();
+    expect(screen.getByText('#200')).toBeInTheDocument();
   });
 
   it('keeps headline cards and shows the footnote when the block sample fails', () => {
