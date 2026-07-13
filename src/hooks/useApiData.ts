@@ -20,7 +20,7 @@ function normalizeError(error: unknown): Error {
  *
  * @param fetchFunction - Function that returns a promise with data
  * @param queryKey - React Query cache key. Subscribers sharing the same key share cache and dedupe requests.
- * @param options - Optional React Query passthrough (enabled, initialData, refetchInterval, staleTime)
+ * @param options - Optional React Query passthrough (enabled, initialData, refetchInterval, refetchOnWindowFocus, staleTime)
  */
 export function useApiData<T>(
   fetchFunction: () => Promise<T>,
@@ -41,20 +41,25 @@ export function useApiData<T>(
     }
   }, []);
 
+  // React Query v5 merges these options over the QueryClient defaults with a
+  // plain spread, so an explicit `undefined` clobbers any app-wide default
+  // (e.g. AppProviders sets staleTime: 15_000 and refetchOnWindowFocus: false).
+  // Only forward each option when the caller actually supplied it.
   const query = useQuery<T, Error>({
     queryKey,
     queryFn,
-    enabled: options.enabled,
-    initialData: options.initialData,
-    initialDataUpdatedAt: options.initialData === undefined ? undefined : 0,
-    refetchInterval: options.refetchInterval,
-    // Only forward when set: React Query merges options over QueryClient
-    // defaults with a plain spread, so passing `undefined` would clobber the
-    // app-wide `refetchOnWindowFocus: false` default for every other caller.
+    ...(options.enabled !== undefined && { enabled: options.enabled }),
+    ...(options.initialData !== undefined && {
+      initialData: options.initialData,
+      initialDataUpdatedAt: 0,
+    }),
+    ...(options.refetchInterval !== undefined && {
+      refetchInterval: options.refetchInterval,
+    }),
     ...(options.refetchOnWindowFocus !== undefined && {
       refetchOnWindowFocus: options.refetchOnWindowFocus,
     }),
-    staleTime: options.staleTime,
+    ...(options.staleTime !== undefined && { staleTime: options.staleTime }),
   });
 
   const queryRefetch = query.refetch;
