@@ -82,7 +82,8 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
         color: getSeriesColor(entry.key, index),
         total: data.reduce((sum, point) => sum + getNumericValue(point, entry.key), 0),
       }))
-      .filter((entry) => entry.total > 0),
+      .filter((entry) => entry.total > 0)
+      .slice(0, 6),
     [data, series]
   );
 
@@ -99,32 +100,38 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
     const total = visiblePieData.reduce((s, d) => s + d.value, 0);
     return (
       <div className="flex items-center justify-center h-full">
-        <ResponsiveContainer width="50%" height="100%">
-          <PieChart>
-            <Pie
-              data={visiblePieData}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              innerRadius={35}
-              outerRadius={65}
-              paddingAngle={2}
-            >
-              {visiblePieData.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value, name) => {
-                const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
-                const pct = total > 0 ? Math.round((numericValue / total) * 100) : 0;
-                return [`${numericValue} (${pct}%)`, String(name ?? '')];
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        <div className="flex items-center justify-center w-[50%] h-full">
+          {visiblePieData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={visiblePieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={35}
+                  outerRadius={65}
+                  paddingAngle={2}
+                >
+                  {visiblePieData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  formatter={(value, name) => {
+                    const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+                    const pct = total > 0 ? Math.round((numericValue / total) * 100) : 0;
+                    return [`${numericValue} (${pct}%)`, String(name ?? '')];
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <span className="text-xs text-[#6e7687] text-center px-2">No series selected</span>
+          )}
+        </div>
         <div className="flex flex-col gap-1.5 ml-2">
           {pieData.map((entry) => {
             const hidden = hiddenKeys.has(entry.key);
@@ -135,7 +142,7 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
                 type="button"
                 onClick={() => toggleKey(entry.key)}
                 aria-pressed={!hidden}
-                className={`flex items-center gap-1.5 text-xs cursor-pointer transition-opacity hover:opacity-80 ${hidden ? 'opacity-40' : ''}`}
+                className={`flex items-center gap-1.5 text-xs cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hidden ? 'opacity-40' : ''}`}
               >
                 <span
                   className="inline-block w-2.5 h-2.5 rounded-sm"
@@ -190,14 +197,14 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
               );
             }}
           />
-          {series.map((entry, index) => (
+          {legendEntries.map((entry) => (
             <Area
               key={entry.key}
               type="monotone"
               dataKey={entry.key}
               stackId="1"
-              stroke={getSeriesColor(entry.key, index)}
-              fill={getSeriesColor(entry.key, index)}
+              stroke={entry.color}
+              fill={entry.color}
               fillOpacity={0.6}
               name={entry.name}
               hide={hiddenKeys.has(entry.key)}
@@ -206,7 +213,7 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
         </AreaChart>
       </ResponsiveContainer>
       <div className="absolute bottom-0 left-0 right-0 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-[#6e7687]">
-        {legendEntries.slice(0, 6).map((entry) => {
+        {legendEntries.map((entry) => {
           const hidden = hiddenKeys.has(entry.key);
           return (
             <button
@@ -214,7 +221,7 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
               type="button"
               onClick={() => toggleKey(entry.key)}
               aria-pressed={!hidden}
-              className={`inline-flex items-center cursor-pointer transition-opacity hover:opacity-80 ${hidden ? 'opacity-40' : ''}`}
+              className={`inline-flex items-center cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hidden ? 'opacity-40' : ''}`}
             >
               <span
                 className="inline-block w-2.5 h-2.5 rounded-sm mr-1"
