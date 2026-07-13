@@ -7,6 +7,7 @@ export interface UseApiDataOptions<T> {
   enabled?: boolean;
   initialData?: T;
   refetchInterval?: number;
+  refetchOnWindowFocus?: boolean;
   staleTime?: number;
 }
 
@@ -47,6 +48,7 @@ export function useApiData<T>(
     initialData: options.initialData,
     initialDataUpdatedAt: options.initialData === undefined ? undefined : 0,
     refetchInterval: options.refetchInterval,
+    refetchOnWindowFocus: options.refetchOnWindowFocus,
     staleTime: options.staleTime,
   });
 
