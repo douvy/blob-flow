@@ -73,6 +73,20 @@ describe('utils', () => {
   it('formats decimal ETH costs and integer wei costs', () => {
     expect(formatCostEthOrWei('0.001')).toBe('0.001 ETH');
     expect(formatCostEthOrWei('1000000000')).toBe('1 Gwei');
+    // Large wei costs render as ETH instead of tens of millions of Gwei.
+    expect(formatCostEthOrWei('47031169918042112')).toBe('0.047031 ETH');
+    expect(formatCostEthOrWei('1000000000000000000')).toBe('1 ETH');
+    // Sub-Gwei costs stay in Wei.
+    expect(formatCostEthOrWei('500')).toBe('500 Wei');
+    // Decimal ETH costs are capped to a readable precision.
+    expect(formatCostEthOrWei('0.047031169918042112')).toBe('0.047031 ETH');
+    // Small decimal ETH costs fall back to Gwei/Wei instead of rounding to 0.
+    expect(formatCostEthOrWei('0.0000001')).toBe('100 Gwei');
+    expect(formatCostEthOrWei('0.000000000000000001')).toBe('1 Wei');
+    // Equal costs render identically whether given as decimal ETH or integer wei.
+    expect(formatCostEthOrWei('0.047031169918042112')).toBe(
+      formatCostEthOrWei('47031169918042112')
+    );
   });
 
   it('rejects invalid decimal values', () => {
