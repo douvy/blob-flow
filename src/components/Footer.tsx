@@ -46,8 +46,8 @@ export default function Footer() {
               <Link href="https://x.com/douvy_" target="_blank" rel="noopener noreferrer" className="decoration-[#4a5568] hover:text-[#d9d9d9] hover:decoration-[#d9d9d9] underline underline-offset-2 ml-1 mr-1">
                 @douvy_
               </Link> and 
-              <Link href="https://x.com/at4z" target="_blank" rel="noopener noreferrer" className="decoration-[#4a5568] hover:text-[#d9d9d9] hover:decoration-[#d9d9d9] underline underline-offset-2 ml-1">
-                @at4z
+              <Link href="https://github.com/a-thomas-22" target="_blank" rel="noopener noreferrer" className="decoration-[#4a5568] hover:text-[#d9d9d9] hover:decoration-[#d9d9d9] underline underline-offset-2 ml-1">
+                a-thomas-22
               </Link>
               <span className="hidden md:inline mx-4">•</span>
             </p>
