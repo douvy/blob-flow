@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.4.0](https://github.com/douvy/blob-flow/compare/v1.3.0...v1.4.0) (2026-07-13)
+
+
+### Features
+
+* **charts:** isolate series on legend click instead of hiding it ([#181](https://github.com/douvy/blob-flow/issues/181)) ([d29d418](https://github.com/douvy/blob-flow/commit/d29d418fde2aec598898bc9e7fd9abc5c9576fd3))
+* link Latest Block metric card to the blocks page ([#180](https://github.com/douvy/blob-flow/issues/180)) ([c5cfdec](https://github.com/douvy/blob-flow/commit/c5cfdecfbf949e7462049f8910c7e136caf1a1a6))
+* link Pending Blobs live metric to the mempool page ([#179](https://github.com/douvy/blob-flow/issues/179)) ([526017f](https://github.com/douvy/blob-flow/commit/526017f781a641c5ff176522393a8e335375a81d))
+* link unattributed users to a prefilled blob-list attribution PR ([#178](https://github.com/douvy/blob-flow/issues/178)) ([1dc6e88](https://github.com/douvy/blob-flow/commit/1dc6e884293893eb241707ca515ea85b6aebfd32))
+
+
+### Bug Fixes
+
+* **charts:** prevent axis and label clipping and improve tooltip contrast ([#183](https://github.com/douvy/blob-flow/issues/183)) ([84bb6c3](https://github.com/douvy/blob-flow/commit/84bb6c328e08a5c2be9be01a6718c03d13b852ed))
+* keep pending blob figures consistent across the homepage ([#184](https://github.com/douvy/blob-flow/issues/184)) ([945f0ad](https://github.com/douvy/blob-flow/commit/945f0ad15f48c8eb26c90655a003b2637316284a))
+* show chart bucket labels and block timestamps in local time ([#182](https://github.com/douvy/blob-flow/issues/182)) ([94297ce](https://github.com/douvy/blob-flow/commit/94297cee3443a3c3b278934b8385fcd83be9521c))
+* show precise per-blob cost instead of "&lt;0.000001 ETH" placeholder ([#177](https://github.com/douvy/blob-flow/issues/177)) ([4357787](https://github.com/douvy/blob-flow/commit/435778707efcee9a3384c68dcaa481860a97d5bc))
+* tidy version tag in footer meta line ([#175](https://github.com/douvy/blob-flow/issues/175)) ([1d42da4](https://github.com/douvy/blob-flow/commit/1d42da4abad2492dc2ac435d1ce1bf29997def06))
+
 ## [1.3.0](https://github.com/douvy/blob-flow/compare/v1.2.0...v1.3.0) (2026-07-13)
 
 
