@@ -12,7 +12,7 @@ import { useNetwork } from '../hooks/useNetwork';
 import { DEFAULT_NETWORK } from '../constants';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import { useBlobWebSocket } from '../contexts/LiveDataContext';
-import { BlobWebSocketConnectionState } from '../types';
+import { BlobWebSocketConnectionState, type Network } from '../types';
 import {
   Select,
   SelectContent,
@@ -44,6 +44,26 @@ const LIVE_STATUS_STYLES: Record<BlobWebSocketConnectionState, { label: string; 
   reconnecting: { label: 'Reconnecting', color: 'bg-yellow-400' },
   disconnected: { label: 'Disconnected', color: 'bg-red' },
 };
+
+// Selector option label. Renders the network logo only when the backend
+// supplies one via GET /networks; otherwise it is just the name (today's look).
+function NetworkOptionLabel({ network }: { network: Network }) {
+  return (
+    <span className="flex items-center gap-2">
+      {network.icon ? (
+        <Image
+          src={network.icon}
+          alt=""
+          width={16}
+          height={16}
+          unoptimized
+          className="h-4 w-4 shrink-0 rounded-full"
+        />
+      ) : null}
+      {network.name}
+    </span>
+  );
+}
 
 interface LiveStatusIndicatorProps {
   className?: string;
@@ -203,8 +223,12 @@ export default function Header() {
               <SelectContent align="start">
                 <SelectGroup>
                   {networkOptions.map((network) => (
-                    <SelectItem key={network.apiParam} value={network.apiParam}>
-                      {network.name}
+                    <SelectItem
+                      key={network.apiParam}
+                      value={network.apiParam}
+                      textValue={network.name}
+                    >
+                      <NetworkOptionLabel network={network} />
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -419,8 +443,12 @@ export default function Header() {
                   <SelectContent align="end">
                     <SelectGroup>
                       {networkOptions.map((network) => (
-                        <SelectItem key={network.apiParam} value={network.apiParam}>
-                          {network.name}
+                        <SelectItem
+                          key={network.apiParam}
+                          value={network.apiParam}
+                          textValue={network.name}
+                        >
+                          <NetworkOptionLabel network={network} />
                         </SelectItem>
                       ))}
                     </SelectGroup>

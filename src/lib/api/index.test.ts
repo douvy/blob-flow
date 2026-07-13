@@ -13,6 +13,7 @@ describe('api/index', () => {
     expect(api).toHaveProperty('getStatus');
     expect(api).toHaveProperty('getMempool');
     expect(api).toHaveProperty('getMempoolPressure');
+    expect(api).toHaveProperty('getNetworks');
     expect(api).toHaveProperty('getTopUsers');
     expect(api).toHaveProperty('getUserByAddress');
     expect(api).toHaveProperty('getUserBlobs');

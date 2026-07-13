@@ -553,6 +553,37 @@ export interface StatusResponse {
   backfill?: BackfillStatus;
 }
 
+// Backend network entry - matches an item from GET /networks.
+// Carries per-network indexer status; the selector only needs chain_id + name.
+export interface BackendNetwork {
+  chain_id: number;
+  /** Lowercase network identifier used as the `network` query param (e.g. "mainnet"). */
+  name: string;
+  // Optional presentation fields. The backend does not send these yet; when it
+  // starts to, the selector picks them up automatically (see useNetwork's
+  // transform). Add further optional fields here and thread them the same way.
+  /** Human-friendly label. Falls back to a title-cased `name` when absent. */
+  display_name?: string;
+  /** Network logo (URL or public path). No icon is shown when absent. */
+  icon?: string;
+  last_indexed_block?: number;
+  current_chain_head?: number;
+  indexer_lag_blocks?: number;
+  last_indexed_at?: string;
+  chain_head_updated_at?: string;
+  websocket_freshness_at?: string;
+}
+
+// Frontend network option (transformed for the header selector).
+export interface Network {
+  /** Display label, e.g. "Mainnet". */
+  name: string;
+  /** Value sent as the `network` query param, e.g. "mainnet". */
+  apiParam: string;
+  /** Optional logo. Absent until the backend supplies one via GET /networks. */
+  icon?: string;
+}
+
 // ---- Chart Data Types ----
 
 export type BackendChartRange = '1h' | '24h' | '7d' | '30d' | 'all';
