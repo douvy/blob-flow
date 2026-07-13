@@ -15,13 +15,16 @@ Blob Flow is an Ethereum EIP-4844 blob data analytics dashboard. It visualizes r
 ## Commands
 
 ```bash
-npm run dev      # Dev server on localhost:3000
-npm run build    # Production build
-npm run lint     # ESLint
-npm start        # Production server
+npm run dev        # Dev server on localhost:3000
+npm run build      # Production build
+npm run lint       # ESLint
+npm run typecheck  # tsc --noEmit (tsconfig.typecheck.json)
+npm test           # Run Vitest suite once
+npm run test-watch # Vitest in watch mode
+npm start          # Production server
 ```
 
-No test framework is configured.
+Tests use Vitest (`*.test.ts` / `*.test.tsx` colocated with source). Use `npm run typecheck` rather than plain `tsc --noEmit`: the dedicated config scopes the check correctly.
 
 ## Project Structure
 
