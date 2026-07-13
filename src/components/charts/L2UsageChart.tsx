@@ -82,8 +82,7 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
         color: getSeriesColor(entry.key, index),
         total: data.reduce((sum, point) => sum + getNumericValue(point, entry.key), 0),
       }))
-      .filter((entry) => entry.total > 0)
-      .slice(0, 6),
+      .filter((entry) => entry.total > 0),
     [data, series]
   );
 
@@ -115,7 +114,7 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
                   paddingAngle={2}
                 >
                   {visiblePieData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
+                    <Cell key={entry.key} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -138,7 +137,7 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
             const pct = total > 0 && !hidden ? Math.round((entry.value / total) * 100) : 0;
             return (
               <button
-                key={entry.name}
+                key={entry.key}
                 type="button"
                 onClick={() => toggleKey(entry.key)}
                 aria-pressed={!hidden}
