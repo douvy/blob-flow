@@ -141,15 +141,17 @@ export function getBucketLabelStyle(bucketSeconds: number, spanMs: number): Buck
   return 'time';
 }
 
+// Labels use the viewer's local timezone; every chart axis and caption must
+// agree with the hero chart in BlobFeeHero, which formats via toLocale*.
 function formatBucketLabel(timestamp: string, style: BucketLabelStyle): string {
   const date = new Date(timestamp);
   const time = date.getTime();
   if (!Number.isFinite(time)) return timestamp;
 
-  const month = date.getUTCMonth() + 1;
-  const day = date.getUTCDate();
-  const hour = formatTwoDigit(date.getUTCHours());
-  const minute = formatTwoDigit(date.getUTCMinutes());
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hour = formatTwoDigit(date.getHours());
+  const minute = formatTwoDigit(date.getMinutes());
 
   if (style === 'day') return `${month}/${day}`;
   if (style === 'day-time') return `${month}/${day} ${hour}:${minute}`;
@@ -452,7 +454,7 @@ function formatBucketCoverage(
     ? ` (indexed data starts ${formatBucketLabel(
       new Date(coverage.startMs).toISOString(),
       bucketWidthSeconds >= DAY_SECONDS ? 'day' : 'day-time'
-    )} UTC)`
+    )})`
     : '';
 
   return `${bucketLabel} over the ${rangeLabel}${coverageNote}`;

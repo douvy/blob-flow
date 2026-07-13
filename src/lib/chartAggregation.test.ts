@@ -533,14 +533,16 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
       '30d'
     );
 
+    // Bucket labels are in the viewer's local timezone (pinned to UTC+9 in
+    // vitest.config.ts), so each UTC timestamp shifts forward nine hours.
     expect(dataset.baseFee.map((point) => point.label)).toEqual([
-      '7/5 00:00',
-      '7/5 06:00',
-      '7/5 12:00',
-      '7/5 18:00',
-      '7/6 00:00',
+      '7/5 09:00',
+      '7/5 15:00',
+      '7/5 21:00',
+      '7/6 03:00',
+      '7/6 09:00',
     ]);
-    expect(dataset.gasUtilization[0].label).toBe('7/5 00:00');
+    expect(dataset.gasUtilization[0].label).toBe('7/5 09:00');
   });
 
   it('keeps wider companion buckets that overlap the indexed coverage', () => {
@@ -581,14 +583,14 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
     );
 
     expect(dataset.l2Usage.map((point) => point.label)).toEqual([
-      '7/5 00:00',
-      '7/5 06:00',
-      '7/5 12:00',
-      '7/5 18:00',
-      '7/6 00:00',
+      '7/5 09:00',
+      '7/5 15:00',
+      '7/5 21:00',
+      '7/6 03:00',
+      '7/6 09:00',
     ]);
     expect(dataset.costComparison).toHaveLength(dataTimestamps.length);
-    expect(dataset.costComparison[0].label).toBe('7/5 00:00');
+    expect(dataset.costComparison[0].label).toBe('7/5 09:00');
   });
 
   it('describes the real bucket width and where indexed data starts', () => {
@@ -600,7 +602,7 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
     );
 
     expect(dataset.blockCoverageLabel).toBe(
-      '5 6-hour buckets over the 30d view (indexed data starts 7/5 00:00 UTC)'
+      '5 6-hour buckets over the 30d view (indexed data starts 7/5 09:00)'
     );
   });
 
