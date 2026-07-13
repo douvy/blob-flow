@@ -780,9 +780,10 @@ export default function BlobFeeHero() {
       ? parseGwei(marketChart.summary.average_blob_base_fee_gwei)
       : undefined;
 
-  // Narrow screens show fewer bars so each block stays a usable tap target;
-  // Tailwind's `sm` breakpoint is 640px, so match just below it.
-  const isCompactStrip = useMediaQuery('(max-width: 639px)');
+  // Below the two-column `lg` breakpoint (1024px) the strip spans a narrower
+  // card, so show fewer bars to keep each block a usable tap target. Use the
+  // exact complement of Tailwind's `min-width: 1024px` so JS and CSS can't drift.
+  const isCompactStrip = useMediaQuery('not all and (min-width: 1024px)');
   const stripBlockCount = isCompactStrip ? HERO_STRIP_BLOCKS_COMPACT : HERO_STRIP_BLOCKS;
   const stripBlocks = useMemo(
     () => blocks.slice(0, stripBlockCount),
@@ -1008,6 +1009,15 @@ export default function BlobFeeHero() {
                     </div>
                   )}
                 </div>
+                {/* The dashed reference line's meaning lives in the hover
+                    tooltip; expose it to non-pointer and assistive-tech users
+                    too. sr-only is absolutely positioned, so it does not affect
+                    the chart's flex height or the column alignment. */}
+                {chartReferenceFeeGwei !== undefined && chartReferenceFeeGwei > 0 && chartPoints.length > 1 && (
+                  <p className="sr-only">
+                    {isLiveRange ? '1h average' : 'Range average'} blob base fee {formatFeeNumber(chartReferenceFeeGwei)} Gwei, shown as the dashed reference line.
+                  </p>
+                )}
               </div>
             </div>
             {stripItems.length > 0 ? (
