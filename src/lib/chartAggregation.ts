@@ -537,6 +537,24 @@ function sharesMarketBucketing(
   );
 }
 
+/**
+ * Backend-sent labels are only trusted for block-granularity points, where
+ * they name blocks rather than clock times. Time buckets always format
+ * locally from the timestamp so a preformatted UTC label cannot bypass the
+ * viewer's timezone.
+ */
+function getMarketPointLabel(
+  granularity: string,
+  point: Pick<BackendBlobMarketChartPoint, 'label' | 'end_block' | 'timestamp'>,
+  labelStyle: BucketLabelStyle
+): string {
+  if (granularity === 'block') {
+    if (point.label) return point.label;
+    if (point.end_block) return `#${point.end_block}`;
+  }
+  return formatBucketLabel(point.timestamp, labelStyle);
+}
+
 function transformMarketPoints(market: BackendBlobMarketChartResponse): {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
@@ -552,11 +570,7 @@ function transformMarketPoints(market: BackendBlobMarketChartResponse): {
 
   const baseFee = sortedPoints.map((point) => ({
     timestamp: isoTimestamp(point.timestamp),
-    label: point.label ?? (
-      market.granularity === 'block' && point.end_block
-        ? `#${point.end_block}`
-        : formatBucketLabel(point.timestamp, labelStyle)
-    ),
+    label: getMarketPointLabel(market.granularity, point, labelStyle),
     baseFeeGwei: roundTo(parseFiniteNumber(point.average_blob_base_fee_gwei), 6),
     blockNumber: point.end_block,
   }));
@@ -570,11 +584,7 @@ function transformMarketPoints(market: BackendBlobMarketChartResponse): {
 
     return {
       timestamp: isoTimestamp(point.timestamp),
-      label: point.label ?? (
-        market.granularity === 'block' && point.end_block
-          ? `#${point.end_block}`
-          : formatBucketLabel(point.timestamp, labelStyle)
-      ),
+      label: getMarketPointLabel(market.granularity, point, labelStyle),
       blockNumber: point.end_block ?? point.start_block ?? 0,
       blobGasUsed: point.blob_gas_used,
       targetGas: point.blob_gas_target,

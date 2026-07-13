@@ -457,8 +457,10 @@ function buildBlockStripItems(blocks: BlobPricingRecentBlock[]): FullnessStripIt
     }));
 }
 
+// Ignores any backend-sent bucket label: those are preformatted in UTC,
+// while the strip must match the local-time chart axis above it.
 function formatStripBucketLabel(bucket: HeroStripBucket, style: BucketLabelStyle): string {
-  const startLabel = bucket.label || formatBucketLabel(bucket.timestamp, style);
+  const startLabel = formatBucketLabel(bucket.timestamp, style);
   if (bucket.bucket_count <= 1) return startLabel;
 
   const endLabel = formatBucketLabel(bucket.end_timestamp, style);
@@ -750,8 +752,10 @@ export default function BlobFeeHero() {
         }));
     }
 
+    // Always label from the timestamp: backend labels are preformatted in
+    // UTC and must not bypass the viewer's timezone.
     return marketPoints.map((point) => ({
-      label: point.label || formatBucketLabel(point.timestamp, bucketLabelStyle),
+      label: formatBucketLabel(point.timestamp, bucketLabelStyle),
       fee: parseGwei(point.average_blob_base_fee_gwei),
       blobCount: point.blob_count,
       maxBlobs: 0,
