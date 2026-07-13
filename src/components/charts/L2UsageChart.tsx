@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   AreaChart,
   Area,
@@ -49,11 +49,25 @@ function getNumericValue(point: L2UsageDataPoint, key: string): number {
 
 export default function L2UsageChart({ data, series }: L2UsageChartProps) {
   const usePie = data.length <= 3;
+  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
+
+  const toggleKey = (key: string) => {
+    setHiddenKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
 
   const pieData = useMemo(() => {
     if (!usePie) return [];
     return series
       .map((entry, index) => ({
+        key: entry.key,
         name: entry.name,
         value: data.reduce((sum, point) => sum + getNumericValue(point, entry.key), 0),
         color: getSeriesColor(entry.key, index),
@@ -81,50 +95,63 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
   }
 
   if (usePie && pieData.length > 0) {
-    const total = pieData.reduce((s, d) => s + d.value, 0);
+    const visiblePieData = pieData.filter((entry) => !hiddenKeys.has(entry.key));
+    const total = visiblePieData.reduce((s, d) => s + d.value, 0);
     return (
       <div className="flex items-center justify-center h-full">
-        <ResponsiveContainer width="50%" height="100%">
-          <PieChart>
-            <Pie
-              data={pieData}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              innerRadius={35}
-              outerRadius={65}
-              paddingAngle={2}
-            >
-              {pieData.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value, name) => {
-                const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
-                return [
-                  `${numericValue} (${Math.round((numericValue / total) * 100)}%)`,
-                  String(name ?? ''),
-                ];
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        <div className="flex items-center justify-center w-[50%] h-full">
+          {visiblePieData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={visiblePieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={35}
+                  outerRadius={65}
+                  paddingAngle={2}
+                >
+                  {visiblePieData.map((entry) => (
+                    <Cell key={entry.key} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  formatter={(value, name) => {
+                    const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+                    const pct = total > 0 ? Math.round((numericValue / total) * 100) : 0;
+                    return [`${numericValue} (${pct}%)`, String(name ?? '')];
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <span className="text-xs text-[#6e7687] text-center px-2">No series selected</span>
+          )}
+        </div>
         <div className="flex flex-col gap-1.5 ml-2">
-          {pieData.map((entry) => (
-            <div key={entry.name} className="flex items-center gap-1.5 text-xs">
-              <span
-                className="inline-block w-2.5 h-2.5 rounded-sm"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="text-[#b8bdc7]">{entry.name}</span>
-              <span className="text-white font-medium ml-1">
-                {Math.round((entry.value / total) * 100)}%
-              </span>
-            </div>
-          ))}
+          {pieData.map((entry) => {
+            const hidden = hiddenKeys.has(entry.key);
+            const pct = total > 0 && !hidden ? Math.round((entry.value / total) * 100) : 0;
+            return (
+              <button
+                key={entry.key}
+                type="button"
+                onClick={() => toggleKey(entry.key)}
+                aria-pressed={!hidden}
+                className={`flex items-center gap-1.5 text-xs cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hidden ? 'opacity-40' : ''}`}
+              >
+                <span
+                  className="inline-block w-2.5 h-2.5 rounded-sm"
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span className={`text-[#b8bdc7] ${hidden ? 'line-through' : ''}`}>{entry.name}</span>
+                <span className="text-white font-medium ml-1">{pct}%</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -169,30 +196,40 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
               );
             }}
           />
-          {series.map((entry, index) => (
+          {legendEntries.map((entry) => (
             <Area
               key={entry.key}
               type="monotone"
               dataKey={entry.key}
               stackId="1"
-              stroke={getSeriesColor(entry.key, index)}
-              fill={getSeriesColor(entry.key, index)}
+              stroke={entry.color}
+              fill={entry.color}
               fillOpacity={0.6}
               name={entry.name}
+              hide={hiddenKeys.has(entry.key)}
             />
           ))}
         </AreaChart>
       </ResponsiveContainer>
       <div className="absolute bottom-0 left-0 right-0 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-[#6e7687]">
-        {legendEntries.slice(0, 6).map((entry) => (
-          <span key={entry.key} className="inline-flex items-center">
-            <span
-              className="inline-block w-2.5 h-2.5 rounded-sm mr-1"
-              style={{ backgroundColor: entry.color }}
-            />
-            {entry.name}
-          </span>
-        ))}
+        {legendEntries.map((entry) => {
+          const hidden = hiddenKeys.has(entry.key);
+          return (
+            <button
+              key={entry.key}
+              type="button"
+              onClick={() => toggleKey(entry.key)}
+              aria-pressed={!hidden}
+              className={`inline-flex items-center cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hidden ? 'opacity-40' : ''}`}
+            >
+              <span
+                className="inline-block w-2.5 h-2.5 rounded-sm mr-1"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className={hidden ? 'line-through' : ''}>{entry.name}</span>
+            </button>
+          );
+        })}
       </div>
     </>
   );
