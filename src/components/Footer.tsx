@@ -14,7 +14,7 @@ function GitHubStarLink() {
       className="inline-flex items-center"
     >
       <span className="decoration-[#4a5568] underline underline-offset-2 hover:text-[#d9d9d9] hover:decoration-[#d9d9d9]">
-        Star on GitHub <ArrowUpRight className="inline h-4 w-4 align-[-2px]" aria-hidden="true" />
+        Star on GitHub <ArrowUpRight className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" />
       </span>
     </Link>
   );
@@ -41,18 +41,19 @@ export default function Footer() {
           
           {/* Right side with credits and GitHub link */}
           <div className="text-sm text-[#f0f6fe] flex flex-col md:block text-left md:text-right">
-            <p className="mb-6 md:mb-0 md:inline">
-              Real-time metrics for Ethereum blob data by 
-              <Link href="https://x.com/douvy_" target="_blank" rel="noopener noreferrer" className="decoration-[#4a5568] hover:text-[#d9d9d9] hover:decoration-[#d9d9d9] underline underline-offset-2 ml-1 mr-1">
+            <p className="mb-3 md:mb-2">
+              Real-time metrics for Ethereum blob data by{' '}
+              <Link href="https://x.com/douvy_" target="_blank" rel="noopener noreferrer" className="decoration-[#4a5568] hover:text-[#d9d9d9] hover:decoration-[#d9d9d9] underline underline-offset-2">
                 @douvy_
-              </Link> and 
-              <Link href="https://github.com/a-thomas-22" target="_blank" rel="noopener noreferrer" className="decoration-[#4a5568] hover:text-[#d9d9d9] hover:decoration-[#d9d9d9] underline underline-offset-2 ml-1">
+              </Link>{' '}
+              and{' '}
+              <Link href="https://github.com/a-thomas-22" target="_blank" rel="noopener noreferrer" className="decoration-[#4a5568] hover:text-[#d9d9d9] hover:decoration-[#d9d9d9] underline underline-offset-2">
                 a-thomas-22
               </Link>
-              <span className="hidden md:inline mx-4">•</span>
             </p>
 
-            <p className="mt-3 md:mt-2 text-xs text-[#7d8590]">
+            {/* Meta line: version and GitHub star, kept together so neither is orphaned */}
+            <p className="flex flex-wrap items-center gap-2 text-xs text-[#7d8590] justify-start md:justify-end">
               <Link
                 href={`https://github.com/douvy/blob-flow/releases/tag/v${process.env.NEXT_PUBLIC_APP_VERSION}`}
                 target="_blank"
@@ -61,17 +62,9 @@ export default function Footer() {
               >
                 v{process.env.NEXT_PUBLIC_APP_VERSION}
               </Link>
+              <span aria-hidden="true">•</span>
+              <GitHubStarLink />
             </p>
-            
-            {/* Mobile GitHub link */}
-            <div className="block md:hidden text-left">
-              <GitHubStarLink />
-            </div>
-
-            {/* Desktop GitHub link */}
-            <div className="hidden md:inline">
-              <GitHubStarLink />
-            </div>
           </div>
         </div>
       </div>
