@@ -1,10 +1,15 @@
-/** Recharts tooltip style matching the app dark theme */
+/**
+ * Recharts tooltip style matching the app dark theme.
+ * Uses the full border shorthand: custom tooltip content renders this object on a
+ * plain div, where borderColor alone (without width/style) draws no border at all.
+ */
 export const CHART_TOOLTIP_STYLE = {
   backgroundColor: '#14161a',
-  borderColor: '#333',
+  border: '1px solid #333',
   fontSize: '12px',
   borderRadius: '8px',
   padding: '8px',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.45)',
 };
 
 export const CHART_LABEL_STYLE = { color: '#fff', fontSize: '12px' };

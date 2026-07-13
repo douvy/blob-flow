@@ -16,11 +16,13 @@ import {
 import type { L2UsageDataPoint, L2UsageSeries } from '../../types';
 import {
   CHART_TOOLTIP_STYLE,
+  CHART_ITEM_STYLE,
   AXIS_STROKE,
   AXIS_LINE,
   AXIS_TICK,
 } from '../../constants/chartTheme';
 import { assignSeriesColors } from '@/utils';
+import { ChartTooltipFrame, ChartTooltipRow } from './ChartTooltip';
 
 interface L2UsageChartProps {
   data: L2UsageDataPoint[];
@@ -106,6 +108,7 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
                 </Pie>
                 <Tooltip
                   contentStyle={CHART_TOOLTIP_STYLE}
+                  itemStyle={CHART_ITEM_STYLE}
                   formatter={(value, name) => {
                     const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
                     const pct = total > 0 ? Math.round((numericValue / total) * 100) : 0;
@@ -166,20 +169,21 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
             width={35}
           />
           <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
             content={({ active, payload, label }) => {
               if (!active || !payload || payload.length === 0) return null;
               return (
-                <div style={CHART_TOOLTIP_STYLE}>
-                  <p style={{ color: '#fff', fontSize: '12px', marginBottom: 4 }}>{label}</p>
+                <ChartTooltipFrame label={label}>
                   {payload
                     .filter((entry) => typeof entry.value === 'number' && entry.value > 0)
                     .map((entry) => (
-                      <p key={entry.dataKey?.toString()} style={{ color: entry.color, fontSize: '12px' }}>
-                        {entry.name}: {entry.value}
-                      </p>
+                      <ChartTooltipRow
+                        key={entry.dataKey?.toString()}
+                        swatchColor={entry.color}
+                        label={String(entry.name ?? '')}
+                        value={entry.value}
+                      />
                     ))}
-                </div>
+                </ChartTooltipFrame>
               );
             }}
           />

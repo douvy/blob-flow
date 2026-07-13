@@ -141,15 +141,17 @@ export function getBucketLabelStyle(bucketSeconds: number, spanMs: number): Buck
   return 'time';
 }
 
+// Labels use the viewer's local timezone; every chart axis and caption must
+// agree with the hero chart in BlobFeeHero, which formats via toLocale*.
 function formatBucketLabel(timestamp: string, style: BucketLabelStyle): string {
   const date = new Date(timestamp);
   const time = date.getTime();
   if (!Number.isFinite(time)) return timestamp;
 
-  const month = date.getUTCMonth() + 1;
-  const day = date.getUTCDate();
-  const hour = formatTwoDigit(date.getUTCHours());
-  const minute = formatTwoDigit(date.getUTCMinutes());
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hour = formatTwoDigit(date.getHours());
+  const minute = formatTwoDigit(date.getMinutes());
 
   if (style === 'day') return `${month}/${day}`;
   if (style === 'day-time') return `${month}/${day} ${hour}:${minute}`;
@@ -452,7 +454,7 @@ function formatBucketCoverage(
     ? ` (indexed data starts ${formatBucketLabel(
       new Date(coverage.startMs).toISOString(),
       bucketWidthSeconds >= DAY_SECONDS ? 'day' : 'day-time'
-    )} UTC)`
+    )})`
     : '';
 
   return `${bucketLabel} over the ${rangeLabel}${coverageNote}`;
@@ -535,6 +537,24 @@ function sharesMarketBucketing(
   );
 }
 
+/**
+ * Backend-sent labels are only trusted for block-granularity points, where
+ * they name blocks rather than clock times. Time buckets always format
+ * locally from the timestamp so a preformatted UTC label cannot bypass the
+ * viewer's timezone.
+ */
+function getMarketPointLabel(
+  granularity: string,
+  point: Pick<BackendBlobMarketChartPoint, 'label' | 'end_block' | 'timestamp'>,
+  labelStyle: BucketLabelStyle
+): string {
+  if (granularity === 'block') {
+    if (point.label) return point.label;
+    if (point.end_block) return `#${point.end_block}`;
+  }
+  return formatBucketLabel(point.timestamp, labelStyle);
+}
+
 function transformMarketPoints(market: BackendBlobMarketChartResponse): {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
@@ -550,11 +570,7 @@ function transformMarketPoints(market: BackendBlobMarketChartResponse): {
 
   const baseFee = sortedPoints.map((point) => ({
     timestamp: isoTimestamp(point.timestamp),
-    label: point.label ?? (
-      market.granularity === 'block' && point.end_block
-        ? `#${point.end_block}`
-        : formatBucketLabel(point.timestamp, labelStyle)
-    ),
+    label: getMarketPointLabel(market.granularity, point, labelStyle),
     baseFeeGwei: roundTo(parseFiniteNumber(point.average_blob_base_fee_gwei), 6),
     blockNumber: point.end_block,
   }));
@@ -568,11 +584,7 @@ function transformMarketPoints(market: BackendBlobMarketChartResponse): {
 
     return {
       timestamp: isoTimestamp(point.timestamp),
-      label: point.label ?? (
-        market.granularity === 'block' && point.end_block
-          ? `#${point.end_block}`
-          : formatBucketLabel(point.timestamp, labelStyle)
-      ),
+      label: getMarketPointLabel(market.granularity, point, labelStyle),
       blockNumber: point.end_block ?? point.start_block ?? 0,
       blobGasUsed: point.blob_gas_used,
       targetGas: point.blob_gas_target,

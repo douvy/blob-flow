@@ -533,14 +533,16 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
       '30d'
     );
 
+    // Bucket labels are in the viewer's local timezone (pinned to UTC+9 in
+    // vitest.config.ts), so each UTC timestamp shifts forward nine hours.
     expect(dataset.baseFee.map((point) => point.label)).toEqual([
-      '7/5 00:00',
-      '7/5 06:00',
-      '7/5 12:00',
-      '7/5 18:00',
-      '7/6 00:00',
+      '7/5 09:00',
+      '7/5 15:00',
+      '7/5 21:00',
+      '7/6 03:00',
+      '7/6 09:00',
     ]);
-    expect(dataset.gasUtilization[0].label).toBe('7/5 00:00');
+    expect(dataset.gasUtilization[0].label).toBe('7/5 09:00');
   });
 
   it('keeps wider companion buckets that overlap the indexed coverage', () => {
@@ -581,14 +583,14 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
     );
 
     expect(dataset.l2Usage.map((point) => point.label)).toEqual([
-      '7/5 00:00',
-      '7/5 06:00',
-      '7/5 12:00',
-      '7/5 18:00',
-      '7/6 00:00',
+      '7/5 09:00',
+      '7/5 15:00',
+      '7/5 21:00',
+      '7/6 03:00',
+      '7/6 09:00',
     ]);
     expect(dataset.costComparison).toHaveLength(dataTimestamps.length);
-    expect(dataset.costComparison[0].label).toBe('7/5 00:00');
+    expect(dataset.costComparison[0].label).toBe('7/5 09:00');
   });
 
   it('describes the real bucket width and where indexed data starts', () => {
@@ -600,7 +602,7 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
     );
 
     expect(dataset.blockCoverageLabel).toBe(
-      '5 6-hour buckets over the 30d view (indexed data starts 7/5 00:00 UTC)'
+      '5 6-hour buckets over the 30d view (indexed data starts 7/5 09:00)'
     );
   });
 
@@ -649,5 +651,49 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
 
     expect(dataset.baseFee.map((point) => point.label)).toEqual(['6/6', '6/7', '6/8', '6/9']);
     expect(dataset.blockCoverageLabel).toBe('4 daily buckets over the 30d view');
+  });
+});
+
+describe('backend-sent point labels', () => {
+  it('ignores preformatted labels on time buckets and formats locally', () => {
+    // A backend label would be rendered in the backend's timezone (UTC);
+    // trusting it would silently undo the local-time axis.
+    const market = makeMarketResponse({
+      points: [
+        makeMarketPoint('2026-07-05T00:00:00Z', { label: '7/5 00:00' }),
+        makeMarketPoint('2026-07-06T00:00:00Z', { label: '7/6 00:00' }),
+      ],
+    });
+
+    const dataset = buildChartDatasetFromResponses(
+      market,
+      makeAttributionResponse([]),
+      makeCostResponse([]),
+      '30d'
+    );
+
+    expect(dataset.baseFee.map((point) => point.label)).toEqual(['7/5 09:00', '7/6 09:00']);
+    expect(dataset.gasUtilization.map((point) => point.label)).toEqual(['7/5 09:00', '7/6 09:00']);
+  });
+
+  it('keeps backend labels for block-granularity points', () => {
+    const market = makeMarketResponse({
+      granularity: 'block',
+      bucket_seconds: 0,
+      points: [
+        makeMarketPoint('2026-07-05T00:00:00Z', { label: '#101', end_block: 101 }),
+        makeMarketPoint('2026-07-05T00:00:12Z', { end_block: 102 }),
+      ],
+    });
+
+    const dataset = buildChartDatasetFromResponses(
+      market,
+      makeAttributionResponse([]),
+      makeCostResponse([]),
+      '1h'
+    );
+
+    expect(dataset.baseFee.map((point) => point.label)).toEqual(['#101', '#102']);
+    expect(dataset.gasUtilization.map((point) => point.label)).toEqual(['#101', '#102']);
   });
 });
