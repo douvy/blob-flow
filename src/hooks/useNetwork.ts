@@ -69,12 +69,14 @@ export function useNetwork() {
 
     // Networks change rarely, so keep them fresh for a while to avoid refetching
     // on every mount across the many components that call this hook.
-    const { data } = useApiData<Network[]>(fetchNetworks, ['networks'], {
+    const { data, isLoading } = useApiData<Network[]>(fetchNetworks, ['networks'], {
         staleTime: 5 * 60 * 1000,
     });
 
-    const loaded = data !== undefined;
-    const networkOptions = data && data.length > 0 ? data : FALLBACK_NETWORKS;
+    // A real, successful list. Absent while loading and on error (retries are off
+    // app-wide, so an error sticks until the next refetch), where we fall back.
+    const fetchedNetworks = data && data.length > 0 ? data : undefined;
+    const networkOptions = fetchedNetworks ?? FALLBACK_NETWORKS;
 
     // Derive selected network from stored apiParam; stays in sync without a
     // separate effect.
@@ -82,25 +84,28 @@ export function useNetwork() {
         networkOptions.find((network) => network.apiParam === storedApiParam) ??
         // Still loading: trust the persisted choice so a dynamic-only network
         // (absent from the fallback list) doesn't flash to the default and open
-        // the wrong live-data connection before /networks resolves.
-        (!loaded && storedApiParam ? networkFromApiParam(storedApiParam) : undefined) ??
-        // Loaded, but the persisted network no longer exists: prefer the default.
+        // the wrong live-data connection before /networks resolves. On error we
+        // deliberately do NOT trust it, so an unknown value resolves to a network
+        // the selector can actually show rather than querying a maybe-dead one.
+        (isLoading && storedApiParam ? networkFromApiParam(storedApiParam) : undefined) ??
+        // Settled without the persisted network: prefer the default.
         networkOptions.find((network) => network.apiParam === DEFAULT_NETWORK.apiParam) ??
         networkOptions[0] ??
         DEFAULT_NETWORK;
 
-    // Once the list has loaded, if the persisted network no longer exists, rewrite
-    // storage to the resolved selection. Otherwise the stale value would make the
-    // loading-phase optimistic path re-query a dead network on every reload.
+    // Only after a successful fetch, if the persisted network is genuinely gone,
+    // rewrite storage so the loading-phase optimistic path doesn't re-query a dead
+    // network on every reload. Gated on a real list (not error) so a transient
+    // failure never erases a still-valid preference; it returns when /networks does.
     useEffect(() => {
-        if (!loaded) return;
-        const stillExists = networkOptions.some(
+        if (!fetchedNetworks) return;
+        const stillExists = fetchedNetworks.some(
             (network) => network.apiParam === storedApiParam
         );
         if (!stillExists && storedApiParam !== selectedNetwork.apiParam) {
             setStoredValue(selectedNetwork.apiParam);
         }
-    }, [loaded, networkOptions, storedApiParam, selectedNetwork.apiParam, setStoredValue]);
+    }, [fetchedNetworks, storedApiParam, selectedNetwork.apiParam, setStoredValue]);
 
     // Update the selected network and store it in local storage
     const setSelectedNetwork = (network: Network) => {

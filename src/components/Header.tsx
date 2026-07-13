@@ -443,8 +443,12 @@ export default function Header() {
                   <SelectContent align="end">
                     <SelectGroup>
                       {networkOptions.map((network) => (
-                        <SelectItem key={network.apiParam} value={network.apiParam}>
-                          {network.name}
+                        <SelectItem
+                          key={network.apiParam}
+                          value={network.apiParam}
+                          textValue={network.name}
+                        >
+                          <NetworkOptionLabel network={network} />
                         </SelectItem>
                       ))}
                     </SelectGroup>

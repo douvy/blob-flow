@@ -142,6 +142,21 @@ describe('useNetwork', () => {
     expect(result.current.selectedNetwork.apiParam).toBe(DEFAULT_NETWORK.apiParam);
   });
 
+  it('does not trust a persisted network on fetch error, but preserves it', async () => {
+    getNetworks.mockRejectedValue(new Error('network down'));
+    window.localStorage.setItem('selectedNetwork', JSON.stringify('hoodi'));
+
+    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+
+    // On error the list is unknown, so selection settles on a network the selector
+    // can actually show instead of querying a maybe-dead one.
+    await waitFor(() =>
+      expect(result.current.selectedNetwork.apiParam).toBe(DEFAULT_NETWORK.apiParam)
+    );
+    // The preference is left intact so it returns once /networks recovers.
+    expect(window.localStorage.getItem('selectedNetwork')).toBe(JSON.stringify('hoodi'));
+  });
+
   it('ignores malformed network entries with empty names', async () => {
     getNetworks.mockResolvedValue({
       success: true,
