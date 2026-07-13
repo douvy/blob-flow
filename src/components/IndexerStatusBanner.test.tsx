@@ -150,6 +150,18 @@ describe('IndexerStatusBanner', () => {
     );
   });
 
+  it('refetches indexer status on window focus so a backgrounded tab refreshes on return', () => {
+    mockStatus(makeStatus());
+
+    render(<IndexerStatusBanner />);
+
+    expect(vi.mocked(useApiData)).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.anything(),
+      expect.objectContaining({ refetchOnWindowFocus: true })
+    );
+  });
+
   it('does not warn when a stale snapshot only looks behind because the tab was backgrounded', () => {
     // Tab was in the background for 10 minutes, so polling was frozen: the
     // snapshot is old, but at fetch time the indexer was healthy (last indexed
