@@ -264,6 +264,20 @@ describe('assignSeriesColors', () => {
     expect(colors.other).not.toBe(colors.unknown);
   });
 
+  it('falls back to the key for neutrals when no category is provided', () => {
+    // Surfaces without category data (like the top users table) must still
+    // render an entry keyed unknown/other as the neutral, not a network hue.
+    const colors = assignSeriesColors([{ key: 'unknown' }, { key: 'other' }]);
+    expect(colors.unknown).toBe('#747781');
+    expect(colors.other).toBe('#c2c8d0');
+  });
+
+  it('treats an explicit category as authoritative over the key spelling', () => {
+    const colors = assignSeriesColors([{ key: 'unknown', category: 'rollup' }]);
+    expect(colors.unknown).not.toBe('#747781');
+    expect(colors.unknown).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
   it('is independent of input order', () => {
     const shuffled = [...mainnetSeries].reverse();
     expect(assignSeriesColors(shuffled)).toEqual(assignSeriesColors(mainnetSeries));

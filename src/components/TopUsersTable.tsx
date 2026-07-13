@@ -68,7 +68,7 @@ const RANGE_LABELS: Record<TimeRange, string> = {
 function userColorInput(user: User): SeriesColorInput {
   return {
     key: attributionColorKey(user.name),
-    category: user.name.startsWith('0x') ? 'unknown' : undefined,
+    category: user.attributed ? undefined : 'unknown',
   };
 }
 

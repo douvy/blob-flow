@@ -438,6 +438,8 @@ export interface User {
   id: number;
   name: string;
   address: string;
+  /** False when the backend had no attribution and name is a truncated address. */
+  attributed: boolean;
   dataCount: number;
   percentage: number;
   totalCostEth: string;

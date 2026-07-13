@@ -80,14 +80,22 @@ export interface SeriesColorInput {
  * Assign a color to every series without any per-network configuration.
  *
  * Categories listed in SERIES_CATEGORY_NEUTRALS (other, unknown) get their
- * fixed neutral. Every remaining key is hashed to a preferred palette slot
- * and probes forward to a free one, so colors are distinct whenever the
- * series count fits the palette and each key prefers the same slot
- * regardless of which chart or table renders it. Keys are processed in
- * sorted order so the result does not depend on backend response ordering.
- * If there are more series than palette slots, later keys fall back to
- * their hashed slot and reuse a color; identity then rests on the label
- * next to the mark.
+ * fixed neutral; when no category is provided, a key that itself names a
+ * neutral category gets the same treatment, so surfaces without category
+ * data (like the top users table) still render "Unknown" as the neutral.
+ * Every remaining key is hashed to a preferred palette slot and probes
+ * forward to a free one. Keys are processed in sorted order so the result
+ * does not depend on backend response ordering.
+ *
+ * Guarantees, strongest first: colors within one call are distinct while
+ * the series count fits the palette; a key always prefers the same slot, so
+ * different surfaces usually agree; but after a collision probe the final
+ * slot depends on which other keys are present, so two surfaces with
+ * different series sets can disagree (unavoidable without a global
+ * registry, which is exactly the per-network config this replaces). If
+ * there are more series than palette slots, later keys fall back to their
+ * hashed slot and reuse a color; identity then rests on the label next to
+ * the mark.
  */
 export function assignSeriesColors(
   series: ReadonlyArray<SeriesColorInput>
@@ -96,7 +104,12 @@ export function assignSeriesColors(
   const paletteKeys = new Set<string>();
 
   for (const { key, category } of series) {
-    const neutral = category ? SERIES_CATEGORY_NEUTRALS[category] : undefined;
+    // An explicit category is authoritative; the key spelling only decides
+    // when the caller has no category information.
+    const neutral =
+      category !== undefined
+        ? SERIES_CATEGORY_NEUTRALS[category]
+        : SERIES_CATEGORY_NEUTRALS[key];
     if (neutral) {
       colors[key] = neutral;
     } else {
