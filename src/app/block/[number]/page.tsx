@@ -22,6 +22,22 @@ function formatBlobCapacity(block: Block): string {
   return `${block.blobCount}/${block.maxBlobs} used`;
 }
 
+// Renders the block's ISO timestamp in the viewer's local timezone, e.g.
+// "Jul 13, 2026, 14:56:35", matching the local-time labels on the charts.
+function formatBlockTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp;
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+}
+
 function formatUtilization(block: Block): string {
   if (block.maxBlobs <= 0) return '-';
   return formatUtilizationPercent(block.utilizationPercent);
@@ -155,7 +171,7 @@ export default function BlockDetailPage() {
                     )}
                   </div>
                   <p className="text-bodyText text-sm mb-6">
-                    {block.timestamp}
+                    {formatBlockTimestamp(block.timestamp)}
                     {block.isFull && (
                       <span className="ml-3 text-[10px] uppercase tracking-wider text-[#ff8f8f]">
                         Full
