@@ -192,6 +192,8 @@ export default function LiveMetrics() {
         ? `${block.blobCount}${block.maxBlobs ? `/${block.maxBlobs}` : ''} blobs · ${formatRelativeTime(block.timestamp, new Date(now))}`
         : 'Waiting for next block',
       icon: Box,
+      href: '/blocks',
+      ariaLabel: 'View latest blocks',
     },
     {
       title: 'Pending Blobs',
