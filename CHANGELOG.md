@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.3.0](https://github.com/douvy/blob-flow/compare/v1.2.0...v1.3.0) (2026-07-13)
+
+
+### Features
+
+* collapse pending blobs into a summary at top of user page ([#174](https://github.com/douvy/blob-flow/issues/174)) ([2bbd0bc](https://github.com/douvy/blob-flow/commit/2bbd0bc1d4be121f1b4e04f5af73722fca283358))
+* display frontend version in footer ([#154](https://github.com/douvy/blob-flow/issues/154)) ([bbaffbb](https://github.com/douvy/blob-flow/commit/bbaffbbdf6e77954c7063aff7e1245764be46863))
+* filter chart series by clicking the legend ([#157](https://github.com/douvy/blob-flow/issues/157)) ([b01a09d](https://github.com/douvy/blob-flow/commit/b01a09d927fc82090193c84afc6b45a0e507149f))
+* link mempool senders to their user page ([#173](https://github.com/douvy/blob-flow/issues/173)) ([d56be27](https://github.com/douvy/blob-flow/commit/d56be27f93e98931b4e718c047e0b05d1da3d7eb))
+
+
+### Bug Fixes
+
+* let global staleTime default apply to useApiData queries ([#172](https://github.com/douvy/blob-flow/issues/172)) ([ed884b2](https://github.com/douvy/blob-flow/commit/ed884b2f16bf876d41e1d66cd230f5c2b39fd7a1))
+* render user total cost as human readable ETH ([#171](https://github.com/douvy/blob-flow/issues/171)) ([0c69bc6](https://github.com/douvy/blob-flow/commit/0c69bc64ddfed459c6fdfba8e65c984d622b0c89))
+* stop false "indexer is behind" banner after tab is backgrounded ([#170](https://github.com/douvy/blob-flow/issues/170)) ([ad071b5](https://github.com/douvy/blob-flow/commit/ad071b5a7233a68af699f436cb49db29f84b8877))
+
+
+### Dependencies
+
+* **deps-dev:** bump @tailwindcss/postcss from 4.3.0 to 4.3.2 ([#168](https://github.com/douvy/blob-flow/issues/168)) ([3468f57](https://github.com/douvy/blob-flow/commit/3468f57ba09ac1051a7d346a07e6be86559bfd10))
+* **deps-dev:** bump vitest from 4.1.8 to 4.1.10 ([#159](https://github.com/douvy/blob-flow/issues/159)) ([1a153c6](https://github.com/douvy/blob-flow/commit/1a153c6e44ededd80eab6a256dbac93e1a87e4d3))
+* **deps:** bump @radix-ui/react-select from 2.2.6 to 2.3.3 ([#163](https://github.com/douvy/blob-flow/issues/163)) ([37146c8](https://github.com/douvy/blob-flow/commit/37146c8d570e05256a32c39640e0a4a99d988196))
+* **deps:** bump @radix-ui/react-tooltip from 1.2.11 to 1.2.12 ([#162](https://github.com/douvy/blob-flow/issues/162)) ([f5521e2](https://github.com/douvy/blob-flow/commit/f5521e21aeafe672d6adea61b070c63901955670))
+* **deps:** bump @tanstack/react-query from 5.100.14 to 5.101.2 ([#164](https://github.com/douvy/blob-flow/issues/164)) ([a7a9dbb](https://github.com/douvy/blob-flow/commit/a7a9dbb59cbad2d012a997e5fab058a19b92473b))
+* **deps:** bump eslint-config-next from 16.2.7 to 16.2.10 ([#161](https://github.com/douvy/blob-flow/issues/161)) ([cb53370](https://github.com/douvy/blob-flow/commit/cb533701eb110cac98804fc7013e8ce5338578dd))
+* **deps:** bump lucide-react from 1.23.0 to 1.24.0 ([#169](https://github.com/douvy/blob-flow/issues/169)) ([266ec0e](https://github.com/douvy/blob-flow/commit/266ec0ebb50c30321cb0bb1685de035859b9e2fa))
+* **deps:** bump viem from 2.52.0 to 2.55.1 ([#165](https://github.com/douvy/blob-flow/issues/165)) ([5a4662f](https://github.com/douvy/blob-flow/commit/5a4662fa4ddbd64d9b5cf06219c1d9df779d40a9))
+
 ## [1.2.0](https://github.com/douvy/blob-flow/compare/v1.1.0...v1.2.0) (2026-07-13)
 
 
