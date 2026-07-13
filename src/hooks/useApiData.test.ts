@@ -109,7 +109,12 @@ describe('useApiData', () => {
     const second = renderHook(() => useApiData(fetchFn, ['stale', 'default']), { wrapper });
     await waitFor(() => expect(second.result.current.data).toBe('cached'));
 
-    // Still fresh under the 15s default, so no refetch on remount.
+    // A stale query would kick off a background refetch asynchronously, so
+    // settle isFetching before asserting: only then does a still-1 call count
+    // prove the entry was fresh (default applied) rather than merely not-yet
+    // refetched. If the default were clobbered to staleTime 0 this would flip
+    // isFetching true and bump the call count.
+    await waitFor(() => expect(second.result.current.isFetching).toBe(false));
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
