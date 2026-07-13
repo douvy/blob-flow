@@ -53,8 +53,20 @@ describe('aggregateMempoolAttribution', () => {
     expect(summary.blobCount).toBe(4);
     expect(summary.blobSizeBytes).toBe(4 * 131072);
     expect(summary.groups).toEqual([
-      { user: 'Base', txCount: 2, blobCount: 3, blobSizeBytes: 3 * 131072 },
-      { user: 'Arbitrum', txCount: 1, blobCount: 1, blobSizeBytes: 131072 },
+      {
+        user: 'Base',
+        txCount: 2,
+        blobCount: 3,
+        blobSizeBytes: 3 * 131072,
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+      },
+      {
+        user: 'Arbitrum',
+        txCount: 1,
+        blobCount: 1,
+        blobSizeBytes: 131072,
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+      },
     ]);
   });
 
@@ -68,7 +80,13 @@ describe('aggregateMempoolAttribution', () => {
     expect(summary.txCount).toBe(1);
     expect(summary.blobCount).toBe(3);
     expect(summary.groups).toEqual([
-      { user: 'Base', txCount: 1, blobCount: 3, blobSizeBytes: 3 * 131072 },
+      {
+        user: 'Base',
+        txCount: 1,
+        blobCount: 3,
+        blobSizeBytes: 3 * 131072,
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+      },
     ]);
   });
 
@@ -78,8 +96,60 @@ describe('aggregateMempoolAttribution', () => {
     ]);
 
     expect(summary.groups).toEqual([
-      { user: 'Unknown', txCount: 1, blobCount: 1, blobSizeBytes: 131072 },
+      {
+        user: 'Unknown',
+        txCount: 1,
+        blobCount: 1,
+        blobSizeBytes: 131072,
+        address: '0x1234567890abcdef1234567890abcdef12345678',
+      },
     ]);
+  });
+
+  it('sets a group address only when every sender shares one address', () => {
+    const summary = aggregateMempoolAttribution([
+      makeTransaction({
+        tx_hash: '0x01',
+        user_attribution: 'Base',
+        from_address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      }),
+      makeTransaction({
+        tx_hash: '0x02',
+        user_attribution: 'Base',
+        from_address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      }),
+      makeTransaction({
+        tx_hash: '0x03',
+        user_attribution: 'Arbitrum',
+        from_address: '0xcccccccccccccccccccccccccccccccccccccccc',
+      }),
+    ]);
+
+    const base = summary.groups.find((group) => group.user === 'Base');
+    const arbitrum = summary.groups.find((group) => group.user === 'Arbitrum');
+
+    expect(base?.address).toBeUndefined();
+    expect(arbitrum?.address).toBe('0xcccccccccccccccccccccccccccccccccccccccc');
+  });
+
+  it('dedupes sender addresses case-insensitively', () => {
+    const summary = aggregateMempoolAttribution([
+      makeTransaction({
+        tx_hash: '0x01',
+        user_attribution: 'Base',
+        from_address: '0xAbCdeF1234567890abcdef1234567890abcdEF12',
+      }),
+      makeTransaction({
+        tx_hash: '0x02',
+        user_attribution: 'Base',
+        from_address: '0xabcdef1234567890abcdef1234567890abcdef12',
+      }),
+    ]);
+
+    const base = summary.groups.find((group) => group.user === 'Base');
+    // Same address in two casings collapses to one, so it still links, using
+    // the first-seen casing.
+    expect(base?.address).toBe('0xAbCdeF1234567890abcdef1234567890abcdEF12');
   });
 
   it('sorts by blob volume, then tx count, then name', () => {

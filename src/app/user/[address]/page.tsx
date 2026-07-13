@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ExternalLink } from 'lucide-react';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { useApiData } from '@/hooks/useApiData';
 import { api } from '@/lib/api';
@@ -21,6 +21,7 @@ import {
   getAttributionImageSrc,
   getAttributionInitial,
   getBlobCount,
+  safeExplorerUrl,
   truncateAddress,
 } from '@/utils';
 import { RelativeTime } from '@/components/RelativeTime';
@@ -191,6 +192,15 @@ export default function UserDetailPage() {
   const userName = user?.name || truncateAddress(address);
   const userImageSrc = user?.name ? getAttributionImageSrc(user.name) : null;
 
+  // The backend user endpoint carries no explorer link, but every blob from
+  // this address shares one, so surface it from whichever list has loaded.
+  // Validated via safeExplorerUrl to avoid rendering non-http(s) hrefs.
+  const explorerUrl =
+    safeExplorerUrl(
+      confirmedBlobs?.find((blob) => blob.from_address_url)?.from_address_url ||
+        mempoolBlobs?.find((blob) => blob.from_address_url)?.from_address_url
+    ) ?? null;
+
   const loadingStats = (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-4">
@@ -264,7 +274,21 @@ export default function UserDetailPage() {
                 )}
                 <h1 className="text-3xl font-windsor-bold text-white">{userName}</h1>
               </div>
-              <p className="text-bodyText font-mono text-sm mb-6">{address}</p>
+              <div className="flex items-center gap-2 mb-6">
+                <p className="text-bodyText font-mono text-sm break-all">{address}</p>
+                {explorerUrl && (
+                  <a
+                    href={explorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-blue hover:underline text-sm shrink-0"
+                    aria-label="View address on block explorer"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                    Explorer
+                  </a>
+                )}
+              </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
