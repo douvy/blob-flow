@@ -1,6 +1,7 @@
 "use client";
 
 import Image from 'next/image';
+import Link from 'next/link';
 import React from 'react';
 import { MempoolTransaction } from '../types';
 import DataStateWrapper from './DataStateWrapper';
@@ -133,15 +134,13 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
                       </td>
                       <td className="py-3 px-2 text-xs sm:text-sm text-white">
                         <div className="font-mono truncate" title={tx.fromAddressFull}>
-                          {tx.fromAddressUrl ? (
-                            <a
-                              href={tx.fromAddressUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                          {tx.fromAddressFull ? (
+                            <Link
+                              href={`/user/${encodeURIComponent(tx.fromAddressFull)}`}
                               className="text-blue hover:underline"
                             >
                               {tx.fromAddress}
-                            </a>
+                            </Link>
                           ) : (
                             <span>{tx.fromAddress}</span>
                           )}

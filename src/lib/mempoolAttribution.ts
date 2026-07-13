@@ -14,6 +14,12 @@ export interface MempoolAttributionGroup {
   txCount: number;
   blobCount: number;
   blobSizeBytes: number;
+  /**
+   * Full sender address for the group, set only when every transaction in it
+   * shares one address. Groups that span several addresses (e.g. "Unknown")
+   * leave this undefined so the UI does not link to an arbitrary user page.
+   */
+  address?: string;
 }
 
 export interface MempoolAttributionSummary {
@@ -36,7 +42,15 @@ export function aggregateMempoolAttribution(
 ): MempoolAttributionSummary {
   const groupsByUser = new Map<
     string,
-    { txHashes: Set<string>; blobCount: number; blobSizeBytes: number }
+    {
+      txHashes: Set<string>;
+      blobCount: number;
+      blobSizeBytes: number;
+      // Keyed by lowercased address so mixed checksum/lowercase forms of one
+      // sender dedupe to a single entry; the value keeps the original casing
+      // for display and navigation.
+      addresses: Map<string, string>;
+    }
   >();
   const txHashes = new Set<string>();
   let blobCount = 0;
@@ -48,11 +62,18 @@ export function aggregateMempoolAttribution(
       txHashes: new Set<string>(),
       blobCount: 0,
       blobSizeBytes: 0,
+      addresses: new Map<string, string>(),
     };
 
     group.txHashes.add(tx.txHash);
     group.blobCount += tx.blobCount;
     group.blobSizeBytes += tx.blobSizeBytes;
+    if (tx.fromAddressFull) {
+      const key = tx.fromAddressFull.toLowerCase();
+      if (!group.addresses.has(key)) {
+        group.addresses.set(key, tx.fromAddressFull);
+      }
+    }
     groupsByUser.set(user, group);
 
     txHashes.add(tx.txHash);
@@ -66,6 +87,11 @@ export function aggregateMempoolAttribution(
       txCount: group.txHashes.size,
       blobCount: group.blobCount,
       blobSizeBytes: group.blobSizeBytes,
+      address:
+        group.addresses.size === 1
+          ? group.addresses.values().next().value
+          : undefined,
+      // (values() yields the original-cased address stored above)
     }))
     .sort(
       (a, b) =>

@@ -127,7 +127,16 @@ export default function MempoolPage() {
                     <td className="py-3 px-3 sm:px-4 text-sm text-white">
                       <div className="flex items-center gap-2">
                         <AttributionBadge user={group.user} sizeClass="h-4 w-4" />
-                        <span className="truncate">{group.user}</span>
+                        {group.address ? (
+                          <Link
+                            href={`/user/${encodeURIComponent(group.address)}`}
+                            className="truncate text-blue hover:underline"
+                          >
+                            {group.user}
+                          </Link>
+                        ) : (
+                          <span className="truncate">{group.user}</span>
+                        )}
                       </div>
                     </td>
                     <td className="py-3 px-3 sm:px-4 text-right text-sm text-white tabular-nums">
