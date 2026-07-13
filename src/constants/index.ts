@@ -2,6 +2,8 @@
  * Application constants
  */
 
+import type { Network } from '../types';
+
 export const APP_NAME = 'Blob Flow';
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://blob-indexer.ahkc.win/api/v1';
 // Canonical site origin for SEO metadata (Open Graph URLs, sitemap, robots).
@@ -49,21 +51,23 @@ export const BACKFILL_MIN_REMAINING_BLOCKS =
 
 /**
  * Network configuration
+ *
+ * The live network list is fetched from GET /networks (see useNetwork). These
+ * constants are the bootstrap fallback used before that request resolves and if
+ * it fails, and DEFAULT_NETWORK seeds the initial selection.
  */
-export const NETWORKS = {
+export const NETWORKS: Record<string, Network> = {
   MAINNET: {
     name: 'Mainnet',
     apiParam: 'mainnet',
-    icon: '/images/logo.png',
   },
   SEPOLIA: {
     name: 'Sepolia',
     apiParam: 'sepolia',
-    icon: '/images/logo.png',
   }
 };
 
-export const DEFAULT_NETWORK = NETWORKS.MAINNET;
+export const DEFAULT_NETWORK: Network = NETWORKS.MAINNET;
 
 export const ROUTES = {
   HOME: '/',

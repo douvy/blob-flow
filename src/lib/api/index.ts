@@ -8,6 +8,7 @@ import {
     getRollingStatsChart,
 } from './charts';
 import { getMempool, getMempoolPressure } from './mempool';
+import { getNetworks } from './networks';
 import { getBlobPricing } from './pricing';
 import { getStats, getStatsWindows } from './stats';
 import { getStatus } from './status';
@@ -30,6 +31,7 @@ export const api = {
     getStatus,
     getMempool,
     getMempoolPressure,
+    getNetworks,
     getTopUsers,
     getUserByAddress,
     getUserBlobs,
