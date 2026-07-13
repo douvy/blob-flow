@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/douvy/blob-flow/compare/v1.1.0...v1.2.0) (2026-07-13)
+
+
+### Features
+
+* **mempool:** explain fee cap headroom with a hover tooltip ([#152](https://github.com/douvy/blob-flow/issues/152)) ([bc5d034](https://github.com/douvy/blob-flow/commit/bc5d034a9f8494c2c4a80730fad0c9754a374817))
+
+
+### Bug Fixes
+
+* clarify blob capacity display ([#89](https://github.com/douvy/blob-flow/issues/89)) ([ee3a9b2](https://github.com/douvy/blob-flow/commit/ee3a9b2a5fae3a40c224b6b693b188db431006bb))
+
 ## [1.1.0](https://github.com/douvy/blob-flow/compare/v1.0.0...v1.1.0) (2026-07-13)
 
 
