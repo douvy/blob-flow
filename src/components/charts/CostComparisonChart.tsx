@@ -12,13 +12,12 @@ import {
 } from 'recharts';
 import type { CostComparisonDataPoint } from '../../types';
 import {
-  CHART_TOOLTIP_STYLE,
-  CHART_LABEL_STYLE,
   AXIS_STROKE,
   AXIS_LINE,
   AXIS_TICK,
   COLORS,
 } from '../../constants/chartTheme';
+import { ChartTooltipFrame, ChartTooltipRow } from './ChartTooltip';
 
 interface CostComparisonChartProps {
   data: CostComparisonDataPoint[];
@@ -73,12 +72,10 @@ export default function CostComparisonChart({ data }: CostComparisonChartProps) 
             tick={AXIS_TICK}
             axisLine={AXIS_LINE}
             tickLine={AXIS_LINE}
-            width={55}
+            width={70}
             tickFormatter={formatEth}
           />
           <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            labelStyle={CHART_LABEL_STYLE}
             content={({ active, payload, label }) => {
               if (!active || !payload || payload.length === 0) return null;
               const d = payload[0].payload as CostComparisonDataPoint;
@@ -86,24 +83,29 @@ export default function CostComparisonChart({ data }: CostComparisonChartProps) 
               const calldataVisible = !hiddenKeys.has('calldataEquivEth');
               if (!blobVisible && !calldataVisible) return null;
               return (
-                <div style={CHART_TOOLTIP_STYLE}>
-                  <p style={{ color: '#fff', fontSize: '12px', marginBottom: 4 }}>{label}</p>
+                <ChartTooltipFrame label={label}>
                   {blobVisible && (
-                    <p style={{ color: COLORS.blue, fontSize: '12px' }}>
-                      Blob: {formatEth(d.blobCostEth)} ETH
-                    </p>
+                    <ChartTooltipRow
+                      swatchColor={COLORS.blue}
+                      label="Blob"
+                      value={`${formatEth(d.blobCostEth)} ETH`}
+                    />
                   )}
                   {calldataVisible && (
-                    <p style={{ color: COLORS.purple, fontSize: '12px' }}>
-                      Calldata: {formatEth(d.calldataEquivEth)} ETH
-                    </p>
+                    <ChartTooltipRow
+                      swatchColor={COLORS.purple}
+                      label="Calldata"
+                      value={`${formatEth(d.calldataEquivEth)} ETH`}
+                    />
                   )}
                   {blobVisible && calldataVisible && (
-                    <p style={{ color: COLORS.green, fontSize: '12px' }}>
-                      Savings: {d.savingsPct}%
-                    </p>
+                    <ChartTooltipRow
+                      swatchColor={COLORS.green}
+                      label="Savings"
+                      value={`${d.savingsPct}%`}
+                    />
                   )}
-                </div>
+                </ChartTooltipFrame>
               );
             }}
           />
