@@ -65,7 +65,7 @@ Never make CI less restrictive. Do not add lint/type-check exceptions (e.g. `esl
 
 ## Pull Request Titles
 
-PR titles must use Conventional Commit format: `type: subject` or `type(scope): subject`. Allowed types are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, and `revert`. Keep the subject non-empty and do not prefix titles with labels such as `[codex]`.
+PR titles must use Conventional Commit format: `type: subject` or `type(scope): subject`. Allowed types are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `deps`, and `revert`. The `deps` type is reserved for Dependabot updates and is what routes them into the Dependencies section of the release-please changelog. Keep the subject non-empty and do not prefix titles with labels such as `[codex]`.
 
 ## Environment Variables
 
