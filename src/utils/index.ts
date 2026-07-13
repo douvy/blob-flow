@@ -4,6 +4,7 @@
 import { getAddress } from 'viem';
 import { SearchTarget } from '@/types';
 import { ATTRIBUTION_CONTRIBUTING_URL, ATTRIBUTION_REPO_URL } from '@/constants';
+import { SERIES_COLOR_PALETTE, SERIES_CATEGORY_NEUTRALS } from '@/constants/chartTheme';
 
 const ATTRIBUTION_IMAGE_NAMES: Record<string, string> = {
   arbitrum: 'arbitrum',
@@ -55,6 +56,83 @@ export function getAttributionInitial(name: string): string {
 
 export function getNetworkIconSrc(name?: string | null): string | null {
   return name ? getAttributionImageSrc(name) : null;
+}
+
+/**
+ * FNV-1a 32-bit. Stable across sessions and page loads so a series keeps its
+ * color no matter when or where it renders.
+ */
+function fnv1aHash(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+export interface SeriesColorInput {
+  key: string;
+  category?: string;
+}
+
+/**
+ * Assign a color to every series without any per-network configuration.
+ *
+ * Categories listed in SERIES_CATEGORY_NEUTRALS (other, unknown) get their
+ * fixed neutral. Every remaining key is hashed to a preferred palette slot
+ * and probes forward to a free one, so colors are distinct whenever the
+ * series count fits the palette and each key prefers the same slot
+ * regardless of which chart or table renders it. Keys are processed in
+ * sorted order so the result does not depend on backend response ordering.
+ * If there are more series than palette slots, later keys fall back to
+ * their hashed slot and reuse a color; identity then rests on the label
+ * next to the mark.
+ */
+export function assignSeriesColors(
+  series: ReadonlyArray<SeriesColorInput>
+): Record<string, string> {
+  const colors: Record<string, string> = {};
+  const paletteKeys = new Set<string>();
+
+  for (const { key, category } of series) {
+    const neutral = category ? SERIES_CATEGORY_NEUTRALS[category] : undefined;
+    if (neutral) {
+      colors[key] = neutral;
+    } else {
+      paletteKeys.add(key);
+    }
+  }
+
+  const slots = SERIES_COLOR_PALETTE.length;
+  const taken = new Set<number>();
+  for (const key of [...paletteKeys].sort()) {
+    const preferred = fnv1aHash(key) % slots;
+    let slot = preferred;
+    let probes = 0;
+    while (taken.has(slot) && probes < slots) {
+      slot = (slot + 1) % slots;
+      probes++;
+    }
+    if (probes === slots) slot = preferred;
+    taken.add(slot);
+    colors[key] = SERIES_COLOR_PALETTE[slot];
+  }
+
+  return colors;
+}
+
+/**
+ * Normalize an attribution display name to the backend's series key format
+ * ("OP Mainnet" to "op_mainnet"), so surfaces that only have names (like the
+ * top users table) hash to the same preferred color as the chart series.
+ */
+export function attributionColorKey(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
 }
 
 const ATTRIBUTION_CHAINS: Record<string, { caip2: string; explorerUrl: string }> = {

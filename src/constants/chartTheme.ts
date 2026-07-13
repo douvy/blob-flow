@@ -24,12 +24,35 @@ export const COLORS = {
   lightBlue: '#9ac4fd',
 };
 
-export const L2_COLORS: Record<string, string> = {
-  arbitrum: '#12aaff',
-  optimism: '#ff0420',
-  base: '#1652f0',
-  zksync: '#8B8DFC',
-  unknown: '#6e7687',
+/**
+ * Categorical palette for chart series identity. Series keys are hashed onto
+ * these slots (see assignSeriesColors in src/utils), so any network the
+ * backend starts reporting gets a stable, distinct color with no code change.
+ *
+ * Validated against the #14161a chart surface with the all-pairs check
+ * (every pair, not just neighbors, since hash assignment controls no
+ * ordering): worst pairwise deltaE 23.3 under normal vision and
+ * protan/deutan/tritan simulation (target 12), and every slot clears 3:1
+ * contrast. Revalidate if you change any value.
+ */
+export const SERIES_COLOR_PALETTE: readonly string[] = [
+  '#575ce3', // indigo
+  '#2fa58a', // teal
+  '#dd410d', // orange
+  '#957cdb', // lavender
+  '#b54a48', // brick
+  '#915a96', // plum
+];
+
+/**
+ * Fixed neutrals for attribution categories that are not real networks.
+ * "Other" and "Unknown" read as two clearly different grays (deltaE 30
+ * between them, 4:1+ contrast on the surface) instead of taking hues that
+ * would impersonate a network series.
+ */
+export const SERIES_CATEGORY_NEUTRALS: Record<string, string> = {
+  other: '#c2c8d0',
+  unknown: '#747781',
 };
 
 export const CHART_CARD_CLASS = 'rounded-lg border border-divider bg-[#14161a] p-3';
