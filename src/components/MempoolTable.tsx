@@ -15,6 +15,7 @@ import { useMempoolLiveList } from '../hooks/useMempoolLiveList';
 import { useFlipRows } from '../hooks/useFlipRows';
 import MempoolBlobDetailsModal from './MempoolBlobDetailsModal';
 import { RelativeTime } from './RelativeTime';
+import { FEE_HEADROOM_TOOLTIP } from '../constants';
 
 export default function MempoolTable({ limit = 10 }: { limit?: number }) {
   const { selectedNetwork } = useNetwork();
@@ -168,12 +169,12 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
                       </td>
                       <td className="hidden sm:table-cell py-3 px-2 text-xs sm:text-sm text-white">
                         <div className="truncate" title={tx.maxFeeGwei}>{tx.maxFeeGwei}</div>
-                        <div className="text-xs text-[#8a93a5] mt-1 truncate">{tx.feeHeadroom} room</div>
+                        <div className="text-xs text-[#8a93a5] mt-1 truncate" title={FEE_HEADROOM_TOOLTIP}>{tx.feeHeadroom} room</div>
                       </td>
                       <td className="py-3 px-2 text-xs sm:text-sm text-white">
                         <div className="truncate" title={tx.realizedCost}>{tx.realizedCost}</div>
                         <div className="text-xs text-[#8a93a5] mt-1 truncate" title={`max ${tx.maxCost}`}>max {tx.maxCost}</div>
-                        <div className="text-xs text-[#8a93a5] mt-1 truncate sm:hidden">{tx.feeHeadroom} room</div>
+                        <div className="text-xs text-[#8a93a5] mt-1 truncate sm:hidden" title={FEE_HEADROOM_TOOLTIP}>{tx.feeHeadroom} room</div>
                       </td>
                       <td className="hidden md:table-cell py-3 px-2 text-xs sm:text-sm text-white truncate"><RelativeTime timestamp={tx.timeInMempool} /></td>
                     </tr>

@@ -86,3 +86,11 @@ export const THEME = {
  * homepage summary and the /mempool page hit the same React Query cache entry.
  */
 export const MEMPOOL_SAMPLE_LIMIT = 50;
+
+/**
+ * Tooltip explaining the fee cap headroom value shown as "room" in compact
+ * views and "Headroom" in blob details. Shared so all views describe it the
+ * same way.
+ */
+export const FEE_HEADROOM_TOOLTIP =
+  'Fee cap headroom: how far this transaction\'s max fee sits above the current blob base fee. Higher means more buffer before it stops being includable.';
