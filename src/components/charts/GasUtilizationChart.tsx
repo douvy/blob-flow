@@ -32,6 +32,24 @@ function formatGas(value: number): string {
   return value.toString();
 }
 
+/**
+ * All reference labels anchor at the right edge, so when the Avg line sits close
+ * to Target or Max (e.g. average utilization near 100%) their 10px labels would
+ * overprint. Anchor Avg at the left edge in that case.
+ */
+export function getAvgLabelPosition(
+  targetGas: number,
+  maxGas: number,
+  averageGasUsed: number
+): 'insideLeft' | 'insideRight' {
+  const referenceMax = Math.max(targetGas, maxGas, averageGasUsed);
+  const domainMax = referenceMax > 0 ? referenceMax * 1.08 : 1;
+  const nearOtherLabel = averageGasUsed > 0 && [targetGas, maxGas].some(
+    (value) => value > 0 && Math.abs(averageGasUsed - value) / domainMax < 0.08
+  );
+  return nearOtherLabel ? 'insideLeft' : 'insideRight';
+}
+
 export default function GasUtilizationChart({ data, averageUtilizationPct }: GasUtilizationChartProps) {
   const targetGas = data.find((entry) => entry.targetGas > 0)?.targetGas ?? 0;
   const maxGas = data.find((entry) => entry.maxGas > 0)?.maxGas ?? 0;
@@ -39,6 +57,7 @@ export default function GasUtilizationChart({ data, averageUtilizationPct }: Gas
     ? Math.round((targetGas * averageUtilizationPct) / 100)
     : 0;
   const referenceMax = Math.max(targetGas, maxGas, averageGasUsed);
+  const avgLabelPosition = getAvgLabelPosition(targetGas, maxGas, averageGasUsed);
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -123,7 +142,7 @@ export default function GasUtilizationChart({ data, averageUtilizationPct }: Gas
             stroke={COLORS.yellow}
             strokeDasharray="3 4"
             strokeOpacity={0.65}
-            label={{ value: 'Avg', fill: '#6e7687', fontSize: 10, position: 'insideRight' }}
+            label={{ value: 'Avg', fill: '#6e7687', fontSize: 10, position: avgLabelPosition }}
           />
         )}
         <Bar dataKey="blobGasUsed" radius={[2, 2, 0, 0]} maxBarSize={20}>
