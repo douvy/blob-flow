@@ -201,6 +201,8 @@ export default function LiveMetrics() {
       trend: 'neutral' as const,
       description: `${formatCompactNumber(window.uniqueSenders)} senders · ${window.label}`,
       icon: Hourglass,
+      href: '/mempool',
+      ariaLabel: 'View pending blobs in the mempool',
     },
     {
       title: 'Top User',
