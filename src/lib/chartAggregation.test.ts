@@ -137,7 +137,6 @@ describe('chartAggregation', () => {
     expect(getRequestedRollingWindow('24h')).toBe('24h');
     expect(getRequestedRollingWindow('7d')).toBe('7d');
     expect(getRequestedRollingWindow('30d')).toBe('30d');
-    expect(getRequestedRollingWindow('All')).toBe('30d');
     // The pricing API serves at most 300 blocks per request, enough for the
     // full 1h live view; longer ranges clamp to that cap.
     expect(getPricingBlockRequestLimit('1h')).toBe(300);
@@ -148,7 +147,8 @@ describe('chartAggregation', () => {
       makeWindow('7d', 604800),
     ]));
 
-    expect(selectRollingWindow(windows, 'All')?.window).toBe('7d');
+    // No 30d window is present, so the request falls back to the widest available.
+    expect(selectRollingWindow(windows, '30d')?.window).toBe('7d');
   });
 
   it('transforms rolling stats values into display units', () => {
@@ -206,12 +206,12 @@ describe('chartAggregation', () => {
         makeWindow('30d', 2592000, { total_blobs: 3000 }),
       ]),
       pricing,
-      'All',
+      '30d',
       stats
     );
 
     expect(dataset.selectedWindow?.window).toBe('30d');
-    expect(dataset.rollingCoverageLabel).toContain('All view uses the 30d');
+    expect(dataset.rollingCoverageLabel).toContain('30d rolling API window');
     expect(dataset.baseFee.map((point) => point.blockNumber)).toEqual([1, 2]);
     expect(dataset.gasUtilization[1]).toMatchObject({
       blockNumber: 2,

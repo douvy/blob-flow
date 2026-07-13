@@ -129,7 +129,7 @@ describe('TopUsersTable', () => {
     expect(vi.mocked(useApiData).mock.calls.at(-1)?.[1]).toContain('1h');
 
     vi.mocked(useTimeRange).mockReturnValue({
-      timeRange: 'All',
+      timeRange: '30d',
       setTimeRange: vi.fn(),
     });
     rerender(
@@ -139,10 +139,10 @@ describe('TopUsersTable', () => {
     );
 
     expect(
-      screen.getByRole('heading', { name: 'Top Blob Users All time' })
+      screen.getByRole('heading', { name: 'Top Blob Users Last 30 days' })
     ).toBeInTheDocument();
     expect(screen.queryByText('Last hour')).not.toBeInTheDocument();
-    expect(vi.mocked(useApiData).mock.calls.at(-1)?.[1]).toContain('all');
+    expect(vi.mocked(useApiData).mock.calls.at(-1)?.[1]).toContain('30d');
   });
 
   it('applies live updates scoped to the selected range', () => {

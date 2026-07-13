@@ -38,7 +38,6 @@ const ESTIMATED_BLOCKS_PER_RANGE: Record<TimeRange, number> = {
   '24h': 7_200,
   '7d': 50_400,
   '30d': 216_000,
-  All: 216_000,
 };
 
 function roundTo(value: number, digits: number): number {
@@ -263,17 +262,12 @@ function formatBlockCoverage(
     ? 'latest 1 pricing block'
     : `latest ${recentBlockCount.toLocaleString()} pricing blocks`;
 
-  if (timeRange === 'All') return `${blockLabel} available from the pricing API`;
   if (selectedWindow) return `${blockLabel} within the ${selectedWindow.label} view`;
   return `${blockLabel} within the ${timeRange} view`;
 }
 
 function formatRollingCoverage(timeRange: TimeRange, selectedWindow: RollingWindowDataPoint | null): string {
   if (!selectedWindow) return 'rolling stats unavailable';
-
-  if (timeRange === 'All') {
-    return `All view uses the ${selectedWindow.label} rolling API window`;
-  }
 
   if (selectedWindow.window !== timeRange) {
     return `${timeRange} view uses the ${selectedWindow.label} rolling API window`;
@@ -283,7 +277,6 @@ function formatRollingCoverage(timeRange: TimeRange, selectedWindow: RollingWind
 }
 
 export function getRequestedRollingWindow(timeRange: TimeRange): RollingWindowKey {
-  if (timeRange === 'All') return '30d';
   return timeRange;
 }
 
@@ -292,7 +285,7 @@ export function getPricingBlockRequestLimit(timeRange: TimeRange): number {
 }
 
 export function getBackendChartRange(timeRange: TimeRange): BackendChartRange {
-  return timeRange === 'All' ? '30d' : timeRange;
+  return timeRange;
 }
 
 export function transformStatsWindows(
@@ -344,10 +337,9 @@ export function selectRollingWindow(
 
 function filterPricingForTimeRange(
   pricing: BlobPricing,
-  timeRange: TimeRange,
   selectedWindow: RollingWindowDataPoint | null
 ): BlobPricing {
-  if (timeRange === 'All' || !selectedWindow || selectedWindow.startTimestamp <= 0) {
+  if (!selectedWindow || selectedWindow.startTimestamp <= 0) {
     return pricing;
   }
 
@@ -401,8 +393,6 @@ function formatChartRangeLabel(
   timeRange: TimeRange,
   selectedWindow: RollingWindowDataPoint | null
 ): string {
-  if (timeRange === 'All' && selectedWindow?.window === '30d') return '30d view';
-  if (timeRange === 'All') return 'all available history';
   if (selectedWindow) return `${selectedWindow.label} view`;
   return `${timeRange} view`;
 }
@@ -442,11 +432,7 @@ function formatBucketCoverage(
   const bucketLabel = pointCount === 1
     ? `1 ${spanWord} bucket`
     : `${pointCount.toLocaleString()} ${spanWord} buckets`;
-  const rangeLabel = timeRange === 'All' && chart.range === '30d'
-    ? '30d view'
-    : timeRange === 'All'
-      ? 'all available history'
-      : `${timeRange} view`;
+  const rangeLabel = `${timeRange} view`;
 
   // During a backfill the indexed data covers only the tail of the requested
   // range; say where it actually starts.
@@ -469,7 +455,7 @@ function buildSelectedWindowFromMarket(
     Math.round((isoTimestamp(market.end_time) - isoTimestamp(market.start_time)) / 1000)
   );
 
-  const label = timeRange === 'All' && market.range === '30d' ? '30d' : timeRange;
+  const label = timeRange;
 
   return {
     window: market.range,
@@ -772,7 +758,7 @@ export function buildChartDataset(
 ): ChartDataset {
   const rollingWindows = transformStatsWindows(statsWindows);
   const selectedWindow = selectRollingWindow(rollingWindows, timeRange);
-  const windowedPricing = filterPricingForTimeRange(pricing, timeRange, selectedWindow);
+  const windowedPricing = filterPricingForTimeRange(pricing, selectedWindow);
   const { baseFee, gasUtilization } = transformPricingBlocks(windowedPricing);
   const currentBaseFeeGwei = getCurrentBaseFeeGwei(pricing, baseFee);
   const averageBaseFeeGwei =
