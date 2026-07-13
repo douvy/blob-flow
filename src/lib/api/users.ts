@@ -28,6 +28,7 @@ export function transformUserResponses(usersResponse: UserResponse[]): TopUsersR
             id: index + 1,
             name: user.name || truncateAddress(user.address),
             address: user.address,
+            attributed: Boolean(user.name),
             dataCount: user.blob_count,
             percentage,
             totalCostEth: formatTotalCostEth(user.total_cost_wei, user.total_cost_eth),

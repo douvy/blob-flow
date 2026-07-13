@@ -24,7 +24,13 @@ import { BackendUsersRange, TopUsersResponse, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
-import { getAttributionImageSrc, getAttributionInitial } from '../utils';
+import {
+  assignSeriesColors,
+  attributionColorKey,
+  getAttributionImageSrc,
+  getAttributionInitial,
+  type SeriesColorInput,
+} from '../utils';
 import { useLiveBlobEvent } from '../contexts/LiveDataContext';
 import { transformUserResponses } from '../lib/api/users';
 import {
@@ -54,19 +60,16 @@ const RANGE_LABELS: Record<TimeRange, string> = {
   All: 'All time',
 };
 
-function getUserColor(userName: string): string {
-  switch (userName.toLowerCase()) {
-    case 'arbitrum':
-      return 'bg-[#12aaff]';
-    case 'optimism':
-      return 'bg-[#ff0420]';
-    case 'base':
-      return 'bg-[#1652f0]';
-    case 'zksync':
-      return 'bg-[#f2f2f2]';
-    default:
-      return 'bg-gray-500';
-  }
+/**
+ * Unattributed users are displayed under their truncated address; give them
+ * the shared "unknown" neutral instead of a hashed hue so an address never
+ * masquerades as a named network.
+ */
+function userColorInput(user: User): SeriesColorInput {
+  return {
+    key: attributionColorKey(user.name),
+    category: user.attributed ? undefined : 'unknown',
+  };
 }
 
 function sortLabel(direction: false | 'asc' | 'desc'): string {
@@ -167,6 +170,11 @@ export default function TopUsersTable() {
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   useFlipRows(tbodyRef, liveScopeKey);
 
+  const userColors = React.useMemo(
+    () => assignSeriesColors(tableData.map(userColorInput)),
+    [tableData]
+  );
+
   const columns = React.useMemo<ColumnDef<User>[]>(
     () => [
       {
@@ -210,8 +218,11 @@ export default function TopUsersTable() {
               <span className="mr-3">{user.percentage}%</span>
               <div className="h-2.5 w-32 rounded-full bg-[#2a2f37]">
                 <div
-                  className={`h-2.5 rounded-full ${getUserColor(user.name)}`}
-                  style={{ width: `${user.percentage}%` }}
+                  className="h-2.5 rounded-full"
+                  style={{
+                    width: `${user.percentage}%`,
+                    backgroundColor: userColors[attributionColorKey(user.name)],
+                  }}
                 />
               </div>
             </div>
@@ -219,7 +230,7 @@ export default function TopUsersTable() {
         },
       },
     ],
-    [timeRange]
+    [timeRange, userColors]
   );
 
   const table = useReactTable({

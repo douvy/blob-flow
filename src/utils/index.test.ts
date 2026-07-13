@@ -1,4 +1,6 @@
 import {
+  assignSeriesColors,
+  attributionColorKey,
   formatBlobCount,
   formatBlobFee,
   formatBlobSize,
@@ -233,5 +235,79 @@ describe('parseSearchQuery', () => {
     expect(parseSearchQuery('recent rollup blob activity')).toBeNull();
     expect(parseSearchQuery('0')).toBeNull();
     expect(parseSearchQuery('0x1234')).toBeNull();
+  });
+});
+
+describe('assignSeriesColors', () => {
+  // The live mainnet attribution series as of 2026-07.
+  const mainnetSeries = [
+    { key: 'arbitrum_one', category: 'rollup' },
+    { key: 'op_mainnet', category: 'rollup' },
+    { key: 'base', category: 'rollup' },
+    { key: 'robinhood_chain', category: 'rollup' },
+    { key: 'world_chain', category: 'rollup' },
+    { key: 'other', category: 'other' },
+    { key: 'unknown', category: 'unknown' },
+  ];
+
+  it('gives every series a color and all colors are distinct when they fit the palette', () => {
+    const colors = assignSeriesColors(mainnetSeries);
+    const values = mainnetSeries.map((s) => colors[s.key]);
+    expect(values.every((c) => /^#[0-9a-f]{6}$/i.test(c))).toBe(true);
+    expect(new Set(values).size).toBe(mainnetSeries.length);
+  });
+
+  it('assigns the fixed neutrals to the other and unknown categories', () => {
+    const colors = assignSeriesColors(mainnetSeries);
+    expect(colors.other).toBe('#c2c8d0');
+    expect(colors.unknown).toBe('#747781');
+    expect(colors.other).not.toBe(colors.unknown);
+  });
+
+  it('falls back to the key for neutrals when no category is provided', () => {
+    // Surfaces without category data (like the top users table) must still
+    // render an entry keyed unknown/other as the neutral, not a network hue.
+    const colors = assignSeriesColors([{ key: 'unknown' }, { key: 'other' }]);
+    expect(colors.unknown).toBe('#747781');
+    expect(colors.other).toBe('#c2c8d0');
+  });
+
+  it('treats an explicit category as authoritative over the key spelling', () => {
+    const colors = assignSeriesColors([{ key: 'unknown', category: 'rollup' }]);
+    expect(colors.unknown).not.toBe('#747781');
+    expect(colors.unknown).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  it('is independent of input order', () => {
+    const shuffled = [...mainnetSeries].reverse();
+    expect(assignSeriesColors(shuffled)).toEqual(assignSeriesColors(mainnetSeries));
+  });
+
+  it('handles arbitrary new keys without configuration', () => {
+    const colors = assignSeriesColors([
+      { key: 'some_future_rollup', category: 'rollup' },
+      { key: 'another_l2' },
+    ]);
+    expect(colors.some_future_rollup).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(colors.another_l2).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(colors.some_future_rollup).not.toBe(colors.another_l2);
+  });
+
+  it('still returns a color for every key when there are more series than palette slots', () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({ key: `rollup_${i}` }));
+    const colors = assignSeriesColors(many);
+    for (const { key } of many) {
+      expect(colors[key]).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+});
+
+describe('attributionColorKey', () => {
+  it('normalizes display names to backend series key format', () => {
+    expect(attributionColorKey('Arbitrum One')).toBe('arbitrum_one');
+    expect(attributionColorKey('OP Mainnet')).toBe('op_mainnet');
+    expect(attributionColorKey('Base')).toBe('base');
+    expect(attributionColorKey('Robinhood Chain')).toBe('robinhood_chain');
+    expect(attributionColorKey('  X Layer  ')).toBe('x_layer');
   });
 });

@@ -20,29 +20,14 @@ import {
   AXIS_STROKE,
   AXIS_LINE,
   AXIS_TICK,
-  L2_COLORS,
 } from '../../constants/chartTheme';
+import { assignSeriesColors } from '@/utils';
 import { ChartTooltipFrame, ChartTooltipRow } from './ChartTooltip';
 import { isolateLegendKey } from './legendIsolation';
 
 interface L2UsageChartProps {
   data: L2UsageDataPoint[];
   series: L2UsageSeries[];
-}
-
-const FALLBACK_COLORS = [
-  '#12aaff',
-  '#1652f0',
-  '#ff0420',
-  '#66CC99',
-  '#F0C040',
-  '#8B8DFC',
-  '#6e7687',
-  '#f97316',
-];
-
-function getSeriesColor(key: string, index: number): string {
-  return L2_COLORS[key] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
 function getNumericValue(point: L2UsageDataPoint, key: string): number {
@@ -58,27 +43,29 @@ export default function L2UsageChart({ data, series }: L2UsageChartProps) {
     setHiddenKeys((prev) => isolateLegendKey(prev, allKeys, key));
   };
 
+  const seriesColors = useMemo(() => assignSeriesColors(series), [series]);
+
   const pieData = useMemo(() => {
     if (!usePie) return [];
     return series
-      .map((entry, index) => ({
+      .map((entry) => ({
         key: entry.key,
         name: entry.name,
         value: data.reduce((sum, point) => sum + getNumericValue(point, entry.key), 0),
-        color: getSeriesColor(entry.key, index),
+        color: seriesColors[entry.key],
       }))
       .filter((entry) => entry.value > 0);
-  }, [data, series, usePie]);
+  }, [data, series, seriesColors, usePie]);
 
   const legendEntries = useMemo(
     () => series
-      .map((entry, index) => ({
+      .map((entry) => ({
         ...entry,
-        color: getSeriesColor(entry.key, index),
+        color: seriesColors[entry.key],
         total: data.reduce((sum, point) => sum + getNumericValue(point, entry.key), 0),
       }))
       .filter((entry) => entry.total > 0),
-    [data, series]
+    [data, series, seriesColors]
   );
 
   // A data refresh can drop the isolated series out of the legend, leaving
