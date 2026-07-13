@@ -162,7 +162,6 @@ const RANGE_LABELS: Record<TimeRange, string> = {
   '24h': 'last 24h',
   '7d': 'last 7 days',
   '30d': 'last 30 days',
-  All: 'last 30 days',
 };
 
 const TREND_CHIP_LABELS: Record<TimeRange, string> = {
@@ -170,7 +169,6 @@ const TREND_CHIP_LABELS: Record<TimeRange, string> = {
   '24h': '24h',
   '7d': '7d',
   '30d': '30d',
-  All: '30d',
 };
 
 function formatBucketLabel(timestamp: string, style: BucketLabelStyle): string {
@@ -607,7 +605,7 @@ export default function BlobFeeHero() {
     ['stats-windows-hero', network, requestedWindows.join(',')]
   );
 
-  // Bucketed fee history for the selected header range (24h/7d/30d/All).
+  // Bucketed fee history for the selected header range (24h/7d/30d).
   // Shares the React Query cache key with the Data Trends charts.
   const backendRange = getBackendChartRange(timeRange);
   const fetchMarketChart = useCallback(
@@ -794,7 +792,7 @@ export default function BlobFeeHero() {
     }`;
 
   // "Above target" follows the header time range: per-block counts on the
-  // live 1h view; on 24h/7d/30d/All, true block counts from the stats window
+  // live 1h view; on 24h/7d/30d, true block counts from the stats window
   // when the backend provides them, otherwise range-chart bucket counts.
   const aboveTargetStat = useMemo(() => {
     if (isLiveRange) {

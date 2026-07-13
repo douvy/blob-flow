@@ -57,7 +57,6 @@ const RANGE_LABELS: Record<TimeRange, string> = {
   '24h': 'Last 24 hours',
   '7d': 'Last 7 days',
   '30d': 'Last 30 days',
-  All: 'All time',
 };
 
 /**
@@ -134,7 +133,7 @@ export default function TopUsersTable() {
   const router = useRouter();
   const { selectedNetwork } = useNetwork();
   const { timeRange } = useTimeRange();
-  const usersRange: BackendUsersRange = timeRange === 'All' ? 'all' : timeRange;
+  const usersRange: BackendUsersRange = timeRange;
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: 'dataCount', desc: true },
   ]);
