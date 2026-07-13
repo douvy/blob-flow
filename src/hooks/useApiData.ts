@@ -7,6 +7,7 @@ export interface UseApiDataOptions<T> {
   enabled?: boolean;
   initialData?: T;
   refetchInterval?: number;
+  refetchOnWindowFocus?: boolean;
   staleTime?: number;
 }
 
@@ -47,6 +48,12 @@ export function useApiData<T>(
     initialData: options.initialData,
     initialDataUpdatedAt: options.initialData === undefined ? undefined : 0,
     refetchInterval: options.refetchInterval,
+    // Only forward when set: React Query merges options over QueryClient
+    // defaults with a plain spread, so passing `undefined` would clobber the
+    // app-wide `refetchOnWindowFocus: false` default for every other caller.
+    ...(options.refetchOnWindowFocus !== undefined && {
+      refetchOnWindowFocus: options.refetchOnWindowFocus,
+    }),
     staleTime: options.staleTime,
   });
 

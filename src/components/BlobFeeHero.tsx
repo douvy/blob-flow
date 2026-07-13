@@ -3,7 +3,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { TrendingDown, TrendingUp, MoveRight } from 'lucide-react';
+import { TrendingDown, TrendingUp, MoveRight, Maximize2 } from 'lucide-react';
 import {
   Area,
   AreaChart,
@@ -947,18 +947,28 @@ export default function BlobFeeHero() {
                       ? `Blob base fee · ${RANGE_LABELS[timeRange]}`
                       : `Avg blob base fee · ${rangeCaption}`}
                   </span>
-                  {headBlock && (
-                    <span>
-                      Block{' '}
-                      <Link
-                        href={`/block/${headBlock.blockNumber}`}
-                        className="text-blue hover:underline"
-                      >
-                        {headBlock.blockNumber.toLocaleString()}
-                      </Link>{' '}
-                      · {formatRelativeTime(headBlock.blockTimestamp, new Date(now))}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-2">
+                    {headBlock && (
+                      <span>
+                        Block{' '}
+                        <Link
+                          href={`/block/${headBlock.blockNumber}`}
+                          className="text-blue hover:underline"
+                        >
+                          {headBlock.blockNumber.toLocaleString()}
+                        </Link>{' '}
+                        · {formatRelativeTime(headBlock.blockTimestamp, new Date(now))}
+                      </span>
+                    )}
+                    <Link
+                      href="/charts/base-fee"
+                      className="flex h-6 w-6 flex-none items-center justify-center rounded-md border border-divider bg-[#1d1f23] text-blue transition-colors hover:bg-[#252936] hover:text-lightBlue focus:outline-none focus:ring-2 focus:ring-blue/60"
+                      aria-label="Open base fee chart enlarged"
+                      title="Enlarge graph"
+                    >
+                      <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Link>
+                  </span>
                 </div>
                 <div className="h-44 sm:h-52">
                   {chartPoints.length > 1 ? (

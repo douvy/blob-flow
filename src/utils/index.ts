@@ -146,11 +146,33 @@ export function formatWeiToEth(
 export function formatCostEthOrWei(costEthOrWei: string | number): string {
   const rawCost = normalizeDecimalString(costEthOrWei);
 
-  if (rawCost.includes('.')) {
-    return `${rawCost} ETH`;
+  // Decimal inputs are already denominated in ETH; integer inputs are wei.
+  // Normalize both to a wei amount so the unit thresholds below apply
+  // consistently and equal costs render identically regardless of shape.
+  const weiValue = rawCost.includes('.') ? ethStringToWei(rawCost) : BigInt(rawCost);
+  const weiString = weiValue.toString();
+
+  const gweiThreshold = BigInt(1_000_000_000);
+  // Prefer ETH once the cost reaches a meaningful fraction of an ether
+  // (1e14 wei = 0.0001 ETH). Below that, tens of millions of Gwei read poorly.
+  const ethDisplayThreshold = BigInt(100_000_000_000_000);
+
+  if (weiValue >= ethDisplayThreshold) {
+    return `${formatDecimalString(formatDecimalUnits(weiString, 18), 6)} ETH`;
   }
 
-  return formatWeiToReadable(rawCost);
+  if (weiValue >= gweiThreshold) {
+    return `${formatDecimalString(formatDecimalUnits(weiString, 9), 4)} Gwei`;
+  }
+
+  return `${weiString} Wei`;
+}
+
+function ethStringToWei(rawEth: string): bigint {
+  const [wholePart, fractionalPart = ''] = rawEth.split('.');
+  // Sub-wei precision is not representable, so truncate beyond 18 decimals.
+  const paddedFractional = fractionalPart.slice(0, 18).padEnd(18, '0');
+  return BigInt(wholePart) * BigInt('1000000000000000000') + BigInt(paddedFractional);
 }
 
 export function formatBlobSize(bytes?: number): string {

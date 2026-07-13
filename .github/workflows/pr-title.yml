@@ -26,6 +26,7 @@ jobs:
             build
             ci
             chore
+            deps
             revert
           requireScope: false
           subjectPattern: ^.+$

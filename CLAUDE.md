@@ -15,13 +15,16 @@ Blob Flow is an Ethereum EIP-4844 blob data analytics dashboard. It visualizes r
 ## Commands
 
 ```bash
-npm run dev      # Dev server on localhost:3000
-npm run build    # Production build
-npm run lint     # ESLint
-npm start        # Production server
+npm run dev        # Dev server on localhost:3000
+npm run build      # Production build
+npm run lint       # ESLint
+npm run typecheck  # tsc --noEmit (tsconfig.typecheck.json)
+npm test           # Run Vitest suite once
+npm run test-watch # Vitest in watch mode
+npm start          # Production server
 ```
 
-No test framework is configured.
+Tests use Vitest (`*.test.ts` / `*.test.tsx` colocated with source). Use `npm run typecheck` rather than plain `tsc --noEmit`: the dedicated config scopes the check correctly.
 
 ## Project Structure
 
@@ -65,7 +68,7 @@ Never make CI less restrictive. Do not add lint/type-check exceptions (e.g. `esl
 
 ## Pull Request Titles
 
-PR titles must use Conventional Commit format: `type: subject` or `type(scope): subject`. Allowed types are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, and `revert`. Keep the subject non-empty and do not prefix titles with labels such as `[codex]`.
+PR titles must use Conventional Commit format: `type: subject` or `type(scope): subject`. Allowed types are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `deps`, and `revert`. The `deps` type is reserved for Dependabot updates and is what routes them into the Dependencies section of the release-please changelog. Keep the subject non-empty and do not prefix titles with labels such as `[codex]`.
 
 ## Environment Variables
 

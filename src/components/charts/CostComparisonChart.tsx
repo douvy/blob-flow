@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   LineChart,
   Line,
@@ -33,6 +33,20 @@ function formatEth(value: number): string {
 }
 
 export default function CostComparisonChart({ data }: CostComparisonChartProps) {
+  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
+
+  const toggleKey = (key: string) => {
+    setHiddenKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   const avgSavings = useMemo(() => {
     if (data.length === 0) return 0;
     return Math.round(
@@ -68,18 +82,27 @@ export default function CostComparisonChart({ data }: CostComparisonChartProps) 
             content={({ active, payload, label }) => {
               if (!active || !payload || payload.length === 0) return null;
               const d = payload[0].payload as CostComparisonDataPoint;
+              const blobVisible = !hiddenKeys.has('blobCostEth');
+              const calldataVisible = !hiddenKeys.has('calldataEquivEth');
+              if (!blobVisible && !calldataVisible) return null;
               return (
                 <div style={CHART_TOOLTIP_STYLE}>
                   <p style={{ color: '#fff', fontSize: '12px', marginBottom: 4 }}>{label}</p>
-                  <p style={{ color: COLORS.blue, fontSize: '12px' }}>
-                    Blob: {formatEth(d.blobCostEth)} ETH
-                  </p>
-                  <p style={{ color: COLORS.purple, fontSize: '12px' }}>
-                    Calldata: {formatEth(d.calldataEquivEth)} ETH
-                  </p>
-                  <p style={{ color: COLORS.green, fontSize: '12px' }}>
-                    Savings: {d.savingsPct}%
-                  </p>
+                  {blobVisible && (
+                    <p style={{ color: COLORS.blue, fontSize: '12px' }}>
+                      Blob: {formatEth(d.blobCostEth)} ETH
+                    </p>
+                  )}
+                  {calldataVisible && (
+                    <p style={{ color: COLORS.purple, fontSize: '12px' }}>
+                      Calldata: {formatEth(d.calldataEquivEth)} ETH
+                    </p>
+                  )}
+                  {blobVisible && calldataVisible && (
+                    <p style={{ color: COLORS.green, fontSize: '12px' }}>
+                      Savings: {d.savingsPct}%
+                    </p>
+                  )}
                 </div>
               );
             }}
@@ -92,6 +115,7 @@ export default function CostComparisonChart({ data }: CostComparisonChartProps) 
             dot={false}
             activeDot={{ r: 4 }}
             name="Blob Cost"
+            hide={hiddenKeys.has('blobCostEth')}
           />
           <Line
             type="monotone"
@@ -101,18 +125,29 @@ export default function CostComparisonChart({ data }: CostComparisonChartProps) 
             dot={false}
             activeDot={{ r: 4 }}
             name="Calldata Equiv."
+            hide={hiddenKeys.has('calldataEquivEth')}
           />
         </LineChart>
       </ResponsiveContainer>
       <div className="absolute bottom-0 left-0 right-0 text-center text-xs text-[#6e7687]">
-        <span className="inline-flex items-center mr-4">
+        <button
+          type="button"
+          onClick={() => toggleKey('blobCostEth')}
+          aria-pressed={!hiddenKeys.has('blobCostEth')}
+          className={`inline-flex items-center mr-4 cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hiddenKeys.has('blobCostEth') ? 'opacity-40' : ''}`}
+        >
           <span className="inline-block w-3 h-0.5 mr-1" style={{ backgroundColor: COLORS.blue }} />
-          Blob Cost
-        </span>
-        <span className="inline-flex items-center mr-4">
+          <span className={hiddenKeys.has('blobCostEth') ? 'line-through' : ''}>Blob Cost</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => toggleKey('calldataEquivEth')}
+          aria-pressed={!hiddenKeys.has('calldataEquivEth')}
+          className={`inline-flex items-center mr-4 cursor-pointer rounded px-1 py-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${hiddenKeys.has('calldataEquivEth') ? 'opacity-40' : ''}`}
+        >
           <span className="inline-block w-3 h-0.5 mr-1" style={{ backgroundColor: COLORS.purple }} />
-          Calldata Equiv.
-        </span>
+          <span className={hiddenKeys.has('calldataEquivEth') ? 'line-through' : ''}>Calldata Equiv.</span>
+        </button>
         <span className="inline-flex items-center">
           <span className="text-green">~{avgSavings}% savings</span>
         </span>
