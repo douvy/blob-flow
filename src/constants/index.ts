@@ -95,6 +95,13 @@ export const ATTRIBUTION_CONTRIBUTING_URL = `${ATTRIBUTION_REPO_URL}/blob/main/C
 export const MEMPOOL_SAMPLE_LIMIT = 50;
 
 /**
+ * Poll interval for mempool state (pressure snapshot and transaction list).
+ * Shared so every mempool consumer refreshes on the same cadence; between
+ * polls, WebSocket mempool_update events keep the views current.
+ */
+export const MEMPOOL_REFRESH_MS = 30000;
+
+/**
  * Tooltip explaining the fee cap headroom value shown as "room" in compact
  * views and "Headroom" in blob details. Shared so all views describe it the
  * same way.

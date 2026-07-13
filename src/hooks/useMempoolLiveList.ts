@@ -7,8 +7,7 @@ import { api } from '../lib/api';
 import { MempoolResponse, MempoolTransaction } from '../types';
 import { useLiveBlobEvent } from '../contexts/LiveDataContext';
 import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
-
-const MEMPOOL_REFRESH_MS = 30000;
+import { MEMPOOL_REFRESH_MS } from '../constants';
 
 /** Cached mempool sample plus whether the real mempool extends beyond it. */
 interface MempoolLiveSnapshot extends MempoolResponse {

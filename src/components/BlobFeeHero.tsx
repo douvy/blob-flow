@@ -47,6 +47,7 @@ import {
   type HeroStripBucket,
 } from '@/lib/blobFeeHero';
 import { useApiData } from '@/hooks/useApiData';
+import { useMempoolPressure } from '@/hooks/useMempoolPressure';
 import { useNetwork } from '@/hooks/useNetwork';
 import { useNow } from '@/hooks/useNow';
 import { useBlobWebSocket, useLiveBlobEvent } from '@/contexts/LiveDataContext';
@@ -63,7 +64,6 @@ import type {
   BackendStatsWindowsResponse,
   BlobPricing,
   BlobPricingRecentBlock,
-  MempoolPressure,
   RollingWindowKey,
 } from '@/types';
 import {
@@ -78,7 +78,6 @@ import {
 import { formatGwei, formatPercent } from '@/utils';
 
 const PRICING_FALLBACK_REFRESH_MS = 30000;
-const MEMPOOL_REFRESH_MS = 30000;
 
 interface DirectionStyle {
   label: string;
@@ -457,8 +456,10 @@ function buildBlockStripItems(blocks: BlobPricingRecentBlock[]): FullnessStripIt
     }));
 }
 
+// Ignores any backend-sent bucket label: those are preformatted in UTC,
+// while the strip must match the local-time chart axis above it.
 function formatStripBucketLabel(bucket: HeroStripBucket, style: BucketLabelStyle): string {
-  const startLabel = bucket.label || formatBucketLabel(bucket.timestamp, style);
+  const startLabel = formatBucketLabel(bucket.timestamp, style);
   if (bucket.bucket_count <= 1) return startLabel;
 
   const endLabel = formatBucketLabel(bucket.end_timestamp, style);
@@ -623,16 +624,10 @@ export default function BlobFeeHero() {
     { enabled: !isLiveRange }
   );
 
-  // Mempool demand signal. Also optional.
-  const fetchMempoolPressure = useCallback(
-    () => api.getMempoolPressure(network),
-    [network]
-  );
-  const { data: mempoolPressure } = useApiData<MempoolPressure>(
-    fetchMempoolPressure,
-    ['mempool-pressure-hero', network],
-    { refetchInterval: MEMPOOL_REFRESH_MS }
-  );
+  // Mempool demand signal. Also optional. Reads the shared pressure snapshot
+  // so the Pending stat matches Live Metrics and the /mempool page.
+  const { data: mempoolPressure, error: mempoolPressureError } =
+    useMempoolPressure(network);
 
   // Blocks accumulated live from the WebSocket between pricing refetches.
   const [liveState, setLiveState] = useState<{
@@ -750,8 +745,10 @@ export default function BlobFeeHero() {
         }));
     }
 
+    // Always label from the timestamp: backend labels are preformatted in
+    // UTC and must not bypass the viewer's timezone.
     return marketPoints.map((point) => ({
-      label: point.label || formatBucketLabel(point.timestamp, bucketLabelStyle),
+      label: formatBucketLabel(point.timestamp, bucketLabelStyle),
       fee: parseGwei(point.average_blob_base_fee_gwei),
       blobCount: point.blob_count,
       maxBlobs: 0,
@@ -932,7 +929,9 @@ export default function BlobFeeHero() {
                     value={mempoolPressure ? mempoolPressure.pendingBlobCount.toLocaleString() : '-'}
                     hint={
                       mempoolPressure
-                        ? `${mempoolPressure.includability.likelyIncludableCount} includable`
+                        ? `${mempoolPressure.includability.likelyIncludableCount} includable${
+                          mempoolPressureError ? ' · refresh failed' : ''
+                        }`
                         : 'mempool blobs'
                     }
                   />
