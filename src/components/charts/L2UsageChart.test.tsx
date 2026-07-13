@@ -65,6 +65,20 @@ describe('L2UsageChart legend isolation', () => {
     expect(legendButton(/Optimism/)).toHaveAttribute('aria-pressed', 'false');
   });
 
+  it('shows the remaining series when the isolated series drops out of the data', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<L2UsageChart data={pieData} series={series} />);
+
+    await user.click(legendButton(/Arbitrum/));
+
+    const withoutArbitrum = pieData.map((point) => ({ ...point, arbitrum: 0 }));
+    rerender(<L2UsageChart data={withoutArbitrum} series={series} />);
+
+    expect(legendButton(/Base/)).toHaveAttribute('aria-pressed', 'true');
+    expect(legendButton(/Optimism/)).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByText('No series selected')).not.toBeInTheDocument();
+  });
+
   it('isolates and restores in the area chart legend too', async () => {
     const user = userEvent.setup();
     render(<L2UsageChart data={areaData} series={series} />);
