@@ -1,0 +1,28 @@
+node_modules
+npm-debug.log*
+.next
+out
+build
+coverage
+
+.git
+.github
+.gitignore
+
+# Local env and editor files
+.env*
+.vscode
+.idea
+.DS_Store
+
+# Tests and CI artifacts
+**/*.test.ts
+**/*.test.tsx
+**/__tests__
+.vercel
+
+# Docs and misc
+README.md
+CHANGELOG.md
+Dockerfile
+.dockerignore
