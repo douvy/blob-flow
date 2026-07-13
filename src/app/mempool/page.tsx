@@ -7,18 +7,14 @@ import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import MempoolTable from '@/components/MempoolTable';
 import { MEMPOOL_SAMPLE_LIMIT } from '@/constants';
-import { useApiData } from '@/hooks/useApiData';
 import { useMempoolLiveList } from '@/hooks/useMempoolLiveList';
+import { useMempoolPressure } from '@/hooks/useMempoolPressure';
 import { useNetwork } from '@/hooks/useNetwork';
-import { api } from '@/lib/api';
 import {
   MEMPOOL_PRIVATE_CAVEAT,
   aggregateMempoolAttribution,
 } from '@/lib/mempoolAttribution';
-import { MempoolPressure } from '@/types';
 import { formatBlobCount, formatBlobSize } from '@/utils';
-
-const PRESSURE_REFRESH_MS = 30000;
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -34,11 +30,7 @@ export default function MempoolPage() {
   const { selectedNetwork } = useNetwork();
   const network = selectedNetwork.apiParam;
 
-  const { data: pressure } = useApiData<MempoolPressure>(
-    () => api.getMempoolPressure(network),
-    ['mempool-pressure', network],
-    { refetchInterval: PRESSURE_REFRESH_MS }
-  );
+  const { data: pressure } = useMempoolPressure(network);
 
   const { transactions, truncated, isLoading, error } = useMempoolLiveList(
     MEMPOOL_SAMPLE_LIMIT,

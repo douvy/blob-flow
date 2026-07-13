@@ -47,6 +47,7 @@ import {
   type HeroStripBucket,
 } from '@/lib/blobFeeHero';
 import { useApiData } from '@/hooks/useApiData';
+import { useMempoolPressure } from '@/hooks/useMempoolPressure';
 import { useNetwork } from '@/hooks/useNetwork';
 import { useNow } from '@/hooks/useNow';
 import { useBlobWebSocket, useLiveBlobEvent } from '@/contexts/LiveDataContext';
@@ -63,7 +64,6 @@ import type {
   BackendStatsWindowsResponse,
   BlobPricing,
   BlobPricingRecentBlock,
-  MempoolPressure,
   RollingWindowKey,
 } from '@/types';
 import {
@@ -78,7 +78,6 @@ import {
 import { formatGwei, formatPercent } from '@/utils';
 
 const PRICING_FALLBACK_REFRESH_MS = 30000;
-const MEMPOOL_REFRESH_MS = 30000;
 
 interface DirectionStyle {
   label: string;
@@ -623,16 +622,10 @@ export default function BlobFeeHero() {
     { enabled: !isLiveRange }
   );
 
-  // Mempool demand signal. Also optional.
-  const fetchMempoolPressure = useCallback(
-    () => api.getMempoolPressure(network),
-    [network]
-  );
-  const { data: mempoolPressure } = useApiData<MempoolPressure>(
-    fetchMempoolPressure,
-    ['mempool-pressure-hero', network],
-    { refetchInterval: MEMPOOL_REFRESH_MS }
-  );
+  // Mempool demand signal. Also optional. Reads the shared pressure snapshot
+  // so the Pending stat matches Live Metrics and the /mempool page.
+  const { data: mempoolPressure, error: mempoolPressureError } =
+    useMempoolPressure(network);
 
   // Blocks accumulated live from the WebSocket between pricing refetches.
   const [liveState, setLiveState] = useState<{
@@ -932,7 +925,9 @@ export default function BlobFeeHero() {
                     value={mempoolPressure ? mempoolPressure.pendingBlobCount.toLocaleString() : '-'}
                     hint={
                       mempoolPressure
-                        ? `${mempoolPressure.includability.likelyIncludableCount} includable`
+                        ? `${mempoolPressure.includability.likelyIncludableCount} includable${
+                          mempoolPressureError ? ' · refresh failed' : ''
+                        }`
                         : 'mempool blobs'
                     }
                   />
