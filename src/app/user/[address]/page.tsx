@@ -23,6 +23,7 @@ import {
   truncateAddress,
 } from '@/utils';
 import { RelativeTime } from '@/components/RelativeTime';
+import { FEE_HEADROOM_TOOLTIP } from '@/constants';
 
 function truncateTxHash(hash: string): string {
   if (hash.length <= 14) return hash;
@@ -122,7 +123,7 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
                 <td className="py-3 px-3 sm:px-4 text-sm text-white">
                   <div className="whitespace-nowrap">{realizedCost}</div>
                   <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">max {maxCost}</div>
-                  <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">{headroom} room</div>
+                  <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap" title={FEE_HEADROOM_TOOLTIP}>{headroom} room</div>
                   <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap md:hidden">{baseFee}</div>
                 </td>
                 <td className="hidden lg:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap"><RelativeTime timestamp={blob.timestamp} /></td>

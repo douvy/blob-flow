@@ -14,6 +14,7 @@ import {
   truncateAddress,
 } from '../utils';
 import { RelativeTime } from './RelativeTime';
+import { FEE_HEADROOM_TOOLTIP } from '../constants';
 
 function truncateTxHash(hash: string): string {
   if (hash.length <= 14) return hash;
@@ -143,7 +144,7 @@ export function BlobDetailsContent({ block }: { block: Block }) {
                   <BlobDetailField label="Max Fee" title={maxFee}>
                     {maxFee}
                   </BlobDetailField>
-                  <BlobDetailField label="Headroom">{headroom}</BlobDetailField>
+                  <BlobDetailField label="Headroom" title={FEE_HEADROOM_TOOLTIP}>{headroom}</BlobDetailField>
                   <BlobDetailField label="Time"><RelativeTime timestamp={blob.timestamp} /></BlobDetailField>
                   <BlobDetailField label="Status">
                     {blob.confirmed ? 'Confirmed' : 'Pending'}
