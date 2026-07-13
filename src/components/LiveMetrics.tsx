@@ -17,7 +17,7 @@ import { useMempoolPressure } from '../hooks/useMempoolPressure';
 import { useNetwork } from '../hooks/useNetwork';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { useLiveBlockList } from '../hooks/useLiveBlockList';
-import { truncateAddress } from '../utils';
+import { formatScientific, RUNAWAY_GWEI_THRESHOLD, truncateAddress } from '../utils';
 import { useNow } from '../hooks/useNow';
 import { formatRelativeTime } from '../lib/api/core';
 
@@ -32,6 +32,8 @@ function formatCompactNumber(value: number): string {
 
 function formatGwei(value: number): string {
   if (value === 0) return '0 Gwei';
+  // Runaway testnet fees are unreadable spelled out: switch to "2.84e22 Gwei".
+  if (value >= RUNAWAY_GWEI_THRESHOLD) return `${formatScientific(value)} Gwei`;
   if (value < 0.01) return `${value.toFixed(4)} Gwei`;
   return `${value.toFixed(2)} Gwei`;
 }

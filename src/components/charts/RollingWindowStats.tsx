@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { RollingWindowDataPoint } from '../../types';
+import { formatScientific, RUNAWAY_GWEI_THRESHOLD } from '../../utils';
 
 interface RollingWindowStatsProps {
   windows: RollingWindowDataPoint[];
@@ -14,6 +15,8 @@ function formatNumber(value: number): string {
 
 function formatGwei(value: number): string {
   if (value === 0) return '0';
+  // Runaway testnet fees are unreadable spelled out: switch to "2.84e22".
+  if (value >= RUNAWAY_GWEI_THRESHOLD) return formatScientific(value);
   if (value < 0.01) return value.toFixed(4);
   return value.toFixed(2);
 }

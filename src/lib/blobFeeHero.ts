@@ -4,6 +4,7 @@ import type {
   RollingWindowDataPoint,
 } from '@/types';
 import { describeBucketSpan, getBucketWidthSeconds } from './chartAggregation';
+import { formatScientific, RUNAWAY_GWEI_THRESHOLD } from '@/utils';
 
 /** Number of recent blocks shown in the hero fee chart (1h of 12s mainnet slots). */
 export const HERO_CHART_BLOCKS = 300;
@@ -354,6 +355,12 @@ export function compareToWindows(
 /** Format a gwei fee for display without unit, keeping it readable at any magnitude. */
 export function formatFeeNumber(gwei: number): string {
   if (!Number.isFinite(gwei) || gwei <= 0) return '0';
+
+  // Runaway testnet fees (>= 1 ETH per blob gas) are unreadable spelled out
+  // in full, so collapse them to compact scientific form, e.g. "2.84e22".
+  if (gwei >= RUNAWAY_GWEI_THRESHOLD) {
+    return formatScientific(gwei);
+  }
 
   return new Intl.NumberFormat('en-US', {
     maximumSignificantDigits: 4,

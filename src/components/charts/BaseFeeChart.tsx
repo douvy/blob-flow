@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import type { BaseFeeDataPoint } from '../../types';
+import { formatScientific, RUNAWAY_GWEI_THRESHOLD } from '../../utils';
 import {
   CHART_TOOLTIP_STYLE,
   CHART_LABEL_STYLE,
@@ -29,6 +30,8 @@ interface BaseFeeChartProps {
 
 function formatGweiTick(value: number): string {
   if (value === 0) return '0';
+  // Runaway testnet fees are unreadable spelled out: switch to "2.84e22".
+  if (Math.abs(value) >= RUNAWAY_GWEI_THRESHOLD) return formatScientific(value);
   if (Math.abs(value) < 0.01) return value.toFixed(3);
   if (Math.abs(value) < 1) return value.toFixed(2);
   return value.toFixed(1);
@@ -76,7 +79,10 @@ export default function BaseFeeChart({ data, referenceBaseFeeGwei }: BaseFeeChar
           itemStyle={CHART_ITEM_STYLE}
           formatter={(value) => {
             const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
-            return [`${numericValue.toFixed(3)} Gwei`, 'Base Fee'];
+            const display = numericValue >= RUNAWAY_GWEI_THRESHOLD
+              ? formatScientific(numericValue)
+              : numericValue.toFixed(3);
+            return [`${display} Gwei`, 'Base Fee'];
           }}
         />
         {referenceBaseFee > 0 && (
