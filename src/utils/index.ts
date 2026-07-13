@@ -228,7 +228,14 @@ export function formatBlobFee(gweiValue?: string, weiValue?: string): string {
 
 export function formatBlobWeiCost(weiValue?: string): string {
   if (!weiValue) return '-';
-  return safeFormat(() => formatWeiToEth(weiValue, true));
+  // Per-blob costs are often a tiny fraction of an ether. Denominate in
+  // Gwei/Wei so small values stay precise instead of collapsing to a
+  // "<0.000001 ETH" placeholder. These fields are integer wei, so drop any
+  // fractional part (wei is indivisible): that keeps the value interpreted
+  // as wei rather than being misread as ETH by formatCostEthOrWei's decimal
+  // branch, which would overstate the cost by 1e18.
+  const integerWei = weiValue.split('.')[0];
+  return safeFormat(() => formatCostEthOrWei(integerWei));
 }
 
 export function formatBlobTotalCost(totalCost?: string): string {

@@ -68,7 +68,7 @@ describe('api/mempool', () => {
         from_address: '0x1234567890abcdef',
       }),
     });
-    expect(result.data[0].estimatedCost).toBe('<0.000001 ETH');
+    expect(result.data[0].estimatedCost).toBe('1 Gwei');
     expect(result.data[0].maxCost).toBe('0.000262 ETH');
   });
 

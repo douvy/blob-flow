@@ -130,9 +130,13 @@ describe('utils', () => {
   it('formats enriched blob fees and costs', () => {
     expect(formatBlobFee('0.008487503')).toBe('0.008488 Gwei');
     expect(formatBlobFee(undefined, '1000000000')).toBe('1 Gwei');
-    expect(formatBlobWeiCost('9065041362944')).toBe('0.000009 ETH');
+    expect(formatBlobWeiCost('9065041362944')).toBe('9,065.0414 Gwei');
+    expect(formatBlobWeiCost('500')).toBe('500 Wei');
+    // A decimal-shaped wei value stays interpreted as wei, not reinterpreted
+    // as ETH (which would overstate it by 1e18).
+    expect(formatBlobWeiCost('1000000000.000000000000000000')).toBe('1 Gwei');
     expect(formatBlobTotalCost('0.001')).toBe('0.001 ETH');
-    expect(formatBlobTotalCost('9065041362944')).toBe('0.000009 ETH');
+    expect(formatBlobTotalCost('9065041362944')).toBe('9,065.0414 Gwei');
   });
 });
 
