@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.0](https://github.com/douvy/blob-flow/compare/v1.4.0...v1.5.0) (2026-07-13)
+
+
+### Features
+
+* **charts:** remove the All time range option ([#189](https://github.com/douvy/blob-flow/issues/189)) ([3952c98](https://github.com/douvy/blob-flow/commit/3952c9814209253fd08526bb74c959fa96701403))
+* **hero:** full-width fullness strip and average-in-tooltip fee chart ([#187](https://github.com/douvy/blob-flow/issues/187)) ([b32a42b](https://github.com/douvy/blob-flow/commit/b32a42b48d99e4d5cb959b85ecdfd905a2aaa6ac))
+* **networks:** load network list dynamically from GET /networks ([#186](https://github.com/douvy/blob-flow/issues/186)) ([75341cf](https://github.com/douvy/blob-flow/commit/75341cf353696e0a445f735ccdf34d7d357396e8))
+
+
+### Bug Fixes
+
+* **fees:** render runaway blob base fees in scientific notation ([#190](https://github.com/douvy/blob-flow/issues/190)) ([e851ae0](https://github.com/douvy/blob-flow/commit/e851ae0200674cc50b3c9f049b9b4842846fe337))
+
 ## [1.4.0](https://github.com/douvy/blob-flow/compare/v1.3.0...v1.4.0) (2026-07-13)
 
 
