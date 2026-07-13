@@ -9,7 +9,7 @@ updates:
       timezone: "America/Chicago"
     open-pull-requests-limit: 10
     commit-message:
-      prefix: "chore"
+      prefix: "deps"
       include: "scope"
 
   - package-ecosystem: "github-actions"
@@ -21,5 +21,5 @@ updates:
       timezone: "America/Chicago"
     open-pull-requests-limit: 10
     commit-message:
-      prefix: "chore"
+      prefix: "deps"
       include: "scope"

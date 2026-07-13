@@ -3,7 +3,6 @@
 import React from 'react';
 import { DatabaseBackup, TriangleAlert } from 'lucide-react';
 import { useIndexerStatus } from '../hooks/useIndexerStatus';
-import { useNow } from '../hooks/useNow';
 import { StatusResponse } from '../types';
 import {
   BACKFILL_MIN_REMAINING_BLOCKS,
@@ -17,14 +16,21 @@ import { formatDuration, formatNumber, formatPercent } from '../utils';
  * Seconds the indexer trails the chain head. Uses the larger of the
  * backend-reported block lag and the age of the last indexed block, so a
  * stalled indexer is caught even if its own head tracking is stuck.
+ *
+ * The time-based term is measured against `fetchedAtMs` (when this status
+ * snapshot was fetched), not the live wall clock. Otherwise a backgrounded
+ * tab, whose polling the browser has frozen, would compare a fresh clock
+ * against a stale snapshot and report lag that is really just the age of our
+ * own data. A genuinely stalled indexer is still caught because each poll
+ * advances `fetchedAtMs` while `last_indexed_time` stays put.
  */
-export function computeLagSeconds(status: StatusResponse, nowMs: number): number {
+export function computeLagSeconds(status: StatusResponse, fetchedAtMs: number): number {
   const blockLagSeconds = (status.indexer_lag_blocks ?? 0) * SECONDS_PER_BLOCK;
 
   const lastIndexedMs = Date.parse(status.last_indexed_time);
   const timeLagSeconds = Number.isNaN(lastIndexedMs)
     ? 0
-    : (nowMs - lastIndexedMs) / 1000;
+    : (fetchedAtMs - lastIndexedMs) / 1000;
 
   return Math.max(blockLagSeconds, timeLagSeconds, 0);
 }
@@ -56,9 +62,12 @@ export function computeBackfillCoveragePercent(status: StatusResponse): number |
 }
 
 export default function IndexerStatusBanner() {
-  const now = useNow();
-
-  const { data: status } = useIndexerStatus({ refetchInterval: INDEXER_STATUS_POLL_MS });
+  const { data: status, dataUpdatedAt } = useIndexerStatus({
+    refetchInterval: INDEXER_STATUS_POLL_MS,
+    // Refetch as soon as the tab is refocused so a backgrounded tab shows fresh
+    // status on return instead of waiting up to a full poll interval.
+    refetchOnWindowFocus: true,
+  });
 
   if (!status) {
     return null;
@@ -73,7 +82,7 @@ export default function IndexerStatusBanner() {
       ? `${formatPercent(coveragePercent)} of blob history indexed`
       : `${formatPercent(backfill.progress_percent)} complete`
     : null;
-  const lagSeconds = computeLagSeconds(status, now);
+  const lagSeconds = computeLagSeconds(status, dataUpdatedAt);
 
   if (lagSeconds > INDEXER_LAG_THRESHOLD_SECONDS) {
     return (
