@@ -13,8 +13,8 @@ import type {
   CostComparisonDataPoint,
   GasUtilizationDataPoint,
   Granularity,
-  L2UsageDataPoint,
-  L2UsageSeries,
+  BlobUsageDataPoint,
+  BlobUsageSeries,
   NetworkStats,
   RollingWindowDataPoint,
   RollingWindowKey,
@@ -607,11 +607,11 @@ function transformAttributionUsage(
   emptyBucketTimestamps: Set<number>,
   coverageStartMs?: number
 ): {
-  l2Usage: L2UsageDataPoint[];
-  l2UsageSeries: L2UsageSeries[];
+  blobUsage: BlobUsageDataPoint[];
+  blobUsageSeries: BlobUsageSeries[];
   coverage: ChartDataCoverage | null;
 } {
-  const l2UsageSeries = attribution.series.map((series) => ({
+  const blobUsageSeries = attribution.series.map((series) => ({
     key: series.key,
     name: series.name,
     category: series.category,
@@ -629,14 +629,14 @@ function transformAttributionUsage(
   const coverage = getChartDataCoverage(attribution, points);
   const labelStyle = getBucketLabelStyle(bucketWidthSeconds, coverage?.spanMs ?? 0);
 
-  const l2Usage = points.map((point) => {
-    const row: L2UsageDataPoint = {
+  const blobUsage = points.map((point) => {
+    const row: BlobUsageDataPoint = {
       timestamp: isoTimestamp(point.timestamp),
       label: formatBucketLabel(point.timestamp, labelStyle),
       total: 0,
     };
 
-    for (const series of l2UsageSeries) {
+    for (const series of blobUsageSeries) {
       const blobCount = point.values[series.key]?.blob_count ?? 0;
       row[series.key] = blobCount;
       row.total += blobCount;
@@ -645,7 +645,7 @@ function transformAttributionUsage(
     return row;
   });
 
-  return { l2Usage, l2UsageSeries, coverage };
+  return { blobUsage, blobUsageSeries, coverage };
 }
 
 function transformCostComparison(
@@ -691,7 +691,7 @@ export function buildChartDatasetFromResponses(
   const { baseFee, gasUtilization, coverage } = transformMarketPoints(market);
   const emptyBucketTimestamps = collectEmptyBucketTimestamps(market);
   const noFilter = new Set<number>();
-  const { l2Usage, l2UsageSeries, coverage: l2UsageCoverage } = transformAttributionUsage(
+  const { blobUsage, blobUsageSeries, coverage: blobUsageCoverage } = transformAttributionUsage(
     attribution,
     sharesMarketBucketing(market, attribution) ? emptyBucketTimestamps : noFilter,
     coverage?.startMs
@@ -707,11 +707,11 @@ export function buildChartDatasetFromResponses(
     ? formatRollingCoverage(timeRange, selectedWindow)
     : `${selectedWindow.label} chart summary`;
   const blockCoverageLabel = formatBucketCoverage(market, baseFee.length, timeRange, coverage);
-  const l2UsageCoverageLabel = formatBucketCoverage(
+  const blobUsageCoverageLabel = formatBucketCoverage(
     attribution,
-    l2Usage.length,
+    blobUsage.length,
     timeRange,
-    l2UsageCoverage
+    blobUsageCoverage
   );
   const costComparisonCoverageLabel = formatBucketCoverage(
     costComparison,
@@ -724,8 +724,8 @@ export function buildChartDatasetFromResponses(
   return {
     baseFee,
     gasUtilization,
-    l2Usage,
-    l2UsageSeries,
+    blobUsage,
+    blobUsageSeries,
     costComparison: costComparisonData,
     rollingWindows: rollingWindows.length > 0 ? rollingWindows : [selectedWindow],
     selectedWindow,
@@ -744,7 +744,7 @@ export function buildChartDatasetFromResponses(
     chartRangeLabel,
     rollingCoverageLabel,
     blockCoverageLabel,
-    l2UsageCoverageLabel,
+    blobUsageCoverageLabel,
     costComparisonCoverageLabel,
     coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show ${blockCoverageLabel}.`,
   };
@@ -773,8 +773,8 @@ export function buildChartDataset(
   return {
     baseFee,
     gasUtilization,
-    l2Usage: [],
-    l2UsageSeries: [],
+    blobUsage: [],
+    blobUsageSeries: [],
     costComparison: [],
     rollingWindows,
     selectedWindow,
@@ -793,7 +793,7 @@ export function buildChartDataset(
     chartRangeLabel,
     rollingCoverageLabel,
     blockCoverageLabel,
-    l2UsageCoverageLabel: NO_BUCKETS_COVERAGE_LABEL,
+    blobUsageCoverageLabel: NO_BUCKETS_COVERAGE_LABEL,
     costComparisonCoverageLabel: NO_BUCKETS_COVERAGE_LABEL,
     coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show the ${blockCoverageLabel}.`,
   };

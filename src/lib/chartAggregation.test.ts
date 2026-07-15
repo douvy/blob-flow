@@ -229,7 +229,7 @@ describe('chartAggregation', () => {
     });
     expect(dataset.coverageLabel).toContain('latest 2 pricing blocks');
     // The pricing path has no bucketed L2 usage or cost comparison series.
-    expect(dataset.l2UsageCoverageLabel).toBe('no chart buckets in this view');
+    expect(dataset.blobUsageCoverageLabel).toBe('no chart buckets in this view');
     expect(dataset.costComparisonCoverageLabel).toBe('no chart buckets in this view');
   });
 
@@ -570,7 +570,7 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
       '30d'
     );
 
-    expect(dataset.l2Usage.map((point) => point.label)).toEqual(['7/5']);
+    expect(dataset.blobUsage.map((point) => point.label)).toEqual(['7/5']);
     expect(dataset.costComparison.map((point) => point.label)).toEqual(['7/5']);
   });
 
@@ -582,7 +582,7 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
       '30d'
     );
 
-    expect(dataset.l2Usage.map((point) => point.label)).toEqual([
+    expect(dataset.blobUsage.map((point) => point.label)).toEqual([
       '7/5 09:00',
       '7/5 15:00',
       '7/5 21:00',
@@ -626,7 +626,7 @@ describe('buildChartDatasetFromResponses during a backfill', () => {
     );
 
     expect(dataset.baseFee.map((point) => point.label)).toEqual(['6/6', '6/7', '6/8', '6/9']);
-    expect(dataset.l2Usage).toHaveLength(4);
+    expect(dataset.blobUsage).toHaveLength(4);
     expect(dataset.blockCoverageLabel).toBe('4 daily buckets over the 30d view');
   });
 

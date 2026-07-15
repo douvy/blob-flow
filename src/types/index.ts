@@ -737,14 +737,14 @@ export interface GasUtilizationDataPoint {
   utilizationPct: number;
 }
 
-export interface L2UsageDataPoint {
+export interface BlobUsageDataPoint {
   timestamp: number;
   label: string;
   total: number;
   [seriesKey: string]: string | number;
 }
 
-export interface L2UsageSeries {
+export interface BlobUsageSeries {
   key: string;
   name: string;
   category: string;
@@ -792,8 +792,8 @@ export interface RollingWindowDataPoint {
 export interface ChartDataset {
   baseFee: BaseFeeDataPoint[];
   gasUtilization: GasUtilizationDataPoint[];
-  l2Usage: L2UsageDataPoint[];
-  l2UsageSeries: L2UsageSeries[];
+  blobUsage: BlobUsageDataPoint[];
+  blobUsageSeries: BlobUsageSeries[];
   costComparison: CostComparisonDataPoint[];
   rollingWindows: RollingWindowDataPoint[];
   selectedWindow: RollingWindowDataPoint | null;
@@ -806,7 +806,7 @@ export interface ChartDataset {
   /** Coverage caption for the fee and utilization charts (blob-market buckets). */
   blockCoverageLabel: string;
   /** Coverage caption for the L2 usage chart (attribution-usage buckets). */
-  l2UsageCoverageLabel: string;
+  blobUsageCoverageLabel: string;
   /** Coverage caption for the cost savings chart (cost-comparison buckets). */
   costComparisonCoverageLabel: string;
 }

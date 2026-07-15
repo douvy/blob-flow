@@ -5,13 +5,13 @@ import type { ChartDataset } from '../../types';
 import BaseFeeChart from './BaseFeeChart';
 import CostComparisonChart from './CostComparisonChart';
 import GasUtilizationChart from './GasUtilizationChart';
-import L2UsageChart from './L2UsageChart';
+import BlobUsageChart from './BlobUsageChart';
 import RollingWindowStats from './RollingWindowStats';
 
 export const CHART_VIEW_IDS = [
   'base-fee',
   'gas-utilization',
-  'l2-usage',
+  'blob-usage',
   'cost-comparison',
   'rolling-market-stats',
 ] as const;
@@ -68,19 +68,19 @@ export const CHART_VIEWS: readonly ChartView[] = [
     ),
   },
   {
-    id: 'l2-usage',
-    title: 'L2 Usage by Attribution',
-    shortTitle: 'L2 Usage',
+    id: 'blob-usage',
+    title: 'Blob Usage by Attribution',
+    shortTitle: 'Blob Usage',
     description: 'Bucketed blob usage grouped by known rollup or sender attribution.',
     dashboardFrameClassName: 'h-56 relative',
     detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
-    getTitle: (chartData) => `L2 Usage over ${chartData.chartRangeLabel}`,
-    getCoverageLabel: (chartData) => chartData.l2UsageCoverageLabel,
-    getPointCount: (chartData) => chartData.l2Usage.length,
+    getTitle: (chartData) => `Blob Usage over ${chartData.chartRangeLabel}`,
+    getCoverageLabel: (chartData) => chartData.blobUsageCoverageLabel,
+    getPointCount: (chartData) => chartData.blobUsage.length,
     render: (chartData) => (
-      <L2UsageChart
-        data={chartData.l2Usage}
-        series={chartData.l2UsageSeries}
+      <BlobUsageChart
+        data={chartData.blobUsage}
+        series={chartData.blobUsageSeries}
       />
     ),
   },
