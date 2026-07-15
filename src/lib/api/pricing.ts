@@ -27,6 +27,7 @@ function mapBlobPricing(pricing: BackendBlobPricingResponse): BlobPricing {
         networkId: pricing.network_id,
         networkName: pricing.network_name,
         currentBaseFee: formatGwei(pricing.current_base_fee_gwei),
+        currentBaseFeeWei: pricing.current_base_fee,
         currentBaseFeeGwei: pricing.current_base_fee_gwei,
         currentExcessGas: pricing.current_excess_gas,
         currentUtilization: Number(pricing.current_utilization),

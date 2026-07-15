@@ -7,16 +7,26 @@ import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import MempoolTable from '@/components/MempoolTable';
 import { MEMPOOL_SAMPLE_LIMIT } from '@/constants';
+import { useLatestBlobBaseFee } from '@/hooks/useLatestBlobBaseFee';
 import { useMempoolLiveList } from '@/hooks/useMempoolLiveList';
-import { useMempoolPressure } from '@/hooks/useMempoolPressure';
 import { useNetwork } from '@/hooks/useNetwork';
+import { useNow } from '@/hooks/useNow';
 import {
   MEMPOOL_PRIVATE_CAVEAT,
   aggregateMempoolAttribution,
+  countLikelyIncludable,
 } from '@/lib/mempoolAttribution';
-import { formatBlobCount, formatBlobSize } from '@/utils';
+import { formatBlobCount, formatBlobSize, formatDuration } from '@/utils';
 
-function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function StatCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+}) {
   return (
     <div className="rounded-md border border-[#292e35] bg-[#17181b] px-3 py-2">
       <div className="text-[10px] uppercase tracking-wider text-white">{label}</div>
@@ -26,11 +36,19 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
+/**
+ * Age of the oldest pending entry, ticking once per second. Isolated in its
+ * own component so the per-second tick re-renders only this value, not the
+ * whole page.
+ */
+function OldestPendingAge({ timestamp }: { timestamp: string }) {
+  const now = useNow();
+  return <>{formatDuration(Math.max(0, (now - Date.parse(timestamp)) / 1000))}</>;
+}
+
 export default function MempoolPage() {
   const { selectedNetwork } = useNetwork();
   const network = selectedNetwork.apiParam;
-
-  const { data: pressure } = useMempoolPressure(network);
 
   const { transactions, truncated, isLoading, error } = useMempoolLiveList(
     MEMPOOL_SAMPLE_LIMIT,
@@ -40,6 +58,12 @@ export default function MempoolPage() {
   const summary = React.useMemo(
     () => aggregateMempoolAttribution(transactions ?? []),
     [transactions]
+  );
+
+  const blobBaseFeeWei = useLatestBlobBaseFee(network);
+  const likelyIncludable = React.useMemo(
+    () => countLikelyIncludable(transactions ?? [], blobBaseFeeWei),
+    [transactions, blobBaseFeeWei]
   );
 
   return (
@@ -63,24 +87,55 @@ export default function MempoolPage() {
           <p>{MEMPOOL_PRIVATE_CAVEAT}</p>
         </div>
 
+        {/*
+          Every stat card is derived from the same live list the tables below
+          render, so the cards and tables always reconcile. The pressure
+          endpoint serves a periodic snapshot that can lag the live list by
+          several seconds, which made the cards contradict the tables. Likely
+          includable compares each entry's fee cap against the blob base fee
+          streamed with new_block events, matching the backend's rule.
+        */}
         <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard
             label="Pending blobs"
-            value={pressure ? pressure.pendingBlobCount.toLocaleString() : '-'}
+            value={
+              transactions
+                ? `${summary.blobCount.toLocaleString()}${truncated ? '+' : ''}`
+                : '-'
+            }
             hint="public mempool"
           />
           <StatCard
             label="Unique senders"
-            value={pressure ? pressure.pendingUniqueSenders.toLocaleString() : '-'}
+            value={
+              transactions
+                ? `${summary.uniqueSenderCount.toLocaleString()}${truncated ? '+' : ''}`
+                : '-'
+            }
           />
           <StatCard
             label="Likely includable"
-            value={pressure ? pressure.includability.likelyIncludableCount.toLocaleString() : '-'}
+            value={
+              transactions && likelyIncludable !== null
+                ? `${likelyIncludable.toLocaleString()}${truncated ? '+' : ''}`
+                : '-'
+            }
             hint="at current base fee"
           />
           <StatCard
             label="Oldest pending"
-            value={pressure ? pressure.pendingTransactionAge.oldest : '-'}
+            value={
+              transactions && summary.oldestTimestamp ? (
+                <>
+                  {/* The sample keeps the most recent entries, so under
+                      truncation the true oldest may be older: lower bound. */}
+                  <OldestPendingAge timestamp={summary.oldestTimestamp} />
+                  {truncated ? '+' : ''}
+                </>
+              ) : (
+                '-'
+              )
+            }
             hint="time in mempool"
           />
         </div>

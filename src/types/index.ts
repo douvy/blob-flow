@@ -404,6 +404,8 @@ export interface BlobPricing {
   networkId: number;
   networkName: string;
   currentBaseFee: string;
+  /** Raw wei value, kept unformatted for BigInt fee comparisons. */
+  currentBaseFeeWei: string;
   currentBaseFeeGwei: string;
   currentExcessGas: number;
   currentUtilization: number;

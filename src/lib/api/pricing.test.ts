@@ -81,6 +81,7 @@ describe('api/pricing', () => {
     expect(result).toMatchObject({
       networkName: 'mainnet',
       currentBaseFee: '0.009389 Gwei',
+      currentBaseFeeWei: '9389122',
       predictedNextFee: '0.008488 Gwei',
       currentExcessGas: 187598122,
       currentUtilization: 0.357143,

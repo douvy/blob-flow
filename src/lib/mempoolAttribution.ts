@@ -26,8 +26,46 @@ export interface MempoolAttributionSummary {
   txCount: number;
   blobCount: number;
   blobSizeBytes: number;
+  /** Distinct sender addresses across all entries, deduped case-insensitively. */
+  uniqueSenderCount: number;
+  /** Timestamp of the earliest pending entry in the sample, null when empty. */
+  oldestTimestamp: string | null;
   /** Sorted by blob count, then tx count, then name. */
   groups: MempoolAttributionGroup[];
+}
+
+/**
+ * Count pending blob entries whose fee cap clears the given blob base fee,
+ * mirroring the pressure endpoint's likely-includable rule but computed over
+ * the live list so it can never disagree with the tables.
+ *
+ * Returns null when the base fee is unknown so callers can distinguish
+ * "0 includable" from "cannot price yet". Entries without a parseable fee
+ * cap are skipped, matching the backend's unknown-pricing bucket.
+ */
+export function countLikelyIncludable(
+  transactions: MempoolTransaction[],
+  blobBaseFeeWei: string | null
+): number | null {
+  if (!blobBaseFeeWei) return null;
+  let baseFee: bigint;
+  try {
+    baseFee = BigInt(blobBaseFeeWei);
+  } catch {
+    return null;
+  }
+
+  let count = 0;
+  transactions.forEach((tx) => {
+    const maxFee = tx.rawBlob.max_fee_per_blob_gas;
+    if (!maxFee) return;
+    try {
+      if (BigInt(maxFee) >= baseFee) count += 1;
+    } catch {
+      // Unparseable fee cap: treat as unknown pricing and skip.
+    }
+  });
+  return count;
 }
 
 /**
@@ -53,8 +91,11 @@ export function aggregateMempoolAttribution(
     }
   >();
   const txHashes = new Set<string>();
+  const senders = new Set<string>();
   let blobCount = 0;
   let blobSizeBytes = 0;
+  let oldestTimestamp: string | null = null;
+  let oldestMs = Infinity;
 
   transactions.forEach((tx) => {
     const user = tx.user || UNATTRIBUTED_MEMPOOL_USER;
@@ -79,6 +120,18 @@ export function aggregateMempoolAttribution(
     txHashes.add(tx.txHash);
     blobCount += tx.blobCount;
     blobSizeBytes += tx.blobSizeBytes;
+    if (tx.fromAddressFull) {
+      senders.add(tx.fromAddressFull.toLowerCase());
+    }
+    if (tx.timeInMempool) {
+      // Skip unparseable timestamps entirely: accepting one would pin the
+      // oldest slot to a NaN that every later comparison loses against.
+      const entryMs = Date.parse(tx.timeInMempool);
+      if (Number.isFinite(entryMs) && entryMs < oldestMs) {
+        oldestMs = entryMs;
+        oldestTimestamp = tx.timeInMempool;
+      }
+    }
   });
 
   const groups = Array.from(groupsByUser.entries())
@@ -100,5 +153,12 @@ export function aggregateMempoolAttribution(
         a.user.localeCompare(b.user)
     );
 
-  return { txCount: txHashes.size, blobCount, blobSizeBytes, groups };
+  return {
+    txCount: txHashes.size,
+    blobCount,
+    blobSizeBytes,
+    uniqueSenderCount: senders.size,
+    oldestTimestamp,
+    groups,
+  };
 }
