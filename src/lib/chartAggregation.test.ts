@@ -228,7 +228,7 @@ describe('chartAggregation', () => {
       pendingBlobCount: 3,
     });
     expect(dataset.coverageLabel).toContain('latest 2 pricing blocks');
-    // The pricing path has no bucketed L2 usage or cost comparison series.
+    // The pricing path has no bucketed blob usage or cost comparison series.
     expect(dataset.blobUsageCoverageLabel).toBe('no chart buckets in this view');
     expect(dataset.costComparisonCoverageLabel).toBe('no chart buckets in this view');
   });

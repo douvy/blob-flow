@@ -412,7 +412,7 @@ describe('useChartData', () => {
     );
   });
 
-  it('drops L2 usage and cost buckets whose market bucket has no data', async () => {
+  it('drops blob usage and cost buckets whose market bucket has no data', async () => {
     // 00:02 is a genuinely quiet minute (market fee present, zero blobs);
     // 00:03 has no indexed blocks (all-zero market bucket).
     const quietMarketPoint = {

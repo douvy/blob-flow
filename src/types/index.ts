@@ -805,7 +805,7 @@ export interface ChartDataset {
   rollingCoverageLabel: string;
   /** Coverage caption for the fee and utilization charts (blob-market buckets). */
   blockCoverageLabel: string;
-  /** Coverage caption for the L2 usage chart (attribution-usage buckets). */
+  /** Coverage caption for the blob usage chart (attribution-usage buckets). */
   blobUsageCoverageLabel: string;
   /** Coverage caption for the cost savings chart (cost-comparison buckets). */
   costComparisonCoverageLabel: string;
