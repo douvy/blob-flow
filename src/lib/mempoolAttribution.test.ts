@@ -1,5 +1,8 @@
 import { transformBlobToMempoolTransaction } from './api/mempool';
-import { aggregateMempoolAttribution } from './mempoolAttribution';
+import {
+  aggregateMempoolAttribution,
+  countLikelyIncludable,
+} from './mempoolAttribution';
 import { BlobResponse } from '@/types';
 
 function makeBlob(overrides: Partial<BlobResponse>): BlobResponse {
@@ -33,6 +36,8 @@ describe('aggregateMempoolAttribution', () => {
       txCount: 0,
       blobCount: 0,
       blobSizeBytes: 0,
+      uniqueSenderCount: 0,
+      oldestTimestamp: null,
       groups: [],
     });
   });
@@ -150,6 +155,63 @@ describe('aggregateMempoolAttribution', () => {
     // Same address in two casings collapses to one, so it still links, using
     // the first-seen casing.
     expect(base?.address).toBe('0xAbCdeF1234567890abcdef1234567890abcdEF12');
+  });
+
+  it('counts unique senders case-insensitively and tracks the oldest timestamp', () => {
+    const summary = aggregateMempoolAttribution([
+      makeTransaction({
+        tx_hash: '0x01',
+        from_address: '0xAbCdeF1234567890abcdef1234567890abcdEF12',
+        timestamp: '2026-01-01T00:00:10.000Z',
+      }),
+      makeTransaction({
+        tx_hash: '0x02',
+        from_address: '0xabcdef1234567890abcdef1234567890abcdef12',
+        timestamp: '2026-01-01T00:00:05.000Z',
+      }),
+      makeTransaction({
+        tx_hash: '0x03',
+        from_address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        timestamp: '2026-01-01T00:00:20.000Z',
+      }),
+    ]);
+
+    expect(summary.uniqueSenderCount).toBe(2);
+    expect(summary.oldestTimestamp).toBe('2026-01-01T00:00:05.000Z');
+  });
+
+  it('ignores unparseable timestamps when tracking the oldest entry', () => {
+    const summary = aggregateMempoolAttribution([
+      makeTransaction({ tx_hash: '0x01', timestamp: 'not-a-timestamp' }),
+      makeTransaction({ tx_hash: '0x02', timestamp: '2026-01-01T00:00:05.000Z' }),
+    ]);
+
+    // The malformed first entry must not pin the oldest slot to a NaN.
+    expect(summary.oldestTimestamp).toBe('2026-01-01T00:00:05.000Z');
+  });
+
+  it('counts entries whose fee cap clears the base fee', () => {
+    const transactions = [
+      makeTransaction({ tx_hash: '0x01', max_fee_per_blob_gas: '2000000000' }),
+      makeTransaction({ tx_hash: '0x02', max_fee_per_blob_gas: '1000000000' }),
+      makeTransaction({ tx_hash: '0x03', max_fee_per_blob_gas: '999999999' }),
+    ];
+
+    // Exactly-at-base-fee counts as includable, below does not.
+    expect(countLikelyIncludable(transactions, '1000000000')).toBe(2);
+    expect(countLikelyIncludable([], '1000000000')).toBe(0);
+  });
+
+  it('returns null without a base fee and skips unpriced entries', () => {
+    const transactions = [
+      makeTransaction({ tx_hash: '0x01', max_fee_per_blob_gas: '2000000000' }),
+      makeTransaction({ tx_hash: '0x02', max_fee_per_blob_gas: undefined }),
+    ];
+
+    expect(countLikelyIncludable(transactions, null)).toBeNull();
+    expect(countLikelyIncludable(transactions, 'not-a-number')).toBeNull();
+    // The unpriced entry is skipped rather than assumed includable.
+    expect(countLikelyIncludable(transactions, '1000000000')).toBe(1);
   });
 
   it('sorts by blob volume, then tx count, then name', () => {
