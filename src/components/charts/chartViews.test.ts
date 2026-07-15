@@ -4,8 +4,8 @@ import type { ChartDataset } from '../../types';
 const chartData: ChartDataset = {
   baseFee: [],
   gasUtilization: [],
-  l2Usage: [],
-  l2UsageSeries: [],
+  blobUsage: [],
+  blobUsageSeries: [],
   costComparison: [],
   rollingWindows: [],
   selectedWindow: null,
@@ -22,7 +22,7 @@ const chartData: ChartDataset = {
   coverageLabel: 'combined coverage',
   rollingCoverageLabel: 'rolling coverage',
   blockCoverageLabel: 'market coverage',
-  l2UsageCoverageLabel: 'l2 usage coverage',
+  blobUsageCoverageLabel: 'blob usage coverage',
   costComparisonCoverageLabel: 'cost comparison coverage',
 };
 
@@ -35,7 +35,7 @@ describe('chartViews', () => {
     expect(labels).toEqual({
       'base-fee': 'market coverage',
       'gas-utilization': 'market coverage',
-      'l2-usage': 'l2 usage coverage',
+      'blob-usage': 'blob usage coverage',
       'cost-comparison': 'cost comparison coverage',
       'rolling-market-stats': 'rolling coverage',
     });

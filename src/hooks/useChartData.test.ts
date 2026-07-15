@@ -284,8 +284,8 @@ describe('useChartData', () => {
     expect(result.current.chartData!.gasUtilization[0].targetGas).toBe(1835008);
     expect(result.current.chartData!.gasUtilization[0].maxGas).toBe(2752512);
     expect(result.current.chartData!.gasUtilization[1].maxGas).toBe(3145728);
-    expect(result.current.chartData!.l2UsageSeries.map((series) => series.key)).toEqual(['base', 'unknown']);
-    expect(result.current.chartData!.l2Usage[1].base).toBe(5);
+    expect(result.current.chartData!.blobUsageSeries.map((series) => series.key)).toEqual(['base', 'unknown']);
+    expect(result.current.chartData!.blobUsage[1].base).toBe(5);
     expect(result.current.chartData!.costComparison[0].savingsPct).toBe(99);
     expect(result.current.chartData!.rollingWindows).toHaveLength(2);
     expect(result.current.chartData!.selectedWindow?.totalBlobs).toBe(10);
@@ -400,8 +400,8 @@ describe('useChartData', () => {
     // the points its own chart plots.
     expect(chartData.baseFee).toHaveLength(2);
     expect(chartData.blockCoverageLabel).toBe('2 minute buckets over the 1h view');
-    expect(chartData.l2Usage).toHaveLength(3);
-    expect(chartData.l2UsageCoverageLabel).toBe('3 minute buckets over the 1h view');
+    expect(chartData.blobUsage).toHaveLength(3);
+    expect(chartData.blobUsageCoverageLabel).toBe('3 minute buckets over the 1h view');
     expect(chartData.costComparison).toHaveLength(1);
     expect(chartData.costComparisonCoverageLabel).toBe('1 minute bucket over the 1h view');
 
@@ -412,7 +412,7 @@ describe('useChartData', () => {
     );
   });
 
-  it('drops L2 usage and cost buckets whose market bucket has no data', async () => {
+  it('drops blob usage and cost buckets whose market bucket has no data', async () => {
     // 00:02 is a genuinely quiet minute (market fee present, zero blobs);
     // 00:03 has no indexed blocks (all-zero market bucket).
     const quietMarketPoint = {
@@ -488,7 +488,7 @@ describe('useChartData', () => {
     });
 
     expect(result.current.chartData!.baseFee.map((point) => point.baseFeeGwei)).toEqual([1, 2, 3]);
-    expect(result.current.chartData!.l2Usage.map((point) => point.total)).toEqual([2, 7, 0]);
+    expect(result.current.chartData!.blobUsage.map((point) => point.total)).toEqual([2, 7, 0]);
     expect(result.current.chartData!.costComparison.map((point) => point.blobCostEth)).toEqual([
       0.001, 0.002, 0,
     ]);
@@ -539,7 +539,7 @@ describe('useChartData', () => {
 
     // The matching cost response still filters; the mismatched attribution
     // response keeps every bucket.
-    expect(result.current.chartData!.l2Usage.map((point) => point.total)).toEqual([2, 7]);
+    expect(result.current.chartData!.blobUsage.map((point) => point.total)).toEqual([2, 7]);
     expect(result.current.chartData!.costComparison.map((point) => point.blobCostEth)).toEqual([
       0.002,
     ]);
