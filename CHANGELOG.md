@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.6.0](https://github.com/douvy/blob-flow/compare/v1.5.0...v1.6.0) (2026-07-15)
+
+
+### Features
+
+* **charts:** make Blob Usage a time series and rename from L2 Usage ([#194](https://github.com/douvy/blob-flow/issues/194)) ([e252abb](https://github.com/douvy/blob-flow/commit/e252abb1b72884049fa073463ea9503ef8966967))
+
+
+### Bug Fixes
+
+* **mempool:** derive stat cards from the live list so cards match tables ([#196](https://github.com/douvy/blob-flow/issues/196)) ([f31eb82](https://github.com/douvy/blob-flow/commit/f31eb824664c40a41221a5f2fa253385cbfff1d9))
+
+
+### Dependencies
+
+* **deps-dev:** bump postcss from 8.5.18 to 8.5.19 ([#192](https://github.com/douvy/blob-flow/issues/192)) ([e74c38a](https://github.com/douvy/blob-flow/commit/e74c38a99994bd8dbd8bc3f68723f8e1943d3c1a))
+* **deps:** bump @radix-ui/react-dialog from 1.1.15 to 1.1.19 ([#191](https://github.com/douvy/blob-flow/issues/191)) ([c5394b1](https://github.com/douvy/blob-flow/commit/c5394b152ef03f38c02d6e0aea0c6c2ce7eec2e7))
+* **deps:** bump @types/node from 25.9.1 to 26.1.1 ([#193](https://github.com/douvy/blob-flow/issues/193)) ([01f50f7](https://github.com/douvy/blob-flow/commit/01f50f7772d5e81030de2ec4cad39a020b7e8e06))
+
 ## [1.5.0](https://github.com/douvy/blob-flow/compare/v1.4.0...v1.5.0) (2026-07-13)
 
 
