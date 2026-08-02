@@ -86,6 +86,8 @@ function formatBlockPaid(block: Block): string {
 }
 
 function AttributionDisplay({ attribution }: { attribution: string[] }) {
+  const { selectedNetwork } = useNetwork();
+
   if (attribution.length === 0) {
     return <span>-</span>;
   }
@@ -106,7 +108,7 @@ function AttributionDisplay({ attribution }: { attribution: string[] }) {
 
   // Ribbons on every icon of an overlapping stack would pile on top of each
   // other, so mark the stack once with the union of its testnet networks.
-  const testnetLabels = getAttributionTestnetLabels(attribution);
+  const testnetLabels = getAttributionTestnetLabels(attribution, selectedNetwork);
 
   return (
     <div className="flex items-center min-w-0">

@@ -67,7 +67,8 @@ export default function MempoolSummary() {
   // One shared ribbon for the overlapping cluster; per-icon ribbons would
   // pile on top of each other at this spacing.
   const clusterTestnetLabels = getAttributionTestnetLabels(
-    topGroups.map((group) => group.user)
+    topGroups.map((group) => group.user),
+    selectedNetwork
   );
 
   const line = (
