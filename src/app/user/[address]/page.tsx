@@ -144,10 +144,14 @@ export default function UserDetailPage() {
   const address = params.address as string;
   const { selectedNetwork } = useNetwork();
 
-  const { data: user, isLoading: userLoading, error: userError } = useApiData<UserResponse>(
+  // Null means the lookup settled and the address has no indexed activity on
+  // the selected network (common right after switching networks on this page);
+  // undefined means it is still loading.
+  const { data: user, isLoading: userLoading, error: userError } = useApiData<UserResponse | null>(
     () => api.getUserByAddress(address, selectedNetwork.apiParam),
     ['user', selectedNetwork.apiParam, address]
   );
+  const userNotFound = user === null;
 
   const { data: confirmedBlobs, isLoading: blobsLoading, error: blobsError } = useApiData<BlobResponse[]>(
     () => api.getUserBlobs(address, true, USER_BLOB_LIMIT, selectedNetwork.apiParam),
@@ -260,6 +264,18 @@ export default function UserDetailPage() {
         </Link>
 
         <DataStateWrapper isLoading={userLoading} error={userError} loadingComponent={loadingStats}>
+          {userNotFound && (
+            <div className="rounded-lg border border-divider bg-[#14161a] p-6">
+              <h1 className="text-2xl font-windsor-bold text-white mb-2">
+                {truncateAddress(address)}
+              </h1>
+              <p className="text-bodyText font-mono text-sm break-all mb-4">{address}</p>
+              <p className="text-bodyText text-sm">
+                No activity found for this address on {selectedNetwork.name}.
+                It may be active on a different network.
+              </p>
+            </div>
+          )}
           {user && (
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
@@ -339,44 +355,48 @@ export default function UserDetailPage() {
           )}
         </DataStateWrapper>
 
-        <section className="mb-8">
-          <h2 className="m-0">
-            <button
-              type="button"
-              onClick={() => setMempoolExpanded((expanded) => !expanded)}
-              aria-expanded={mempoolExpanded}
-              aria-controls="pending-blobs-panel"
-              className="group flex w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-divider bg-gradient-to-r from-[#17181b] to-[#141519]/60 px-4 py-3 transition-colors hover:from-[#1f2127]/70 hover:to-[#23252b]/70"
-            >
-              <span className="font-windsor-bold text-xl leading-none text-white pt-[2px]">Pending Blobs</span>
-              <span className="text-sm tabular-nums text-[#8a93a5]">
-                {mempoolCountsLabel}
-                {mempoolError && mempoolBlobs ? ' · refresh failed' : ''}
-              </span>
-              <span className="ml-auto flex items-center gap-1.5 text-sm text-blue">
-                {mempoolExpanded ? 'Hide' : 'Show'}
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${mempoolExpanded ? 'rotate-180' : ''}`}
-                  aria-hidden="true"
-                />
-              </span>
-            </button>
-          </h2>
-          {mempoolExpanded && (
-            <div id="pending-blobs-panel" className="mt-4">
-              <DataStateWrapper isLoading={mempoolLoading} error={mempoolError} loadingComponent={loadingTable}>
-                {mempoolBlobs && <BlobTable blobs={mempoolBlobs} showBlock={false} />}
-              </DataStateWrapper>
-            </div>
-          )}
-        </section>
+        {!userNotFound && (
+          <>
+            <section className="mb-8">
+              <h2 className="m-0">
+                <button
+                  type="button"
+                  onClick={() => setMempoolExpanded((expanded) => !expanded)}
+                  aria-expanded={mempoolExpanded}
+                  aria-controls="pending-blobs-panel"
+                  className="group flex w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-divider bg-gradient-to-r from-[#17181b] to-[#141519]/60 px-4 py-3 transition-colors hover:from-[#1f2127]/70 hover:to-[#23252b]/70"
+                >
+                  <span className="font-windsor-bold text-xl leading-none text-white pt-[2px]">Pending Blobs</span>
+                  <span className="text-sm tabular-nums text-[#8a93a5]">
+                    {mempoolCountsLabel}
+                    {mempoolError && mempoolBlobs ? ' · refresh failed' : ''}
+                  </span>
+                  <span className="ml-auto flex items-center gap-1.5 text-sm text-blue">
+                    {mempoolExpanded ? 'Hide' : 'Show'}
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${mempoolExpanded ? 'rotate-180' : ''}`}
+                      aria-hidden="true"
+                    />
+                  </span>
+                </button>
+              </h2>
+              {mempoolExpanded && (
+                <div id="pending-blobs-panel" className="mt-4">
+                  <DataStateWrapper isLoading={mempoolLoading} error={mempoolError} loadingComponent={loadingTable}>
+                    {mempoolBlobs && <BlobTable blobs={mempoolBlobs} showBlock={false} />}
+                  </DataStateWrapper>
+                </div>
+              )}
+            </section>
 
-        <section className="mb-8">
-          <h2 className="text-2xl font-windsor-bold text-white mb-4">Recent Blobs</h2>
-          <DataStateWrapper isLoading={blobsLoading} error={blobsError} loadingComponent={loadingTable}>
-            {confirmedBlobs && <BlobTable blobs={confirmedBlobs} showBlock={true} />}
-          </DataStateWrapper>
-        </section>
+            <section className="mb-8">
+              <h2 className="text-2xl font-windsor-bold text-white mb-4">Recent Blobs</h2>
+              <DataStateWrapper isLoading={blobsLoading} error={blobsError} loadingComponent={loadingTable}>
+                {confirmedBlobs && <BlobTable blobs={confirmedBlobs} showBlock={true} />}
+              </DataStateWrapper>
+            </section>
+          </>
+        )}
     </div>
   );
 }

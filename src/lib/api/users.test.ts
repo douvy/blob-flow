@@ -176,6 +176,28 @@ describe('api/users', () => {
     });
   });
 
+  it('returns null when the address is not indexed on the network', async () => {
+    const usersApi = await import('./users');
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' }) as unknown as typeof fetch;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(usersApi.getUserByAddress('0x1234567890abcdef', 'sepolia')).resolves.toBeNull();
+  });
+
+  it('rethrows non-404 user lookup failures', async () => {
+    const usersApi = await import('./users');
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 400, statusText: 'Bad Request' }) as unknown as typeof fetch;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(usersApi.getUserByAddress('0x1234567890abcdef', 'sepolia')).rejects.toThrow(
+      'API error: 400'
+    );
+  });
+
   it('returns confirmed blobs for a user address', async () => {
     const usersApi = await import('./users');
     const fetchMock = vi.fn().mockResolvedValue({
