@@ -114,6 +114,17 @@
   }
 }
 
+/* Idle bob with a light squish for the 404 mascot. */
+@keyframes blob-bob {
+  0%, 100% {
+    transform: translateY(0) scale(1, 1);
+  }
+
+  50% {
+    transform: translateY(-10px) scale(0.98, 1.02);
+  }
+}
+
 /* New bars in the hero fullness strip grow up from the baseline. */
 @keyframes bar-grow-in {
   0% {
