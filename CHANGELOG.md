@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.6.1](https://github.com/douvy/blob-flow/compare/v1.6.0...v1.6.1) (2026-08-02)
+
+
+### Bug Fixes
+
+* add themed 404 page with blob mascot ([#217](https://github.com/douvy/blob-flow/issues/217)) ([673f1b6](https://github.com/douvy/blob-flow/commit/673f1b67dac8de8711ffc75132b3946e94520b55))
+* keep blob user icons and names intact on mobile ([#214](https://github.com/douvy/blob-flow/issues/214)) ([df433cf](https://github.com/douvy/blob-flow/commit/df433cfd4efeeaaaa84aa2bdea83bc2f48be7fcc))
+* scope the Top User card to the selected time filter ([#216](https://github.com/douvy/blob-flow/issues/216)) ([1e9c82d](https://github.com/douvy/blob-flow/commit/1e9c82d4a33be11b325dac99577d689319b7abb4))
+
+
+### Dependencies
+
+* **deps-dev:** bump @tailwindcss/postcss from 4.3.2 to 4.3.3 ([#203](https://github.com/douvy/blob-flow/issues/203)) ([7796cc0](https://github.com/douvy/blob-flow/commit/7796cc027d3770272731390d3ce0681d45b8bd13))
+* **deps-dev:** bump jsdom from 29.1.1 to 30.0.1 ([#206](https://github.com/douvy/blob-flow/issues/206)) ([43c79d6](https://github.com/douvy/blob-flow/commit/43c79d604436189b5bf4b92acacc8e14770af898))
+* **deps-dev:** bump postcss from 8.5.19 to 8.5.23 ([#209](https://github.com/douvy/blob-flow/issues/209)) ([9677898](https://github.com/douvy/blob-flow/commit/9677898033990f081e639f82d3a82c46c23ff92d))
+* **deps:** bump @radix-ui/react-dialog from 1.1.19 to 1.1.23 ([#208](https://github.com/douvy/blob-flow/issues/208)) ([bcabe35](https://github.com/douvy/blob-flow/commit/bcabe351e720b489e974b9d51e6db69d11e490b4))
+* **deps:** bump @radix-ui/react-select from 2.3.3 to 2.3.7 ([#212](https://github.com/douvy/blob-flow/issues/212)) ([44c6e1e](https://github.com/douvy/blob-flow/commit/44c6e1e57dc6be49398fbffae1a90498bcf91859))
+* **deps:** bump @radix-ui/react-tooltip from 1.2.12 to 1.2.16 ([#211](https://github.com/douvy/blob-flow/issues/211)) ([4fe9364](https://github.com/douvy/blob-flow/commit/4fe9364d22ba5a33e5d5c814f02ba5ef45eeb9b0))
+* **deps:** bump lucide-react from 1.24.0 to 1.27.0 ([#210](https://github.com/douvy/blob-flow/issues/210)) ([93ba09f](https://github.com/douvy/blob-flow/commit/93ba09fc4ee00741573442a78159857cc3917989))
+* **deps:** bump viem from 2.55.1 to 2.55.10 ([#213](https://github.com/douvy/blob-flow/issues/213)) ([0aa40ec](https://github.com/douvy/blob-flow/commit/0aa40ecf044d8da65902275482843e776b47907e))
+
 ## [1.6.0](https://github.com/douvy/blob-flow/compare/v1.5.0...v1.6.0) (2026-07-15)
 
 
