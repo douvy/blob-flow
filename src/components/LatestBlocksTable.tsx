@@ -4,6 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLiveBlockList } from '../hooks/useLiveBlockList';
+import { useApiData } from '../hooks/useApiData';
+import { api } from '../lib/api';
 import { Block, BlobResponse, LatestBlocksResponse } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
@@ -135,7 +137,49 @@ function AttributionDisplay({ attribution }: { attribution: string[] }) {
   );
 }
 
+const blobDetailsLoading = (
+  <div className="px-4 sm:px-6 py-4 border-t border-divider">
+    <div className="h-4 bg-[#26282e] rounded w-32 animate-pulse" />
+    <div className="mt-4 space-y-3">
+      <div className="h-10 bg-[#26282e] rounded animate-pulse" />
+      <div className="h-10 bg-[#26282e] rounded animate-pulse" />
+    </div>
+  </div>
+);
+
+const blobDetailsError = (
+  <div className="px-4 sm:px-6 py-4 border-t border-divider text-sm text-[#6c727f]">
+    Could not load blob details for this block. Try again in a moment.
+  </div>
+);
+
+const blobDetailsNotIndexed = (
+  <div className="px-4 sm:px-6 py-4 border-t border-divider text-sm text-[#6c727f]">
+    This block has blobs, but the indexer has no records for it yet. Try again in a moment.
+  </div>
+);
+
 function BlobDetailsRow({ block }: { block: Block }) {
+  const { selectedNetwork } = useNetwork();
+  // The list fetch's blob feed serves at most the newest ~100 blobs no matter
+  // the requested limit, so blocks deeper in the list arrive with a blob count
+  // but no blob records. Backfill them from the per-block endpoint on expand;
+  // the query key matches the block detail page so the two share a cache.
+  const isMissingBlobs = block.blobs.length < block.blobCount;
+  const { data: fetchedBlock, isLoading, error } = useApiData<Block | null>(
+    () => api.getBlockByNumber(Number(block.number), selectedNetwork.apiParam),
+    ['block-by-number', selectedNetwork.apiParam, block.number],
+    { enabled: isMissingBlobs }
+  );
+
+  const detailsBlock = isMissingBlobs && fetchedBlock ? fetchedBlock : block;
+  // A null result means the per-block endpoint has no record of a block the
+  // pricing feed says carries blobs (indexer lag). With nothing at all to
+  // show, say that outright instead of the misleading "no blob records"
+  // empty state; with partial records, showing them wins over any message.
+  const isNotIndexed =
+    isMissingBlobs && fetchedBlock === null && block.blobs.length === 0;
+
   return (
     <tr
       id={getBlockDetailsId(block.id)}
@@ -143,7 +187,14 @@ function BlobDetailsRow({ block }: { block: Block }) {
       className="bg-[#101114]"
     >
       <td colSpan={6} className="p-0">
-        <BlobDetailsContent block={block} />
+        <DataStateWrapper
+          isLoading={isMissingBlobs && isLoading}
+          error={isMissingBlobs ? error : null}
+          loadingComponent={blobDetailsLoading}
+          errorComponent={blobDetailsError}
+        >
+          {isNotIndexed ? blobDetailsNotIndexed : <BlobDetailsContent block={detailsBlock} />}
+        </DataStateWrapper>
       </td>
     </tr>
   );
