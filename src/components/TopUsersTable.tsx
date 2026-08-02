@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import {
   ArrowDown,
   ArrowUp,
@@ -26,10 +25,9 @@ import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import {
   assignSeriesColors,
   attributionColorKey,
-  getAttributionImageSrc,
-  getAttributionInitial,
   type SeriesColorInput,
 } from '../utils';
+import AttributionBadge from './AttributionBadge';
 import {
   Table,
   TableBody,
@@ -108,23 +106,14 @@ function ariaSort(direction: false | 'asc' | 'desc'): 'ascending' | 'descending'
 }
 
 function UserIdentity({ user }: { user: User }) {
-  const imageSrc = getAttributionImageSrc(user.name);
-
   return (
     <div className="flex min-w-0 items-center">
-      {imageSrc ? (
-        <Image
-          src={imageSrc}
-          alt={user.name}
-          width={20}
-          height={20}
-          className="mr-3 inline-block h-5 w-5 shrink-0"
-        />
-      ) : (
-        <span className="mr-3 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-500 text-[10px] font-medium text-white">
-          {getAttributionInitial(user.name)}
-        </span>
-      )}
+      <AttributionBadge
+        user={user.name}
+        sizeClass="h-5 w-5"
+        className="mr-3"
+        textClass="text-[10px]"
+      />
       <span className="truncate">{user.name}</span>
     </div>
   );
