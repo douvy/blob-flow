@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.7.2](https://github.com/douvy/blob-flow/compare/v1.7.1...v1.7.2) (2026-08-02)
+
+
+### Bug Fixes
+
+* backfill blob details for blocks past the first page ([#231](https://github.com/douvy/blob-flow/issues/231)) ([24b8c71](https://github.com/douvy/blob-flow/commit/24b8c71f6c70bf0a1e7bb179f8efec06f792cd35))
+* keep raw blob archive status visible when the archive is degraded ([#230](https://github.com/douvy/blob-flow/issues/230)) ([51708f2](https://github.com/douvy/blob-flow/commit/51708f2e77bb1ed42d1ffb89fc6bf84cc2b8ed37))
+* mark unknown-sender placeholder icons with the testnet ribbon ([#228](https://github.com/douvy/blob-flow/issues/228)) ([9cc0906](https://github.com/douvy/blob-flow/commit/9cc0906b7b88ec0ca44f8f0cfe7ee0e098109ef5))
+* page the blob feed so every block in the pricing window gets blob data ([#232](https://github.com/douvy/blob-flow/issues/232)) ([988fc2b](https://github.com/douvy/blob-flow/commit/988fc2b611552fefdcc6d734e37181403fe27327))
+* page the raw blob feed so charts get the blobs they request ([#233](https://github.com/douvy/blob-flow/issues/233)) ([347c2ce](https://github.com/douvy/blob-flow/commit/347c2ce4e7932be677a5b6ecc46bb364b907ee5a))
+
 ## [1.7.1](https://github.com/douvy/blob-flow/compare/v1.7.0...v1.7.1) (2026-08-02)
 
 
