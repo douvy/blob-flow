@@ -10,7 +10,7 @@ import {
   MEMPOOL_PRIVATE_CAVEAT,
   aggregateMempoolAttribution,
 } from '../lib/mempoolAttribution';
-import { formatBlobCount, formatBlobSize } from '../utils';
+import { formatBlobCount, formatBlobSize, formatNumber } from '../utils';
 import AttributionBadge from './AttributionBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
@@ -44,13 +44,18 @@ export default function MempoolSummary() {
   }
 
   // When the sample is truncated the true totals are at least what we
-  // counted, so mark them as lower bounds.
-  const txDisplay = truncated ? `${summary.txCount}+` : `${summary.txCount}`;
+  // counted, so mark every count as a lower bound, not just the tx count:
+  // the Pending Blobs card and hero stat render the blob count with the
+  // same "+", and an exact-looking strip next to them would contradict it.
+  const bound = truncated ? '+' : '';
+  const blobCountLabel = truncated
+    ? `${formatNumber(summary.blobCount)}+ blobs`
+    : formatBlobCount(summary.blobCount);
   const countsLabel = !transactions
     ? 'pending transactions unavailable'
     : summary.txCount === 0 && !truncated
       ? 'no pending blob transactions'
-      : `${txDisplay} tx · ${formatBlobCount(summary.blobCount)} · ${formatBlobSize(summary.blobSizeBytes)}`;
+      : `${summary.txCount}${bound} tx · ${blobCountLabel} · ${formatBlobSize(summary.blobSizeBytes)}${bound}`;
 
   const topGroups = summary.groups.slice(0, ICON_CLUSTER_LIMIT);
   const extraGroupCount = summary.groups.length - topGroups.length;
