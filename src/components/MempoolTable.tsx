@@ -1,6 +1,5 @@
 "use client";
 
-import Image from 'next/image';
 import Link from 'next/link';
 import React from 'react';
 import { MempoolTransaction } from '../types';
@@ -9,12 +8,11 @@ import { useNetwork } from '../hooks/useNetwork';
 import {
   formatBlobCount,
   formatBlobSize,
-  getAttributionImageSrc,
-  getAttributionInitial,
 } from '../utils';
 import { useMempoolLiveList } from '../hooks/useMempoolLiveList';
 import { useFlipRows } from '../hooks/useFlipRows';
 import MempoolBlobDetailsModal from './MempoolBlobDetailsModal';
+import AttributionBadge from './AttributionBadge';
 import { RelativeTime } from './RelativeTime';
 import { FEE_HEADROOM_TOOLTIP } from '../constants';
 
@@ -111,7 +109,6 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
                 )}
                 {transactions.map((tx: MempoolTransaction) => {
                   const user = tx.user || 'Unknown';
-                  const userImageSrc = getAttributionImageSrc(user);
                   const rowKey = `${tx.txHash}-${tx.rawBlob.blob_index}`;
 
                   return (
@@ -146,19 +143,12 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
                           )}
                         </div>
                         <div className="flex items-center text-xs text-[#8a93a5] mt-1 min-w-0">
-                          {userImageSrc ? (
-                            <Image
-                              src={userImageSrc}
-                              alt={user}
-                              width={16}
-                              height={16}
-                              className="inline-block w-4 h-4 mr-2 shrink-0"
-                            />
-                          ) : (
-                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full mr-2 bg-gray-500 text-[9px] text-white font-medium shrink-0">
-                              {getAttributionInitial(user)}
-                            </span>
-                          )}
+                          <AttributionBadge
+                            user={user}
+                            sizeClass="w-4 h-4"
+                            className="mr-2"
+                            px={16}
+                          />
                           <span className="truncate">{user}</span>
                         </div>
                       </td>

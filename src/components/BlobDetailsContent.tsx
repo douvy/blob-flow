@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { Block, BlobResponse } from '../types';
 import {
   beaconSlotForBlob,
@@ -10,13 +9,12 @@ import {
   formatBlobTotalCost,
   formatBlobWeiCost,
   formatFeeHeadroom,
-  getAttributionImageSrc,
-  getAttributionInitial,
   truncateAddress,
 } from '../utils';
 import { RelativeTime } from './RelativeTime';
 import RawBlobViewer from './RawBlobViewer';
 import RawBlobActions from './RawBlobActions';
+import AttributionBadge from './AttributionBadge';
 import { useRawBlobAvailability } from '../hooks/useRawBlobAvailability';
 import { FEE_HEADROOM_TOOLTIP } from '../constants';
 
@@ -27,23 +25,15 @@ function truncateTxHash(hash: string): string {
 
 function BlobUserCell({ blob }: { blob: BlobResponse }) {
   const attribution = blob.user_attribution || 'Unknown';
-  const imageSrc = getAttributionImageSrc(attribution);
 
   return (
     <div className="flex items-center min-w-0">
-      {imageSrc ? (
-        <Image
-          src={imageSrc}
-          alt={attribution}
-          width={20}
-          height={20}
-          className="inline-block w-5 h-5 mr-2 shrink-0"
-        />
-      ) : (
-        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 bg-gray-500 text-[10px] text-white font-medium shrink-0">
-          {getAttributionInitial(attribution)}
-        </span>
-      )}
+      <AttributionBadge
+        user={attribution}
+        sizeClass="w-5 h-5"
+        className="mr-2"
+        textClass="text-[10px]"
+      />
       <span className="truncate">{attribution}</span>
     </div>
   );
