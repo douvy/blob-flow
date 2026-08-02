@@ -10,8 +10,13 @@ import {
   MEMPOOL_PRIVATE_CAVEAT,
   aggregateMempoolAttribution,
 } from '../lib/mempoolAttribution';
-import { formatBlobCount, formatBlobSize, formatNumber } from '../utils';
-import AttributionBadge from './AttributionBadge';
+import {
+  formatBlobCount,
+  formatBlobSize,
+  formatNumber,
+  getAttributionTestnetLabels,
+} from '../utils';
+import AttributionBadge, { TestnetRibbon } from './AttributionBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 const TOOLTIP_GROUP_LIMIT = 6;
@@ -59,6 +64,11 @@ export default function MempoolSummary() {
 
   const topGroups = summary.groups.slice(0, ICON_CLUSTER_LIMIT);
   const extraGroupCount = summary.groups.length - topGroups.length;
+  // One shared ribbon for the overlapping cluster; per-icon ribbons would
+  // pile on top of each other at this spacing.
+  const clusterTestnetLabels = getAttributionTestnetLabels(
+    topGroups.map((group) => group.user)
+  );
 
   const line = (
     <Link
@@ -73,20 +83,27 @@ export default function MempoolSummary() {
       </span>
       <span className="ml-auto flex items-center gap-3">
         {topGroups.length > 0 && (
-          <span className="hidden items-center sm:flex" aria-hidden="true">
+          <span className="relative hidden items-center sm:flex" aria-hidden="true">
             {topGroups.map((group) => (
               <span
                 key={group.user}
                 className="-ml-1.5 flex rounded-full ring-2 ring-[#17181b] first:ml-0"
                 title={group.user}
               >
-                <AttributionBadge user={group.user} sizeClass="h-5 w-5" />
+                <AttributionBadge
+                  user={group.user}
+                  sizeClass="h-5 w-5"
+                  showTestnetLabel={false}
+                />
               </span>
             ))}
             {extraGroupCount > 0 && (
               <span className="-ml-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#26282e] text-[9px] text-[#8a93a5] ring-2 ring-[#17181b]">
                 +{extraGroupCount}
               </span>
+            )}
+            {clusterTestnetLabels.length > 0 && (
+              <TestnetRibbon label={clusterTestnetLabels.join(' / ')} px={20} />
             )}
           </span>
         )}
