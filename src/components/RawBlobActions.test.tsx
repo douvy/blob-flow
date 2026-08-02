@@ -1,7 +1,7 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import RawBlobActions from './RawBlobActions';
+import RawBlobActions, { PENDING_RECHECK_MS } from './RawBlobActions';
 import { checkRawBlobAvailability } from '../lib/api/rawBlob';
 import { BlobResponse } from '../types';
 
@@ -86,6 +86,30 @@ describe('RawBlobActions', () => {
     const second = renderWithClient(<RawBlobActions blob={blobFixture} onViewRaw={() => {}} />);
     await waitFor(() => expect(checkAvailabilityMock).toHaveBeenCalledTimes(2));
     expect(second.container).toBeEmptyDOMElement();
+  });
+
+  it('recovers the actions after a transient probe failure', async () => {
+    vi.useFakeTimers();
+    try {
+      checkAvailabilityMock.mockResolvedValueOnce('error').mockResolvedValue('available');
+
+      renderWithClient(<RawBlobActions blob={blobFixture} onViewRaw={() => {}} />);
+
+      // First probe fails; the app-wide retry: false means nothing renders yet.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.queryByRole('button', { name: 'View raw' })).not.toBeInTheDocument();
+
+      // The recheck interval refetches the failed probe and the actions appear.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(PENDING_RECHECK_MS + 1000);
+      });
+      expect(screen.getByRole('button', { name: 'View raw' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Download/ })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('renders nothing when the blob cannot be located in a slot', () => {

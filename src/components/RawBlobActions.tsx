@@ -13,15 +13,15 @@ import { beaconSlotForBlob } from '../utils';
 import { BLOAR_REPO_URL } from '../constants';
 
 /** How often a pending blob rechecks the archive; matches its sync cadence. */
-const PENDING_RECHECK_MS = 15000;
+export const PENDING_RECHECK_MS = 15000;
 
 /**
  * The raw-archive action cluster for one blob: View raw and Download once the
  * archive has the bytes, or an Archive pending badge while it catches up.
  * Probes the archive once (HEAD) and rechecks periodically until the blob
  * lands; the viewer and download only appear when they can actually serve
- * bytes. Renders nothing when the blob is definitively absent or the probe
- * fails.
+ * bytes. Renders nothing when the blob is definitively absent, or while
+ * probes are failing; failed probes are rechecked on the same cadence.
  */
 export default function RawBlobActions({
   blob,
@@ -41,8 +41,8 @@ export default function RawBlobActions({
         versionedHash as string,
         blob.network_name
       );
-      // Probe failures throw so react-query retries them instead of caching
-      // a transient outage forever; 'missing' is a definitive answer.
+      // Probe failures throw so a transient outage is not cached as an
+      // answer; 'missing' is a definitive answer.
       if (probed === 'error') {
         throw new Error('Raw blob availability probe failed.');
       }
@@ -50,7 +50,13 @@ export default function RawBlobActions({
     },
     enabled: slot !== null && Boolean(versionedHash),
     staleTime: Infinity,
-    refetchInterval: (query) => (query.state.data === 'pending' ? PENDING_RECHECK_MS : false),
+    // The app-wide default is retry: false, so a failed probe would otherwise
+    // hide the actions until remount. Keep rechecking failed probes on the
+    // pending cadence so the actions appear once the probe recovers.
+    refetchInterval: (query) =>
+      query.state.data === 'pending' || query.state.status === 'error'
+        ? PENDING_RECHECK_MS
+        : false,
   });
 
   if (
