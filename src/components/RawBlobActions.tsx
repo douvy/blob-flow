@@ -20,8 +20,10 @@ export const PENDING_RECHECK_MS = 15000;
  * archive has the bytes, or an Archive pending badge while it catches up.
  * Probes the archive once (HEAD) and rechecks periodically until the blob
  * lands; the viewer and download only appear when they can actually serve
- * bytes. Renders nothing when the blob is definitively absent, or while
- * probes are failing; failed probes are rechecked on the same cadence.
+ * bytes. Renders nothing when the blob is definitively absent or until a
+ * first answer arrives; failed probes are rechecked on the same cadence and
+ * keep the last answer meanwhile, so a pending badge stays up through a
+ * failed recheck.
  */
 export default function RawBlobActions({
   blob,
