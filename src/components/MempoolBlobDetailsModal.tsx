@@ -1,6 +1,5 @@
 "use client";
 
-import Image from 'next/image';
 import { ExternalLink } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
 import useScrollLock from '../hooks/useScrollLock';
@@ -8,11 +7,10 @@ import { MempoolTransaction } from '../types';
 import {
   formatCostEthOrWei,
   formatWeiToReadable,
-  getAttributionImageSrc,
-  getAttributionInitial,
   safeExplorerUrl,
 } from '../utils';
 import { RelativeTime } from './RelativeTime';
+import AttributionBadge from './AttributionBadge';
 
 interface MempoolBlobDetailsModalProps {
   transaction: MempoolTransaction | null;
@@ -46,7 +44,6 @@ export default function MempoolBlobDetailsModal({
 
   const blob = transaction.rawBlob;
   const user = blob.user_attribution || 'Unknown';
-  const imageSrc = getAttributionImageSrc(user);
   const transactionUrl = safeExplorerUrl(transaction.transactionUrl);
   const fromAddressUrl = safeExplorerUrl(blob.from_address_url);
   const blockValue =
@@ -110,13 +107,7 @@ export default function MempoolBlobDetailsModal({
           </div>
 
           <div className="mb-6 flex items-center gap-3 border-b border-divider pb-5">
-            {imageSrc ? (
-              <Image src={imageSrc} alt="" width={32} height={32} className="h-8 w-8" />
-            ) : (
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-500 text-sm font-medium text-white">
-                {getAttributionInitial(user)}
-              </span>
-            )}
+            <AttributionBadge user={user} sizeClass="h-8 w-8" textClass="text-sm" px={32} />
             <div>
               <div className="text-xs uppercase tracking-wider text-[#6e7787]">User</div>
               <div className="text-sm font-medium text-white">{user}</div>

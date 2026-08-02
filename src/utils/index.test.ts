@@ -20,6 +20,7 @@ import {
   getAttributionImageSrc,
   getAttributionInitial,
   getAttributionSuggestionUrl,
+  getAttributionTestnetLabel,
   getBlobCount,
   getNetworkIconSrc,
   parseSearchQuery,
@@ -47,10 +48,11 @@ describe('utils', () => {
     expect(safeExplorerUrl(undefined)).toBeUndefined();
   });
 
-  it('maps known network names to local icons', () => {
-    expect(getNetworkIconSrc('Arbitrum One')).toBe('/images/arbitrum.png');
-    expect(getNetworkIconSrc('OP Mainnet')).toBe('/images/optimism.png');
-    expect(getNetworkIconSrc('World Chain')).toBeNull();
+  it('maps known network names to vendored registry icons', () => {
+    expect(getNetworkIconSrc('Arbitrum One')).toBe('/images/entities/arbitrum.svg');
+    expect(getNetworkIconSrc('OP Mainnet')).toBe('/images/entities/optimism.svg');
+    expect(getNetworkIconSrc('World Chain')).toBe('/images/entities/world-chain.svg');
+    expect(getNetworkIconSrc('Not A Network')).toBeNull();
   });
 
   it('formats dates in short US format', () => {
@@ -96,11 +98,28 @@ describe('utils', () => {
     expect(() => formatWeiToReadable('abc')).toThrow('Invalid decimal value');
   });
 
-  it('maps known attribution names to local images', () => {
-    expect(getAttributionImageSrc('OP Mainnet')).toBe('/images/optimism.png');
-    expect(getAttributionImageSrc('Arbitrum One')).toBe('/images/arbitrum.png');
-    expect(getAttributionImageSrc('Taiko')).toBeNull();
+  it('maps known attribution names to vendored registry icons', () => {
+    expect(getAttributionImageSrc('OP Mainnet')).toBe('/images/entities/optimism.svg');
+    expect(getAttributionImageSrc('Arbitrum One')).toBe('/images/entities/arbitrum.svg');
+    expect(getAttributionImageSrc('Robinhood Chain')).toBe(
+      '/images/entities/robinhood-chain.svg'
+    );
+    expect(getAttributionImageSrc('Taiko')).toBe('/images/entities/taiko.png');
+    expect(getAttributionImageSrc('An Unknown Rollup')).toBeNull();
     expect(getAttributionInitial('Taiko')).toBe('T');
+  });
+
+  it('keeps legacy short attribution names working via aliases', () => {
+    expect(getAttributionImageSrc('Arbitrum')).toBe('/images/entities/arbitrum.svg');
+    expect(getAttributionImageSrc('Optimism')).toBe('/images/entities/optimism.svg');
+    expect(getAttributionImageSrc('zkSync')).toBe('/images/entities/zksync-era.svg');
+  });
+
+  it('labels testnet entities and leaves mainnet entities unlabeled', () => {
+    expect(getAttributionTestnetLabel('Robinhood Chain Testnet')).toBe('Sepolia');
+    expect(getAttributionTestnetLabel('OP Sepolia Testnet')).toBe('Sepolia');
+    expect(getAttributionTestnetLabel('Robinhood Chain')).toBeNull();
+    expect(getAttributionTestnetLabel('An Unknown Rollup')).toBeNull();
   });
 
   it('builds a prefilled blob-list suggestion URL with a checksummed address', () => {

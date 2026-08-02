@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ChevronDown, ExternalLink } from 'lucide-react';
@@ -18,14 +17,13 @@ import {
   formatBlobWeiCost,
   formatCostEthOrWei,
   formatFeeHeadroom,
-  getAttributionImageSrc,
-  getAttributionInitial,
   getAttributionSuggestionUrl,
   getBlobCount,
   safeExplorerUrl,
   truncateAddress,
 } from '@/utils';
 import { RelativeTime } from '@/components/RelativeTime';
+import AttributionBadge from '@/components/AttributionBadge';
 import { ATTRIBUTION_CONTRIBUTING_URL, FEE_HEADROOM_TOOLTIP } from '@/constants';
 
 const USER_BLOB_LIMIT = 20;
@@ -191,7 +189,6 @@ export default function UserDetailPage() {
         : `${txDisplay} tx · ${formatBlobCount(mempoolSummary.blobCount)} · ${formatBlobSize(mempoolSummary.blobSizeBytes)}`;
 
   const userName = user?.name || truncateAddress(address);
-  const userImageSrc = user?.name ? getAttributionImageSrc(user.name) : null;
   // Null when the route param is not a parseable address; the callout then
   // only links to the contribution guide instead of a prefilled file.
   const attributionSuggestionUrl = getAttributionSuggestionUrl(
@@ -266,19 +263,12 @@ export default function UserDetailPage() {
           {user && (
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-3">
-                {user.name && userImageSrc ? (
-                  <Image
-                    src={userImageSrc}
-                    alt={user.name}
-                    width={32}
-                    height={32}
-                    className="w-8 h-8 shrink-0"
-                  />
-                ) : (
-                  <span className="w-8 h-8 shrink-0 rounded-full bg-gray-500 inline-flex items-center justify-center text-sm text-white font-medium">
-                    {getAttributionInitial(userName)}
-                  </span>
-                )}
+                <AttributionBadge
+                  user={userName}
+                  sizeClass="w-8 h-8"
+                  textClass="text-sm"
+                  px={32}
+                />
                 <h1 className="text-3xl font-windsor-bold text-white">{userName}</h1>
               </div>
               <div className="flex items-center gap-2 mb-6">

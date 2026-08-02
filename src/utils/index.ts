@@ -5,16 +5,27 @@ import { getAddress } from 'viem';
 import { SearchTarget } from '@/types';
 import { ATTRIBUTION_CONTRIBUTING_URL, ATTRIBUTION_REPO_URL } from '@/constants';
 import { SERIES_COLOR_PALETTE, SERIES_CATEGORY_NEUTRALS } from '@/constants/chartTheme';
+import { ENTITY_ICONS, EntityIcon } from '@/constants/entityIcons.generated';
 
-const ATTRIBUTION_IMAGE_NAMES: Record<string, string> = {
-  arbitrum: 'arbitrum',
-  'arbitrum one': 'arbitrum',
-  base: 'base',
-  optimism: 'optimism',
-  'op mainnet': 'optimism',
-  zksync: 'zksync',
-  'zksync era': 'zksync',
+// The indexer sends blob-list entity names verbatim, which is what the
+// generated map is keyed by. These short forms predate that and only exist
+// so older cached responses keep their logos.
+const ATTRIBUTION_NAME_ALIASES: Record<string, string> = {
+  arbitrum: 'arbitrum one',
+  optimism: 'op mainnet',
+  zksync: 'zksync era',
 };
+
+const MAINNET_SETTLEMENT = 'eip155-1';
+
+const SETTLEMENT_TESTNET_LABELS: Record<string, string> = {
+  'eip155-11155111': 'Sepolia',
+};
+
+function lookupEntityIcon(name: string): EntityIcon | undefined {
+  const key = name.trim().toLowerCase();
+  return ENTITY_ICONS[key] ?? ENTITY_ICONS[ATTRIBUTION_NAME_ALIASES[key] ?? ''];
+}
 
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * 1024;
@@ -46,8 +57,20 @@ export function safeExplorerUrl(url?: string): string | undefined {
 }
 
 export function getAttributionImageSrc(name: string): string | null {
-  const imageName = ATTRIBUTION_IMAGE_NAMES[name.trim().toLowerCase()];
-  return imageName ? `/images/${imageName}.png` : null;
+  return lookupEntityIcon(name)?.src ?? null;
+}
+
+/**
+ * Human label of the entity's testnet, or null for mainnet entities and
+ * unknown senders. Lets badges flag testnet logos that would otherwise be
+ * indistinguishable from their mainnet counterparts.
+ */
+export function getAttributionTestnetLabel(name: string): string | null {
+  const entry = lookupEntityIcon(name);
+  if (!entry || entry.settlement === MAINNET_SETTLEMENT) {
+    return null;
+  }
+  return SETTLEMENT_TESTNET_LABELS[entry.settlement] ?? 'Testnet';
 }
 
 export function getAttributionInitial(name: string): string {

@@ -22,7 +22,10 @@ npm run typecheck  # tsc --noEmit (tsconfig.typecheck.json)
 npm test           # Run Vitest suite once
 npm run test-watch # Vitest in watch mode
 npm start          # Production server
+npm run sync-icons # Refresh entity logos from the blob-list registry release
 ```
+
+`npm run sync-icons` regenerates `public/images/entities/` and `src/constants/entityIcons.generated.ts` from the latest tirante-dev/blob-list release; both are committed, so builds never fetch anything. Do not edit those files by hand.
 
 Tests use Vitest (`*.test.ts` / `*.test.tsx` colocated with source). Use `npm run typecheck` rather than plain `tsc --noEmit`: the dedicated config scopes the check correctly.
 
