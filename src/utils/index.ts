@@ -73,6 +73,20 @@ export function getAttributionTestnetLabel(name: string): string | null {
   return SETTLEMENT_TESTNET_LABELS[entry.settlement] ?? 'Testnet';
 }
 
+/**
+ * Unique testnet labels across a group of entities, for overlapping icon
+ * clusters that overlay one shared ribbon instead of stacking per-icon ones.
+ */
+export function getAttributionTestnetLabels(names: string[]): string[] {
+  return [
+    ...new Set(
+      names
+        .map(getAttributionTestnetLabel)
+        .filter((label): label is string => label !== null)
+    ),
+  ];
+}
+
 export function getAttributionInitial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || '?';
 }

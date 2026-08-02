@@ -1,7 +1,6 @@
 "use client";
 
 import React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLiveBlockList } from '../hooks/useLiveBlockList';
@@ -13,9 +12,9 @@ import {
   formatBlobCount,
   formatBlobWeiCost,
   formatUtilizationPercent,
-  getAttributionImageSrc,
-  getAttributionInitial,
+  getAttributionTestnetLabels,
 } from '../utils';
+import AttributionBadge, { TestnetRibbon } from './AttributionBadge';
 import { BlobDetailsContent } from './BlobDetailsContent';
 import { BLOCKS_PAGE_LIMIT, BLOCKS_PAGE_SIZE } from '../constants';
 import { useFlipRows } from '../hooks/useFlipRows';
@@ -92,54 +91,40 @@ function AttributionDisplay({ attribution }: { attribution: string[] }) {
   }
 
   if (attribution.length === 1) {
-    const imageSrc = getAttributionImageSrc(attribution[0]);
-
     return (
       <div className="flex items-center min-w-0">
-        {imageSrc ? (
-          <Image
-            src={imageSrc}
-            alt={attribution[0]}
-            width={20}
-            height={20}
-            className="inline-block w-5 h-5 mr-2 shrink-0"
-          />
-        ) : (
-          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full mr-2 bg-gray-500 text-[10px] text-white font-medium shrink-0">
-            {getAttributionInitial(attribution[0])}
-          </span>
-        )}
+        <AttributionBadge
+          user={attribution[0]}
+          sizeClass="w-5 h-5"
+          className="mr-2"
+          textClass="text-[10px]"
+        />
         <span className="truncate">{attribution[0]}</span>
       </div>
     );
   }
 
+  // Ribbons on every icon of an overlapping stack would pile on top of each
+  // other, so mark the stack once with the union of its testnet networks.
+  const testnetLabels = getAttributionTestnetLabels(attribution);
+
   return (
     <div className="flex items-center min-w-0">
-      <div className="flex -space-x-2">
-        {attribution.map((attr) => {
-          const imageSrc = getAttributionImageSrc(attr);
-
-          return imageSrc ? (
-            <Image
-              key={attr}
-              src={imageSrc}
-              alt={attr}
-              width={20}
-              height={20}
-              className="inline-block w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem]"
-              title={attr}
-            />
-          ) : (
-            <span
-              key={attr}
-              className="inline-flex items-center justify-center w-5 h-5 rounded-full ring-1 ring-gray-800 min-w-[1.25rem] min-h-[1.25rem] bg-gray-500 text-[10px] text-white font-medium"
-              title={attr}
-            >
-              {getAttributionInitial(attr)}
-            </span>
-          );
-        })}
+      <div className="relative flex -space-x-2">
+        {attribution.map((attr) => (
+          <AttributionBadge
+            key={attr}
+            user={attr}
+            sizeClass="w-5 h-5"
+            className="rounded-full ring-1 ring-gray-800"
+            textClass="text-[10px]"
+            title={attr}
+            showTestnetLabel={false}
+          />
+        ))}
+        {testnetLabels.length > 0 && (
+          <TestnetRibbon label={testnetLabels.join(' / ')} px={20} />
+        )}
       </div>
       <span className="whitespace-nowrap text-sm text-white ml-5">
         {attribution.length} networks

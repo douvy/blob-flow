@@ -23,6 +23,7 @@ import {
   getAttributionInitial,
   getAttributionSuggestionUrl,
   getAttributionTestnetLabel,
+  getAttributionTestnetLabels,
   getBlobCount,
   getNetworkIconSrc,
   parseSearchQuery,
@@ -122,6 +123,18 @@ describe('utils', () => {
     expect(getAttributionTestnetLabel('OP Sepolia Testnet')).toBe('Sepolia');
     expect(getAttributionTestnetLabel('Robinhood Chain')).toBeNull();
     expect(getAttributionTestnetLabel('An Unknown Rollup')).toBeNull();
+  });
+
+  it('dedupes testnet labels across an icon cluster', () => {
+    expect(
+      getAttributionTestnetLabels([
+        'Robinhood Chain Testnet',
+        'OP Sepolia Testnet',
+        'Robinhood Chain',
+        'An Unknown Rollup',
+      ])
+    ).toEqual(['Sepolia']);
+    expect(getAttributionTestnetLabels(['Robinhood Chain'])).toEqual([]);
   });
 
   it('builds a prefilled blob-list suggestion URL with a checksummed address', () => {
