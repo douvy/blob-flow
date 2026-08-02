@@ -44,6 +44,11 @@ function safeCancel(animation: Animation): void {
  *      so `getBoundingClientRect()` returns clean layout positions instead of
  *      animated visual ones (which would compound and drift rows off-screen).
  *
+ * Positions are measured relative to the tbody, not the viewport: the user can
+ * scroll (and content above the table can resize) between row-set changes, and
+ * viewport coordinates captured before that would skew every delta by the
+ * scroll distance, sliding the whole table on the next update.
+ *
  * The first commit and the first commit after `resetKey` changes capture
  * positions without animating, so initial loads and network switches don't
  * trigger a stampede.
@@ -85,10 +90,11 @@ export function useFlipRows(
     activeAnimationsRef.current.forEach(safeFinish);
     activeAnimationsRef.current = [];
 
+    const tbodyTop = tbody.getBoundingClientRect().top;
     const newPositions = new Map<string, number>();
     rows.forEach((row) => {
       const key = row.dataset.rowKey;
-      if (key) newPositions.set(key, row.getBoundingClientRect().top);
+      if (key) newPositions.set(key, row.getBoundingClientRect().top - tbodyTop);
     });
 
     const prevPositions = prevPositionsRef.current;

@@ -266,6 +266,38 @@ describe('useFlipRows', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  it('ignores page scrolling between updates by measuring relative to the tbody', () => {
+    const { spy, animations } = spyOnAnimate();
+
+    // Viewport-relative rects with the table 100px from the top.
+    const makeRectMock = (tbodyTop: number, rowTops: Record<string, number>) =>
+      function (this: Element) {
+        const key = (this as HTMLElement).dataset?.rowKey;
+        const top =
+          key !== undefined && key in rowTops
+            ? rowTops[key]
+            : (this as HTMLElement).tagName === 'TBODY'
+              ? tbodyTop
+              : 0;
+        return { top, left: 0, right: 0, bottom: top, width: 0, height: 0, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+      };
+
+    const rectSpy = vi
+      .spyOn(Element.prototype, 'getBoundingClientRect')
+      .mockImplementation(makeRectMock(100, { a: 100, b: 130 }));
+
+    const { rerender } = render(<TestTable rows={['a', 'b']} resetKey="net" />);
+
+    // The user scrolls 500px, then c is appended below a and b. Neither a nor
+    // b moved within the table, so only c's enter animation should play.
+    rectSpy.mockImplementation(makeRectMock(-400, { a: -400, b: -370, c: -340 }));
+    rerender(<TestTable rows={['a', 'b', 'c']} resetKey="net" />);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    const frames = animations[0].keyframes as Keyframe[];
+    expect(frames[0]).toMatchObject({ opacity: 0, transform: 'translateY(-10px)' });
+  });
+
   it('swallows errors from finish() and cancel() in the underlying Animation', () => {
     const { animations } = installAnimate((keyframes, options) => ({
       finish: vi.fn(() => {
