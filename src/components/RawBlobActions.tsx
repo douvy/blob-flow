@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, ExternalLink } from 'lucide-react';
+import { Clock, Download, ExternalLink } from 'lucide-react';
 import { BlobResponse } from '../types';
 import {
   checkRawBlobAvailability,
@@ -13,15 +13,25 @@ import { beaconSlotForBlob } from '../utils';
 import { BLOAR_REPO_URL } from '../constants';
 
 /** How often a pending blob rechecks the archive; matches its sync cadence. */
-const PENDING_RECHECK_MS = 15000;
+export const PENDING_RECHECK_MS = 15000;
 
 /**
- * Direct download affordance for one blob's raw bytes, shown next to the
- * View raw button. Probes the archive once (HEAD) and shows Pending, with a
- * periodic recheck, until the blob lands. Renders nothing when the blob is
- * definitively absent or the probe fails.
+ * The raw-archive action cluster for one blob: View raw and Download once the
+ * archive has the bytes, or an Archive pending badge while it catches up.
+ * Probes the archive once (HEAD) and rechecks periodically until the blob
+ * lands; the viewer and download only appear when they can actually serve
+ * bytes. Renders nothing when the blob is definitively absent or until a
+ * first answer arrives; failed probes are rechecked on the same cadence and
+ * keep the last answer meanwhile, so a pending badge stays up through a
+ * failed recheck.
  */
-export default function RawBlobActions({ blob }: { blob: BlobResponse }) {
+export default function RawBlobActions({
+  blob,
+  onViewRaw,
+}: {
+  blob: BlobResponse;
+  onViewRaw: () => void;
+}) {
   const slot = beaconSlotForBlob(blob);
   const versionedHash = blob.versioned_hash;
 
@@ -33,8 +43,8 @@ export default function RawBlobActions({ blob }: { blob: BlobResponse }) {
         versionedHash as string,
         blob.network_name
       );
-      // Probe failures throw so react-query retries them instead of caching
-      // a transient outage forever; 'missing' is a definitive answer.
+      // Probe failures throw so a transient outage is not cached as an
+      // answer; 'missing' is a definitive answer.
       if (probed === 'error') {
         throw new Error('Raw blob availability probe failed.');
       }
@@ -42,7 +52,13 @@ export default function RawBlobActions({ blob }: { blob: BlobResponse }) {
     },
     enabled: slot !== null && Boolean(versionedHash),
     staleTime: Infinity,
-    refetchInterval: (query) => (query.state.data === 'pending' ? PENDING_RECHECK_MS : false),
+    // The app-wide default is retry: false, so a failed probe would otherwise
+    // hide the actions until remount. Keep rechecking failed probes on the
+    // pending cadence so the actions appear once the probe recovers.
+    refetchInterval: (query) =>
+      query.state.data === 'pending' || query.state.status === 'error'
+        ? PENDING_RECHECK_MS
+        : false,
   });
 
   if (
@@ -56,22 +72,32 @@ export default function RawBlobActions({ blob }: { blob: BlobResponse }) {
   }
 
   return (
-    <span className="flex items-center gap-2 text-xs">
+    <span className="flex items-center gap-2 border-l border-divider pl-3 text-xs">
       {availability === 'available' ? (
-        <a
-          href={rawBlobDownloadUrl(slot, versionedHash, blob.network_name)}
-          download={`blob-${versionedHash}.bin`}
-          className="inline-flex items-center gap-1 rounded border border-divider px-2 py-0.5 text-[#b8bdc7] transition-colors hover:border-[#3B55E6] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#3B55E6]"
-        >
-          <Download className="h-3 w-3" aria-hidden="true" />
-          Download
-        </a>
+        <>
+          <button
+            type="button"
+            onClick={onViewRaw}
+            className="rounded border border-divider px-2 py-0.5 text-[#b8bdc7] transition-colors hover:border-[#3B55E6] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#3B55E6]"
+          >
+            View raw
+          </button>
+          <a
+            href={rawBlobDownloadUrl(slot, versionedHash, blob.network_name)}
+            download={`blob-${versionedHash}.bin`}
+            className="inline-flex items-center gap-1 rounded border border-divider px-2 py-0.5 text-[#b8bdc7] transition-colors hover:border-[#3B55E6] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#3B55E6]"
+          >
+            <Download className="h-3 w-3" aria-hidden="true" />
+            Download
+          </a>
+        </>
       ) : (
         <span
-          className="rounded-full border border-[#E6B23B]/40 bg-[#2b2416] px-2 py-0.5 font-medium uppercase tracking-wider text-[#e8c268]"
-          title="This blob has not reached the archive yet. New blobs typically appear within one to two minutes."
+          className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-[#E6B23B]/40 bg-[#2b2416] px-2 py-0.5 text-[#e8c268]"
+          title="The raw bytes for this blob have not reached the archive yet. New blobs typically appear within one to two minutes."
         >
-          Pending
+          <Clock className="h-3 w-3" aria-hidden="true" />
+          Archive pending
         </span>
       )}
       <span className="text-[#6e7787]">

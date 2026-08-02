@@ -130,8 +130,8 @@ describe('RawBlobViewer', () => {
 
     render(<RawBlobViewer blob={blobFixture} onClose={() => {}} />);
 
-    expect(await screen.findByText('Pending')).toBeInTheDocument();
-    expect(screen.getByText(/has not reached the archive yet/)).toBeInTheDocument();
+    expect(await screen.findByText('Archive pending')).toBeInTheDocument();
+    expect(screen.getByText(/have not reached the archive yet/)).toBeInTheDocument();
     expect(screen.queryByText(/Try again shortly/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Check again' }));

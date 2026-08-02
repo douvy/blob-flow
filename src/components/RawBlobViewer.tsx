@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, ExternalLink } from 'lucide-react';
+import { Clock, Download, ExternalLink } from 'lucide-react';
 import useScrollLock from '../hooks/useScrollLock';
 import { BlobResponse } from '../types';
 import { fetchRawBlob, RawBlobError } from '../lib/api/rawBlob';
@@ -180,12 +180,13 @@ export default function RawBlobViewer({ blob, onClose }: RawBlobViewerProps) {
           {state.status === 'error' &&
             (state.httpStatus === 503 ? (
               <div className="py-10 text-center">
-                <span className="inline-flex items-center rounded-full border border-[#E6B23B]/40 bg-[#2b2416] px-3 py-1 text-xs font-medium uppercase tracking-wider text-[#e8c268]">
-                  Pending
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-[#E6B23B]/40 bg-[#2b2416] px-3 py-1 text-xs font-medium text-[#e8c268]">
+                  <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                  Archive pending
                 </span>
                 <p className="mt-3 text-sm text-[#b8bdc7]">
-                  This blob has not reached the archive yet. New blobs typically appear within
-                  one to two minutes.
+                  The raw bytes for this blob have not reached the archive yet. New blobs
+                  typically appear within one to two minutes.
                 </p>
                 <button
                   type="button"
