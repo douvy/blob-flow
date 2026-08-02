@@ -1,5 +1,5 @@
 import { TopUsersResponse, User, ApiResponse, UserResponse, BlobResponse, BackendUsersRange } from '../../types';
-import { fetchApi } from './core';
+import { fetchApi, isNotFoundError } from './core';
 import { truncateAddress } from '../../utils';
 
 const WEI_PER_ETH = BigInt('1000000000000000000');
@@ -53,13 +53,22 @@ export const getTopUsers = async (limit = 10, network?: string, range: BackendUs
 };
 
 /**
- * Get a single user's aggregated stats by address
+ * Get a single user's aggregated stats by address. Returns null when the
+ * address has no indexed blob activity on the given network (e.g. after
+ * switching networks while viewing a user).
  * @param address - Ethereum address
  * @param network - Optional network parameter
  */
-export const getUserByAddress = async (address: string, network?: string): Promise<UserResponse> => {
-    const response = await fetchApi<ApiResponse<UserResponse>>(`/users/${address}`, network);
-    return response.data;
+export const getUserByAddress = async (address: string, network?: string): Promise<UserResponse | null> => {
+    try {
+        const response = await fetchApi<ApiResponse<UserResponse>>(`/users/${address}`, network);
+        return response.data ?? null;
+    } catch (error) {
+        if (isNotFoundError(error)) {
+            return null;
+        }
+        throw error;
+    }
 };
 
 /**
