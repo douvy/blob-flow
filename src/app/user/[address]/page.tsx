@@ -272,10 +272,10 @@ export default function UserDetailPage() {
                     alt={user.name}
                     width={32}
                     height={32}
-                    className="w-8 h-8"
+                    className="w-8 h-8 shrink-0"
                   />
                 ) : (
-                  <span className="w-8 h-8 rounded-full bg-gray-500 inline-flex items-center justify-center text-sm text-white font-medium">
+                  <span className="w-8 h-8 shrink-0 rounded-full bg-gray-500 inline-flex items-center justify-center text-sm text-white font-medium">
                     {getAttributionInitial(userName)}
                   </span>
                 )}

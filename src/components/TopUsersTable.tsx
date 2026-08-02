@@ -45,11 +45,15 @@ import { Skeleton } from './ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { useFlipRows } from '../hooks/useFlipRows';
 
+// On phones the name column takes half the row so attribution names stay
+// readable; Count and % of Total shrink to fit their compact mobile content.
 const COLUMN_WIDTHS: Record<string, string> = {
-  name: 'w-1/3',
-  dataCount: 'w-1/3',
-  percentage: 'w-1/3',
+  name: 'w-1/2 sm:w-1/3',
+  dataCount: 'w-[28%] sm:w-1/3',
+  percentage: 'w-[22%] sm:w-1/3',
 };
+// Overrides the table primitives' px-6, which is too wide for phone columns.
+const CELL_PADDING = 'px-3 sm:px-6';
 const EMPTY_USERS: User[] = [];
 
 const RANGE_LABELS: Record<TimeRange, string> = {
@@ -110,21 +114,21 @@ function UserIdentity({ user }: { user: User }) {
   const imageSrc = getAttributionImageSrc(user.name);
 
   return (
-    <div className="flex items-center">
+    <div className="flex min-w-0 items-center">
       {imageSrc ? (
         <Image
           src={imageSrc}
           alt={user.name}
           width={20}
           height={20}
-          className="mr-3 inline-block h-5 w-5"
+          className="mr-3 inline-block h-5 w-5 shrink-0"
         />
       ) : (
-        <span className="mr-3 inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-500 text-[10px] font-medium text-white">
+        <span className="mr-3 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-500 text-[10px] font-medium text-white">
           {getAttributionInitial(user.name)}
         </span>
       )}
-      {user.name}
+      <span className="truncate">{user.name}</span>
     </div>
   );
 }
@@ -192,7 +196,7 @@ export default function TopUsersTable() {
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex rounded-sm text-[#6e7787] hover:text-bodyText focus:outline-none focus:ring-2 focus:ring-blue"
+                  className="hidden rounded-sm text-[#6e7787] hover:text-bodyText focus:outline-none focus:ring-2 focus:ring-blue sm:inline-flex"
                   aria-label="Recent indexed activity"
                 >
                   <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
@@ -207,7 +211,10 @@ export default function TopUsersTable() {
       {
         accessorKey: 'percentage',
         header: ({ column }) => (
-          <SortableHeader column={column}>% of Total</SortableHeader>
+          <SortableHeader column={column}>
+            <span className="sm:hidden">%</span>
+            <span className="hidden sm:inline">% of Total</span>
+          </SortableHeader>
         ),
         cell: ({ row }) => {
           const user = row.original;
@@ -215,7 +222,7 @@ export default function TopUsersTable() {
           return (
             <div className="flex items-center">
               <span className="mr-3">{user.percentage}%</span>
-              <div className="h-2.5 w-32 rounded-full bg-[#2a2f37]">
+              <div className="hidden h-2.5 w-32 rounded-full bg-[#2a2f37] sm:block">
                 <div
                   className="h-2.5 rounded-full"
                   style={{
@@ -265,27 +272,32 @@ export default function TopUsersTable() {
       <Table className="min-w-full table-fixed overflow-hidden">
         <TableHeader>
           <TableRow className="bg-gradient-to-b from-[#22252c] to-[#16171b]">
-            <TableHead className="w-1/3">User</TableHead>
-            <TableHead className="w-1/3 whitespace-nowrap">Count</TableHead>
-            <TableHead className="w-1/3">% of Total</TableHead>
+            <TableHead className={`${CELL_PADDING} ${COLUMN_WIDTHS.name}`}>User</TableHead>
+            <TableHead className={`whitespace-nowrap ${CELL_PADDING} ${COLUMN_WIDTHS.dataCount}`}>
+              Count
+            </TableHead>
+            <TableHead className={`${CELL_PADDING} ${COLUMN_WIDTHS.percentage}`}>
+              <span className="sm:hidden">%</span>
+              <span className="hidden sm:inline">% of Total</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody className="divide-y divide-divider">
           {[...Array(5)].map((_, index) => (
             <TableRow key={index} className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
-              <TableCell>
-                <div className="flex items-center">
-                  <Skeleton className="mr-3 h-5 w-5 rounded-full" />
+              <TableCell className={CELL_PADDING}>
+                <div className="flex min-w-0 items-center">
+                  <Skeleton className="mr-3 h-5 w-5 shrink-0 rounded-full" />
                   <Skeleton className="h-5 w-24" />
                 </div>
               </TableCell>
-              <TableCell>
+              <TableCell className={CELL_PADDING}>
                 <Skeleton className="h-5 w-12" />
               </TableCell>
-              <TableCell>
+              <TableCell className={CELL_PADDING}>
                 <div className="flex items-center">
                   <Skeleton className="mr-3 h-5 w-12" />
-                  <div className="h-2.5 w-32 rounded-full bg-[#2a2f37]">
+                  <div className="hidden h-2.5 w-32 rounded-full bg-[#2a2f37] sm:block">
                     <Skeleton className="h-2.5 w-3/5 rounded-full" />
                   </div>
                 </div>
@@ -325,7 +337,7 @@ export default function TopUsersTable() {
                       return (
                         <TableHead
                           key={header.id}
-                          className={COLUMN_WIDTHS[header.column.id]}
+                          className={`${CELL_PADDING} ${COLUMN_WIDTHS[header.column.id]}`}
                           aria-sort={canSort ? ariaSort(header.column.getIsSorted()) : undefined}
                         >
                           {header.isPlaceholder
@@ -352,7 +364,7 @@ export default function TopUsersTable() {
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
-                        className={`whitespace-nowrap text-sm text-white ${COLUMN_WIDTHS[cell.column.id]}`}
+                        className={`whitespace-nowrap text-sm text-white ${CELL_PADDING} ${COLUMN_WIDTHS[cell.column.id]}`}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
