@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0](https://github.com/douvy/blob-flow/compare/v1.6.1...v1.7.0) (2026-08-02)
+
+
+### Features
+
+* add raw blob viewing and downloads backed by BlobArchive ([#219](https://github.com/douvy/blob-flow/issues/219)) ([84de05e](https://github.com/douvy/blob-flow/commit/84de05ed8d8d8387b949a50ba1db72e5f31ddf0a))
+* source entity logos from the blob-list registry ([#218](https://github.com/douvy/blob-flow/issues/218)) ([519877f](https://github.com/douvy/blob-flow/commit/519877f68cb6258e63ceb9bde5f9d2b4763ab114))
+
 ## [1.6.1](https://github.com/douvy/blob-flow/compare/v1.6.0...v1.6.1) (2026-08-02)
 
 
