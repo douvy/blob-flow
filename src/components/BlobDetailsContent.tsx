@@ -1,9 +1,10 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import { Block, BlobResponse } from '../types';
 import {
+  beaconSlotForBlob,
   formatBlobFee,
   formatBlobSize,
   formatBlobTotalCost,
@@ -14,6 +15,9 @@ import {
   truncateAddress,
 } from '../utils';
 import { RelativeTime } from './RelativeTime';
+import RawBlobViewer from './RawBlobViewer';
+import RawBlobActions from './RawBlobActions';
+import { useRawBlobAvailability } from '../hooks/useRawBlobAvailability';
 import { FEE_HEADROOM_TOOLTIP } from '../constants';
 
 function truncateTxHash(hash: string): string {
@@ -69,7 +73,33 @@ function BlobDetailField({
   );
 }
 
+/**
+ * A blob can be viewed raw when the indexer stored its versioned hash and we
+ * can place it in a beacon slot. The raw bytes come from a BlobArchive
+ * follower via the /api/raw-blob proxy route.
+ */
+function canViewRawBlob(blob: BlobResponse): boolean {
+  return Boolean(blob.versioned_hash && beaconSlotForBlob(blob) !== null);
+}
+
 export function BlobDetailsContent({ block }: { block: Block }) {
+  // Only the blob's identity is stored; the blob itself is re-derived from
+  // the current block so a live update that replaces the block (reorg)
+  // closes the viewer instead of serving bytes from the abandoned fork.
+  const [rawBlobKey, setRawBlobKey] = useState<{ txHash: string; blobIndex: number } | null>(
+    null
+  );
+  const rawBlob = rawBlobKey
+    ? (block.blobs.find(
+        (blob) =>
+          blob.tx_hash === rawBlobKey.txHash && blob.blob_index === rawBlobKey.blobIndex
+      ) ?? null)
+    : null;
+  // All blobs in a block share one network; the hook resolves to false until
+  // the deployment confirms an archive is configured for it, hiding the
+  // feature entirely on deployments without one.
+  const archiveAvailable = useRawBlobAvailability(block.blobs[0]?.network_name ?? '');
+
   return (
     <div className="px-4 sm:px-6 py-4 border-t border-divider">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -96,7 +126,23 @@ export function BlobDetailsContent({ block }: { block: Block }) {
             return (
               <div key={`${blob.tx_hash}-${blob.blob_index}`} className="py-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div className="text-sm font-mono text-white">Blob #{blob.blob_index}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm font-mono text-white">Blob #{blob.blob_index}</div>
+                    {archiveAvailable && canViewRawBlob(blob) && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRawBlobKey({ txHash: blob.tx_hash, blobIndex: blob.blob_index })
+                          }
+                          className="rounded border border-divider px-2 py-0.5 text-xs text-[#b8bdc7] transition-colors hover:border-[#3B55E6] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#3B55E6]"
+                        >
+                          View raw
+                        </button>
+                        <RawBlobActions blob={blob} />
+                      </>
+                    )}
+                  </div>
                   <BlobUserCell blob={blob} />
                 </div>
                 <dl className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-3">
@@ -155,6 +201,8 @@ export function BlobDetailsContent({ block }: { block: Block }) {
           })}
         </div>
       )}
+
+      <RawBlobViewer blob={rawBlob} onClose={() => setRawBlobKey(null)} />
     </div>
   );
 }

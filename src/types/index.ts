@@ -42,6 +42,8 @@ export interface BlobResponse {
   max_cost_wei?: string;
   fee_cap_headroom_wei?: string;
   fee_cap_headroom_percent?: string;
+  /** Beacon slot of the including block. Omitted for pending blobs and for networks without a configured beacon genesis. */
+  slot?: number;
   /** This blob's own EIP-4844 versioned hash (0x01-prefixed). Omitted for rows indexed before versioned hashes were stored. */
   versioned_hash?: string;
   /** All versioned hashes carried by this blob's transaction. Omitted for rows indexed before versioned hashes were stored. */

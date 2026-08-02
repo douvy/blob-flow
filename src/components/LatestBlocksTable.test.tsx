@@ -1,10 +1,18 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render as rtlRender, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DEFAULT_NETWORK } from '../constants';
 import { useApiData } from '../hooks/useApiData';
 import { useNetwork } from '../hooks/useNetwork';
 import { Block, BlobResponse, LatestBlocksResponse } from '../types';
 import LatestBlocksTable from './LatestBlocksTable';
+
+// Expanded rows render BlobDetailsContent, whose archive-availability hook
+// needs a QueryClient.
+function render(ui: React.ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
 
 vi.mock('next/image', () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => React.createElement('img', props),

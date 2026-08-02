@@ -2,8 +2,8 @@
  * Utility functions for the application
  */
 import { getAddress } from 'viem';
-import { SearchTarget } from '@/types';
-import { ATTRIBUTION_CONTRIBUTING_URL, ATTRIBUTION_REPO_URL } from '@/constants';
+import { BlobResponse, SearchTarget } from '@/types';
+import { ATTRIBUTION_CONTRIBUTING_URL, ATTRIBUTION_REPO_URL, SECONDS_PER_BLOCK } from '@/constants';
 import { SERIES_COLOR_PALETTE, SERIES_CATEGORY_NEUTRALS } from '@/constants/chartTheme';
 
 const ATTRIBUTION_IMAGE_NAMES: Record<string, string> = {
@@ -620,4 +620,50 @@ export function parseSearchQuery(query: string): SearchTarget | null {
     }
   }
   return null;
+}
+
+/**
+ * Beacon chain genesis timestamps in seconds, keyed by the indexer's
+ * network_name values. Used to derive beacon slots from execution block
+ * timestamps: post-merge, every block timestamp sits exactly on a slot
+ * boundary, so slot = (timestamp - genesis) / SECONDS_PER_BLOCK.
+ *
+ * Stopgap until the indexer exposes the authoritative slot on BlobResponse;
+ * networks missing from this map simply cannot derive a slot.
+ */
+const BEACON_GENESIS_SECONDS: Record<string, number> = {
+  mainnet: 1606824023,
+  sepolia: 1655733600,
+};
+
+/**
+ * Derive the beacon slot containing a block from its timestamp. Returns null
+ * when the network has no known beacon genesis, the timestamp is unparseable,
+ * or the timestamp predates genesis.
+ */
+export function deriveBeaconSlot(timestamp: string, networkName: string): number | null {
+  const genesis = BEACON_GENESIS_SECONDS[networkName?.toLowerCase()];
+  if (genesis === undefined) return null;
+
+  const ms = Date.parse(timestamp);
+  if (Number.isNaN(ms)) return null;
+
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < genesis) return null;
+
+  return Math.floor((seconds - genesis) / SECONDS_PER_BLOCK);
+}
+
+/**
+ * Beacon slot for a blob row. Prefers the indexer's authoritative slot field;
+ * falls back to timestamp derivation for responses from API deployments that
+ * predate the field.
+ */
+export function beaconSlotForBlob(
+  blob: Pick<BlobResponse, 'slot' | 'timestamp' | 'network_name'>
+): number | null {
+  if (typeof blob.slot === 'number' && Number.isInteger(blob.slot) && blob.slot >= 0) {
+    return blob.slot;
+  }
+  return deriveBeaconSlot(blob.timestamp, blob.network_name);
 }

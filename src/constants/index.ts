@@ -86,6 +86,13 @@ export const THEME = {
 };
 
 /**
+ * Attribution links for the raw blob viewer. Raw blob bytes are served by a
+ * self-hosted BlobArchive (bloar) follower node.
+ */
+export const BLOB_ARCHIVE_SITE_URL = 'https://blobarchive.net';
+export const BLOAR_REPO_URL = 'https://github.com/blobarchive/bloar';
+
+/**
  * Public registry mapping blob-submitting addresses to entities. Unattributed
  * user pages link here so visitors can contribute an attribution.
  */
