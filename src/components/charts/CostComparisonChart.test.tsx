@@ -19,7 +19,7 @@ describe('CostComparisonChart legend isolation', () => {
 
     expect(legendButton(/Blob Cost/)).toHaveAttribute('aria-pressed', 'true');
     expect(legendButton(/Calldata/)).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText('~94% savings')).toBeInTheDocument();
+    expect(screen.getByText('~94.00% savings')).toBeInTheDocument();
   });
 
   it('isolates a series on click and hides the savings summary', async () => {
@@ -30,7 +30,7 @@ describe('CostComparisonChart legend isolation', () => {
 
     expect(legendButton(/Blob Cost/)).toHaveAttribute('aria-pressed', 'true');
     expect(legendButton(/Calldata/)).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.queryByText('~94% savings')).not.toBeInTheDocument();
+    expect(screen.queryByText('~94.00% savings')).not.toBeInTheDocument();
   });
 
   it('switches isolation to the other series', async () => {
@@ -42,7 +42,7 @@ describe('CostComparisonChart legend isolation', () => {
 
     expect(legendButton(/Blob Cost/)).toHaveAttribute('aria-pressed', 'false');
     expect(legendButton(/Calldata/)).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.queryByText('~94% savings')).not.toBeInTheDocument();
+    expect(screen.queryByText('~94.00% savings')).not.toBeInTheDocument();
   });
 
   it('restores both series when the isolated series is clicked again', async () => {
@@ -54,6 +54,6 @@ describe('CostComparisonChart legend isolation', () => {
 
     expect(legendButton(/Blob Cost/)).toHaveAttribute('aria-pressed', 'true');
     expect(legendButton(/Calldata/)).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText('~94% savings')).toBeInTheDocument();
+    expect(screen.getByText('~94.00% savings')).toBeInTheDocument();
   });
 });

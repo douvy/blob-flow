@@ -42,10 +42,10 @@ export default function CostComparisonChart({ data }: CostComparisonChartProps) 
   };
 
   const avgSavings = useMemo(() => {
-    if (data.length === 0) return 0;
-    return Math.round(
+    if (data.length === 0) return '0.00';
+    return (
       data.reduce((sum, d) => sum + d.savingsPct, 0) / data.length
-    );
+    ).toFixed(2);
   }, [data]);
 
   return (

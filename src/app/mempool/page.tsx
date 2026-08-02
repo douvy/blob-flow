@@ -89,11 +89,12 @@ export default function MempoolPage() {
 
         {/*
           Every stat card is derived from the same live list the tables below
-          render, so the cards and tables always reconcile. The pressure
-          endpoint serves a periodic snapshot that can lag the live list by
-          several seconds, which made the cards contradict the tables. Likely
-          includable compares each entry's fee cap against the blob base fee
-          streamed with new_block events, matching the backend's rule.
+          render, so the cards and tables always reconcile. The retired
+          pressure endpoint served a periodic snapshot that lagged the live
+          list by several seconds, which made the cards contradict the tables.
+          Likely includable compares each entry's fee cap against the blob
+          base fee streamed with new_block events, matching the backend's
+          rule.
         */}
         <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard
