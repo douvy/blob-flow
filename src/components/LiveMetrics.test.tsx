@@ -111,6 +111,7 @@ const topUsersFixture: TopUsersResponse = {
       lastTimestamp: '2026-01-01T00:00:00.000Z',
     },
   ],
+  hasServerShares: true,
 };
 
 const statsWindowsFixture: BackendStatsWindowsResponse = {
@@ -389,6 +390,73 @@ describe('LiveMetrics', () => {
     // The headline cards keep rendering from the rolling window.
     expect(screen.getByText('1.50 Gwei')).toBeInTheDocument();
     expect(screen.getByText('#200')).toBeInTheDocument();
+  });
+
+  it('labels local fallback shares as top-N instead of claiming a share of all blobs', () => {
+    mockApiData(
+      { data: [makeRestBlock(200, 1), makeRestBlock(199, 2)] },
+      null,
+      pressureFixture,
+      null,
+      { data: topUsersFixture.data, hasServerShares: false }
+    );
+    renderLiveMetrics();
+
+    // The fallback denominator is only the returned rows, so "of total"
+    // would overstate the share.
+    expect(screen.getByText('1.2K blobs · 48.2% of top 10')).toBeInTheDocument();
+  });
+
+  it('drops the refresh-failed label when a live snapshot newer than the failure arrives', () => {
+    mockApiData(
+      { data: [makeRestBlock(200, 1), makeRestBlock(199, 2)] },
+      null,
+      pressureFixture,
+      null,
+      topUsersFixture,
+      new Error('users refresh failed')
+    );
+    renderLiveMetrics();
+
+    expect(screen.getByText('1.2K blobs · 48.2% of total · refresh failed')).toBeInTheDocument();
+
+    act(() => {
+      MockWebSocket.instances[0].open();
+      MockWebSocket.instances[0].receive(makeUsersUpdateMessage('1h'));
+    });
+
+    // The snapshot is fresher than the failed fetch, so the staleness label
+    // would misdescribe the rows on screen.
+    expect(screen.getByText('Optimism')).toBeInTheDocument();
+    expect(screen.getByText('900 blobs · 45% of total')).toBeInTheDocument();
+    expect(screen.queryByText(/refresh failed/)).not.toBeInTheDocument();
+  });
+
+  it('shows a loading description while an uncached window is fetching', () => {
+    vi.mocked(useApiData).mockImplementation((fetchFunction, queryKey) => {
+      const key = Array.isArray(queryKey) ? queryKey[0] : queryKey;
+      if (key === 'mempool-pressure') {
+        return { data: pressureFixture, isLoading: false, error: null, refetch: vi.fn() };
+      }
+      if (key === 'stats-windows') {
+        return { data: statsWindowsFixture, isLoading: false, error: null, refetch: vi.fn() };
+      }
+      if (key === 'top-users') {
+        return { data: undefined, isLoading: true, error: null, refetch: vi.fn() };
+      }
+      return {
+        data: { data: [makeRestBlock(200, 1)] },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      };
+    });
+    renderLiveMetrics();
+
+    // A range switch keys a fresh query; while it runs the card must not
+    // claim there is no data for the window.
+    expect(screen.getByText('Loading window data')).toBeInTheDocument();
+    expect(screen.queryByText('No user data yet')).not.toBeInTheDocument();
   });
 
   it('degrades the Top User card instead of the whole section when users are unavailable', () => {

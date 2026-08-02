@@ -37,7 +37,7 @@ export function transformUserResponses(usersResponse: UserResponse[]): TopUsersR
         };
     });
 
-    return { data: users };
+    return { data: users, hasServerShares };
 }
 
 /**

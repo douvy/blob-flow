@@ -163,16 +163,21 @@ export default function LiveMetrics() {
       title: `Top User (${timeRange})`,
       value: user ? user.name : '-',
       trend: 'neutral' as const,
-      // Mirrors the Top Blob Users table's Count and % of Total columns for
-      // the same window. A failed refetch keeps the last rows cached, so
-      // disclose the staleness like the Pending Blobs card does.
+      // Mirrors the Top Blob Users table's Count and share columns for the
+      // same window. The share denominator depends on the payload: server
+      // shares cover all blobs in the window, the local fallback covers only
+      // the returned rows, so the label must not overclaim. A failed refetch
+      // keeps the last rows cached, so disclose the staleness like the
+      // Pending Blobs card does.
       description: user
-        ? `${formatCompactNumber(user.dataCount)} blobs · ${user.percentage}% of total${
-          usersError ? ' · refresh failed' : ''
-        }`
-        : usersError
-          ? 'User data unavailable'
-          : 'No user data yet',
+        ? `${formatCompactNumber(user.dataCount)} blobs · ${user.percentage}% of ${
+          topUsers?.hasServerShares ? 'total' : `top ${TOP_USERS_LIMIT}`
+        }${usersError ? ' · refresh failed' : ''}`
+        : usersLoading
+          ? 'Loading window data'
+          : usersError
+            ? 'User data unavailable'
+            : 'No user data yet',
       icon: UserIcon,
       href: user ? `/user/${encodeURIComponent(user.address)}` : undefined,
       ariaLabel: user ? `View user ${user.name}` : undefined,

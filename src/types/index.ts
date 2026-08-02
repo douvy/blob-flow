@@ -452,6 +452,11 @@ export interface User {
 // Top users response (frontend-shaped)
 export interface TopUsersResponse {
   data: User[];
+  // True when every row's percentage is the server share of all blobs in the
+  // window; false when it is the local fallback share of just the returned
+  // rows. Consumers labeling the number must not claim "of total" for the
+  // fallback denominator.
+  hasServerShares?: boolean;
 }
 
 // Backend StatsResponse - matches api.StatsResponse from swagger
