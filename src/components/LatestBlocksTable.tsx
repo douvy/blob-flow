@@ -161,10 +161,11 @@ const blobDetailsNotIndexed = (
 
 function BlobDetailsRow({ block }: { block: Block }) {
   const { selectedNetwork } = useNetwork();
-  // The list fetch's blob feed serves at most the newest ~100 blobs no matter
-  // the requested limit, so blocks deeper in the list arrive with a blob count
-  // but no blob records. Backfill them from the per-block endpoint on expand;
-  // the query key matches the block detail page so the two share a cache.
+  // The blob feed behind the list fetch serves at most the newest ~100 blobs
+  // no matter the requested limit, so blocks deeper in the list arrive with a
+  // blob count but no blob records. Backfill them from the per-block endpoint
+  // on expand; the query key matches the block detail page so the two share a
+  // cache.
   const isMissingBlobs = block.blobs.length < block.blobCount;
   const { data: fetchedBlock, isLoading, error } = useApiData<Block | null>(
     () => api.getBlockByNumber(Number(block.number), selectedNetwork.apiParam),
