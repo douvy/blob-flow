@@ -2,78 +2,159 @@ import { getRawBlobs } from './blobs';
 
 const originalFetch = global.fetch;
 
+function makeBlob(id: number) {
+  return {
+    network_id: 1,
+    network_name: 'sepolia',
+    block_number: 100000 - Math.floor(id / 6),
+    blob_index: id % 6,
+    tx_hash: `0xtx${Math.floor(id / 6)}`,
+    from_address: '0x123',
+    blob_size_bytes: 131072,
+    base_fee_per_blob_gas: '1000000000',
+    tip_per_blob_gas: '100000000',
+    total_cost_eth: '500000000000000',
+    timestamp: '2026-01-01T12:00:00.000Z',
+    confirmed: true,
+  };
+}
+
+function makeBlobs(count: number, startId = 0) {
+  return Array.from({ length: count }, (_, i) => makeBlob(startId + i));
+}
+
+function mockFetchPages(...pages: unknown[][]) {
+  const fetchMock = vi.fn();
+  for (const page of pages) {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true, data: page }),
+    });
+  }
+  global.fetch = fetchMock as unknown as typeof fetch;
+  return fetchMock;
+}
+
+function dedupeKeys(blobs: Array<{ tx_hash: string; blob_index: number }>) {
+  return new Set(blobs.map((blob) => `${blob.tx_hash}:${blob.blob_index}`));
+}
+
 describe('api/blobs', () => {
   afterEach(() => {
     global.fetch = originalFetch;
   });
 
-  it('fetches raw blobs with default limit and returns data array', async () => {
-    const mockBlobs = [
-      {
-        network_id: 1,
-        network_name: 'sepolia',
-        block_number: 100,
-        blob_index: 0,
-        tx_hash: '0xabc',
-        from_address: '0x123',
-        blob_size_bytes: 131072,
-        base_fee_per_blob_gas: '1000000000',
-        tip_per_blob_gas: '100000000',
-        total_cost_eth: '500000000000000',
-        timestamp: '2026-01-01T12:00:00.000Z',
-        confirmed: true,
-      },
-    ];
-
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ success: true, data: mockBlobs }),
-    });
-
-    global.fetch = fetchMock as unknown as typeof fetch;
+  it('pages the feed in 100 row requests until the limit is collected', async () => {
+    const fetchMock = mockFetchPages(makeBlobs(100, 0), makeBlobs(100, 100));
 
     const result = await getRawBlobs(200, 'sepolia');
 
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('/blob/latest?limit=100&offset=0&network=sepolia'),
+      expect.any(Object)
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('/blob/latest?limit=100&offset=100&network=sepolia'),
+      expect.any(Object)
+    );
+    expect(result).toHaveLength(200);
+    expect(result[0].tx_hash).toBe('0xtx0');
+  });
+
+  it('returns a short feed unchanged from a single request', async () => {
+    const mockBlobs = makeBlobs(1);
+    const fetchMock = mockFetchPages(mockBlobs);
+
+    const result = await getRawBlobs(200);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/blob/latest?limit=200&network=sepolia'),
+      expect.stringContaining('/blob/latest?limit=100&offset=0'),
       expect.any(Object)
     );
     expect(result).toEqual(mockBlobs);
-    expect(result).toHaveLength(1);
-    expect(result[0].block_number).toBe(100);
   });
 
-  it('fetches with custom limit and no network', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ success: true, data: [] }),
-    });
-
-    global.fetch = fetchMock as unknown as typeof fetch;
+  it('stops paging when the feed runs dry before the limit', async () => {
+    const fetchMock = mockFetchPages(
+      makeBlobs(100, 0),
+      makeBlobs(100, 100),
+      makeBlobs(40, 200)
+    );
 
     const result = await getRawBlobs(500);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/blob/latest?limit=500'),
-      expect.any(Object)
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result).toHaveLength(240);
+  });
+
+  it('collects the full 500 blobs a caller asks for', async () => {
+    const fetchMock = mockFetchPages(
+      ...Array.from({ length: 5 }, (_, page) => makeBlobs(100, page * 100))
     );
-    expect(result).toEqual([]);
+
+    const result = await getRawBlobs(500);
+
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(result).toHaveLength(500);
+    expect(dedupeKeys(result).size).toBe(500);
+  });
+
+  it('dedupes rows that overlap across pages and trims to the limit', async () => {
+    // New blobs arriving between requests shift rows to higher offsets, so
+    // page two repeats the tail of page one.
+    const fetchMock = mockFetchPages(
+      makeBlobs(100, 0),
+      makeBlobs(100, 50),
+      makeBlobs(100, 150)
+    );
+
+    const result = await getRawBlobs(200);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result).toHaveLength(200);
+    expect(dedupeKeys(result).size).toBe(200);
+    // Every requested row is kept, newest first, with the repeats removed
+    // rather than newer rows being displaced by older unique ones.
+    expect(result).toEqual(makeBlobs(200, 0));
+  });
+
+  it('keeps paging past the minimum when overlap eats into each page', async () => {
+    // A quarter of every page after the first repeats rows already seen, so
+    // the minimum five pages only yield 400 of the 500 requested.
+    const fetchMock = mockFetchPages(
+      ...Array.from({ length: 7 }, (_, page) =>
+        makeBlobs(100, page === 0 ? 0 : page * 75)
+      )
+    );
+
+    const result = await getRawBlobs(500);
+
+    expect(fetchMock).toHaveBeenCalledTimes(7);
+    expect(result).toHaveLength(500);
+    expect(dedupeKeys(result).size).toBe(500);
+  });
+
+  it('stops early when a full page contributes nothing new', async () => {
+    const samePage = makeBlobs(100);
+    const fetchMock = mockFetchPages(samePage, samePage, samePage, samePage);
+
+    const result = await getRawBlobs(200);
+
+    // Second page repeats the first, so there is no point asking for a third.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(100);
   });
 
   it('uses default limit of 200 when no limit specified', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ success: true, data: [] }),
-    });
+    const fetchMock = mockFetchPages(makeBlobs(100, 0), makeBlobs(100, 100));
 
-    global.fetch = fetchMock as unknown as typeof fetch;
+    const result = await getRawBlobs();
 
-    await getRawBlobs();
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/blob/latest?limit=200'),
-      expect.any(Object)
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(200);
   });
-
 });
