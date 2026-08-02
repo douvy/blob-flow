@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RawBlobActions from './RawBlobActions';
 import { checkRawBlobAvailability } from '../lib/api/rawBlob';
@@ -41,10 +41,14 @@ describe('RawBlobActions', () => {
     checkAvailabilityMock.mockReset();
   });
 
-  it('links a direct download with bloar attribution when available', async () => {
+  it('shows View raw and a direct download with bloar attribution when available', async () => {
     checkAvailabilityMock.mockResolvedValue('available');
+    const onViewRaw = vi.fn();
 
-    renderWithClient(<RawBlobActions blob={blobFixture} />);
+    renderWithClient(<RawBlobActions blob={blobFixture} onViewRaw={onViewRaw} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View raw' }));
+    expect(onViewRaw).toHaveBeenCalledTimes(1);
 
     const download = await screen.findByRole('link', { name: /Download/ });
     expect(download).toHaveAttribute(
@@ -59,31 +63,37 @@ describe('RawBlobActions', () => {
     expect(screen.getByText(/provided by/)).toBeInTheDocument();
   });
 
-  it('shows Pending instead of a link while the archive catches up', async () => {
+  it('shows Archive pending instead of the actions while the archive catches up', async () => {
     checkAvailabilityMock.mockResolvedValue('pending');
 
-    renderWithClient(<RawBlobActions blob={blobFixture} />);
+    renderWithClient(<RawBlobActions blob={blobFixture} onViewRaw={() => {}} />);
 
-    expect(await screen.findByText('Pending')).toBeInTheDocument();
+    expect(await screen.findByText('Archive pending')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'View raw' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Download/ })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'bloar' })).toBeInTheDocument();
   });
 
   it('renders nothing for absent blobs and failed probes', async () => {
     checkAvailabilityMock.mockResolvedValue('missing');
-    const { container } = renderWithClient(<RawBlobActions blob={blobFixture} />);
+    const { container } = renderWithClient(
+      <RawBlobActions blob={blobFixture} onViewRaw={() => {}} />
+    );
     await waitFor(() => expect(checkAvailabilityMock).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
 
     checkAvailabilityMock.mockResolvedValue('error');
-    const second = renderWithClient(<RawBlobActions blob={blobFixture} />);
+    const second = renderWithClient(<RawBlobActions blob={blobFixture} onViewRaw={() => {}} />);
     await waitFor(() => expect(checkAvailabilityMock).toHaveBeenCalledTimes(2));
     expect(second.container).toBeEmptyDOMElement();
   });
 
   it('renders nothing when the blob cannot be located in a slot', () => {
     const { container } = renderWithClient(
-      <RawBlobActions blob={{ ...blobFixture, slot: undefined, versioned_hash: undefined }} />
+      <RawBlobActions
+        blob={{ ...blobFixture, slot: undefined, versioned_hash: undefined }}
+        onViewRaw={() => {}}
+      />
     );
     expect(container).toBeEmptyDOMElement();
     expect(checkAvailabilityMock).not.toHaveBeenCalled();

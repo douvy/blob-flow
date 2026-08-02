@@ -116,21 +116,15 @@ export function BlobDetailsContent({ block }: { block: Block }) {
             return (
               <div key={`${blob.tx_hash}-${blob.blob_index}`} className="py-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     <div className="text-sm font-mono text-white">Blob #{blob.blob_index}</div>
                     {archiveAvailable && canViewRawBlob(blob) && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setRawBlobKey({ txHash: blob.tx_hash, blobIndex: blob.blob_index })
-                          }
-                          className="rounded border border-divider px-2 py-0.5 text-xs text-[#b8bdc7] transition-colors hover:border-[#3B55E6] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#3B55E6]"
-                        >
-                          View raw
-                        </button>
-                        <RawBlobActions blob={blob} />
-                      </>
+                      <RawBlobActions
+                        blob={blob}
+                        onViewRaw={() =>
+                          setRawBlobKey({ txHash: blob.tx_hash, blobIndex: blob.blob_index })
+                        }
+                      />
                     )}
                   </div>
                   <BlobUserCell blob={blob} />
