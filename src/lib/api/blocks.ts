@@ -95,6 +95,49 @@ export function transformBlobResponsesToBlocks(blobsResponse: BlobResponse[]): L
     return { data: blocks };
 }
 
+// The indexer returns at most this many rows per /blob/latest request no
+// matter how large a limit is requested, so covering a block window means
+// paging with the offset parameter.
+const BLOB_FEED_PAGE_SIZE = 100;
+
+/**
+ * Fetch the blob feed newest-first until it reaches past oldestBlockNumber
+ * (or runs dry). The feed is ordered by block descending, so once a page
+ * contains a blob older than the window every block in the window has all
+ * of its blobs.
+ */
+async function fetchBlobsForBlockWindow(
+    oldestBlockNumber: number,
+    maxPages: number,
+    network?: string
+): Promise<BlobResponse[]> {
+    const blobs: BlobResponse[] = [];
+    const seenBlobKeys = new Set<string>();
+
+    for (let page = 0; page < maxPages; page++) {
+        const response = await fetchApi<ApiResponse<BlobResponse[]>>(
+            `/blob/latest?limit=${BLOB_FEED_PAGE_SIZE}&offset=${page * BLOB_FEED_PAGE_SIZE}`,
+            network
+        );
+        const rows = response.data;
+
+        // Blobs arriving between page requests shift older rows to higher
+        // offsets, so consecutive pages can overlap; keep each blob once.
+        for (const blob of rows) {
+            const key = `${blob.tx_hash}:${blob.blob_index}`;
+            if (seenBlobKeys.has(key)) continue;
+            seenBlobKeys.add(key);
+            blobs.push(blob);
+        }
+
+        if (rows.length < BLOB_FEED_PAGE_SIZE) break;
+        const oldestFetched = Math.min(...rows.map((blob) => blob.block_number));
+        if (oldestFetched < oldestBlockNumber) break;
+    }
+
+    return blobs;
+}
+
 /**
  * Get latest blocks with pricing and capacity details.
  * @param limit - Number of blocks to fetch
@@ -105,14 +148,23 @@ export async function getLatestBlocks(limit = 20, network?: string): Promise<Lat
         `/blob/pricing?blocks=${limit}`,
         network
     );
-    const blobLimit = Math.max(limit * pricingResponse.data.blob_params.max, limit);
-    const latestBlobsResponse = await fetchApi<ApiResponse<BlobResponse[]>>(
-        `/blob/latest?limit=${blobLimit}`,
-        network
+    const recentBlocks = pricingResponse.data.recent_blocks.slice(0, limit);
+    const oldestBlockNumber = recentBlocks.reduce(
+        (oldest, block) => Math.min(oldest, block.block_number),
+        Infinity
     );
+    // limit * max_blobs bounds how many blobs the window can hold; one extra
+    // page absorbs blobs from blocks newer than the pricing snapshot. The
+    // early exits in fetchBlobsForBlockWindow stop far sooner in practice.
+    const maxPages = Math.ceil(
+        Math.max(limit * pricingResponse.data.blob_params.max, limit) / BLOB_FEED_PAGE_SIZE
+    ) + 1;
+    const windowBlobs = recentBlocks.length > 0
+        ? await fetchBlobsForBlockWindow(oldestBlockNumber, maxPages, network)
+        : [];
 
     const blobsByBlock = new Map<number, BlobResponse[]>();
-    for (const blob of latestBlobsResponse.data) {
+    for (const blob of windowBlobs) {
         if (blob.block_number < 0) continue;
 
         const blobs = blobsByBlock.get(blob.block_number) || [];
@@ -120,7 +172,7 @@ export async function getLatestBlocks(limit = 20, network?: string): Promise<Lat
         blobsByBlock.set(blob.block_number, blobs);
     }
 
-    const blocks: Block[] = pricingResponse.data.recent_blocks.slice(0, limit).map((block) => {
+    const blocks: Block[] = recentBlocks.map((block) => {
         const blobs = blobsByBlock.get(block.block_number) || [];
 
         return transformNewBlockData({
