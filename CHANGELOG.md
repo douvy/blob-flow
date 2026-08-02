@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.7.1](https://github.com/douvy/blob-flow/compare/v1.7.0...v1.7.1) (2026-08-02)
+
+
+### Bug Fixes
+
+* clarify the raw blob archive pending state ([#223](https://github.com/douvy/blob-flow/issues/223)) ([6fd4487](https://github.com/douvy/blob-flow/commit/6fd448749ebb9a23c92b9012b8ae1a41b62df81d))
+* derive pending blob counts from the live mempool list ([#226](https://github.com/douvy/blob-flow/issues/226)) ([8a369ad](https://github.com/douvy/blob-flow/commit/8a369ad362073307a70f0b2dbcc00ee00282a8a6))
+* measure FLIP row positions relative to the tbody ([#221](https://github.com/douvy/blob-flow/issues/221)) ([eea528d](https://github.com/douvy/blob-flow/commit/eea528d2eaec4d60b0ccd53e1372fe15daae7211))
+* overlay the testnet network name on entity icons ([#227](https://github.com/douvy/blob-flow/issues/227)) ([026e1b7](https://github.com/douvy/blob-flow/commit/026e1b7c5208978486aab8b2af448e262194560f))
+* show a friendly empty state for users with no activity on the selected network ([#225](https://github.com/douvy/blob-flow/issues/225)) ([c78ba50](https://github.com/douvy/blob-flow/commit/c78ba500756d4d906ea7e4597a8adc704f010369))
+* show the average savings chip with two decimal places ([#224](https://github.com/douvy/blob-flow/issues/224)) ([bb0828b](https://github.com/douvy/blob-flow/commit/bb0828b85f4785d3b2273b01f661e116d518862b))
+
+
+### Dependencies
+
+* **deps:** bump actions/setup-node from 6 to 7 ([#205](https://github.com/douvy/blob-flow/issues/205)) ([a27e5d0](https://github.com/douvy/blob-flow/commit/a27e5d030d8ec4b016f950ff46416a72cb9012d1))
+
 ## [1.7.0](https://github.com/douvy/blob-flow/compare/v1.6.1...v1.7.0) (2026-08-02)
 
 
