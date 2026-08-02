@@ -48,11 +48,17 @@ import {
   type HeroStripBucket,
 } from '@/lib/blobFeeHero';
 import { useApiData } from '@/hooks/useApiData';
+import { useLatestBlobBaseFee } from '@/hooks/useLatestBlobBaseFee';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useMempoolPressure } from '@/hooks/useMempoolPressure';
+import { useMempoolLiveList } from '@/hooks/useMempoolLiveList';
 import { useNetwork } from '@/hooks/useNetwork';
 import { useNow } from '@/hooks/useNow';
 import { useBlobWebSocket, useLiveBlobEvent } from '@/contexts/LiveDataContext';
+import { MEMPOOL_SAMPLE_LIMIT } from '@/constants';
+import {
+  aggregateMempoolAttribution,
+  countLikelyIncludable,
+} from '@/lib/mempoolAttribution';
 import { formatRelativeTime } from '@/lib/api/core';
 import DataStateWrapper from './DataStateWrapper';
 import {
@@ -635,10 +641,27 @@ export default function BlobFeeHero() {
     { enabled: !isLiveRange }
   );
 
-  // Mempool demand signal. Also optional. Reads the shared pressure snapshot
-  // so the Pending stat matches Live Metrics and the /mempool page.
-  const { data: mempoolPressure, error: mempoolPressureError } =
-    useMempoolPressure(network);
+  // Mempool demand signal. Also optional. Derives from the same live list
+  // (and cache entry) as the Mempool strip, Live Metrics, and the /mempool
+  // page, so the Pending stat matches those surfaces instead of lagging
+  // them the way the retired pressure snapshot did.
+  const {
+    transactions: mempoolTransactions,
+    truncated: mempoolTruncated,
+    error: mempoolError,
+  } = useMempoolLiveList(MEMPOOL_SAMPLE_LIMIT, network);
+  const mempoolSummary = useMemo(
+    () => aggregateMempoolAttribution(mempoolTransactions ?? []),
+    [mempoolTransactions]
+  );
+  // Priced with the same live blob base fee as /mempool's Likely includable
+  // card; shares the ['blob-pricing-head', network] cache entry fetched
+  // above, so mounting the extra hook costs no additional request.
+  const latestBlobBaseFeeWei = useLatestBlobBaseFee(network);
+  const likelyIncludable = useMemo(
+    () => countLikelyIncludable(mempoolTransactions ?? [], latestBlobBaseFeeWei),
+    [mempoolTransactions, latestBlobBaseFeeWei]
+  );
 
   // Blocks accumulated live from the WebSocket between pricing refetches.
   const [liveState, setLiveState] = useState<{
@@ -945,12 +968,18 @@ export default function BlobFeeHero() {
                   />
                   <PressureStat
                     label="Pending"
-                    value={mempoolPressure ? mempoolPressure.pendingBlobCount.toLocaleString() : '-'}
+                    value={
+                      mempoolTransactions
+                        ? `${mempoolSummary.blobCount.toLocaleString()}${mempoolTruncated ? '+' : ''}`
+                        : '-'
+                    }
                     hint={
-                      mempoolPressure
-                        ? `${mempoolPressure.includability.likelyIncludableCount} includable${
-                          mempoolPressureError ? ' · refresh failed' : ''
-                        }`
+                      mempoolTransactions
+                        ? `${
+                          likelyIncludable !== null
+                            ? `${likelyIncludable.toLocaleString()}${mempoolTruncated ? '+' : ''} includable`
+                            : 'mempool blobs'
+                        }${mempoolError ? ' · refresh failed' : ''}`
                         : 'mempool blobs'
                     }
                   />
