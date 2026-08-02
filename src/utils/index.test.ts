@@ -1,6 +1,8 @@
 import {
   assignSeriesColors,
   attributionColorKey,
+  beaconSlotForBlob,
+  deriveBeaconSlot,
   formatBlobCount,
   formatBlobFee,
   formatBlobSize,
@@ -336,5 +338,59 @@ describe('attributionColorKey', () => {
     expect(attributionColorKey('Base')).toBe('base');
     expect(attributionColorKey('Robinhood Chain')).toBe('robinhood_chain');
     expect(attributionColorKey('  X Layer  ')).toBe('x_layer');
+  });
+});
+
+describe('deriveBeaconSlot', () => {
+  it('maps the mainnet beacon genesis timestamp to slot 0', () => {
+    expect(deriveBeaconSlot('2020-12-01T12:00:23Z', 'mainnet')).toBe(0);
+  });
+
+  it('advances one slot every 12 seconds on mainnet', () => {
+    expect(deriveBeaconSlot('2020-12-01T12:00:35Z', 'mainnet')).toBe(1);
+    expect(deriveBeaconSlot('2020-12-01T12:20:23Z', 'mainnet')).toBe(100);
+  });
+
+  it('maps the sepolia beacon genesis timestamp to slot 0', () => {
+    expect(deriveBeaconSlot('2022-06-20T14:00:00Z', 'sepolia')).toBe(0);
+    expect(deriveBeaconSlot('2022-06-20T14:00:12Z', 'sepolia')).toBe(1);
+  });
+
+  it('is case-insensitive about the network name', () => {
+    expect(deriveBeaconSlot('2020-12-01T12:00:23Z', 'Mainnet')).toBe(0);
+  });
+
+  it('floors timestamps that fall inside a slot', () => {
+    expect(deriveBeaconSlot('2020-12-01T12:00:30Z', 'mainnet')).toBe(0);
+  });
+
+  it('returns null for networks without a known beacon genesis', () => {
+    expect(deriveBeaconSlot('2024-01-01T00:00:00Z', 'holesky')).toBeNull();
+  });
+
+  it('returns null for pre-genesis and unparseable timestamps', () => {
+    expect(deriveBeaconSlot('2020-01-01T00:00:00Z', 'mainnet')).toBeNull();
+    expect(deriveBeaconSlot('not-a-date', 'mainnet')).toBeNull();
+  });
+});
+
+describe('beaconSlotForBlob', () => {
+  const base = { timestamp: '2020-12-01T12:20:23Z', network_name: 'mainnet' };
+
+  it('prefers the indexer-provided slot over derivation', () => {
+    expect(beaconSlotForBlob({ ...base, slot: 999 })).toBe(999);
+    expect(beaconSlotForBlob({ ...base, slot: 0 })).toBe(0);
+  });
+
+  it('falls back to timestamp derivation when slot is absent or invalid', () => {
+    expect(beaconSlotForBlob(base)).toBe(100);
+    expect(beaconSlotForBlob({ ...base, slot: -1 })).toBe(100);
+    expect(beaconSlotForBlob({ ...base, slot: 1.5 })).toBe(100);
+  });
+
+  it('returns null when neither slot nor a derivable timestamp exists', () => {
+    expect(
+      beaconSlotForBlob({ timestamp: 'not-a-date', network_name: 'holesky' })
+    ).toBeNull();
   });
 });
