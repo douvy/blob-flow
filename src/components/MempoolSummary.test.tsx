@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { DEFAULT_NETWORK } from '../constants';
+import { DEFAULT_NETWORK, MEMPOOL_SAMPLE_LIMIT } from '../constants';
 import { LiveDataProvider } from '../contexts/LiveDataContext';
 import { api } from '../lib/api';
 import { useNetwork } from '../hooks/useNetwork';
@@ -97,6 +97,24 @@ describe('MempoolSummary', () => {
     const link = await screen.findByRole('link', { name: /^Mempool:/ });
     expect(link).toHaveAttribute('href', '/mempool');
     expect(link).toHaveTextContent('2 tx · 3 blobs · 384 KB');
+  });
+
+  it('marks every count as a lower bound when the sample is truncated', async () => {
+    // A response that fills the sample marks the snapshot truncated: the
+    // true totals are at least what was counted, and the Pending Blobs card
+    // renders the same blob count with a "+", so the strip must too.
+    vi.mocked(api.getMempool).mockResolvedValue({
+      data: Array.from({ length: MEMPOOL_SAMPLE_LIMIT }, (_, index) =>
+        transformBlobToMempoolTransaction(
+          makeBlob({ tx_hash: `0x${index.toString(16).padStart(4, '0')}` }),
+          index
+        )
+      ),
+    });
+    renderMempoolSummary();
+
+    const link = await screen.findByRole('link', { name: /^Mempool:/ });
+    expect(link).toHaveTextContent('50+ tx · 50+ blobs · 6.3 MB+');
   });
 
   it('shows the per-sender breakdown and private-mempool caveat on hover', async () => {

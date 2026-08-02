@@ -20,7 +20,7 @@ const DEFAULT_MAX_RECONNECT_DELAY_MS = 30000;
 const DEFAULT_STALE_TIMEOUT_MS = 45000;
 
 // stats_update is intentionally absent: nothing consumes it since pending
-// blob counts moved to the shared mempool pressure snapshot. Subscribe to it
+// blob counts are derived from the live mempool list. Subscribe to it
 // explicitly if a consumer returns.
 export const DEFAULT_BLOB_WEBSOCKET_SUBSCRIPTIONS: SubscribableBlobEventType[] = [
   'new_block',

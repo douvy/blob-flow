@@ -9,12 +9,13 @@ import { selectRollingWindow, transformStatsWindows } from '../lib/chartAggregat
 import {
   BackendStatsWindowsResponse,
   Block,
-  MempoolPressure,
   RollingWindowDataPoint,
   User,
 } from '../types';
 import DataStateWrapper from './DataStateWrapper';
-import { useMempoolPressure } from '../hooks/useMempoolPressure';
+import { MEMPOOL_SAMPLE_LIMIT } from '../constants';
+import { aggregateMempoolAttribution } from '../lib/mempoolAttribution';
+import { useMempoolLiveList } from '../hooks/useMempoolLiveList';
 import { useNetwork } from '../hooks/useNetwork';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { useLiveBlockList } from '../hooks/useLiveBlockList';
@@ -72,15 +73,23 @@ export default function LiveMetrics() {
     error: windowsError,
   } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, ['stats-windows', network]);
 
-  // Pending Blobs reads the shared mempool pressure snapshot, the same cache
-  // entry behind the hero's Pending stat and the /mempool page, so those
-  // numbers can never disagree. Optional: the card degrades to "-" if the
-  // pressure endpoint is down.
+  // Pending Blobs derives from the same live mempool list (and cache entry)
+  // as the homepage Mempool strip and the /mempool page, so the surfaces
+  // cannot disagree. The pressure endpoint used to feed this card, but its
+  // periodic snapshot lagged the event-applied list by several seconds and
+  // the counts visibly contradicted the strip. Optional: the card degrades
+  // to "-" if the mempool endpoint is down.
   const {
-    data: mempoolPressure,
-    isLoading: pressureLoading,
-    error: pressureError,
-  } = useMempoolPressure(network);
+    transactions: mempoolTransactions,
+    truncated: mempoolTruncated,
+    isLoading: mempoolLoading,
+    error: mempoolError,
+  } = useMempoolLiveList(MEMPOOL_SAMPLE_LIMIT, network);
+
+  const mempoolSummary = useMemo(
+    () => aggregateMempoolAttribution(mempoolTransactions ?? []),
+    [mempoolTransactions]
+  );
 
   // The rolling sample behind Latest Block: every live block is folded over
   // the REST baseline, so long sessions keep a current sample instead of
@@ -120,7 +129,6 @@ export default function LiveMetrics() {
   const now = useNow();
 
   const getMetrics = (
-    pressure: MempoolPressure | undefined,
     window: RollingWindowDataPoint,
     block: Block | undefined,
     user: User | null,
@@ -145,15 +153,19 @@ export default function LiveMetrics() {
     },
     {
       title: 'Pending Blobs',
-      value: pressure ? formatCompactNumber(pressure.pendingBlobCount) : '-',
+      value: mempoolTransactions
+        ? `${formatCompactNumber(mempoolSummary.blobCount)}${mempoolTruncated ? '+' : ''}`
+        : '-',
       trend: 'neutral' as const,
-      // A failed refetch keeps the last snapshot on screen (React Query
-      // retains data on error), so disclose the staleness like the mempool
-      // strip does instead of silently presenting an old count as current.
-      description: pressure
-        ? `${formatCompactNumber(pressure.pendingUniqueSenders)} senders · public mempool${
-          pressureError ? ' · refresh failed' : ''
-        }`
+      // Under truncation the counts are lower bounds, marked "+" like the
+      // /mempool stat cards. A failed refetch keeps the last list on screen
+      // (React Query retains data on error), so disclose the staleness like
+      // the mempool strip does instead of silently presenting an old count
+      // as current.
+      description: mempoolTransactions
+        ? `${formatCompactNumber(mempoolSummary.uniqueSenderCount)}${
+          mempoolTruncated ? '+' : ''
+        } senders · public mempool${mempoolError ? ' · refresh failed' : ''}`
         : 'public mempool',
       icon: Hourglass,
       href: '/mempool',
@@ -184,7 +196,7 @@ export default function LiveMetrics() {
     },
   ];
 
-  const isLoading = windowsLoading || pressureLoading || blocksLoading || usersLoading;
+  const isLoading = windowsLoading || mempoolLoading || blocksLoading || usersLoading;
   const headlineError = windowsError;
   const haveHeadline = Boolean(selectedWindow);
 
@@ -211,7 +223,7 @@ export default function LiveMetrics() {
       >
         {selectedWindow && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {getMetrics(mempoolPressure, selectedWindow, latestBlock, topUser).map((metric, index) => (
+            {getMetrics(selectedWindow, latestBlock, topUser).map((metric, index) => (
               <MetricCard
                 key={index}
                 title={metric.title}

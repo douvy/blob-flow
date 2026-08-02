@@ -1,17 +1,18 @@
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { DEFAULT_NETWORK } from '../constants';
+import { DEFAULT_NETWORK, MEMPOOL_SAMPLE_LIMIT } from '../constants';
 import { LiveDataProvider } from '../contexts/LiveDataContext';
 import { useApiData } from '../hooks/useApiData';
 import { useNetwork } from '../hooks/useNetwork';
+import { transformBlobToMempoolTransaction } from '../lib/api/mempool';
 import {
   BackendStatsWindowsResponse,
   BackendUsersRange,
   BlobResponse,
   Block,
   LatestBlocksResponse,
-  MempoolPressure,
+  MempoolTransaction,
   TopUsersResponse,
 } from '../types';
 import LiveMetrics from './LiveMetrics';
@@ -53,39 +54,28 @@ class MockWebSocket {
   }
 }
 
-const pressureFixture: MempoolPressure = {
-  networkId: 1,
-  networkName: 'mainnet',
-  pendingBlobCount: 1200,
-  pendingBlobGas: 1200 * 131072,
-  pendingUniqueSenders: 12,
-  feeDistribution: {
-    min: '1.00',
-    avg: '1.50',
-    median: '1.25',
-    p95: '2.00',
-    max: '2.50',
-  },
-  pendingTransactionAge: {
-    oldest: '2m',
-    newest: '5s',
-    average: '1m',
-    oldestSeconds: 120,
-    newestSeconds: 5,
-    averageSeconds: 60,
-    oldestTimestamp: '2026-01-01T00:00:00.000Z',
-    newestTimestamp: '2026-01-01T00:01:55.000Z',
-  },
-  includability: {
-    latestBlobBaseFee: '1.00',
-    pricingAvailable: true,
-    likelyIncludableCount: 1180,
-    underpricedCount: 20,
-    unknownPricingCount: 0,
-  },
-  sampleLimit: 50,
-  sampleTruncated: false,
-  generatedAt: '2026-01-01T00:02:00.000Z',
+/** Shape of the useMempoolLiveList cache entry the card reads. */
+interface MempoolSnapshotFixture {
+  data: MempoolTransaction[];
+  truncated: boolean;
+}
+
+function makeMempoolEntry(txHash: string, fromAddress: string): MempoolTransaction {
+  return transformBlobToMempoolTransaction(
+    { ...makeBlob(0, 0), tx_hash: txHash, from_address: fromAddress, confirmed: false },
+    0
+  );
+}
+
+// Three pending blobs from two senders: the card should read "3" and
+// "2 senders".
+const mempoolFixture: MempoolSnapshotFixture = {
+  data: [
+    makeMempoolEntry('0xa1', '0x1111111111111111111111111111111111111111'),
+    makeMempoolEntry('0xa2', '0x1111111111111111111111111111111111111111'),
+    makeMempoolEntry('0xa3', '0x2222222222222222222222222222222222222222'),
+  ],
+  truncated: false,
 };
 
 const topUsersFixture: TopUsersResponse = {
@@ -233,18 +223,18 @@ function makeUsersUpdateMessage(range: BackendUsersRange): string {
 function mockApiData(
   latestBlocks: LatestBlocksResponse | undefined,
   blocksError: Error | null = null,
-  pressure: MempoolPressure | null = pressureFixture,
-  pressureError: Error | null = null,
+  mempool: MempoolSnapshotFixture | null = mempoolFixture,
+  mempoolError: Error | null = null,
   topUsers: TopUsersResponse | null = topUsersFixture,
   topUsersError: Error | null = null
 ) {
   vi.mocked(useApiData).mockImplementation((fetchFunction, queryKey) => {
     const key = Array.isArray(queryKey) ? queryKey[0] : queryKey;
-    if (key === 'mempool-pressure') {
+    if (key === 'mempool') {
       return {
-        data: pressure ?? undefined,
+        data: mempool ?? undefined,
         isLoading: false,
-        error: pressureError,
+        error: mempoolError,
         refetch: vi.fn(),
       };
     }
@@ -298,11 +288,11 @@ describe('LiveMetrics', () => {
       ['latest-blocks', DEFAULT_NETWORK.apiParam, 30]
     );
 
-    // Pending Blobs must read the shared pressure cache entry (the same key
-    // the hero and /mempool use), so the homepage shows one snapshot.
+    // Pending Blobs must read the same live-list cache entry as the Mempool
+    // strip and the /mempool page, so the homepage counts reconcile.
     expect(vi.mocked(useApiData)).toHaveBeenCalledWith(
       expect.any(Function),
-      ['mempool-pressure', DEFAULT_NETWORK.apiParam],
+      ['mempool', DEFAULT_NETWORK.apiParam, MEMPOOL_SAMPLE_LIMIT],
       expect.objectContaining({ refetchInterval: expect.any(Number) })
     );
 
@@ -320,8 +310,8 @@ describe('LiveMetrics', () => {
     expect(screen.getByText('#200')).toBeInTheDocument();
     expect(screen.getByText(/^1\/6 blobs/)).toBeInTheDocument();
 
-    expect(screen.getByText('1.2K')).toBeInTheDocument();
-    expect(screen.getByText('12 senders · public mempool')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('2 senders · public mempool')).toBeInTheDocument();
 
     expect(screen.getByText('Top User (1h)')).toBeInTheDocument();
     expect(screen.getByText('Base')).toBeInTheDocument();
@@ -362,24 +352,38 @@ describe('LiveMetrics', () => {
     expect(screen.getByText('900 blobs · 45% of total')).toBeInTheDocument();
   });
 
-  it('discloses a failed pressure refetch instead of presenting the stale count as current', () => {
+  it('discloses a failed mempool refetch instead of presenting the stale count as current', () => {
     mockApiData(
       { data: [makeRestBlock(200, 1), makeRestBlock(199, 2)] },
       null,
-      pressureFixture,
-      new Error('pressure refetch failed')
+      mempoolFixture,
+      new Error('mempool refetch failed')
     );
     renderLiveMetrics();
 
-    // React Query keeps the last snapshot on error; the hero renders the same
+    // React Query keeps the last list on error; the strip renders the same
     // cache entry, so the value stays visible but the staleness is labeled.
-    expect(screen.getByText('1.2K')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
     expect(
-      screen.getByText('12 senders · public mempool · refresh failed')
+      screen.getByText('2 senders · public mempool · refresh failed')
     ).toBeInTheDocument();
   });
 
-  it('degrades the pending blobs card instead of the whole section when pressure is unavailable', () => {
+  it('marks pending counts as lower bounds when the sample is truncated', () => {
+    mockApiData(
+      { data: [makeRestBlock(200, 1), makeRestBlock(199, 2)] },
+      null,
+      { ...mempoolFixture, truncated: true }
+    );
+    renderLiveMetrics();
+
+    // A full sample means "at least this many": mirror the /mempool cards'
+    // "+" instead of presenting the sample cap as an exact count.
+    expect(screen.getByText('3+')).toBeInTheDocument();
+    expect(screen.getByText('2+ senders · public mempool')).toBeInTheDocument();
+  });
+
+  it('degrades the pending blobs card instead of the whole section when the mempool is unavailable', () => {
     mockApiData({ data: [makeRestBlock(200, 1), makeRestBlock(199, 2)] }, null, null);
     renderLiveMetrics();
 
@@ -396,7 +400,7 @@ describe('LiveMetrics', () => {
     mockApiData(
       { data: [makeRestBlock(200, 1), makeRestBlock(199, 2)] },
       null,
-      pressureFixture,
+      mempoolFixture,
       null,
       { data: topUsersFixture.data, hasServerShares: false }
     );
@@ -411,7 +415,7 @@ describe('LiveMetrics', () => {
     mockApiData(
       { data: [makeRestBlock(200, 1), makeRestBlock(199, 2)] },
       null,
-      pressureFixture,
+      mempoolFixture,
       null,
       topUsersFixture,
       new Error('users refresh failed')
@@ -435,8 +439,8 @@ describe('LiveMetrics', () => {
   it('shows a loading description while an uncached window is fetching', () => {
     vi.mocked(useApiData).mockImplementation((fetchFunction, queryKey) => {
       const key = Array.isArray(queryKey) ? queryKey[0] : queryKey;
-      if (key === 'mempool-pressure') {
-        return { data: pressureFixture, isLoading: false, error: null, refetch: vi.fn() };
+      if (key === 'mempool') {
+        return { data: mempoolFixture, isLoading: false, error: null, refetch: vi.fn() };
       }
       if (key === 'stats-windows') {
         return { data: statsWindowsFixture, isLoading: false, error: null, refetch: vi.fn() };
@@ -463,7 +467,7 @@ describe('LiveMetrics', () => {
     mockApiData(
       { data: [makeRestBlock(200, 1), makeRestBlock(199, 2)] },
       null,
-      pressureFixture,
+      mempoolFixture,
       null,
       null,
       new Error('users fetch failed')
