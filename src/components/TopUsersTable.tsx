@@ -18,11 +18,10 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table';
-import { useApiData } from '../hooks/useApiData';
-import { api } from '../lib/api';
-import { BackendUsersRange, TopUsersResponse, User } from '../types';
+import { BackendUsersRange, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
+import { useTopUsers } from '../hooks/useTopUsers';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import {
   assignSeriesColors,
@@ -31,8 +30,6 @@ import {
   getAttributionInitial,
   type SeriesColorInput,
 } from '../utils';
-import { useLiveBlobEvent } from '../contexts/LiveDataContext';
-import { transformUserResponses } from '../lib/api/users';
 import {
   Table,
   TableBody,
@@ -138,33 +135,14 @@ export default function TopUsersTable() {
     { id: 'dataCount', desc: true },
   ]);
 
-  const { data, isLoading, error } = useApiData<TopUsersResponse>(
-    () => api.getTopUsers(10, selectedNetwork.apiParam, usersRange),
-    ['top-users', selectedNetwork.apiParam, 10, usersRange]
-  );
-
-  // Live events carry the window they aggregate over; one scoped to a
-  // different window or network must never overwrite this view. Snapshots are
-  // stored with their scope and consulted only while it matches, so a scope
-  // switch falls back to the REST data on that same render (an effect-based
-  // reset alone would paint one frame of the old window's rows first).
-  const liveScopeKey = `${selectedNetwork.apiParam}:${usersRange}`;
-  const [liveUpdate, setLiveUpdate] = React.useState<{
-    scopeKey: string;
-    data: TopUsersResponse;
-  } | null>(null);
-  useLiveBlobEvent('users_update', (event) => {
-    if (event.range === usersRange) {
-      setLiveUpdate({ scopeKey: liveScopeKey, data: transformUserResponses(event.data) });
-    }
-  });
-  React.useEffect(() => {
-    // Drop snapshots from a previous scope so returning to it later starts
-    // from fresh REST data instead of the stale snapshot.
-    setLiveUpdate((current) => (current && current.scopeKey !== liveScopeKey ? null : current));
-  }, [liveScopeKey]);
-
-  const displayData = (liveUpdate?.scopeKey === liveScopeKey ? liveUpdate.data : null) ?? data;
+  // Shares its cache entry and live users_update fold with the Top User
+  // metric card via useTopUsers, so the two can never disagree.
+  const {
+    data: displayData,
+    isLoading,
+    error,
+    scopeKey: liveScopeKey,
+  } = useTopUsers(10, selectedNetwork.apiParam, usersRange);
   const tableData = displayData?.data ?? EMPTY_USERS;
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   useFlipRows(tbodyRef, liveScopeKey);

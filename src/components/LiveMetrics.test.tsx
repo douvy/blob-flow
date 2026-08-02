@@ -7,10 +7,12 @@ import { useApiData } from '../hooks/useApiData';
 import { useNetwork } from '../hooks/useNetwork';
 import {
   BackendStatsWindowsResponse,
+  BackendUsersRange,
   BlobResponse,
   Block,
   LatestBlocksResponse,
   MempoolPressure,
+  TopUsersResponse,
 } from '../types';
 import LiveMetrics from './LiveMetrics';
 
@@ -84,6 +86,31 @@ const pressureFixture: MempoolPressure = {
   sampleLimit: 50,
   sampleTruncated: false,
   generatedAt: '2026-01-01T00:02:00.000Z',
+};
+
+const topUsersFixture: TopUsersResponse = {
+  data: [
+    {
+      id: 1,
+      name: 'Base',
+      address: '0x2222222222222222222222222222222222222222',
+      attributed: true,
+      dataCount: 1200,
+      percentage: 48.2,
+      totalCostEth: '0.5',
+      lastTimestamp: '2026-01-01T00:00:10.000Z',
+    },
+    {
+      id: 2,
+      name: 'Arbitrum',
+      address: '0x1111111111111111111111111111111111111111',
+      attributed: true,
+      dataCount: 800,
+      percentage: 32.1,
+      totalCostEth: '0.3',
+      lastTimestamp: '2026-01-01T00:00:00.000Z',
+    },
+  ],
 };
 
 const statsWindowsFixture: BackendStatsWindowsResponse = {
@@ -182,13 +209,33 @@ function makeNewBlockMessage(blockNumber: number, blobCount: number): string {
   });
 }
 
-// LiveMetrics reads three queries through the same mocked hook; dispatch on
+function makeUsersUpdateMessage(range: BackendUsersRange): string {
+  return JSON.stringify({
+    type: 'users_update',
+    range,
+    data: [
+      {
+        network_id: 1,
+        address: '0x3333333333333333333333333333333333333333',
+        name: 'Optimism',
+        blob_count: 900,
+        total_cost_eth: '0.9',
+        last_timestamp: '2026-01-01T00:01:00.000Z',
+        blob_share_percent: 45,
+      },
+    ],
+  });
+}
+
+// LiveMetrics reads four queries through the same mocked hook; dispatch on
 // the query key so each caller gets its own fixture.
 function mockApiData(
   latestBlocks: LatestBlocksResponse | undefined,
   blocksError: Error | null = null,
   pressure: MempoolPressure | null = pressureFixture,
-  pressureError: Error | null = null
+  pressureError: Error | null = null,
+  topUsers: TopUsersResponse | null = topUsersFixture,
+  topUsersError: Error | null = null
 ) {
   vi.mocked(useApiData).mockImplementation((fetchFunction, queryKey) => {
     const key = Array.isArray(queryKey) ? queryKey[0] : queryKey;
@@ -202,6 +249,14 @@ function mockApiData(
     }
     if (key === 'stats-windows') {
       return { data: statsWindowsFixture, isLoading: false, error: null, refetch: vi.fn() };
+    }
+    if (key === 'top-users') {
+      return {
+        data: topUsers ?? undefined,
+        isLoading: false,
+        error: topUsersError,
+        refetch: vi.fn(),
+      };
     }
     return { data: latestBlocks, isLoading: false, error: blocksError, refetch: vi.fn() };
   });
@@ -250,6 +305,13 @@ describe('LiveMetrics', () => {
       expect.objectContaining({ refetchInterval: expect.any(Number) })
     );
 
+    // Top User must read the same range-scoped cache entry as the Top Blob
+    // Users table, so the card matches the table for the selected filter.
+    expect(vi.mocked(useApiData)).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['top-users', DEFAULT_NETWORK.apiParam, 10, '1h']
+    );
+
     expect(screen.getByText('Avg Base Fee (1h)')).toBeInTheDocument();
     expect(screen.getByText('1.50 Gwei')).toBeInTheDocument();
     expect(screen.getByText('Median 1.00 Gwei · p95 2.00 Gwei')).toBeInTheDocument();
@@ -260,11 +322,12 @@ describe('LiveMetrics', () => {
     expect(screen.getByText('1.2K')).toBeInTheDocument();
     expect(screen.getByText('12 senders · public mempool')).toBeInTheDocument();
 
+    expect(screen.getByText('Top User (1h)')).toBeInTheDocument();
     expect(screen.getByText('Base')).toBeInTheDocument();
-    expect(screen.getByText('100% of last 2 blocks')).toBeInTheDocument();
+    expect(screen.getByText('1.2K blobs · 48.2% of total')).toBeInTheDocument();
   });
 
-  it('folds every live block into the metrics sample, not just the newest', () => {
+  it('folds every live block into the Latest Block card, not just the newest', () => {
     renderLiveMetrics();
 
     act(() => {
@@ -276,11 +339,26 @@ describe('LiveMetrics', () => {
 
     expect(screen.getByText('#203')).toBeInTheDocument();
     expect(screen.getByText(/^0\/6 blobs/)).toBeInTheDocument();
+  });
 
-    // The intermediate live blocks 201 and 202 stay in the Top User sample
-    // alongside the two baseline blocks; only merging the newest event would
-    // leave three.
-    expect(screen.getByText('100% of last 5 blocks')).toBeInTheDocument();
+  it('applies users_update events scoped to the selected range to the Top User card', () => {
+    renderLiveMetrics();
+
+    act(() => {
+      MockWebSocket.instances[0].open();
+      MockWebSocket.instances[0].receive(makeUsersUpdateMessage('24h'));
+    });
+
+    // Scoped to a different window than the selected 1h filter: ignored.
+    expect(screen.getByText('Base')).toBeInTheDocument();
+    expect(screen.queryByText('Optimism')).not.toBeInTheDocument();
+
+    act(() => {
+      MockWebSocket.instances[0].receive(makeUsersUpdateMessage('1h'));
+    });
+
+    expect(screen.getByText('Optimism')).toBeInTheDocument();
+    expect(screen.getByText('900 blobs · 45% of total')).toBeInTheDocument();
   });
 
   it('discloses a failed pressure refetch instead of presenting the stale count as current', () => {
@@ -313,6 +391,26 @@ describe('LiveMetrics', () => {
     expect(screen.getByText('#200')).toBeInTheDocument();
   });
 
+  it('degrades the Top User card instead of the whole section when users are unavailable', () => {
+    mockApiData(
+      { data: [makeRestBlock(200, 1), makeRestBlock(199, 2)] },
+      null,
+      pressureFixture,
+      null,
+      null,
+      new Error('users fetch failed')
+    );
+    renderLiveMetrics();
+
+    expect(screen.getByText('Top User (1h)')).toBeInTheDocument();
+    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.getByText('User data unavailable')).toBeInTheDocument();
+
+    // The headline cards keep rendering from the rolling window.
+    expect(screen.getByText('1.50 Gwei')).toBeInTheDocument();
+    expect(screen.getByText('#200')).toBeInTheDocument();
+  });
+
   it('keeps headline cards and shows the footnote when the block sample fails', () => {
     mockApiData(undefined, new Error('sample fetch failed'));
     renderLiveMetrics();
@@ -320,7 +418,7 @@ describe('LiveMetrics', () => {
     expect(screen.getByText('1.50 Gwei')).toBeInTheDocument();
     expect(screen.getByText('Waiting for next block')).toBeInTheDocument();
     expect(
-      screen.getByText(/Latest Block and Top User data unavailable: sample fetch failed\.$/)
+      screen.getByText(/Latest Block data unavailable: sample fetch failed\.$/)
     ).toBeInTheDocument();
 
     // Live blocks still fill the sample, and the footnote stops implying a

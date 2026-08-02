@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo } from 'react';
-import { Banknote, Box, Hourglass, User } from 'lucide-react';
+import { Banknote, Box, Hourglass, User as UserIcon } from 'lucide-react';
 import MetricCard from './MetricCard';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
@@ -11,17 +11,22 @@ import {
   Block,
   MempoolPressure,
   RollingWindowDataPoint,
+  User,
 } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useMempoolPressure } from '../hooks/useMempoolPressure';
 import { useNetwork } from '../hooks/useNetwork';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { useLiveBlockList } from '../hooks/useLiveBlockList';
-import { formatScientific, RUNAWAY_GWEI_THRESHOLD, truncateAddress } from '../utils';
+import { useTopUsers } from '../hooks/useTopUsers';
+import { formatScientific, RUNAWAY_GWEI_THRESHOLD } from '../utils';
 import { useNow } from '../hooks/useNow';
 import { formatRelativeTime } from '../lib/api/core';
 
 const LATEST_BLOCKS_SAMPLE = 30;
+// Must match the Top Blob Users table's limit so both read (and dedupe into)
+// the same top-users cache entry.
+const TOP_USERS_LIMIT = 10;
 
 function formatCompactNumber(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -38,81 +43,17 @@ function formatGwei(value: number): string {
   return `${value.toFixed(2)} Gwei`;
 }
 
-interface TopUserStat {
-  name: string;
-  address: string;
-  share: number;
-  blocksSampled: number;
-}
-
-interface TopUserAggregate {
-  address: string;
-  count: number;
-  attribution?: string;
-}
-
 /**
- * Aggregate blob senders across the supplied blocks to find the dominant user.
- *
- * Only blocks whose joined blob detail covers the entire pricing `blobCount`
- * are included; `/blob/latest` may return fewer records than the pricing
- * block reports for that height, and counting that partial set would skew the
- * share while still claiming to cover the full sample. Partial blocks are
- * dropped from the sample count instead of being misrepresented.
+ * Pick the dominant user from the window's rows. The backend sorts by blob
+ * count, but selecting the max locally keeps the card correct even if the
+ * ordering contract ever changes.
  */
-function computeTopUser(blocks: Block[]): TopUserStat | null {
-  const completeBlocks = blocks.filter(
-    (block) => block.blobs.length >= block.blobCount
-  );
-  if (completeBlocks.length === 0) return null;
-
-  const users = new Map<string, TopUserAggregate>();
-  let total = 0;
-
-  for (const block of completeBlocks) {
-    for (const blob of block.blobs) {
-      const address = blob.from_address.trim();
-      if (!address) continue;
-
-      const key = address.toLowerCase();
-      const attribution = getAttributedName(blob.user_attribution);
-      const user = users.get(key);
-      if (user) {
-        user.count += 1;
-        user.attribution ||= attribution;
-      } else {
-        users.set(key, { address, count: 1, attribution });
-      }
-      total += 1;
-    }
-  }
-
-  if (total === 0) return null;
-
-  const topUser = Array.from(users.values()).reduce<TopUserAggregate | null>(
-    (currentTopUser, user) => {
-      if (!currentTopUser || user.count > currentTopUser.count) {
-        return user;
-      }
-      return currentTopUser;
-    },
+function selectTopUser(users: User[]): User | null {
+  return users.reduce<User | null>(
+    (currentTopUser, user) =>
+      !currentTopUser || user.dataCount > currentTopUser.dataCount ? user : currentTopUser,
     null
   );
-
-  if (!topUser) return null;
-
-  return {
-    name: topUser.attribution || truncateAddress(topUser.address),
-    address: topUser.address,
-    share: (topUser.count / total) * 100,
-    blocksSampled: completeBlocks.length,
-  };
-}
-
-function getAttributedName(attribution?: string): string | undefined {
-  const name = attribution?.trim();
-  if (!name || name.toLowerCase() === 'unknown') return undefined;
-  return name;
 }
 
 export default function LiveMetrics() {
@@ -141,14 +82,23 @@ export default function LiveMetrics() {
     error: pressureError,
   } = useMempoolPressure(network);
 
-  // The rolling sample behind Latest Block and Top User: every live block is
-  // folded over the REST baseline, so long sessions keep a current sample
-  // instead of drifting back toward mount-time blocks.
+  // The rolling sample behind Latest Block: every live block is folded over
+  // the REST baseline, so long sessions keep a current sample instead of
+  // drifting back toward mount-time blocks.
   const {
     blocks: sampleBlocks,
     isLoading: blocksLoading,
     error: blocksError,
   } = useLiveBlockList(LATEST_BLOCKS_SAMPLE);
+
+  // Top User reads the same range-scoped cache entry as the Top Blob Users
+  // table, so the card always names the table's leading row for the selected
+  // time filter.
+  const {
+    data: topUsers,
+    isLoading: usersLoading,
+    error: usersError,
+  } = useTopUsers(TOP_USERS_LIMIT, network, timeRange);
 
   const rollingWindows = useMemo(
     () => (statsWindows ? transformStatsWindows(statsWindows) : []),
@@ -163,8 +113,8 @@ export default function LiveMetrics() {
   const latestBlock: Block | undefined = sampleBlocks[0];
 
   const topUser = useMemo(
-    () => computeTopUser(sampleBlocks),
-    [sampleBlocks]
+    () => selectTopUser(topUsers?.data ?? []),
+    [topUsers]
   );
 
   const now = useNow();
@@ -173,7 +123,7 @@ export default function LiveMetrics() {
     pressure: MempoolPressure | undefined,
     window: RollingWindowDataPoint,
     block: Block | undefined,
-    user: TopUserStat | null,
+    user: User | null,
   ) => [
     {
       title: `Avg Base Fee (${window.label})`,
@@ -210,19 +160,26 @@ export default function LiveMetrics() {
       ariaLabel: 'View pending blobs in the mempool',
     },
     {
-      title: 'Top User',
+      title: `Top User (${timeRange})`,
       value: user ? user.name : '-',
       trend: 'neutral' as const,
+      // Mirrors the Top Blob Users table's Count and % of Total columns for
+      // the same window. A failed refetch keeps the last rows cached, so
+      // disclose the staleness like the Pending Blobs card does.
       description: user
-        ? `${user.share.toFixed(0)}% of last ${user.blocksSampled} blocks`
-        : 'No user data yet',
-      icon: User,
+        ? `${formatCompactNumber(user.dataCount)} blobs · ${user.percentage}% of total${
+          usersError ? ' · refresh failed' : ''
+        }`
+        : usersError
+          ? 'User data unavailable'
+          : 'No user data yet',
+      icon: UserIcon,
       href: user ? `/user/${encodeURIComponent(user.address)}` : undefined,
       ariaLabel: user ? `View user ${user.name}` : undefined,
     },
   ];
 
-  const isLoading = windowsLoading || pressureLoading || blocksLoading;
+  const isLoading = windowsLoading || pressureLoading || blocksLoading || usersLoading;
   const headlineError = windowsError;
   const haveHeadline = Boolean(selectedWindow);
 
@@ -267,7 +224,7 @@ export default function LiveMetrics() {
 
       {haveHeadline && blocksError && (
         <p className="mt-3 text-xs text-red-300">
-          Latest Block and Top User data unavailable:{' '}
+          Latest Block data unavailable:{' '}
           {blocksError.message}
           {sampleBlocks.length > 0 ? '. Showing the most recent blocks available.' : '.'}
         </p>
