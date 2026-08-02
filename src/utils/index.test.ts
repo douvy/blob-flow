@@ -30,6 +30,7 @@ import {
   safeExplorerUrl,
   truncateAddress,
 } from './index';
+import { NETWORKS } from '@/constants';
 
 describe('utils', () => {
   it('formats numbers with locale separators', () => {
@@ -125,6 +126,15 @@ describe('utils', () => {
     expect(getAttributionTestnetLabel('An Unknown Rollup')).toBeNull();
   });
 
+  it('labels unknown senders from the selected network', () => {
+    expect(getAttributionTestnetLabel('An Unknown Rollup', NETWORKS.SEPOLIA)).toBe('Sepolia');
+    expect(getAttributionTestnetLabel('An Unknown Rollup', NETWORKS.MAINNET)).toBeNull();
+    // The registry stays authoritative for known entities; the network only
+    // fills in for senders it does not know.
+    expect(getAttributionTestnetLabel('Robinhood Chain', NETWORKS.SEPOLIA)).toBeNull();
+    expect(getAttributionTestnetLabel('OP Sepolia Testnet', NETWORKS.MAINNET)).toBe('Sepolia');
+  });
+
   it('dedupes testnet labels across an icon cluster', () => {
     expect(
       getAttributionTestnetLabels([
@@ -135,6 +145,12 @@ describe('utils', () => {
       ])
     ).toEqual(['Sepolia']);
     expect(getAttributionTestnetLabels(['Robinhood Chain'])).toEqual([]);
+    expect(
+      getAttributionTestnetLabels(
+        ['OP Sepolia Testnet', 'An Unknown Rollup'],
+        NETWORKS.SEPOLIA
+      )
+    ).toEqual(['Sepolia']);
   });
 
   it('builds a prefilled blob-list suggestion URL with a checksummed address', () => {

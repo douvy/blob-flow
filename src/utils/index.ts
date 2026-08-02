@@ -2,8 +2,8 @@
  * Utility functions for the application
  */
 import { getAddress } from 'viem';
-import { BlobResponse, SearchTarget } from '@/types';
-import { ATTRIBUTION_CONTRIBUTING_URL, ATTRIBUTION_REPO_URL, SECONDS_PER_BLOCK } from '@/constants';
+import { BlobResponse, Network, SearchTarget } from '@/types';
+import { ATTRIBUTION_CONTRIBUTING_URL, ATTRIBUTION_REPO_URL, NETWORKS, SECONDS_PER_BLOCK } from '@/constants';
 import { SERIES_COLOR_PALETTE, SERIES_CATEGORY_NEUTRALS } from '@/constants/chartTheme';
 import { ENTITY_ICONS, EntityIcon } from '@/constants/entityIcons.generated';
 
@@ -61,13 +61,30 @@ export function getAttributionImageSrc(name: string): string | null {
 }
 
 /**
- * Human label of the entity's testnet, or null for mainnet entities and
- * unknown senders. Lets badges flag testnet logos that would otherwise be
- * indistinguishable from their mainnet counterparts.
+ * Testnet label implied by the network the data was fetched from. Unknown
+ * senders carry no settlement of their own, but everything shown under a
+ * testnet network is testnet activity, so their placeholder badges take the
+ * network's name instead of going unmarked.
  */
-export function getAttributionTestnetLabel(name: string): string | null {
+function getNetworkTestnetLabel(network?: Network): string | null {
+  if (!network || network.apiParam === NETWORKS.MAINNET.apiParam) {
+    return null;
+  }
+  return network.name;
+}
+
+/**
+ * Human label of the entity's testnet, or null for mainnet entities. Lets
+ * badges flag testnet logos that would otherwise be indistinguishable from
+ * their mainnet counterparts. Senders missing from the registry fall back to
+ * the network the data came from, so placeholder initials are marked too.
+ */
+export function getAttributionTestnetLabel(name: string, network?: Network): string | null {
   const entry = lookupEntityIcon(name);
-  if (!entry || entry.settlement === MAINNET_SETTLEMENT) {
+  if (!entry) {
+    return getNetworkTestnetLabel(network);
+  }
+  if (entry.settlement === MAINNET_SETTLEMENT) {
     return null;
   }
   return SETTLEMENT_TESTNET_LABELS[entry.settlement] ?? 'Testnet';
@@ -77,11 +94,11 @@ export function getAttributionTestnetLabel(name: string): string | null {
  * Unique testnet labels across a group of entities, for overlapping icon
  * clusters that overlay one shared ribbon instead of stacking per-icon ones.
  */
-export function getAttributionTestnetLabels(names: string[]): string[] {
+export function getAttributionTestnetLabels(names: string[], network?: Network): string[] {
   return [
     ...new Set(
       names
-        .map(getAttributionTestnetLabel)
+        .map((name) => getAttributionTestnetLabel(name, network))
         .filter((label): label is string => label !== null)
     ),
   ];

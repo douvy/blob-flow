@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import React from 'react';
+import { useNetwork } from '../hooks/useNetwork';
 import {
   getAttributionImageSrc,
   getAttributionInitial,
@@ -34,6 +35,8 @@ export function TestnetRibbon({ label, px }: { label: string; px: number }) {
  * pass a title for icon-only contexts.
  *
  * Testnet entities carry a TestnetRibbon naming the network (e.g. SEPOLIA).
+ * Unknown senders inherit the ribbon from the selected network, so their
+ * placeholder initials are marked on testnets too.
  */
 export default function AttributionBadge({
   user,
@@ -57,8 +60,9 @@ export default function AttributionBadge({
   /** Set false only when the caller overlays a shared ribbon of its own. */
   showTestnetLabel?: boolean;
 }) {
+  const { selectedNetwork } = useNetwork();
   const imageSrc = getAttributionImageSrc(user);
-  const testnetLabel = getAttributionTestnetLabel(user);
+  const testnetLabel = getAttributionTestnetLabel(user, selectedNetwork);
 
   return (
     <span className={`relative inline-flex shrink-0 ${className}`} title={title}>
