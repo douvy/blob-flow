@@ -11,8 +11,10 @@ const BLOB_FEED_PAGE_SIZE = 100;
  * Returns unprocessed BlobResponse[] for client-side bucketing.
  *
  * Pages through the feed until `limit` blobs are collected or the feed runs
- * dry. The page cap allows one extra page beyond the minimum needed, to
- * absorb rows lost to cross-page dedupe.
+ * dry. The page budget is twice the minimum needed, so overlap between pages
+ * (see below) does not cut the result short; paging also stops early once a
+ * page contributes nothing new, which is the only way a full page can fail to
+ * make progress.
  */
 export async function getRawBlobs(
   limit = 200,
@@ -20,7 +22,7 @@ export async function getRawBlobs(
 ): Promise<BlobResponse[]> {
   const blobs: BlobResponse[] = [];
   const seenBlobKeys = new Set<string>();
-  const maxPages = Math.ceil(limit / BLOB_FEED_PAGE_SIZE) + 1;
+  const maxPages = Math.ceil(limit / BLOB_FEED_PAGE_SIZE) * 2;
 
   for (let page = 0; page < maxPages && blobs.length < limit; page++) {
     const response = await fetchApi<ApiResponse<BlobResponse[]>>(
@@ -31,14 +33,17 @@ export async function getRawBlobs(
 
     // Blobs arriving between page requests shift older rows to higher
     // offsets, so consecutive pages can overlap; keep each blob once.
+    let addedFromPage = 0;
     for (const blob of rows) {
       const key = `${blob.tx_hash}:${blob.blob_index}`;
       if (seenBlobKeys.has(key)) continue;
       seenBlobKeys.add(key);
       blobs.push(blob);
+      addedFromPage++;
     }
 
     if (rows.length < BLOB_FEED_PAGE_SIZE) break;
+    if (addedFromPage === 0) break;
   }
 
   return blobs.slice(0, limit);

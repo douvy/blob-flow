@@ -91,6 +91,18 @@ describe('api/blobs', () => {
     expect(result).toHaveLength(240);
   });
 
+  it('collects the full 500 blobs a caller asks for', async () => {
+    const fetchMock = mockFetchPages(
+      ...Array.from({ length: 5 }, (_, page) => makeBlobs(100, page * 100))
+    );
+
+    const result = await getRawBlobs(500);
+
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(result).toHaveLength(500);
+    expect(dedupeKeys(result).size).toBe(500);
+  });
+
   it('dedupes rows that overlap across pages and trims to the limit', async () => {
     // New blobs arriving between requests shift rows to higher offsets, so
     // page two repeats the tail of page one.
@@ -105,15 +117,35 @@ describe('api/blobs', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(result).toHaveLength(200);
     expect(dedupeKeys(result).size).toBe(200);
+    // Every requested row is kept, newest first, with the repeats removed
+    // rather than newer rows being displaced by older unique ones.
+    expect(result).toEqual(makeBlobs(200, 0));
   });
 
-  it('stops at the page cap when overlap keeps every page full', async () => {
+  it('keeps paging past the minimum when overlap eats into each page', async () => {
+    // A quarter of every page after the first repeats rows already seen, so
+    // the minimum five pages only yield 400 of the 500 requested.
+    const fetchMock = mockFetchPages(
+      ...Array.from({ length: 7 }, (_, page) =>
+        makeBlobs(100, page === 0 ? 0 : page * 75)
+      )
+    );
+
+    const result = await getRawBlobs(500);
+
+    expect(fetchMock).toHaveBeenCalledTimes(7);
+    expect(result).toHaveLength(500);
+    expect(dedupeKeys(result).size).toBe(500);
+  });
+
+  it('stops early when a full page contributes nothing new', async () => {
     const samePage = makeBlobs(100);
     const fetchMock = mockFetchPages(samePage, samePage, samePage, samePage);
 
     const result = await getRawBlobs(200);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // Second page repeats the first, so there is no point asking for a third.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(result).toHaveLength(100);
   });
 
