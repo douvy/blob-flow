@@ -13,6 +13,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'always',
       priority: 0.8,
     },
+    {
+      url: `${SITE_URL}/flippening`,
+      changeFrequency: 'hourly',
+      priority: 0.6,
+    },
     ...CHART_PAGES.map((chartPage) => ({
       url: `${SITE_URL}/charts/${chartPage.slug}`,
       changeFrequency: 'hourly' as const,

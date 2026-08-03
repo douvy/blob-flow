@@ -1,0 +1,38 @@
+"use client";
+
+import Link from 'next/link';
+import { ArrowLeft, Info } from 'lucide-react';
+import FlippeningWatch from '@/components/FlippeningWatch';
+import { DEFAULT_FLIPPENING_TOP_N } from '@/lib/flippening';
+
+export default function FlippeningPage() {
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-3xl">
+      <Link
+        href="/"
+        className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        Back to Dashboard
+      </Link>
+
+      <section>
+        <h1 className="text-3xl font-windsor-bold text-white mb-2">Flippening Watch</h1>
+        <p className="text-sm text-bodyText mb-4">
+          Moments when one rollup&apos;s blob share crossed another&apos;s, tracked for the top{' '}
+          {DEFAULT_FLIPPENING_TOP_N} blob submitters in the selected window.
+        </p>
+        <div className="mb-8 flex max-w-3xl items-start gap-2.5 rounded-md border border-[#292e35] bg-[#17181b] px-3.5 py-3 text-sm text-[#a9adb6]">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue" aria-hidden="true" />
+          <p>
+            Shares are per time bucket (an entity&apos;s blobs divided by all blobs in that
+            bucket), so a flip marks the bucket where the lead actually changed hands. Near
+            ties and flips reverted in the very next bucket are filtered out as noise.
+          </p>
+        </div>
+
+        <FlippeningWatch />
+      </section>
+    </div>
+  );
+}
