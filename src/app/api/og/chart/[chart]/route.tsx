@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
-import { CHART_PAGES, SITE_URL, parseTimeRange } from '@/constants';
+import { CHART_PAGES, SITE_NAME, SITE_URL, parseTimeRange } from '@/constants';
 import { fetchOgChartSeries, OG_CARD_DEFAULT_RANGE, OG_CARD_NETWORK } from '@/lib/ogChartSeries';
 import { buildSparkDataUrl } from '@/lib/ogChartSpark';
 
@@ -104,7 +104,7 @@ export async function GET(
                 }}
               />
               <div style={{ fontFamily: 'Windsor Bold', fontSize: '38px', color: '#ffffff' }}>
-                BlobFlow
+                {SITE_NAME}
               </div>
             </div>
             <div style={{ fontSize: '24px', color: '#6e7687' }}>

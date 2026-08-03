@@ -5,6 +5,8 @@
 import type { Network } from '../types';
 
 export const APP_NAME = 'Blob Flow';
+/** The brand as displayed: page titles, the header, and share imagery. */
+export const SITE_NAME = 'BlobFlow';
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://blob-indexer.ahkc.win/api/v1';
 // Canonical site origin for SEO metadata (Open Graph URLs, sitemap, robots).
 // Set NEXT_PUBLIC_SITE_URL in production; falls back to Vercel's production

@@ -7,7 +7,7 @@
  */
 
 import { toBlob } from 'html-to-image';
-import { APP_NAME, SITE_URL } from '@/constants';
+import { SITE_NAME, SITE_URL } from '@/constants';
 import { formatDate } from '@/utils';
 
 export interface ChartCaptureMeta {
@@ -164,7 +164,7 @@ function buildCaptureFrame(
         color: '#ffffff',
         lineHeight: '1',
       },
-      APP_NAME
+      SITE_NAME
     )
   );
   header.appendChild(brand);
@@ -212,6 +212,27 @@ function buildCaptureFrame(
   return { mount, frame: root };
 }
 
+/**
+ * Everything in the frame is vector (the Recharts SVG plus text), so
+ * rasterizing above the display's own ratio keeps resolving more detail
+ * rather than just inflating pixels. Scale is otherwise tied to the on-page
+ * card, and a dashboard card's chart body is only 224px tall, which at 2x
+ * exported small enough to look soft wherever it got scaled back up.
+ */
+const MIN_PIXEL_RATIO = 3;
+/** Ceiling on the rasterized size: 4x a full-width card is already ~5000px. */
+const MAX_PIXEL_RATIO = 4;
+/** Width to aim for, so narrow cards still export something worth sharing. */
+const TARGET_EXPORT_WIDTH = 2400;
+
+export function capturePixelRatio(frameWidth: number, devicePixelRatio = 1): number {
+  const toReachTarget = frameWidth > 0 ? TARGET_EXPORT_WIDTH / frameWidth : MIN_PIXEL_RATIO;
+  return Math.min(
+    MAX_PIXEL_RATIO,
+    Math.max(MIN_PIXEL_RATIO, devicePixelRatio, toReachTarget)
+  );
+}
+
 /** Renders the chart node inside the branded frame and encodes it as a PNG blob. */
 export async function captureChartImage(
   node: HTMLElement,
@@ -226,7 +247,7 @@ export async function captureChartImage(
   document.body.appendChild(mount);
   try {
     const blob = await toBlob(frame, {
-      pixelRatio: 2,
+      pixelRatio: capturePixelRatio(frame.offsetWidth, window.devicePixelRatio || 1),
       backgroundColor: FRAME_BACKGROUND,
       // With an explicit value html-to-image skips its own stylesheet scan;
       // an empty string (font fetch failed) lets it try that scan instead.

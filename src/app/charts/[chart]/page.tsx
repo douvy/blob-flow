@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import ChartDetailView from '@/components/charts/ChartDetailView';
-import { CHART_PAGES, parseTimeRange } from '@/constants';
+import { CHART_PAGES, SITE_NAME, parseTimeRange } from '@/constants';
 import { OG_CARD_DEFAULT_RANGE } from '@/lib/ogChartSeries';
 
 /**
@@ -24,7 +24,7 @@ export async function generateMetadata({
   const rawRange = Array.isArray(query.range) ? query.range[0] : query.range;
   const range = parseTimeRange(rawRange, OG_CARD_DEFAULT_RANGE);
   const cardUrl = `/api/og/chart/${chart}?range=${range}`;
-  const cardAlt = `${title} over the last ${range} on BlobFlow`;
+  const cardAlt = `${title} over the last ${range} on ${SITE_NAME}`;
 
   return {
     title,
@@ -36,7 +36,7 @@ export async function generateMetadata({
     },
     openGraph: {
       type: 'website',
-      siteName: 'BlobFlow',
+      siteName: SITE_NAME,
       title,
       description,
       url: `/charts/${chart}`,
