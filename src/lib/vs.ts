@@ -116,10 +116,15 @@ export function humanizeEntitySlug(raw: string | undefined): string {
     .join(' ');
 }
 
-/** Path (plus range query) for a matchup, always linkable and shareable. */
+/**
+ * Path for a matchup, always linkable and shareable. The range lives in the
+ * path (not a query string) so the route's Open Graph image, which only
+ * receives route params, can render range-accurate cards. The default range
+ * stays at the bare two-segment path.
+ */
 export function buildVsHref(aSlug: string, bSlug: string, range: BackendChartRange): string {
   const base = `/vs/${encodeURIComponent(aSlug)}/${encodeURIComponent(bSlug)}`;
-  return range === DEFAULT_VS_RANGE ? base : `${base}?range=${range}`;
+  return range === DEFAULT_VS_RANGE ? base : `${base}/${range}`;
 }
 
 /** Whole-wei bigint from a backend cost string, tolerating fractional tails. */

@@ -98,9 +98,10 @@ describe('slug handling', () => {
 });
 
 describe('buildVsHref', () => {
-  it('omits the query for the default range and includes it otherwise', () => {
+  it('uses the bare path for the default range and a path segment otherwise', () => {
     expect(buildVsHref('base', 'arbitrum-one', '24h')).toBe('/vs/base/arbitrum-one');
-    expect(buildVsHref('base', 'arbitrum-one', '7d')).toBe('/vs/base/arbitrum-one?range=7d');
+    expect(buildVsHref('base', 'arbitrum-one', '7d')).toBe('/vs/base/arbitrum-one/7d');
+    expect(buildVsHref('base', 'arbitrum-one', 'all')).toBe('/vs/base/arbitrum-one/all');
   });
 });
 

@@ -8,6 +8,7 @@ const nextConfig = {
   // fs, which static tracing cannot see; include them in the server bundle.
   outputFileTracingIncludes: {
     '/vs/[a]/[b]/opengraph-image': ['./public/fonts/**/*', './public/images/entities/**/*'],
+    '/vs/[a]/[b]/[range]/opengraph-image': ['./public/fonts/**/*', './public/images/entities/**/*'],
   },
   env: {
     NEXT_PUBLIC_USE_MOCK_DATA: process.env.NEXT_PUBLIC_USE_MOCK_DATA || 'false',
