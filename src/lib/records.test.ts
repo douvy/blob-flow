@@ -9,22 +9,7 @@ import {
 import type {
   BackendAttributionUsageShare,
   BackendBlobStreakRun,
-  BackendStatsWindow,
 } from '../types';
-
-function makeWindow(overrides: Partial<BackendStatsWindow>): BackendStatsWindow {
-  return {
-    window: '24h',
-    duration_seconds: 86_400,
-    start_time: '2026-08-01T00:00:00Z',
-    end_time: '2026-08-02T00:00:00Z',
-    total_blobs: 0,
-    total_blob_gas_used: 0,
-    average_utilization: '0',
-    unique_senders: 0,
-    ...overrides,
-  };
-}
 
 function makeShare(
   overrides: Partial<BackendAttributionUsageShare>
@@ -53,18 +38,23 @@ function makeRun(overrides: Partial<BackendBlobStreakRun>): BackendBlobStreakRun
 }
 
 const EMPTY_SOURCES: BlobRecordSources = {
-  pricing: null,
-  statsWindows: null,
   stats: null,
   attribution: null,
   records: null,
 };
 
+const EMPTY_BOARD = { current: null, top: [] };
+
 const EMPTY_RECORDS = {
-  full_block_streaks: { current: null, top: [] },
-  above_target_streaks: { current: null, top: [] },
+  full_block_streaks: EMPTY_BOARD,
+  above_target_streaks: EMPTY_BOARD,
+  drought_streaks: EMPTY_BOARD,
+  below_target_streaks: EMPTY_BOARD,
   base_fee_peaks: [],
+  most_expensive_blocks: [],
   busiest_hours: [],
+  busiest_days: [],
+  highest_utilization_days: [],
 };
 
 describe('nextBlobMilestone', () => {
@@ -89,41 +79,22 @@ describe('nextBlobMilestone', () => {
 describe('deriveBlobRecords', () => {
   it('returns null sections and empty rankings when every source is missing', () => {
     expect(deriveBlobRecords(EMPTY_SOURCES)).toEqual({
-      streak: null,
       fullBlockStreaks: null,
       aboveTargetStreaks: null,
+      droughtStreaks: null,
+      belowTargetStreaks: null,
       feePeaks: null,
+      expensiveBlocks: null,
       busiestHours: null,
-      peakWindowFee: null,
-      busiestWindow: null,
+      busiestDays: null,
+      utilizationDays: null,
       topSpenders: [],
       allTime: null,
       milestones: [],
     });
   });
 
-  it('maps market pressure onto the live streak record', () => {
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      pricing: {
-        marketPressure: {
-          recentBlocksAboveTarget: 14,
-          consecutiveFullBlocks: 7,
-          percentRecentBlocksAtMaxBlobs: 35,
-          predictedDirection: 'up',
-          nextBlockFeeEstimate: { low: '1 Gwei', high: '2 Gwei' },
-        },
-      },
-    });
-
-    expect(records.streak).toEqual({
-      consecutiveFullBlocks: 7,
-      recentBlocksAboveTarget: 14,
-      percentRecentBlocksAtMaxBlobs: 35,
-    });
-  });
-
-  it('maps streak boards, re-sorting and capping the top list', () => {
+  it('maps every streak board, re-sorting and capping the top lists', () => {
     const top = Array.from({ length: RECORDS_TOP_LIMIT + 3 }, (_, index) =>
       makeRun({ length: index + 2, end_block: 1_000 + index })
     );
@@ -136,6 +107,10 @@ describe('deriveBlobRecords', () => {
           current: makeRun({ length: 3, end_block: 9_999 }),
           top,
         },
+        drought_streaks: {
+          current: null,
+          top: [makeRun({ length: 120, end_block: 5_000 })],
+        },
       },
     });
 
@@ -147,7 +122,9 @@ describe('deriveBlobRecords', () => {
       length: 3,
       endBlock: 9_999,
     });
+    expect(records.droughtStreaks?.top[0]).toMatchObject({ length: 120 });
     expect(records.aboveTargetStreaks).toEqual({ current: null, top: [] });
+    expect(records.belowTargetStreaks).toEqual({ current: null, top: [] });
   });
 
   it('sorts fee peaks by fee and falls back to the wei field for gwei', () => {
@@ -180,7 +157,38 @@ describe('deriveBlobRecords', () => {
     ]);
   });
 
-  it('sorts busiest hours by blob count', () => {
+  it('sorts most expensive blocks by wei spend', () => {
+    const records = deriveBlobRecords({
+      ...EMPTY_SOURCES,
+      records: {
+        ...EMPTY_RECORDS,
+        most_expensive_blocks: [
+          {
+            block_number: 10,
+            timestamp: '2026-01-01T00:00:00Z',
+            blob_count: 3,
+            blob_base_fee: '1',
+            blob_base_fee_gwei: '0.000000001',
+            total_cost_wei: '5000000000000000000',
+          },
+          {
+            block_number: 11,
+            timestamp: '2026-01-02T00:00:00Z',
+            blob_count: 6,
+            blob_base_fee: '2',
+            blob_base_fee_gwei: '0.000000002',
+            total_cost_wei: '90000000000000000000',
+          },
+        ],
+      },
+    });
+
+    expect(records.expensiveBlocks?.map((block) => block.blockNumber)).toEqual([
+      11, 10,
+    ]);
+  });
+
+  it('sorts busiest hours and days by blob count', () => {
     const records = deriveBlobRecords({
       ...EMPTY_SOURCES,
       records: {
@@ -189,64 +197,47 @@ describe('deriveBlobRecords', () => {
           { hour_start: '2026-01-01T04:00:00Z', blob_count: 900, total_cost_wei: '1' },
           { hour_start: '2026-01-01T05:00:00Z', blob_count: 1_200, total_cost_wei: '2' },
         ],
+        busiest_days: [
+          { day_start: '2026-01-01T00:00:00Z', blob_count: 9_000, total_cost_wei: '1' },
+          { day_start: '2026-02-01T00:00:00Z', blob_count: 12_000, total_cost_wei: '2' },
+        ],
       },
     });
 
     expect(records.busiestHours?.map((hour) => hour.blobCount)).toEqual([1_200, 900]);
+    expect(records.busiestDays?.map((day) => day.blobCount)).toEqual([12_000, 9_000]);
   });
 
-  it('picks the window with the highest p95 fee, preferring the wei field', () => {
+  it('sorts utilization days by mean utilization', () => {
     const records = deriveBlobRecords({
       ...EMPTY_SOURCES,
-      statsWindows: {
-        windows: [
-          makeWindow({ window: '1h', p95_blob_base_fee_wei: '2000000000' }),
-          makeWindow({ window: '24h', p95_blob_base_fee_wei: '5000000000' }),
-          makeWindow({ window: '7d', p95_blob_base_fee: '3000000000' }),
+      records: {
+        ...EMPTY_RECORDS,
+        highest_utilization_days: [
+          {
+            day_start: '2026-01-01T00:00:00Z',
+            average_utilization_percent: 74.2,
+            block_count: 7_100,
+            blob_count: 30_000,
+            blocks_at_max: 900,
+            blocks_above_target: 3_000,
+          },
+          {
+            day_start: '2026-02-01T00:00:00Z',
+            average_utilization_percent: 87.4,
+            block_count: 7_150,
+            blob_count: 39_000,
+            blocks_at_max: 1_200,
+            blocks_above_target: 5_300,
+          },
         ],
       },
     });
 
-    expect(records.peakWindowFee).toMatchObject({ window: '24h', p95Gwei: 5 });
-    expect(records.peakWindowFee?.perWindow).toEqual([
-      { window: '1h', p95Gwei: 2 },
-      { window: '24h', p95Gwei: 5 },
-      { window: '7d', p95Gwei: 3 },
-    ]);
-  });
-
-  it('picks the busiest window by blob rate, not raw count', () => {
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      statsWindows: {
-        windows: [
-          // 1200/hr beats the 30d window's 1000/hr despite far fewer blobs.
-          makeWindow({ window: '1h', duration_seconds: 3_600, total_blobs: 1_200 }),
-          makeWindow({
-            window: '30d',
-            duration_seconds: 2_592_000,
-            total_blobs: 720_000,
-          }),
-        ],
-      },
+    expect(records.utilizationDays?.[0]).toMatchObject({
+      dayStart: '2026-02-01T00:00:00Z',
+      averageUtilizationPercent: 87.4,
     });
-
-    expect(records.busiestWindow).toMatchObject({
-      window: '1h',
-      totalBlobs: 1_200,
-      blobsPerHour: 1_200,
-    });
-  });
-
-  it('ignores zero-duration windows and returns null when none remain', () => {
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      statsWindows: {
-        windows: [makeWindow({ window: '5m', duration_seconds: 0, total_blobs: 10 })],
-      },
-    });
-
-    expect(records.busiestWindow).toBeNull();
   });
 
   it('ranks spenders by wei cost, skipping aggregate buckets and capping', () => {

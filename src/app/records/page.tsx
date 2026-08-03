@@ -5,7 +5,7 @@ import Link from 'next/link';
 import React, { useCallback, useMemo } from 'react';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
-import RecordCard from '@/components/RecordCard';
+import RecordCard, { type RecordAccent } from '@/components/RecordCard';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
@@ -70,6 +70,19 @@ function formatUtcHour(timestamp: string): string {
   return `${HOUR_LABEL_FORMAT.format(parsed)} UTC`;
 }
 
+const DAY_LABEL_FORMAT = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+function formatUtcDay(timestamp: string): string {
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) return timestamp;
+  return DAY_LABEL_FORMAT.format(parsed);
+}
+
 function formatRunDate(timestamp: string): string {
   const parsed = new Date(timestamp);
   return Number.isNaN(parsed.getTime()) ? timestamp : formatDate(parsed);
@@ -123,70 +136,57 @@ function RankedRows({
   );
 }
 
-/** Per-window comparison rows for the windowed fallback cards. */
-function WindowBreakdown({
-  rows,
-  highlightWindow,
+/**
+ * One historical streak leaderboard card. Renders nothing when the board is
+ * missing or empty: there is deliberately no live fallback.
+ */
+function StreakCard({
+  id,
+  title,
+  accent,
+  kind,
+  board,
 }: {
-  rows: { window: string; formatted: string }[];
-  highlightWindow: string;
+  id: string;
+  title: string;
+  accent: RecordAccent;
+  /** Plural noun phrase completing "run of consecutive {kind}". */
+  kind: string;
+  board: StreakLeaderboard | null;
 }) {
-  return (
-    <dl className="divide-y divide-divider/60 border-t border-divider/60 text-xs">
-      {rows.map((row) => {
-        const isRecord = row.window === highlightWindow;
-        return (
-          <div
-            key={row.window}
-            className={`flex items-center justify-between py-1.5 ${
-              isRecord ? 'text-titleText' : 'text-[#8a93a5]'
-            }`}
-          >
-            <dt className="font-medium uppercase">{row.window}</dt>
-            <dd className="tabular-nums">
-              {row.formatted}
-              {isRecord && (
-                <span className="ml-2 rounded-sm bg-[#26282e] px-1 py-0.5 text-[9px] font-bold uppercase tracking-widest text-lightBlue">
-                  Record
-                </span>
-              )}
-            </dd>
-          </div>
-        );
-      })}
-    </dl>
-  );
-}
-
-/** A streak leaderboard with at least one run, or null. */
-function boardWithRuns(board: StreakLeaderboard | null): StreakLeaderboard | null {
-  return board && board.top.length > 0 ? board : null;
-}
-
-function streakRows(board: StreakLeaderboard) {
-  return board.top.map((run, index) => ({
-    key: `${run.endBlock}-${index}`,
-    primary: <span>{formatNumber(run.length)} blocks</span>,
-    secondary: (
-      <>
-        <BlockLink blockNumber={run.endBlock} />
-        <span>{formatRunDate(run.endTimestamp)}</span>
-      </>
-    ),
-  }));
-}
-
-function streakCaption(
-  kind: string,
-  board: StreakLeaderboard
-): React.ReactNode {
+  if (!board || board.top.length === 0) return null;
   const record = board.top[0];
+
   return (
-    <>
-      {`Longest run of consecutive ${kind} ever indexed, ended at `}
-      <BlockLink blockNumber={record.endBlock} />
-      {` on ${formatRunDate(record.endTimestamp)}. Current streak: ${formatNumber(board.current?.length ?? 0)}.`}
-    </>
+    <RecordCard
+      id={id}
+      title={title}
+      scope="all-time"
+      scopeLabel="All indexed"
+      accent={accent}
+      value={formatNumber(record.length)}
+      unit={record.length === 1 ? 'block' : 'blocks'}
+      caption={
+        <>
+          {`Longest run of consecutive ${kind} ever indexed, ended at `}
+          <BlockLink blockNumber={record.endBlock} />
+          {` on ${formatRunDate(record.endTimestamp)}. Current streak: ${formatNumber(board.current?.length ?? 0)}.`}
+        </>
+      }
+    >
+      <RankedRows
+        rows={board.top.map((run, index) => ({
+          key: `${run.endBlock}-${index}`,
+          primary: <span>{formatNumber(run.length)} blocks</span>,
+          secondary: (
+            <>
+              <BlockLink blockNumber={run.endBlock} />
+              <span>{formatRunDate(run.endTimestamp)}</span>
+            </>
+          ),
+        }))}
+      />
+    </RecordCard>
   );
 }
 
@@ -240,20 +240,27 @@ function MilestoneRow({
 
 function RecordsGrid({ records }: { records: BlobRecords }) {
   const {
-    streak,
+    fullBlockStreaks,
+    aboveTargetStreaks,
+    droughtStreaks,
+    belowTargetStreaks,
     feePeaks,
+    expensiveBlocks,
     busiestHours,
-    peakWindowFee,
-    busiestWindow,
+    busiestDays,
+    utilizationDays,
     topSpenders,
     allTime,
     milestones,
   } = records;
 
-  const fullBlockBoard = boardWithRuns(records.fullBlockStreaks);
-  const aboveTargetBoard = boardWithRuns(records.aboveTargetStreaks);
   const topFeePeak = feePeaks && feePeaks.length > 0 ? feePeaks[0] : null;
+  const topExpensive =
+    expensiveBlocks && expensiveBlocks.length > 0 ? expensiveBlocks[0] : null;
   const topHour = busiestHours && busiestHours.length > 0 ? busiestHours[0] : null;
+  const topDay = busiestDays && busiestDays.length > 0 ? busiestDays[0] : null;
+  const topUtilization =
+    utilizationDays && utilizationDays.length > 0 ? utilizationDays[0] : null;
   const topSpender = topSpenders.length > 0 ? topSpenders[0] : null;
 
   const milestoneColors = useMemo(
@@ -270,65 +277,41 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {fullBlockBoard ? (
-          <RecordCard
-            id="full-block-streak"
-            title="Full-Block Streak"
-            scope="all-time"
-            scopeLabel="All indexed"
-            accent="green"
-            value={formatNumber(fullBlockBoard.top[0].length)}
-            unit={fullBlockBoard.top[0].length === 1 ? 'block' : 'blocks'}
-            caption={streakCaption('full blocks', fullBlockBoard)}
-          >
-            <RankedRows rows={streakRows(fullBlockBoard)} />
-          </RecordCard>
-        ) : (
-          streak && (
-            <RecordCard
-              id="full-block-streak"
-              title="Full-Block Streak"
-              scope="live"
-              scopeLabel="Live"
-              accent="green"
-              value={formatNumber(streak.consecutiveFullBlocks)}
-              unit={streak.consecutiveFullBlocks === 1 ? 'block' : 'blocks'}
-              caption={`Consecutive blocks that used every available blob slot. ${formatPercent(streak.percentRecentBlocksAtMaxBlobs)} of recent blocks hit the max blob count. The all-time top 10 appears here once the indexer's records endpoint ships.`}
-            />
-          )
-        )}
+        <StreakCard
+          id="full-block-streak"
+          title="Full-Block Streak"
+          accent="green"
+          kind="full blocks"
+          board={fullBlockStreaks}
+        />
 
-        {aboveTargetBoard ? (
-          <RecordCard
-            id="blocks-above-target"
-            title="Above-Target Streak"
-            scope="all-time"
-            scopeLabel="All indexed"
-            accent="blue"
-            value={formatNumber(aboveTargetBoard.top[0].length)}
-            unit={aboveTargetBoard.top[0].length === 1 ? 'block' : 'blocks'}
-            caption={streakCaption('blocks above the blob gas target', aboveTargetBoard)}
-          >
-            <RankedRows rows={streakRows(aboveTargetBoard)} />
-          </RecordCard>
-        ) : (
-          streak && (
-            <RecordCard
-              id="blocks-above-target"
-              title="Blocks Above Target"
-              scope="live"
-              scopeLabel="Live"
-              accent="blue"
-              value={formatNumber(streak.recentBlocksAboveTarget)}
-              unit={streak.recentBlocksAboveTarget === 1 ? 'block' : 'blocks'}
-              caption="Recent blocks burning blob gas above the protocol target. Sustained pressure here pushes the blob base fee upward. The all-time streak top 10 appears here once the indexer's records endpoint ships."
-            />
-          )
-        )}
+        <StreakCard
+          id="blocks-above-target"
+          title="Above-Target Streak"
+          accent="blue"
+          kind="blocks above the blob gas target"
+          board={aboveTargetStreaks}
+        />
 
-        {topFeePeak ? (
+        <StreakCard
+          id="blob-drought"
+          title="Blob Drought"
+          accent="red"
+          kind="blocks without a single blob"
+          board={droughtStreaks}
+        />
+
+        <StreakCard
+          id="below-target-streak"
+          title="Below-Target Streak"
+          accent="purple"
+          kind="blocks below the blob gas target"
+          board={belowTargetStreaks}
+        />
+
+        {topFeePeak && (
           <RecordCard
-            id="peak-p95-fee"
+            id="highest-base-fee"
             title="Highest Base Fee"
             scope="all-time"
             scopeLabel="All indexed"
@@ -356,32 +339,42 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
               }))}
             />
           </RecordCard>
-        ) : (
-          peakWindowFee && (
-            <RecordCard
-              id="peak-p95-fee"
-              title="Highest p95 Base Fee"
-              scope="window"
-              scopeLabel={`${peakWindowFee.window} window`}
-              accent="red"
-              value={formatGweiValue(peakWindowFee.p95Gwei)}
-              unit="Gwei"
-              caption="Highest p95 blob base fee across the rolling stats windows. Window-scoped: windows reach back at most 30 days, so this is not an all-time high. The all-time top 10 appears here once the indexer's records endpoint ships."
-            >
-              <WindowBreakdown
-                highlightWindow={peakWindowFee.window}
-                rows={peakWindowFee.perWindow.map((entry) => ({
-                  window: entry.window,
-                  formatted: `${formatGweiValue(entry.p95Gwei)} Gwei`,
-                }))}
-              />
-            </RecordCard>
-          )
         )}
 
-        {topHour ? (
+        {topExpensive && (
           <RecordCard
-            id="busiest-window"
+            id="most-expensive-block"
+            title="Most Expensive Block"
+            scope="all-time"
+            scopeLabel="All indexed"
+            accent="yellow"
+            value={formatWeiToEth(topExpensive.totalCostWei, true)}
+            caption={
+              <>
+                {'The most spent on blobs in a single block: '}
+                <BlockLink blockNumber={topExpensive.blockNumber} />
+                {` on ${formatRunDate(topExpensive.timestamp)}, carrying ${formatNumber(topExpensive.blobCount)} blobs.`}
+              </>
+            }
+          >
+            <RankedRows
+              rows={(expensiveBlocks ?? []).map((block) => ({
+                key: `${block.blockNumber}`,
+                primary: <span>{formatWeiToEth(block.totalCostWei, true)}</span>,
+                secondary: (
+                  <>
+                    <BlockLink blockNumber={block.blockNumber} />
+                    <span>{formatRunDate(block.timestamp)}</span>
+                  </>
+                ),
+              }))}
+            />
+          </RecordCard>
+        )}
+
+        {topHour && (
+          <RecordCard
+            id="busiest-hour"
             title="Busiest Hour"
             scope="all-time"
             scopeLabel="All indexed"
@@ -398,27 +391,50 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
               }))}
             />
           </RecordCard>
-        ) : (
-          busiestWindow && (
-            <RecordCard
-              id="busiest-window"
-              title="Busiest Window"
-              scope="window"
-              scopeLabel={`${busiestWindow.window} window`}
-              accent="yellow"
-              value={formatNumber(Math.round(busiestWindow.blobsPerHour))}
-              unit="blobs / hour"
-              caption={`Fastest blob throughput among the rolling windows, led by the ${busiestWindow.window} window with ${formatNumber(busiestWindow.totalBlobs)} blobs. Rates are compared because longer windows always contain more blobs outright. The all-time busiest hours appear here once the indexer's records endpoint ships.`}
-            >
-              <WindowBreakdown
-                highlightWindow={busiestWindow.window}
-                rows={busiestWindow.perWindow.map((entry) => ({
-                  window: entry.window,
-                  formatted: `${formatNumber(Math.round(entry.blobsPerHour))}/hr`,
-                }))}
-              />
-            </RecordCard>
-          )
+        )}
+
+        {topDay && (
+          <RecordCard
+            id="busiest-day"
+            title="Busiest Day"
+            scope="all-time"
+            scopeLabel="All indexed"
+            accent="green"
+            value={formatNumber(topDay.blobCount)}
+            unit="blobs in one day"
+            caption={`The most blobs ever landed in a single UTC day, on ${formatUtcDay(topDay.dayStart)}.`}
+          >
+            <RankedRows
+              rows={(busiestDays ?? []).map((day) => ({
+                key: day.dayStart,
+                primary: <span>{formatNumber(day.blobCount)} blobs</span>,
+                secondary: <span>{formatUtcDay(day.dayStart)}</span>,
+              }))}
+            />
+          </RecordCard>
+        )}
+
+        {topUtilization && (
+          <RecordCard
+            id="highest-utilization-day"
+            title="Highest Utilization Day"
+            scope="all-time"
+            scopeLabel="All indexed"
+            accent="blue"
+            value={formatPercent(topUtilization.averageUtilizationPercent)}
+            unit="avg utilization"
+            caption={`The most saturated day of blobspace on record: ${formatUtcDay(topUtilization.dayStart)}, averaged across ${formatNumber(topUtilization.blockCount)} blocks.`}
+          >
+            <RankedRows
+              rows={(utilizationDays ?? []).map((day) => ({
+                key: day.dayStart,
+                primary: (
+                  <span>{formatPercent(day.averageUtilizationPercent)}</span>
+                ),
+                secondary: <span>{formatUtcDay(day.dayStart)}</span>,
+              }))}
+            />
+          </RecordCard>
         )}
 
         {topSpender && (
@@ -542,15 +558,15 @@ export default function RecordsPage() {
         Blob Market Records
       </h1>
       <p className="mb-4 max-w-3xl text-sm text-bodyText">
-        Streaks, peaks, and milestones from the {selectedNetwork.name} blob market,
-        refreshed every {RECORDS_REFRESH_MS / 1000} seconds.
+        All-time streaks, peaks, and milestones from the {selectedNetwork.name}{' '}
+        blob market, refreshed every {RECORDS_REFRESH_MS / 1000} seconds.
       </p>
       <div className="mb-8 flex max-w-3xl items-start gap-2.5 rounded-md border border-[#292e35] bg-[#17181b] px-3.5 py-3 text-sm text-[#a9adb6]">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue" aria-hidden="true" />
         <p>
-          Historical leaderboards come from the indexer&apos;s records endpoint.
-          Where the backend does not support it yet, cards fall back to live and
-          rolling-window figures and are labeled with that narrower scope.
+          Leaderboards cover the indexer&apos;s full indexed history. The spend
+          ranking and milestones count attributed entities only, so unattributed
+          senders are not represented there.
         </p>
       </div>
 
@@ -559,7 +575,7 @@ export default function RecordsPage() {
         error={records ? null : error}
         loadingComponent={
           <div className="grid animate-pulse gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }, (_, index) => (
+            {Array.from({ length: 9 }, (_, index) => (
               <div
                 key={index}
                 className="h-44 rounded-lg border border-divider bg-[#17191d]"

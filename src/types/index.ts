@@ -749,16 +749,9 @@ export interface ChartDataset {
 // ships, its response should be mapped onto BlobRecords so the page and
 // components below it stay unchanged.
 
-/** Live streak figures from the pricing endpoint's market pressure block. */
-export interface StreakRecord {
-  consecutiveFullBlocks: number;
-  recentBlocksAboveTarget: number;
-  percentRecentBlocksAtMaxBlobs: number;
-}
-
-// Backend historical records response. Matches the proposed GET /records
-// endpoint in blob-indexer-api; backends that predate it 404 and the records
-// page falls back to live market-pressure and rolling-window figures.
+// Backend historical records response. Matches GET /records in
+// blob-indexer-api (a-thomas-22/blob-indexer-api PR 316); backends that
+// predate it 404 and the page simply omits the historical cards.
 export interface BackendBlobStreakRun {
   length: number;
   start_block: number;
@@ -789,6 +782,41 @@ export interface BackendBusiestHour {
   total_cost_wei: string;
 }
 
+export interface BackendBusiestDay {
+  /** Start of the UTC day bucket, ISO-8601. */
+  day_start: string;
+  blob_count: number;
+  total_cost_wei: string;
+}
+
+export interface BackendUtilizationDay {
+  day_start: string;
+  /** Mean per-block blob utilization over the day. */
+  average_utilization_percent: number;
+  block_count: number;
+  blob_count: number;
+  blocks_at_max: number;
+  blocks_above_target: number;
+}
+
+export interface BackendExpensiveBlock {
+  block_number: number;
+  timestamp: string;
+  blob_count: number;
+  blob_base_fee: string;
+  blob_base_fee_gwei: string;
+  /** The block's total blob spend in wei. */
+  total_cost_wei: string;
+}
+
+export interface BackendRecordTopSpender {
+  address: string;
+  /** Known rollup name; absent when the address is unattributed. */
+  user_attribution?: string;
+  blob_count: number;
+  total_cost_wei: string;
+}
+
 export interface BackendBlobRecordsResponse {
   network_id: number;
   network_name: string;
@@ -797,10 +825,22 @@ export interface BackendBlobRecordsResponse {
   full_block_streaks: BackendBlobStreakBoard;
   /** Streaks of consecutive blocks with blob gas usage above target. */
   above_target_streaks: BackendBlobStreakBoard;
+  /** Streaks of consecutive blocks carrying no blobs at all. */
+  drought_streaks: BackendBlobStreakBoard;
+  /** Streaks of consecutive blocks strictly below the blob gas target. */
+  below_target_streaks: BackendBlobStreakBoard;
   /** Highest blob base fee blocks ever indexed, highest first. */
   base_fee_peaks: BackendBlobFeePeak[];
+  /** Blocks that burned the most on blob fees, priciest first. */
+  most_expensive_blocks: BackendExpensiveBlock[];
   /** Busiest UTC hours by blob count ever indexed, busiest first. */
   busiest_hours: BackendBusiestHour[];
+  /** Busiest UTC days by blob count ever indexed, busiest first. */
+  busiest_days: BackendBusiestDay[];
+  /** UTC days with the highest mean blob utilization, highest first. */
+  highest_utilization_days: BackendUtilizationDay[];
+  /** Largest all-history blob spenders by address. */
+  top_spenders: BackendRecordTopSpender[];
 }
 
 /** One historical streak run (frontend shape). */
@@ -827,6 +867,14 @@ export interface FeePeak {
   blobCount: number;
 }
 
+/** One all-time priciest block by total blob spend (frontend shape). */
+export interface ExpensiveBlock {
+  blockNumber: number;
+  timestamp: string;
+  totalCostWei: string;
+  blobCount: number;
+}
+
 /** One all-time busiest UTC hour (frontend shape). */
 export interface BusiestHour {
   hourStart: string;
@@ -834,33 +882,19 @@ export interface BusiestHour {
   totalCostWei: string;
 }
 
-export interface WindowFeeEntry {
-  window: string;
-  p95Gwei: number;
+/** One all-time busiest UTC day (frontend shape). */
+export interface BusiestDay {
+  dayStart: string;
+  blobCount: number;
+  totalCostWei: string;
 }
 
-/**
- * Highest p95 blob base fee among the rolling stats windows. This is a
- * window-scoped record (at most the last 30 days), not an all-time high;
- * consumers must label it as such.
- */
-export interface WindowFeeRecord extends WindowFeeEntry {
-  perWindow: WindowFeeEntry[];
-}
-
-export interface WindowThroughputEntry {
-  window: string;
-  totalBlobs: number;
-  blobsPerHour: number;
-}
-
-/**
- * Rolling window with the highest blob throughput. Windows nest (30d
- * contains 7d contains 24h), so the comparison is by rate, not raw count:
- * the raw count would trivially always pick the longest window.
- */
-export interface WindowThroughputRecord extends WindowThroughputEntry {
-  perWindow: WindowThroughputEntry[];
+/** One all-time highest mean utilization UTC day (frontend shape). */
+export interface UtilizationDay {
+  dayStart: string;
+  averageUtilizationPercent: number;
+  blockCount: number;
+  blobCount: number;
 }
 
 /** One attributed entity in the spend ranking. */
@@ -892,25 +926,22 @@ export interface AllTimeTotalsRecord {
 }
 
 /**
- * All records shown on /records. Each section is null when its source
- * endpoint failed or returned nothing, so the page can render the sections
- * it has instead of failing entirely.
+ * All records shown on /records. The leaderboard sections come from GET
+ * /records and are null when that endpoint is unavailable; the page omits
+ * their cards rather than substituting a fallback. The spend ranking,
+ * totals, and milestones come from the attribution and stats endpoints and
+ * degrade the same way.
  */
 export interface BlobRecords {
-  /** Live market-pressure figures, the fallback when history is unavailable. */
-  streak: StreakRecord | null;
-  /** Historical full-block streaks; null until the records endpoint ships. */
   fullBlockStreaks: StreakLeaderboard | null;
-  /** Historical above-target streaks; null until the records endpoint ships. */
   aboveTargetStreaks: StreakLeaderboard | null;
-  /** All-time base fee peaks; null until the records endpoint ships. */
+  droughtStreaks: StreakLeaderboard | null;
+  belowTargetStreaks: StreakLeaderboard | null;
   feePeaks: FeePeak[] | null;
-  /** All-time busiest hours; null until the records endpoint ships. */
+  expensiveBlocks: ExpensiveBlock[] | null;
   busiestHours: BusiestHour[] | null;
-  /** Windowed fee fallback when feePeaks is unavailable. */
-  peakWindowFee: WindowFeeRecord | null;
-  /** Windowed throughput fallback when busiestHours is unavailable. */
-  busiestWindow: WindowThroughputRecord | null;
+  busiestDays: BusiestDay[] | null;
+  utilizationDays: UtilizationDay[] | null;
   /** Attributed entities ranked by total blob spend, biggest first. */
   topSpenders: SpenderRecord[];
   allTime: AllTimeTotalsRecord | null;

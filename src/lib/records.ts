@@ -5,19 +5,16 @@ import type {
   BackendBlobRecordsResponse,
   BackendBlobStreakBoard,
   BackendBlobStreakRun,
-  BackendStatsWindow,
-  BackendStatsWindowsResponse,
-  BlobPricing,
   BlobRecords,
+  BusiestDay,
   BusiestHour,
+  ExpensiveBlock,
   FeePeak,
   RollupMilestone,
   SpenderRecord,
   StatsResponse,
   StreakLeaderboard,
-  StreakRecord,
-  WindowFeeRecord,
-  WindowThroughputRecord,
+  UtilizationDay,
 } from '../types';
 
 /**
@@ -26,19 +23,24 @@ import type {
  * so a failed source degrades to missing sections instead of failing all of
  * them.
  *
- * `records` is the proposed GET /records endpoint carrying true historical
- * leaderboards (streaks, fee peaks, busiest hours). Until it ships every
- * backend 404s it, and the live pricing and rolling-window sources below
- * provide the fallback presentation.
+ * `records` is GET /records, the indexer's historical leaderboards. There is
+ * deliberately no fallback for it: on backends that predate the endpoint the
+ * leaderboard sections are null and their cards simply do not render.
  */
 export interface BlobRecordSources {
-  pricing: Pick<BlobPricing, 'marketPressure'> | null;
-  statsWindows: Pick<BackendStatsWindowsResponse, 'windows'> | null;
   stats: StatsResponse | null;
   attribution: Pick<BackendAttributionUsageChartResponse, 'summary'> | null;
   records: Pick<
     BackendBlobRecordsResponse,
-    'full_block_streaks' | 'above_target_streaks' | 'base_fee_peaks' | 'busiest_hours'
+    | 'full_block_streaks'
+    | 'above_target_streaks'
+    | 'drought_streaks'
+    | 'below_target_streaks'
+    | 'base_fee_peaks'
+    | 'most_expensive_blocks'
+    | 'busiest_hours'
+    | 'busiest_days'
+    | 'highest_utilization_days'
   > | null;
 }
 
@@ -56,7 +58,6 @@ export const MILESTONE_ENTITY_LIMIT = 8;
 export const RECORDS_TOP_LIMIT = 10;
 
 const MILESTONE_STEPS = [1, 2, 5];
-const SECONDS_PER_HOUR = 3600;
 
 /**
  * The next round blob-count milestone strictly above the given count, from
@@ -79,25 +80,15 @@ function parseFinite(value: string | number | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-/** p95 base fee of a window in Gwei. Both backend fields are wei-denominated. */
-function windowP95Gwei(window: BackendStatsWindow): number {
-  return parseFinite(window.p95_blob_base_fee_wei ?? window.p95_blob_base_fee) / 1e9;
-}
-
 /** Integer wei magnitude for comparisons; malformed strings compare as zero. */
 function weiMagnitude(value: string | undefined): bigint {
   const integerPart = (value ?? '').split('.')[0];
   return /^\d+$/.test(integerPart) ? BigInt(integerPart) : BigInt(0);
 }
 
-function deriveStreak(pricing: BlobRecordSources['pricing']): StreakRecord | null {
-  if (!pricing) return null;
-  const pressure = pricing.marketPressure;
-  return {
-    consecutiveFullBlocks: pressure.consecutiveFullBlocks,
-    recentBlocksAboveTarget: pressure.recentBlocksAboveTarget,
-    percentRecentBlocksAtMaxBlobs: pressure.percentRecentBlocksAtMaxBlobs,
-  };
+function compareWeiDesc(a: string | undefined, b: string | undefined): number {
+  const difference = weiMagnitude(b) - weiMagnitude(a);
+  return difference > BigInt(0) ? 1 : difference < BigInt(0) ? -1 : 0;
 }
 
 function toStreakRun(run: BackendBlobStreakRun) {
@@ -142,6 +133,25 @@ function deriveFeePeaks(
     .slice(0, RECORDS_TOP_LIMIT);
 }
 
+function deriveExpensiveBlocks(
+  records: BlobRecordSources['records']
+): ExpensiveBlock[] | null {
+  if (!records) return null;
+  return (records.most_expensive_blocks ?? [])
+    .map((block) => ({
+      blockNumber: block.block_number,
+      timestamp: block.timestamp,
+      totalCostWei: block.total_cost_wei,
+      blobCount: block.blob_count,
+    }))
+    .sort(
+      (a, b) =>
+        compareWeiDesc(a.totalCostWei, b.totalCostWei) ||
+        b.blockNumber - a.blockNumber
+    )
+    .slice(0, RECORDS_TOP_LIMIT);
+}
+
 function deriveBusiestHours(
   records: BlobRecordSources['records']
 ): BusiestHour[] | null {
@@ -159,42 +169,39 @@ function deriveBusiestHours(
     .slice(0, RECORDS_TOP_LIMIT);
 }
 
-function derivePeakWindowFee(
-  statsWindows: BlobRecordSources['statsWindows']
-): WindowFeeRecord | null {
-  const windows = statsWindows?.windows ?? [];
-  if (windows.length === 0) return null;
-
-  const perWindow = windows.map((window) => ({
-    window: window.window,
-    p95Gwei: windowP95Gwei(window),
-  }));
-
-  const peak = perWindow.reduce((best, entry) =>
-    entry.p95Gwei > best.p95Gwei ? entry : best
-  );
-
-  return { ...peak, perWindow };
+function deriveBusiestDays(
+  records: BlobRecordSources['records']
+): BusiestDay[] | null {
+  if (!records) return null;
+  return (records.busiest_days ?? [])
+    .map((day) => ({
+      dayStart: day.day_start,
+      blobCount: day.blob_count,
+      totalCostWei: day.total_cost_wei,
+    }))
+    .sort(
+      (a, b) => b.blobCount - a.blobCount || a.dayStart.localeCompare(b.dayStart)
+    )
+    .slice(0, RECORDS_TOP_LIMIT);
 }
 
-function deriveBusiestWindow(
-  statsWindows: BlobRecordSources['statsWindows']
-): WindowThroughputRecord | null {
-  const perWindow = (statsWindows?.windows ?? [])
-    .filter((window) => window.duration_seconds > 0)
-    .map((window) => ({
-      window: window.window,
-      totalBlobs: window.total_blobs,
-      blobsPerHour: (window.total_blobs * SECONDS_PER_HOUR) / window.duration_seconds,
-    }));
-
-  if (perWindow.length === 0) return null;
-
-  const busiest = perWindow.reduce((best, entry) =>
-    entry.blobsPerHour > best.blobsPerHour ? entry : best
-  );
-
-  return { ...busiest, perWindow };
+function deriveUtilizationDays(
+  records: BlobRecordSources['records']
+): UtilizationDay[] | null {
+  if (!records) return null;
+  return (records.highest_utilization_days ?? [])
+    .map((day) => ({
+      dayStart: day.day_start,
+      averageUtilizationPercent: day.average_utilization_percent,
+      blockCount: day.block_count,
+      blobCount: day.blob_count,
+    }))
+    .sort(
+      (a, b) =>
+        b.averageUtilizationPercent - a.averageUtilizationPercent ||
+        a.dayStart.localeCompare(b.dayStart)
+    )
+    .slice(0, RECORDS_TOP_LIMIT);
 }
 
 function entityShares(
@@ -210,11 +217,7 @@ function deriveTopSpenders(
 ): SpenderRecord[] {
   return entityShares(attribution)
     .slice()
-    .sort((a, b) => {
-      const difference =
-        weiMagnitude(b.total_cost_wei) - weiMagnitude(a.total_cost_wei);
-      return difference > BigInt(0) ? 1 : difference < BigInt(0) ? -1 : 0;
-    })
+    .sort((a, b) => compareWeiDesc(a.total_cost_wei, b.total_cost_wei))
     .slice(0, RECORDS_TOP_LIMIT)
     .map((share) => ({
       key: share.key,
@@ -259,15 +262,19 @@ function deriveAllTime(stats: BlobRecordSources['stats']): AllTimeTotalsRecord |
 /** Derive every record section from whichever sources are available. */
 export function deriveBlobRecords(sources: BlobRecordSources): BlobRecords {
   return {
-    streak: deriveStreak(sources.pricing),
     fullBlockStreaks: deriveStreakLeaderboard(sources.records?.full_block_streaks),
     aboveTargetStreaks: deriveStreakLeaderboard(
       sources.records?.above_target_streaks
     ),
+    droughtStreaks: deriveStreakLeaderboard(sources.records?.drought_streaks),
+    belowTargetStreaks: deriveStreakLeaderboard(
+      sources.records?.below_target_streaks
+    ),
     feePeaks: deriveFeePeaks(sources.records),
+    expensiveBlocks: deriveExpensiveBlocks(sources.records),
     busiestHours: deriveBusiestHours(sources.records),
-    peakWindowFee: derivePeakWindowFee(sources.statsWindows),
-    busiestWindow: deriveBusiestWindow(sources.statsWindows),
+    busiestDays: deriveBusiestDays(sources.records),
+    utilizationDays: deriveUtilizationDays(sources.records),
     topSpenders: deriveTopSpenders(sources.attribution),
     allTime: deriveAllTime(sources.stats),
     milestones: deriveMilestones(sources.attribution),

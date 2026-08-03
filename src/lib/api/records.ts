@@ -6,14 +6,14 @@ import type {
 import { deriveBlobRecords, RECORDS_TOP_LIMIT } from '../records';
 import { getAttributionUsageChart } from './charts';
 import { fetchApi } from './core';
-import { getBlobPricing } from './pricing';
-import { getStats, getStatsWindows } from './stats';
+import { getStats } from './stats';
 
 /**
- * Fetch the dedicated historical records endpoint (streak leaderboards,
- * all-time base fee peaks, busiest hours). This endpoint is proposed in
- * blob-indexer-api and 404s on backends that predate it; getBlobRecords
- * treats that as "no history" and falls back to live and windowed figures.
+ * Fetch the indexer's historical records endpoint: streak leaderboards,
+ * base fee peaks, most expensive blocks, busiest hours and days, and
+ * highest-utilization days. 404s on backends that predate the endpoint;
+ * getBlobRecords then nulls the leaderboard sections and their cards are
+ * omitted rather than replaced by a fallback.
  */
 export async function getIndexerRecords(
   network?: string,
@@ -45,45 +45,35 @@ function firstRejection(
 /**
  * Assemble blob market records for the /records page.
  *
- * True historical leaderboards come from GET /records when the backend
- * supports it. The remaining sections (and the fallbacks for the historical
- * ones) are derived client-side from the pricing, rolling-window, all-time
- * stats, and attribution endpoints (src/lib/records.ts).
+ * Historical leaderboards come from GET /records. The entity spend ranking
+ * and milestones come from all-time attribution shares (entity-aggregated
+ * with share percentages, which the per-address top_spenders list on GET
+ * /records cannot provide), and the totals card from /stats.
  *
  * Sources fail independently: a failed endpoint nulls its sections rather
- * than failing the page. The historical endpoint's failure is expected on
- * older backends and never counts toward the all-failed error below.
+ * than failing the page. Only when every source fails does this throw.
  *
  * @param network - Optional network parameter
  */
 export async function getBlobRecords(network?: string): Promise<BlobRecords> {
-  const [pricing, statsWindows, stats, attribution, records] =
-    await Promise.allSettled([
-      getBlobPricing(network),
-      getStatsWindows(undefined, network),
-      getStats(network),
-      // All-time range so spend and milestone counters cover each entity's
-      // full history. Granularity is pinned to day buckets; only the summary
-      // shares are read.
-      getAttributionUsageChart('all', network, 'day'),
-      getIndexerRecords(network),
-    ]);
+  const results = await Promise.allSettled([
+    getStats(network),
+    // All-time range so spend and milestone counters cover each entity's
+    // full history. Granularity is pinned to day buckets; only the summary
+    // shares are read.
+    getAttributionUsageChart('all', network, 'day'),
+    getIndexerRecords(network),
+  ]);
+  const [stats, attribution, records] = results;
 
   const sources = {
-    pricing: fulfilledValue(pricing),
-    statsWindows: fulfilledValue(statsWindows),
     stats: fulfilledValue(stats),
     attribution: fulfilledValue(attribution),
     records: fulfilledValue(records),
   };
 
-  if (
-    !sources.pricing &&
-    !sources.statsWindows &&
-    !sources.stats &&
-    !sources.attribution
-  ) {
-    throw firstRejection([pricing, statsWindows, stats, attribution]);
+  if (!sources.stats && !sources.attribution && !sources.records) {
+    throw firstRejection(results);
   }
 
   return deriveBlobRecords(sources);

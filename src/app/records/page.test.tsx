@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import { DEFAULT_NETWORK } from '@/constants';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
-import type { BlobRecords } from '@/types';
+import type { BlobRecords, StreakLeaderboard } from '@/types';
 import RecordsPage from './page';
 
 vi.mock('next/image', () => ({
@@ -19,31 +19,93 @@ vi.mock('@/hooks/useNetwork', () => ({
   useNetwork: vi.fn(),
 }));
 
+const EMPTY_BOARD: StreakLeaderboard = { current: null, top: [] };
+
 function makeRecords(overrides: Partial<BlobRecords> = {}): BlobRecords {
   return {
-    streak: {
-      consecutiveFullBlocks: 3,
-      recentBlocksAboveTarget: 12,
-      percentRecentBlocksAtMaxBlobs: 15,
-    },
-    fullBlockStreaks: null,
-    aboveTargetStreaks: null,
-    feePeaks: null,
-    busiestHours: null,
-    peakWindowFee: {
-      window: '30d',
-      p95Gwei: 5,
-      perWindow: [
-        { window: '24h', p95Gwei: 2 },
-        { window: '30d', p95Gwei: 5 },
+    fullBlockStreaks: {
+      current: {
+        length: 2,
+        startBlock: 23_411_999,
+        endBlock: 23_412_000,
+        endTimestamp: '2026-08-02T11:59:48Z',
+      },
+      top: [
+        {
+          length: 14,
+          startBlock: 22_811_332,
+          endBlock: 22_811_345,
+          endTimestamp: '2026-05-14T09:12:00Z',
+        },
+        {
+          length: 11,
+          startBlock: 23_100_190,
+          endBlock: 23_100_200,
+          endTimestamp: '2026-06-30T17:40:00Z',
+        },
       ],
     },
-    busiestWindow: {
-      window: '1h',
-      totalBlobs: 1_200,
-      blobsPerHour: 1_200,
-      perWindow: [{ window: '1h', totalBlobs: 1_200, blobsPerHour: 1_200 }],
+    aboveTargetStreaks: {
+      current: null,
+      top: [
+        {
+          length: 42,
+          startBlock: 22_811_359,
+          endBlock: 22_811_400,
+          endTimestamp: '2026-05-14T09:23:00Z',
+        },
+      ],
     },
+    droughtStreaks: {
+      current: null,
+      top: [
+        {
+          length: 120,
+          startBlock: 18_500_000,
+          endBlock: 18_500_119,
+          endTimestamp: '2025-02-01T04:00:00Z',
+        },
+      ],
+    },
+    belowTargetStreaks: EMPTY_BOARD,
+    feePeaks: [
+      {
+        blockNumber: 19_426_587,
+        timestamp: '2024-03-13T13:35:00Z',
+        feeGwei: 644,
+        blobCount: 6,
+      },
+    ],
+    expensiveBlocks: [
+      {
+        blockNumber: 19_426_588,
+        timestamp: '2024-03-13T13:36:00Z',
+        totalCostWei: '390497402831634432',
+        blobCount: 6,
+      },
+    ],
+    busiestHours: [
+      {
+        hourStart: '2026-05-14T09:00:00Z',
+        blobCount: 4_211,
+        totalCostWei: '9000000000000000000',
+      },
+    ],
+    busiestDays: [
+      {
+        dayStart: '2026-05-14T00:00:00Z',
+        blobCount: 98_431,
+        totalCostWei: '90000000000000000000',
+      },
+    ],
+    utilizationDays: [
+      {
+        dayStart: '2026-05-14T00:00:00Z',
+        averageUtilizationPercent: 87.42,
+        blockCount: 7_150,
+        blobCount: 39_204,
+      },
+    ],
     topSpenders: [
       {
         key: 'base',
@@ -99,79 +161,8 @@ describe('RecordsPage', () => {
     });
   });
 
-  it('falls back to live and windowed cards without historical data', () => {
+  it('renders the historical leaderboards', () => {
     mockRecords(makeRecords());
-    render(<RecordsPage />);
-
-    const streakCard = document.getElementById('full-block-streak')!;
-    expect(within(streakCard).getByText('Live')).toBeInTheDocument();
-    expect(
-      within(streakCard).getByText(/15% of recent blocks hit the max blob count/)
-    ).toBeInTheDocument();
-
-    const feeCard = document.getElementById('peak-p95-fee')!;
-    expect(within(feeCard).getByText('30d window')).toBeInTheDocument();
-    expect(within(feeCard).getByText(/not an all-time high/)).toBeInTheDocument();
-
-    const busiestCard = document.getElementById('busiest-window')!;
-    expect(
-      within(busiestCard).getByText(/led by the 1h window with 1,200 blobs/)
-    ).toBeInTheDocument();
-  });
-
-  it('renders historical leaderboards when the records endpoint supplies them', () => {
-    mockRecords(
-      makeRecords({
-        fullBlockStreaks: {
-          current: {
-            length: 2,
-            startBlock: 23_411_999,
-            endBlock: 23_412_000,
-            endTimestamp: '2026-08-02T11:59:48Z',
-          },
-          top: [
-            {
-              length: 14,
-              startBlock: 22_811_332,
-              endBlock: 22_811_345,
-              endTimestamp: '2026-05-14T09:12:00Z',
-            },
-            {
-              length: 11,
-              startBlock: 23_100_190,
-              endBlock: 23_100_200,
-              endTimestamp: '2026-06-30T17:40:00Z',
-            },
-          ],
-        },
-        aboveTargetStreaks: {
-          current: null,
-          top: [
-            {
-              length: 42,
-              startBlock: 22_811_359,
-              endBlock: 22_811_400,
-              endTimestamp: '2026-05-14T09:23:00Z',
-            },
-          ],
-        },
-        feePeaks: [
-          {
-            blockNumber: 19_426_587,
-            timestamp: '2024-03-13T13:35:00Z',
-            feeGwei: 644,
-            blobCount: 6,
-          },
-        ],
-        busiestHours: [
-          {
-            hourStart: '2026-05-14T09:00:00Z',
-            blobCount: 4_211,
-            totalCostWei: '9000000000000000000',
-          },
-        ],
-      })
-    );
     render(<RecordsPage />);
 
     const streakCard = document.getElementById('full-block-streak')!;
@@ -197,20 +188,73 @@ describe('RecordsPage', () => {
       within(aboveTargetCard).getByText(/Current streak: 0\./)
     ).toBeInTheDocument();
 
-    const feeCard = document.getElementById('peak-p95-fee')!;
+    const droughtCard = document.getElementById('blob-drought')!;
+    expect(within(droughtCard).getByText('120')).toBeInTheDocument();
+    expect(
+      within(droughtCard).getByText(/blocks without a single blob/)
+    ).toBeInTheDocument();
+
+    const feeCard = document.getElementById('highest-base-fee')!;
     expect(within(feeCard).getByText('644.00')).toBeInTheDocument();
     expect(
       within(feeCard).getByText(/Highest blob base fee ever indexed/)
     ).toBeInTheDocument();
 
-    const busiestCard = document.getElementById('busiest-window')!;
-    expect(within(busiestCard).getByText('4,211')).toBeInTheDocument();
-    // The record hour's date appears in both the caption and its ranked row.
-    expect(within(busiestCard).getAllByText(/May 14, 2026/)).toHaveLength(2);
+    const expensiveCard = document.getElementById('most-expensive-block')!;
+    expect(
+      within(expensiveCard).getByText(/The most spent on blobs in a single block/)
+    ).toBeInTheDocument();
 
-    // Historical cards must not carry the narrower fallback scope labels.
-    expect(within(streakCard).queryByText('Live')).not.toBeInTheDocument();
-    expect(within(feeCard).queryByText(/window$/)).not.toBeInTheDocument();
+    const hourCard = document.getElementById('busiest-hour')!;
+    expect(within(hourCard).getByText('4,211')).toBeInTheDocument();
+    expect(within(hourCard).getAllByText(/May 14, 2026/)).toHaveLength(2);
+
+    const dayCard = document.getElementById('busiest-day')!;
+    expect(within(dayCard).getByText('98,431')).toBeInTheDocument();
+
+    const utilizationCard = document.getElementById('highest-utilization-day')!;
+    // Headline value plus its ranked row repeat the record percentage.
+    expect(within(utilizationCard).getAllByText('87.4%')).toHaveLength(2);
+
+    // A board with no runs renders no card at all.
+    expect(document.getElementById('below-target-streak')).toBeNull();
+  });
+
+  it('omits leaderboard cards entirely when the records endpoint is unavailable', () => {
+    mockRecords(
+      makeRecords({
+        fullBlockStreaks: null,
+        aboveTargetStreaks: null,
+        droughtStreaks: null,
+        belowTargetStreaks: null,
+        feePeaks: null,
+        expensiveBlocks: null,
+        busiestHours: null,
+        busiestDays: null,
+        utilizationDays: null,
+      })
+    );
+    render(<RecordsPage />);
+
+    for (const id of [
+      'full-block-streak',
+      'blocks-above-target',
+      'blob-drought',
+      'below-target-streak',
+      'highest-base-fee',
+      'most-expensive-block',
+      'busiest-hour',
+      'busiest-day',
+      'highest-utilization-day',
+    ]) {
+      expect(document.getElementById(id)).toBeNull();
+    }
+    expect(screen.queryByText(/window/i)).not.toBeInTheDocument();
+
+    // Attribution and stats sections still render.
+    expect(document.getElementById('top-spenders')).not.toBeNull();
+    expect(document.getElementById('total-blobs')).not.toBeNull();
+    expect(document.getElementById('rollup-milestones')).not.toBeNull();
   });
 
   it('ranks top spenders with the record holder first', () => {
