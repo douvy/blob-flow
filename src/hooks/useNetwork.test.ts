@@ -26,6 +26,10 @@ describe('useNetwork', () => {
     getNetworks.mockResolvedValue({ success: true, data: BACKEND_NETWORKS });
   });
 
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
   it('loads the network list from the API and transforms it for the selector', async () => {
     const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
 
@@ -169,15 +173,61 @@ describe('useNetwork', () => {
     expect(result.current.networkOptions.every((n) => n.apiParam !== '')).toBe(true);
   });
 
-  it('updates selected network and persists selection', () => {
-    const reloadSpy = vi.fn();
+  it('prefers a valid ?network= param over the persisted selection', async () => {
+    window.history.replaceState(null, '', '/charts/base-fee?network=sepolia');
+    window.localStorage.setItem('selectedNetwork', JSON.stringify('hoodi'));
+
+    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.selectedNetwork.apiParam).toBe('sepolia'));
+    // The param wins for this load only; the persisted preference is untouched.
+    expect(window.localStorage.getItem('selectedNetwork')).toBe(JSON.stringify('hoodi'));
+  });
+
+  it('falls back to the persisted selection when the ?network= param is unknown', async () => {
+    window.history.replaceState(null, '', '/charts/base-fee?network=nope');
+    window.localStorage.setItem('selectedNetwork', JSON.stringify('hoodi'));
+
+    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+    await waitFor(() => expect(result.current.selectedNetwork.apiParam).toBe('hoodi'));
+  });
+
+  it('falls back to the default when the ?network= param is malformed', async () => {
+    window.history.replaceState(null, '', '/charts/base-fee?network=bad%20name');
+
+    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+    expect(result.current.selectedNetwork.apiParam).toBe(DEFAULT_NETWORK.apiParam);
+  });
+
+  // Replace the location object so navigation can be observed in jsdom.
+  function stubLocation(overrides: Partial<Location>): { restore: () => void } {
     const originalLocation = window.location;
-    // Replace location object so reload can be controlled in jsdom.
     delete (window as Window & { location?: Location }).location;
     (window as Window & { location: Location }).location = {
       ...originalLocation,
-      reload: reloadSpy,
+      ...overrides,
     };
+    return {
+      restore: () => {
+        (window as Window & { location: Location }).location = originalLocation;
+      },
+    };
+  }
+
+  it('updates selected network, persists it, and reloads on non-chart pages', () => {
+    const reloadSpy = vi.fn();
+    const replaceSpy = vi.fn();
+    const stub = stubLocation({
+      pathname: '/blocks',
+      search: '',
+      hash: '',
+      reload: reloadSpy,
+      replace: replaceSpy,
+    });
 
     const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
 
@@ -187,7 +237,32 @@ describe('useNetwork', () => {
 
     expect(window.localStorage.getItem('selectedNetwork')).toBe(JSON.stringify('mainnet'));
     expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(replaceSpy).not.toHaveBeenCalled();
 
-    (window as Window & { location: Location }).location = originalLocation;
+    stub.restore();
+  });
+
+  it('reloads with the network in the URL on chart views', () => {
+    const reloadSpy = vi.fn();
+    const replaceSpy = vi.fn();
+    const stub = stubLocation({
+      pathname: '/charts/base-fee',
+      search: '?range=7d',
+      hash: '',
+      reload: reloadSpy,
+      replace: replaceSpy,
+    });
+
+    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+
+    act(() => {
+      result.current.setSelectedNetwork({ name: 'Sepolia', apiParam: 'sepolia' });
+    });
+
+    expect(window.localStorage.getItem('selectedNetwork')).toBe(JSON.stringify('sepolia'));
+    expect(replaceSpy).toHaveBeenCalledWith('/charts/base-fee?range=7d&network=sepolia');
+    expect(reloadSpy).not.toHaveBeenCalled();
+
+    stub.restore();
   });
 });

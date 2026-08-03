@@ -3,12 +3,13 @@
 import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, type LucideIcon } from 'lucide-react';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
 import { useNetwork } from '../hooks/useNetwork';
+import { buildChartViewUrl, isChartViewPath } from '../lib/chartViewUrl';
 import { DEFAULT_NETWORK } from '../constants';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import { useBlobWebSocket } from '../contexts/LiveDataContext';
@@ -113,10 +114,11 @@ function LiveStatusIndicator({
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
   // Chart detail pages read the time range via useChartData, so they keep the filter too
-  const showTimeFilters = pathname === '/' || pathname.startsWith('/charts/');
+  const showTimeFilters = isChartViewPath(pathname);
   const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -139,6 +141,18 @@ export default function Header() {
 
   const handleTimeRangeChange = (range: TimeRange) => {
     setSelectedTimeRange(range);
+
+    // Reflect the full view in the URL (range and network together) so the
+    // address is shareable; replace instead of push to avoid history spam.
+    if (isChartViewPath(pathname)) {
+      router.replace(
+        buildChartViewUrl(pathname, window.location.search, {
+          range,
+          network: selectedNetwork.apiParam,
+        }),
+        { scroll: false }
+      );
+    }
   };
 
   const isNavLinkActive = (link: NavLink) => {

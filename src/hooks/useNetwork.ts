@@ -4,6 +4,7 @@ import { useCallback, useEffect } from 'react';
 import { DEFAULT_NETWORK, NETWORKS } from '../constants';
 import type { BackendNetwork, Network } from '../types';
 import { api } from '@/lib/api';
+import { buildNetworkChangeUrl, useChartViewUrlParams } from '@/lib/chartViewUrl';
 import { useApiData } from './useApiData';
 import { useLocalStorage } from './useLocalStorage';
 
@@ -55,6 +56,13 @@ export function useNetwork() {
     );
     const storedApiParam = storedValue.toLowerCase();
 
+    // A valid ?network= query param wins over the persisted selection, so a
+    // shared chart link reproduces the network it was captured on. It only
+    // wins for display: storage is left untouched until the user changes
+    // network themselves.
+    const { network: urlApiParam } = useChartViewUrlParams();
+    const requestedApiParam = urlApiParam ?? storedApiParam;
+
     const fetchNetworks = useCallback(async () => {
         const response = await api.getNetworks();
         if (!response.success || !response.data) {
@@ -78,16 +86,20 @@ export function useNetwork() {
     const fetchedNetworks = data && data.length > 0 ? data : undefined;
     const networkOptions = fetchedNetworks ?? FALLBACK_NETWORKS;
 
-    // Derive selected network from stored apiParam; stays in sync without a
-    // separate effect.
+    // Derive selected network from the requested apiParam (URL param first,
+    // then the persisted value); stays in sync without a separate effect.
     const selectedNetwork =
-        networkOptions.find((network) => network.apiParam === storedApiParam) ??
-        // Still loading: trust the persisted choice so a dynamic-only network
+        networkOptions.find((network) => network.apiParam === requestedApiParam) ??
+        // Still loading: trust the requested choice so a dynamic-only network
         // (absent from the fallback list) doesn't flash to the default and open
         // the wrong live-data connection before /networks resolves. On error we
         // deliberately do NOT trust it, so an unknown value resolves to a network
         // the selector can actually show rather than querying a maybe-dead one.
-        (isLoading && storedApiParam ? networkFromApiParam(storedApiParam) : undefined) ??
+        (isLoading && requestedApiParam ? networkFromApiParam(requestedApiParam) : undefined) ??
+        // Settled without the URL network: fall back to the persisted selection.
+        (urlApiParam
+            ? networkOptions.find((network) => network.apiParam === storedApiParam)
+            : undefined) ??
         // Settled without the persisted network: prefer the default.
         networkOptions.find((network) => network.apiParam === DEFAULT_NETWORK.apiParam) ??
         networkOptions[0] ??
@@ -111,8 +123,17 @@ export function useNetwork() {
     const setSelectedNetwork = (network: Network) => {
         setStoredValue(network.apiParam);
 
-        // Force a page reload to refresh all data with the new network
-        window.location.reload();
+        // Force a page reload to refresh all data with the new network. On
+        // chart views (and wherever a ?network= param is already present) the
+        // reload target carries the new selection, so the address stays
+        // shareable and a stale param cannot override the choice on load.
+        // location.replace keeps history clean, mirroring router.replace.
+        const url = buildNetworkChangeUrl(window.location, network.apiParam);
+        if (url) {
+            window.location.replace(url);
+        } else {
+            window.location.reload();
+        }
     };
 
     return {
