@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   analyzeFlippening,
   computeBucketShares,
+  computeRollingShares,
   detectCrossoverEvents,
   findClosestGap,
   selectTopEntities,
@@ -9,7 +10,6 @@ import {
 import type {
   BackendAttributionUsageChartResponse,
   BackendAttributionUsagePoint,
-  BackendAttributionUsageShare,
 } from '../types';
 
 type BucketCounts = Record<string, number>;
@@ -29,27 +29,10 @@ function makePoint(index: number, counts: BucketCounts): BackendAttributionUsage
   };
 }
 
-function makeShare(
-  key: string,
-  blobCount: number,
-  blobSharePercent: number
-): BackendAttributionUsageShare {
-  return {
-    key,
-    name: key.toUpperCase(),
-    category: 'l2',
-    blob_count: blobCount,
-    total_cost_wei: '0',
-    blob_share_percent: blobSharePercent,
-    spend_share_percent: blobSharePercent,
-  };
-}
-
 type SeriesMeta = Record<string, { category?: string; address?: string; name?: string }>;
 
 function makeResponse(
   buckets: BucketCounts[],
-  shares: BackendAttributionUsageShare[] = [],
   seriesMeta: SeriesMeta = {}
 ): BackendAttributionUsageChartResponse {
   const keys = new Set<string>();
@@ -77,7 +60,7 @@ function makeResponse(
         0
       ),
       total_cost_wei: '0',
-      shares,
+      shares: [],
     },
   };
 }
@@ -99,21 +82,21 @@ describe('selectTopEntities', () => {
   });
 
   it('excludes the aggregate other bucket', () => {
-    const response = makeResponse([{ base: 5, other: 50 }], [], {
+    const response = makeResponse([{ base: 5, other: 50 }], {
       other: { category: 'other', name: 'Other' },
     });
     expect(selectTopEntities(response, 5).map((entity) => entity.key)).toEqual(['base']);
   });
 
   it('excludes the aggregate unknown bucket when it has no address', () => {
-    const response = makeResponse([{ base: 5, unknown: 50 }], [], {
+    const response = makeResponse([{ base: 5, unknown: 50 }], {
       unknown: { category: 'unknown', name: 'Unknown' },
     });
     expect(selectTopEntities(response, 5).map((entity) => entity.key)).toEqual(['base']);
   });
 
   it('labels a single-address unknown sender by its address', () => {
-    const response = makeResponse([{ base: 5, mystery: 50 }], [], {
+    const response = makeResponse([{ base: 5, mystery: 50 }], {
       mystery: {
         category: 'unknown',
         name: 'Unknown',
@@ -126,17 +109,24 @@ describe('selectTopEntities', () => {
   });
 
   it('does not let excluded aggregates consume topN slots', () => {
-    const response = makeResponse(
-      [{ other: 100, unknown: 90, base: 5, arbitrum: 4 }],
-      [],
-      {
-        other: { category: 'other', name: 'Other' },
-        unknown: { category: 'unknown', name: 'Unknown' },
-      }
-    );
+    const response = makeResponse([{ other: 100, unknown: 90, base: 5, arbitrum: 4 }], {
+      other: { category: 'other', name: 'Other' },
+      unknown: { category: 'unknown', name: 'Unknown' },
+    });
     expect(selectTopEntities(response, 2).map((entity) => entity.key)).toEqual([
       'base',
       'arbitrum',
+    ]);
+  });
+
+  it('ranks by the trailing window only when lastBuckets is given', () => {
+    const response = makeResponse([
+      { base: 100, arbitrum: 1 },
+      { base: 1, arbitrum: 5 },
+    ]);
+    expect(selectTopEntities(response, 2, 1).map((entity) => entity.key)).toEqual([
+      'arbitrum',
+      'base',
     ]);
   });
 });
@@ -273,57 +263,90 @@ describe('detectCrossoverEvents', () => {
   });
 });
 
+describe('computeRollingShares', () => {
+  it('sums blob counts over the trailing window', () => {
+    const points = [
+      makePoint(0, { base: 10, arbitrum: 0 }),
+      makePoint(1, { base: 0, arbitrum: 10 }),
+      makePoint(2, { base: 0, arbitrum: 10 }),
+    ];
+    // 600s buckets, 1200s window: two buckets per evaluation.
+    const shares = computeRollingShares(points, 600, 1200);
+    expect(shares.map((entry) => entry.bucketIndex)).toEqual([1, 2]);
+    expect(shares[0].totalBlobs).toBe(20);
+    expect(shares[0].sharePercentByKey.base).toBeCloseTo(50);
+    expect(shares[0].sharePercentByKey.arbitrum).toBeCloseTo(50);
+    expect(shares[1].totalBlobs).toBe(20);
+    expect(shares[1].sharePercentByKey.base).toBeUndefined();
+    expect(shares[1].sharePercentByKey.arbitrum).toBeCloseTo(100);
+  });
+
+  it('degenerates to per-bucket shares when the window is one bucket', () => {
+    const points = [makePoint(0, { base: 6, arbitrum: 4 })];
+    const [bucket] = computeRollingShares(points, 600, 600);
+    expect(bucket.totalBlobs).toBe(10);
+    expect(bucket.sharePercentByKey.base).toBeCloseTo(60);
+  });
+
+  it('emits one partial evaluation when history is shorter than the window', () => {
+    const points = [
+      makePoint(0, { base: 6, arbitrum: 4 }),
+      makePoint(1, { base: 4, arbitrum: 6 }),
+    ];
+    const shares = computeRollingShares(points, 600, 6000);
+    expect(shares).toHaveLength(1);
+    expect(shares[0].bucketIndex).toBe(1);
+    expect(shares[0].totalBlobs).toBe(20);
+    expect(shares[0].sharePercentByKey.base).toBeCloseTo(50);
+  });
+
+  it('returns nothing for empty input', () => {
+    expect(computeRollingShares([], 600, 1200)).toEqual([]);
+  });
+});
+
 describe('findClosestGap', () => {
-  it('returns the adjacent ranked pair with the smallest lead', () => {
-    const response = makeResponse(
-      [{ base: 1, arbitrum: 1, optimism: 1 }],
-      [
-        makeShare('base', 500, 50),
-        makeShare('arbitrum', 300, 30),
-        makeShare('optimism', 200, 20),
-      ]
-    );
-    const gap = findClosestGap(response, selectTopEntities(response, 6));
+  const entities = [
+    { key: 'base', name: 'Base' },
+    { key: 'arbitrum', name: 'Arbitrum' },
+    { key: 'optimism', name: 'Optimism' },
+  ];
+
+  it('returns the adjacent ranked pair with the smallest lead at the latest window', () => {
+    const buckets = computeBucketShares([
+      makePoint(0, { base: 90, arbitrum: 5, optimism: 5 }),
+      makePoint(1, { base: 50, arbitrum: 30, optimism: 20 }),
+    ]);
+    const gap = findClosestGap(buckets, entities);
     expect(gap).not.toBeNull();
     expect(gap?.leader.key).toBe('arbitrum');
     expect(gap?.trailer.key).toBe('optimism');
     expect(gap?.gapPoints).toBeCloseTo(10);
   });
 
-  it('ignores summary entries outside the tracked entities', () => {
-    const response = makeResponse(
-      [{ base: 10, arbitrum: 5 }],
-      [
-        makeShare('base', 10, 60),
-        makeShare('arbitrum', 5, 30),
-        makeShare('untracked', 2, 29),
-      ]
-    );
-    const gap = findClosestGap(response, selectTopEntities(response, 2));
+  it('ignores share keys outside the tracked entities', () => {
+    const buckets = computeBucketShares([
+      makePoint(0, { base: 60, arbitrum: 30, untracked: 10 }),
+    ]);
+    const gap = findClosestGap(buckets, entities.slice(0, 2));
     expect(gap?.leader.key).toBe('base');
     expect(gap?.trailer.key).toBe('arbitrum');
     expect(gap?.gapPoints).toBeCloseTo(30);
   });
 
-  it('returns null when fewer than two tracked entities have shares', () => {
-    const response = makeResponse([{ base: 10 }], [makeShare('base', 10, 100)]);
-    expect(findClosestGap(response, selectTopEntities(response, 6))).toBeNull();
+  it('returns null with fewer than two tracked entities or no windows', () => {
+    const buckets = computeBucketShares([makePoint(0, { base: 10 })]);
+    expect(findClosestGap(buckets, entities.slice(0, 1))).toBeNull();
+    expect(findClosestGap([], entities)).toBeNull();
   });
 });
 
 describe('analyzeFlippening', () => {
   it('combines entity selection, events, and the closest gap', () => {
-    const response = makeResponse(
-      [
-        { base: 40, arbitrum: 60, optimism: 10 },
-        { base: 70, arbitrum: 30, optimism: 10 },
-      ],
-      [
-        makeShare('base', 110, 50),
-        makeShare('arbitrum', 90, 41),
-        makeShare('optimism', 20, 9),
-      ]
-    );
+    const response = makeResponse([
+      { base: 40, arbitrum: 60, optimism: 10 },
+      { base: 70, arbitrum: 30, optimism: 10 },
+    ]);
     const analysis = analyzeFlippening(response);
     expect(analysis.entities.map((entity) => entity.key)).toEqual([
       'base',
@@ -332,8 +355,34 @@ describe('analyzeFlippening', () => {
     ]);
     expect(analysis.events).toHaveLength(1);
     expect(analysis.events[0].winner.key).toBe('base');
-    expect(analysis.closestGap?.leader.key).toBe('base');
-    expect(analysis.closestGap?.gapPoints).toBeCloseTo(9);
+    // Latest bucket: base 63.6%, arbitrum 27.3%, optimism 9.1%.
+    expect(analysis.closestGap?.leader.key).toBe('arbitrum');
+    expect(analysis.closestGap?.trailer.key).toBe('optimism');
+    expect(analysis.closestGap?.gapPoints).toBeCloseTo(18.18, 1);
+  });
+
+  it('detects crossovers of the rolling window share, not the bucket share', () => {
+    // Bucket shares flip back and forth every bucket, but the 2-bucket
+    // rolling share only crosses once, at the last evaluation.
+    const response = makeResponse([
+      { base: 10, arbitrum: 0 },
+      { base: 0, arbitrum: 6 },
+      { base: 10, arbitrum: 0 },
+      { base: 0, arbitrum: 30 },
+    ]);
+    const analysis = analyzeFlippening(response, { windowSeconds: 1200 });
+    expect(analysis.events).toHaveLength(1);
+    expect(analysis.events[0].winner.key).toBe('arbitrum');
+    expect(analysis.events[0].bucketIndex).toBe(3);
+  });
+
+  it('ranks tracked entities by the current window, not the whole history', () => {
+    const response = makeResponse([
+      { base: 100, arbitrum: 1 },
+      { base: 1, arbitrum: 5 },
+    ]);
+    const analysis = analyzeFlippening(response, { windowSeconds: 600, topN: 1 });
+    expect(analysis.entities.map((entity) => entity.key)).toEqual(['arbitrum']);
   });
 
   it('handles an empty response', () => {

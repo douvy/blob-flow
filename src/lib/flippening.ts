@@ -2,24 +2,26 @@
  * Flippening detection: pairwise blob-share crossover events between the top
  * entities in an attribution-usage chart response.
  *
- * Share semantics: detection uses per-bucket share (an entity's blob_count
- * divided by the bucket's total blob_count across all entities), not
- * cumulative share over the range. Bucket share reflects the moment one
- * rollup actually overtakes another; cumulative share drags the whole
- * history along, so a crossover would register buckets or days after the
- * lead actually changed hands. The summary's range-wide shares are still
- * used for the "closest gap" indicator, which is a statement about the
- * whole window rather than a single bucket.
+ * Share semantics: the tracked metric is a rolling-window share. At each
+ * chart bucket, an entity's share is its blob count over the trailing
+ * `windowSeconds` (the UI passes the selected time filter, e.g. 24h)
+ * divided by all blobs in that same trailing window. A flip is the moment
+ * that rolling share crosses another entity's, which matches the plain
+ * reading of "Base flipped Arbitrum in 24h blob share". Callers fetch a
+ * range longer than the window so crossings have history to show up in.
+ * When no window is given, the window degenerates to a single bucket.
  *
  * Noise controls:
- * - Epsilon hysteresis: buckets where the pair's shares differ by less than
- *   `epsilonPoints` percentage points are treated as a tie and never change
- *   the leader, so entities jittering around parity do not spam events. A
- *   flip is only recorded once the challenger leads by at least epsilon.
- * - Adjacent reversal collapse: a flip that is flipped straight back in the
- *   next bucket is a transient blip, not a lead change; both events are
- *   dropped. Any surviving later flip still reads correctly, because
- *   dropping a reversal pair leaves the pair's leader where it started.
+ * - Epsilon hysteresis: evaluation points where the pair's shares differ by
+ *   less than `epsilonPoints` percentage points are treated as a tie and
+ *   never change the leader, so entities jittering around parity do not
+ *   spam events. A flip is only recorded once the challenger leads by at
+ *   least epsilon.
+ * - Adjacent reversal collapse: a flip that is flipped straight back at the
+ *   next evaluation point is a transient blip, not a lead change; both
+ *   events are dropped. Any surviving later flip still reads correctly,
+ *   because dropping a reversal pair leaves the pair's leader where it
+ *   started.
  */
 
 import { truncateAddress } from '../utils';
@@ -33,13 +35,14 @@ export interface FlippeningEntity {
   name: string;
 }
 
-/** Per-bucket blob share for every entity present in the bucket. */
+/** Rolling-window blob share evaluated at one chart bucket. */
 export interface FlippeningBucketShares {
   /** Index of the bucket in the response's points array. */
   bucketIndex: number;
   timestamp: string;
+  /** Total blobs across all entities in the trailing window. */
   totalBlobs: number;
-  /** Blob share of the bucket total, in percent, keyed by entity key. */
+  /** Blob share of the window total, in percent, keyed by entity key. */
   sharePercentByKey: Record<string, number>;
 }
 
@@ -55,7 +58,7 @@ export interface FlippeningEvent {
   loserSharePercent: number;
 }
 
-/** Range-wide share gap between two adjacently ranked entities. */
+/** Share gap between two adjacently ranked entities at the latest window. */
 export interface FlippeningGap {
   leader: FlippeningEntity;
   trailer: FlippeningEntity;
@@ -66,19 +69,24 @@ export interface FlippeningGap {
 }
 
 export interface FlippeningAnalysis {
-  /** Top entities by total blob count over the window, highest first. */
+  /** Top entities by blob count over the latest window, highest first. */
   entities: FlippeningEntity[];
   /** Confirmed crossover events, oldest first. */
   events: FlippeningEvent[];
-  /** Smallest range-wide share gap between adjacently ranked entities. */
+  /** Smallest current share gap between adjacently ranked entities. */
   closestGap: FlippeningGap | null;
 }
 
 export interface FlippeningOptions {
-  /** How many entities (by total blob count) to track. */
+  /** How many entities (by blob count in the latest window) to track. */
   topN?: number;
   /** Share gaps below this many percentage points count as a tie. */
   epsilonPoints?: number;
+  /**
+   * Length of the rolling share window (normally the UI's time filter).
+   * Defaults to one bucket, i.e. plain per-bucket share.
+   */
+  windowSeconds?: number;
 }
 
 export const DEFAULT_FLIPPENING_TOP_N = 6;
@@ -108,17 +116,23 @@ function resolveTrackedEntity(key: string, meta: EntityMeta | undefined): Flippe
 }
 
 /**
- * Top `topN` entities by total blob count across all buckets, highest first.
- * Entities with zero blobs in the window and the aggregate other/unknown
+ * Top `topN` entities by total blob count, highest first. When
+ * `lastBuckets` is given, only that many trailing buckets are counted, so
+ * the ranking reflects the current window rather than the whole fetched
+ * history. Entities with no blobs in scope and the aggregate other/unknown
  * buckets are excluded (see resolveTrackedEntity); ties break by key so the
  * ranking is deterministic.
  */
 export function selectTopEntities(
   response: BackendAttributionUsageChartResponse,
-  topN: number
+  topN: number,
+  lastBuckets?: number
 ): FlippeningEntity[] {
+  const points =
+    lastBuckets !== undefined ? response.points.slice(-lastBuckets) : response.points;
+
   const totals = new Map<string, number>();
-  for (const point of response.points) {
+  for (const point of points) {
     for (const [key, value] of Object.entries(point.values)) {
       totals.set(key, (totals.get(key) ?? 0) + (value.blob_count ?? 0));
     }
@@ -149,34 +163,70 @@ export function selectTopEntities(
 }
 
 /**
- * Per-bucket blob shares. Shares are computed against the bucket's total
- * across all entities in the response (not just the tracked top N), so a
+ * Rolling-window blob shares evaluated at each bucket. The window spans
+ * `windowSeconds` (rounded to whole buckets, minimum one); shares only
+ * count entities against the window's total across all entities, so a
  * tracked entity's share matches what the attribution chart displays.
- * Buckets with zero blobs carry no shares and are skipped by detection.
+ *
+ * Evaluation starts at the first bucket with a full window behind it. When
+ * the history is shorter than one window, a single evaluation over all
+ * available buckets is emitted so callers can still rank current shares.
  */
-export function computeBucketShares(
-  points: BackendAttributionUsagePoint[]
+export function computeRollingShares(
+  points: BackendAttributionUsagePoint[],
+  bucketSeconds: number,
+  windowSeconds: number
 ): FlippeningBucketShares[] {
-  return points.map((point, bucketIndex) => {
-    let totalBlobs = 0;
-    for (const value of Object.values(point.values)) {
-      totalBlobs += value.blob_count ?? 0;
+  if (points.length === 0) return [];
+
+  const windowBuckets = Math.max(1, Math.round(windowSeconds / Math.max(1, bucketSeconds)));
+  const countsByKey = new Map<string, number>();
+  let totalBlobs = 0;
+
+  const addPoint = (point: BackendAttributionUsagePoint, sign: 1 | -1) => {
+    for (const [key, value] of Object.entries(point.values)) {
+      const delta = (value.blob_count ?? 0) * sign;
+      countsByKey.set(key, (countsByKey.get(key) ?? 0) + delta);
+      totalBlobs += delta;
     }
+  };
+
+  const result: FlippeningBucketShares[] = [];
+  for (let index = 0; index < points.length; index += 1) {
+    addPoint(points[index], 1);
+    if (index >= windowBuckets) addPoint(points[index - windowBuckets], -1);
+
+    const hasFullWindow = index >= windowBuckets - 1;
+    const isPartialFallback = index === points.length - 1 && points.length < windowBuckets;
+    if (!hasFullWindow && !isPartialFallback) continue;
 
     const sharePercentByKey: Record<string, number> = {};
     if (totalBlobs > 0) {
-      for (const [key, value] of Object.entries(point.values)) {
-        sharePercentByKey[key] = ((value.blob_count ?? 0) / totalBlobs) * 100;
+      for (const [key, count] of countsByKey) {
+        if (count > 0) sharePercentByKey[key] = (count / totalBlobs) * 100;
       }
     }
+    result.push({
+      bucketIndex: index,
+      timestamp: points[index].timestamp,
+      totalBlobs,
+      sharePercentByKey,
+    });
+  }
+  return result;
+}
 
-    return { bucketIndex, timestamp: point.timestamp, totalBlobs, sharePercentByKey };
-  });
+/** Single-bucket shares: the degenerate rolling window of one bucket. */
+export function computeBucketShares(
+  points: BackendAttributionUsagePoint[]
+): FlippeningBucketShares[] {
+  return computeRollingShares(points, 1, 1);
 }
 
 /**
- * Drop pairs of consecutive events where a flip is reverted in the very next
- * bucket. Events must belong to a single pair and be ordered by bucket.
+ * Drop pairs of consecutive events where a flip is reverted at the very
+ * next evaluation point. Events must belong to a single pair and be ordered
+ * by bucket.
  */
 function collapseAdjacentReversals(events: FlippeningEvent[]): FlippeningEvent[] {
   const kept: FlippeningEvent[] = [];
@@ -200,8 +250,9 @@ function collapseAdjacentReversals(events: FlippeningEvent[]): FlippeningEvent[]
 
 /**
  * Crossover events for one entity pair, applying epsilon hysteresis and the
- * adjacent reversal collapse. The first bucket where either entity leads by
- * at least epsilon establishes the baseline leader without emitting an event.
+ * adjacent reversal collapse. The first evaluation where either entity
+ * leads by at least epsilon establishes the baseline leader without
+ * emitting an event.
  */
 function detectPairEvents(
   buckets: FlippeningBucketShares[],
@@ -266,37 +317,35 @@ export function detectCrossoverEvents(
 }
 
 /**
- * The closest currently-unflipped pair: among the tracked entities ranked by
- * range-wide blob share, the adjacent pair with the smallest lead. This uses
- * the summary's blob_share_percent (the whole window's share) rather than
- * the latest bucket, so the number matches the headline attribution chart.
+ * The closest currently-unflipped pair: among the tracked entities ranked
+ * by their share at the latest evaluated window, the adjacent pair with the
+ * smallest lead. Uses the same rolling share as event detection, so the gap
+ * is the distance to the next event the feed would report.
  */
 export function findClosestGap(
-  response: BackendAttributionUsageChartResponse,
+  buckets: FlippeningBucketShares[],
   entities: FlippeningEntity[]
 ): FlippeningGap | null {
-  const entityByKey = new Map(entities.map((entity) => [entity.key, entity]));
-  const ranked = (response.summary?.shares ?? [])
-    .filter((share) => entityByKey.has(share.key))
+  const latest = buckets[buckets.length - 1];
+  if (latest === undefined || entities.length < 2) return null;
+
+  const ranked = entities
+    .map((entity) => ({ entity, share: latest.sharePercentByKey[entity.key] ?? 0 }))
     .sort((a, b) =>
-      b.blob_share_percent !== a.blob_share_percent
-        ? b.blob_share_percent - a.blob_share_percent
-        : a.key.localeCompare(b.key)
+      b.share !== a.share ? b.share - a.share : a.entity.key.localeCompare(b.entity.key)
     );
 
   let closest: FlippeningGap | null = null;
   for (let i = 0; i + 1 < ranked.length; i += 1) {
     const leader = ranked[i];
     const trailer = ranked[i + 1];
-    const gapPoints = leader.blob_share_percent - trailer.blob_share_percent;
+    const gapPoints = leader.share - trailer.share;
     if (closest === null || gapPoints < closest.gapPoints) {
       closest = {
-        // Names come from the tracked entities, not the summary, so
-        // address-labeled unknown senders keep their address label here.
-        leader: entityByKey.get(leader.key) ?? { key: leader.key, name: leader.name },
-        trailer: entityByKey.get(trailer.key) ?? { key: trailer.key, name: trailer.name },
-        leaderSharePercent: leader.blob_share_percent,
-        trailerSharePercent: trailer.blob_share_percent,
+        leader: leader.entity,
+        trailer: trailer.entity,
+        leaderSharePercent: leader.share,
+        trailerSharePercent: trailer.share,
         gapPoints,
       };
     }
@@ -311,11 +360,14 @@ export function analyzeFlippening(
 ): FlippeningAnalysis {
   const topN = options.topN ?? DEFAULT_FLIPPENING_TOP_N;
   const epsilonPoints = options.epsilonPoints ?? DEFAULT_FLIPPENING_EPSILON_POINTS;
+  const bucketSeconds = Math.max(1, response.bucket_seconds || 1);
+  const windowSeconds = options.windowSeconds ?? bucketSeconds;
+  const windowBuckets = Math.max(1, Math.round(windowSeconds / bucketSeconds));
 
-  const entities = selectTopEntities(response, topN);
-  const buckets = computeBucketShares(response.points);
+  const entities = selectTopEntities(response, topN, windowBuckets);
+  const buckets = computeRollingShares(response.points, bucketSeconds, windowSeconds);
   const events = detectCrossoverEvents(buckets, entities, epsilonPoints);
-  const closestGap = findClosestGap(response, entities);
+  const closestGap = findClosestGap(buckets, entities);
 
   return { entities, events, closestGap };
 }

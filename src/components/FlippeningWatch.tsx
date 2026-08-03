@@ -4,21 +4,39 @@ import React, { useCallback, useMemo } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
-import { useTimeRange } from '@/contexts/TimeRangeContext';
+import { useTimeRange, type TimeRange } from '@/contexts/TimeRangeContext';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
-import { getBackendChartRange } from '@/lib/chartAggregation';
 import {
   DEFAULT_FLIPPENING_TOP_N,
   analyzeFlippening,
   type FlippeningEvent,
   type FlippeningGap,
 } from '@/lib/flippening';
-import type { BackendAttributionUsageChartResponse } from '@/types';
+import type { BackendAttributionUsageChartResponse, BackendChartRange } from '@/types';
 
 const FEED_LIMIT = 20;
 const REFRESH_INTERVAL_MS = 60_000;
+
+/** The rolling share window is the header's time filter. */
+const WINDOW_SECONDS: Record<TimeRange, number> = {
+  '1h': 3_600,
+  '24h': 86_400,
+  '7d': 604_800,
+  '30d': 2_592_000,
+};
+
+/**
+ * History fetched for each window: one step longer than the filter, so the
+ * rolling share has room to move and crossings show up in the feed.
+ */
+const HISTORY_RANGE: Record<TimeRange, BackendChartRange> = {
+  '1h': '24h',
+  '24h': '7d',
+  '7d': '30d',
+  '30d': 'all',
+};
 
 /** Bucket timestamps within a day are unambiguous as time-of-day; longer
  * ranges use daily-or-coarser buckets, where the date is the signal. */
@@ -40,23 +58,6 @@ function formatEventTime(iso: string, includeDate: boolean): string {
 
 function formatPoints(value: number): string {
   return value.toFixed(1);
-}
-
-/**
- * Plain-language name for the chart's sampling period ("hour",
- * "10-minute period"), so the feed never exposes the word "bucket".
- */
-function describePeriod(bucketSeconds: number): string {
-  if (bucketSeconds >= 86400 && bucketSeconds % 86400 === 0) {
-    const days = bucketSeconds / 86400;
-    return days === 1 ? 'day' : `${days}-day period`;
-  }
-  if (bucketSeconds >= 3600 && bucketSeconds % 3600 === 0) {
-    const hours = bucketSeconds / 3600;
-    return hours === 1 ? 'hour' : `${hours}-hour period`;
-  }
-  const minutes = Math.max(1, Math.round(bucketSeconds / 60));
-  return minutes === 1 ? 'minute' : `${minutes}-minute period`;
 }
 
 function GapIndicator({ gap, rangeLabel }: { gap: FlippeningGap; rangeLabel: string }) {
@@ -110,11 +111,11 @@ function GapIndicator({ gap, rangeLabel }: { gap: FlippeningGap; rangeLabel: str
 function EventRow({
   event,
   includeDate,
-  periodLabel,
+  windowLabel,
 }: {
   event: FlippeningEvent;
   includeDate: boolean;
-  periodLabel: string;
+  windowLabel: string;
 }) {
   return (
     <li className="flex items-start gap-3 py-3">
@@ -126,12 +127,12 @@ function EventRow({
       <div className="min-w-0">
         <p className="text-sm text-white">
           <span className="font-medium">{event.winner.name}</span> flipped{' '}
-          <span className="font-medium">{event.loser.name}</span> in blob share at{' '}
+          <span className="font-medium">{event.loser.name}</span> in {windowLabel} blob share at{' '}
           <span className="tabular-nums">{formatEventTime(event.timestamp, includeDate)}</span>
         </p>
         <p className="text-xs text-[#8a93a5] tabular-nums">
           {formatPoints(event.winnerSharePercent)}% vs {formatPoints(event.loserSharePercent)}% of
-          blobs in that {periodLabel}
+          blobs over the {windowLabel} before that
         </p>
       </div>
     </li>
@@ -142,21 +143,23 @@ export default function FlippeningWatch() {
   const { timeRange } = useTimeRange();
   const { selectedNetwork } = useNetwork();
   const network = selectedNetwork.apiParam;
-  const backendRange = getBackendChartRange(timeRange);
+  const historyRange = HISTORY_RANGE[timeRange];
 
   const fetchAttribution = useCallback(
-    () => api.getAttributionUsageChart(backendRange, network),
-    [backendRange, network]
+    () => api.getAttributionUsageChart(historyRange, network),
+    [historyRange, network]
   );
 
   const { data, isLoading, error } = useApiData<BackendAttributionUsageChartResponse>(
     fetchAttribution,
-    // Shares the cache with useChartData's attribution query on purpose.
-    ['chart-attribution', network, backendRange],
+    ['flippening-attribution', network, historyRange],
     { refetchInterval: REFRESH_INTERVAL_MS }
   );
 
-  const analysis = useMemo(() => (data ? analyzeFlippening(data) : null), [data]);
+  const analysis = useMemo(
+    () => (data ? analyzeFlippening(data, { windowSeconds: WINDOW_SECONDS[timeRange] }) : null),
+    [data, timeRange]
+  );
 
   // Feed reads newest first; detection returns oldest first.
   const feedEvents = useMemo(
@@ -164,8 +167,9 @@ export default function FlippeningWatch() {
     [analysis]
   );
 
-  const includeDate = timeRange === '7d' || timeRange === '30d';
-  const periodLabel = data ? describePeriod(data.bucket_seconds) : 'period';
+  // Events can be as old as the fetched history; only same-day histories
+  // read unambiguously as time-of-day.
+  const includeDate = historyRange !== '24h';
 
   return (
     <DataStateWrapper
@@ -187,7 +191,7 @@ export default function FlippeningWatch() {
 
           <div className="rounded-lg border border-divider bg-[#17181b]">
             <div className="border-b border-divider px-4 py-3 text-[10px] uppercase tracking-wider text-[#6e7787]">
-              Recent flippenings ({timeRange} window)
+              Recent flippenings in {timeRange} blob share
             </div>
             {feedEvents.length > 0 ? (
               <ul className="divide-y divide-divider px-4">
@@ -196,7 +200,7 @@ export default function FlippeningWatch() {
                     key={`${event.bucketIndex}-${event.winner.key}-${event.loser.key}`}
                     event={event}
                     includeDate={includeDate}
-                    periodLabel={periodLabel}
+                    windowLabel={timeRange}
                   />
                 ))}
               </ul>

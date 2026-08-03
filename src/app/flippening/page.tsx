@@ -25,11 +25,11 @@ export default function FlippeningPage() {
         <div className="mb-8 flex max-w-3xl items-start gap-2.5 rounded-md border border-[#292e35] bg-[#17181b] px-3.5 py-3 text-sm text-[#a9adb6]">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue" aria-hidden="true" />
           <p>
-            Each rollup&apos;s share is its slice of all blobs posted in the same short time
-            period (a few minutes on the 1h view, up to a day on 30d). A flip marks the moment
-            one rollup&apos;s slice passes another&apos;s. Near ties and leads that swap
-            straight back are hidden as noise, and the catch-all Other and unattributed
-            senders are left out.
+            Each rollup&apos;s share is its slice of all blobs posted over the selected time
+            period (the filter in the header). That share is recalculated as time moves
+            forward, and a flip marks the moment one rollup&apos;s share passes
+            another&apos;s. Near ties and leads that swap straight back are hidden as noise,
+            and the catch-all Other and unattributed senders are left out.
           </p>
         </div>
 
