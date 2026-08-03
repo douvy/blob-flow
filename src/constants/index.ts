@@ -19,16 +19,36 @@ const rawSiteUrl =
   'http://localhost:3000';
 export const SITE_URL = rawSiteUrl.replace(/\/+$/, '');
 
-// Chart detail pages, used for SEO (sitemap entries, per-chart page titles).
-// Keep the slugs in sync with CHART_VIEWS in
-// src/components/charts/chartViews.tsx (a "use client" module, so its
-// exports can't be imported from server-only code).
+// Chart detail pages, used for SEO (sitemap entries, per-chart page titles,
+// and social share cards). Keep the slugs and descriptions in sync with
+// CHART_VIEWS in src/components/charts/chartViews.tsx (a "use client" module,
+// so its exports can't be imported from server-only code).
 export const CHART_PAGES = [
-  { slug: 'base-fee', title: 'Blob Base Fee Chart' },
-  { slug: 'gas-utilization', title: 'Blob Gas Utilization Chart' },
-  { slug: 'blob-usage', title: 'Blob Usage Chart' },
-  { slug: 'cost-comparison', title: 'Blob vs Calldata Cost Chart' },
-  { slug: 'rolling-market-stats', title: 'Rolling Market Stats' },
+  {
+    slug: 'base-fee',
+    title: 'Blob Base Fee Chart',
+    description: 'Blob base fee trend across the most recent indexed blocks.',
+  },
+  {
+    slug: 'gas-utilization',
+    title: 'Blob Gas Utilization Chart',
+    description: 'Blob gas used per block against the current target.',
+  },
+  {
+    slug: 'blob-usage',
+    title: 'Blob Usage Chart',
+    description: 'Bucketed blob usage grouped by known rollup or sender attribution.',
+  },
+  {
+    slug: 'cost-comparison',
+    title: 'Blob vs Calldata Cost Chart',
+    description: 'Blob cost compared with calldata-equivalent cost approximation.',
+  },
+  {
+    slug: 'rolling-market-stats',
+    title: 'Rolling Market Stats',
+    description: 'Windowed fee, utilization, cost, and sender totals.',
+  },
 ] as const;
 export const HOMEPAGE_BLOCK_ROWS = 5;
 export const BLOCKS_PAGE_LIMIT = 100;

@@ -8,10 +8,28 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { chart } = await params;
   const page = CHART_PAGES.find((chartPage) => chartPage.slug === chart);
+  const title = page?.title ?? 'Charts';
+  const description = page?.description;
+
+  // og:image and twitter:image come from the generated opengraph-image.tsx
+  // in this segment; listing them here would override the generated URL.
   return {
-    title: page?.title ?? 'Charts',
+    title,
+    description,
     alternates: {
       canonical: `/charts/${chart}`,
+    },
+    openGraph: {
+      type: 'website',
+      siteName: 'BlobFlow',
+      title,
+      description,
+      url: `/charts/${chart}`,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
     },
   };
 }
