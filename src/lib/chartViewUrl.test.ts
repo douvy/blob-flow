@@ -1,5 +1,5 @@
 import {
-  appendChartViewParams,
+  buildChartViewHref,
   buildChartViewUrl,
   buildNetworkChangeUrl,
   isChartViewPath,
@@ -96,13 +96,29 @@ describe('buildChartViewUrl', () => {
     expect(params.get('network')).toBe('sepolia');
     expect(params.get('foo')).toBe('bar');
   });
+
+  it('appends the hash after the query', () => {
+    expect(
+      buildChartViewUrl('/', '', { range: '7d', network: 'mainnet' }, '#data-trends')
+    ).toBe('/?range=7d&network=mainnet#data-trends');
+  });
 });
 
 describe('buildNetworkChangeUrl', () => {
-  it('writes the network param on chart views', () => {
+  it('writes both view params on chart views', () => {
     const url = buildNetworkChangeUrl(
-      { pathname: '/charts/base-fee', search: '?range=7d', hash: '' },
-      'sepolia'
+      { pathname: '/charts/base-fee', search: '', hash: '' },
+      { range: '7d', network: 'sepolia' }
+    );
+    expect(url).toBe('/charts/base-fee?range=7d&network=sepolia');
+  });
+
+  it('overrides a stale range param with the in-memory range', () => {
+    // The current search string can predate an uncommitted router.replace;
+    // the state value wins.
+    const url = buildNetworkChangeUrl(
+      { pathname: '/charts/base-fee', search: '?range=1h', hash: '' },
+      { range: '7d', network: 'sepolia' }
     );
     expect(url).toBe('/charts/base-fee?range=7d&network=sepolia');
   });
@@ -110,57 +126,55 @@ describe('buildNetworkChangeUrl', () => {
   it('preserves the hash on the dashboard', () => {
     const url = buildNetworkChangeUrl(
       { pathname: '/', search: '', hash: '#data-trends' },
-      'sepolia'
+      { range: '24h', network: 'sepolia' }
     );
-    expect(url).toBe('/?network=sepolia#data-trends');
+    expect(url).toBe('/?range=24h&network=sepolia#data-trends');
   });
 
-  it('updates a stale param even off the chart views', () => {
-    const url = buildNetworkChangeUrl(
-      { pathname: '/blocks', search: '?network=hoodi', hash: '' },
-      'sepolia'
-    );
-    expect(url).toBe('/blocks?network=sepolia');
+  it('updates only the stale params present off the chart views', () => {
+    expect(
+      buildNetworkChangeUrl(
+        { pathname: '/blocks', search: '?network=hoodi', hash: '' },
+        { range: '7d', network: 'sepolia' }
+      )
+    ).toBe('/blocks?network=sepolia');
+    expect(
+      buildNetworkChangeUrl(
+        { pathname: '/blocks', search: '?range=1h', hash: '' },
+        { range: '7d', network: 'sepolia' }
+      )
+    ).toBe('/blocks?range=7d');
   });
 
   it('returns null when the URL needs no change', () => {
     expect(
-      buildNetworkChangeUrl({ pathname: '/blocks', search: '', hash: '' }, 'sepolia')
+      buildNetworkChangeUrl(
+        { pathname: '/blocks', search: '', hash: '' },
+        { range: '7d', network: 'sepolia' }
+      )
     ).toBeNull();
   });
 });
 
-describe('appendChartViewParams', () => {
-  it('carries valid view params onto an internal href', () => {
-    expect(appendChartViewParams('/charts/blob-usage', 'range=7d&network=sepolia')).toBe(
+describe('buildChartViewHref', () => {
+  it('writes the resolved view onto an internal href', () => {
+    expect(buildChartViewHref('/charts/blob-usage', { range: '7d', network: 'sepolia' })).toBe(
       '/charts/blob-usage?range=7d&network=sepolia'
     );
   });
 
-  it('drops invalid params instead of propagating them', () => {
-    expect(appendChartViewParams('/charts/blob-usage', 'range=2w&network=bad name')).toBe(
-      '/charts/blob-usage'
-    );
-  });
-
-  it('carries the valid param when the other is invalid', () => {
-    expect(appendChartViewParams('/charts/blob-usage', 'range=24h&network=bad name')).toBe(
-      '/charts/blob-usage?range=24h'
-    );
-  });
-
-  it('normalizes the capped all range', () => {
-    expect(appendChartViewParams('/charts/blob-usage', 'range=all')).toBe(
-      '/charts/blob-usage?range=30d'
-    );
-  });
-
   it('keeps hash fragments after the query', () => {
-    expect(appendChartViewParams('/#data-trends', 'range=24h')).toBe('/?range=24h#data-trends');
+    expect(buildChartViewHref('/#data-trends', { range: '24h', network: 'mainnet' })).toBe(
+      '/?range=24h&network=mainnet#data-trends'
+    );
   });
 
-  it('leaves the href alone without view params', () => {
-    expect(appendChartViewParams('/charts/blob-usage', '')).toBe('/charts/blob-usage');
-    expect(appendChartViewParams('/#data-trends', 'foo=1')).toBe('/#data-trends');
+  it('overrides params already present in the href', () => {
+    expect(
+      buildChartViewHref('/charts/blob-usage?range=1h&foo=bar', {
+        range: '7d',
+        network: 'sepolia',
+      })
+    ).toBe('/charts/blob-usage?range=7d&foo=bar&network=sepolia');
   });
 });

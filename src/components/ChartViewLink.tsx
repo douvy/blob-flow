@@ -1,30 +1,29 @@
 "use client";
 
-import React, { Suspense } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { appendChartViewParams } from '@/lib/chartViewUrl';
+import { useTimeRange } from '@/contexts/TimeRangeContext';
+import { useNetwork } from '@/hooks/useNetwork';
+import { buildChartViewHref } from '@/lib/chartViewUrl';
 
 type ChartViewLinkProps = Omit<React.ComponentProps<typeof Link>, 'href'> & {
   href: string;
 };
 
-function ChartViewLinkWithParams({ href, ...props }: ChartViewLinkProps) {
-  const searchParams = useSearchParams();
-  return <Link href={appendChartViewParams(href, searchParams.toString())} {...props} />;
-}
-
 /**
- * Internal link between chart views (dashboard and /charts pages) that carries
- * the current ?range= and ?network= params, so navigating keeps the selected
- * view. useSearchParams requires a Suspense boundary in Next 15 client
- * components; the fallback renders the same link without params while the
- * params resolve during prerendering.
+ * Internal link between chart views (dashboard and /charts pages) that writes
+ * the resolved ?range= and ?network= into the destination, so navigating
+ * keeps the selected view and copying the link reproduces it exactly. Built
+ * from state rather than the current URL, which may lack params (selection
+ * from localStorage) or carry values the app fell back from.
  */
 export default function ChartViewLink({ href, ...props }: ChartViewLinkProps) {
+  const { timeRange } = useTimeRange();
+  const { selectedNetwork } = useNetwork();
   return (
-    <Suspense fallback={<Link href={href} {...props} />}>
-      <ChartViewLinkWithParams href={href} {...props} />
-    </Suspense>
+    <Link
+      href={buildChartViewHref(href, { range: timeRange, network: selectedNetwork.apiParam })}
+      {...props}
+    />
   );
 }

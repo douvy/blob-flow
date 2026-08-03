@@ -18,14 +18,27 @@ const TimeRangeContext = createContext<TimeRangeContextValue>({
 });
 
 export function TimeRangeProvider({ children }: { children: ReactNode }) {
-  // A valid ?range= query param wins over the default on load, so a shared
-  // chart link reproduces the range it was captured on; invalid values fall
-  // back silently. The param acts as the default under any user selection
-  // rather than as initial state because it only resolves right after
-  // hydration (see useChartViewUrlParams).
-  const { range: urlRange } = useChartViewUrlParams();
+  // A valid ?range= query param wins over the default, so a shared chart link
+  // reproduces the range it was captured on; invalid values fall back
+  // silently. The param acts as the default under any user selection rather
+  // than as initial state because the URL store resolves right after
+  // hydration and can change again on history traversal
+  // (see useChartViewUrlParams).
+  const urlParams = useChartViewUrlParams();
   const [selectedRange, setSelectedRange] = useState<TimeRange | null>(null);
-  const timeRange = selectedRange ?? urlRange ?? DEFAULT_TIME_RANGE;
+  const [appliedParams, setAppliedParams] = useState(urlParams);
+
+  // Render-phase reset when the URL store publishes new params (history
+  // traversal, or a subscriber mounting after a navigation): a present range
+  // takes over so the address bar and the charts cannot disagree, while an
+  // absent one keeps the current view instead of resetting it to the default.
+  if (urlParams !== appliedParams) {
+    const currentRange = selectedRange ?? appliedParams.range ?? DEFAULT_TIME_RANGE;
+    setAppliedParams(urlParams);
+    setSelectedRange(urlParams.range ? null : currentRange);
+  }
+
+  const timeRange = selectedRange ?? urlParams.range ?? DEFAULT_TIME_RANGE;
 
   return (
     <TimeRangeContext.Provider value={{ timeRange, setTimeRange: setSelectedRange }}>

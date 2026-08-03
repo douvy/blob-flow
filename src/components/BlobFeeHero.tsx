@@ -3,6 +3,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import ChartViewLink from '@/components/ChartViewLink';
 import { TrendingDown, TrendingUp, MoveRight, Maximize2 } from 'lucide-react';
 import {
   Area,
@@ -1007,14 +1008,14 @@ export default function BlobFeeHero() {
                         · {formatRelativeTime(headBlock.blockTimestamp, new Date(now))}
                       </span>
                     )}
-                    <Link
+                    <ChartViewLink
                       href="/charts/base-fee"
                       className="flex h-6 w-6 flex-none items-center justify-center rounded-md border border-divider bg-[#1d1f23] text-blue transition-colors hover:bg-[#252936] hover:text-lightBlue focus:outline-none focus:ring-2 focus:ring-blue/60"
                       aria-label="Open base fee chart enlarged"
                       title="Enlarge graph"
                     >
                       <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    </Link>
+                    </ChartViewLink>
                   </span>
                 </div>
                 <div className="mt-3 min-h-56 flex-1 sm:min-h-64">

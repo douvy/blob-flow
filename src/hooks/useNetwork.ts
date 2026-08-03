@@ -5,6 +5,7 @@ import { DEFAULT_NETWORK, NETWORKS } from '../constants';
 import type { BackendNetwork, Network } from '../types';
 import { api } from '@/lib/api';
 import { buildNetworkChangeUrl, useChartViewUrlParams } from '@/lib/chartViewUrl';
+import { useTimeRange } from '../contexts/TimeRangeContext';
 import { useApiData } from './useApiData';
 import { useLocalStorage } from './useLocalStorage';
 
@@ -62,6 +63,10 @@ export function useNetwork() {
     // network themselves.
     const { network: urlApiParam } = useChartViewUrlParams();
     const requestedApiParam = urlApiParam ?? storedApiParam;
+
+    // Current range, written into the reload URL on network change so the
+    // selected range survives the reload and the link stays exact.
+    const { timeRange } = useTimeRange();
 
     const fetchNetworks = useCallback(async () => {
         const response = await api.getNetworks();
@@ -127,11 +132,15 @@ export function useNetwork() {
         setStoredValue(network.apiParam);
 
         // Force a page reload to refresh all data with the new network. On
-        // chart views (and wherever a ?network= param is already present) the
-        // reload target carries the new selection, so the address stays
-        // shareable and a stale param cannot override the choice on load.
+        // chart views (and wherever the view params are already present) the
+        // reload target carries the new selection and the current range, so
+        // the address stays shareable, a stale param cannot override the
+        // choice on load, and the range survives the reload.
         // location.replace keeps history clean, mirroring router.replace.
-        const url = buildNetworkChangeUrl(window.location, network.apiParam);
+        const url = buildNetworkChangeUrl(window.location, {
+            range: timeRange,
+            network: network.apiParam,
+        });
         if (url) {
             window.location.replace(url);
         } else {

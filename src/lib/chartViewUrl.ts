@@ -56,16 +56,21 @@ export interface ChartViewParams {
 
 const EMPTY_CHART_VIEW_PARAMS: ChartViewParams = { range: null, network: null };
 
-// Cache keyed by the raw search string so the snapshot keeps a stable object
-// identity between renders; useSyncExternalStore would re-render forever if
-// every call returned a fresh object.
+// Frozen snapshot of the URL params, cached with the search string it was
+// parsed from. The stable object identity matters twice over: it keeps
+// useSyncExternalStore from re-rendering forever, and it guarantees every
+// subscriber reads the same values at any instant. The cache only refreshes
+// through invalidateIfSearchChanged, which notifies all subscribers together,
+// so components that happen to re-render at different times can never split
+// between old and new params (e.g. one network for the WebSocket and another
+// for chart fetches).
 let chartViewParamsCache: { search: string; params: ChartViewParams } | null = null;
 
-const subscribeNever = () => () => {};
+const chartViewParamsListeners = new Set<() => void>();
 
 function getChartViewParamsSnapshot(): ChartViewParams {
-  const search = window.location.search;
-  if (!chartViewParamsCache || chartViewParamsCache.search !== search) {
+  if (!chartViewParamsCache) {
+    const search = window.location.search;
     const params = new URLSearchParams(search);
     chartViewParamsCache = {
       search,
@@ -78,16 +83,59 @@ function getChartViewParamsSnapshot(): ChartViewParams {
   return chartViewParamsCache.params;
 }
 
+function invalidateIfSearchChanged(): void {
+  if (chartViewParamsCache && chartViewParamsCache.search !== window.location.search) {
+    chartViewParamsCache = null;
+    // Copy first: notified components can resubscribe during the loop.
+    [...chartViewParamsListeners].forEach((listener) => listener());
+  }
+}
+
+function handlePopstate(): void {
+  invalidateIfSearchChanged();
+}
+
+/**
+ * Test-only: drops the frozen snapshot so each test parses its own URL. In
+ * the app the module (and so the cache) lives exactly one full page load.
+ */
+export function resetChartViewParamsForTests(): void {
+  chartViewParamsCache = null;
+}
+
+function subscribeChartViewParams(listener: () => void): () => void {
+  if (chartViewParamsListeners.size === 0) {
+    window.addEventListener('popstate', handlePopstate);
+  }
+  chartViewParamsListeners.add(listener);
+  // A component mounting after a client-side navigation sees the navigated
+  // URL while the cache still holds the previous one; refresh here so every
+  // subscriber picks the change up in the same pass.
+  invalidateIfSearchChanged();
+  return () => {
+    chartViewParamsListeners.delete(listener);
+    if (chartViewParamsListeners.size === 0) {
+      window.removeEventListener('popstate', handlePopstate);
+    }
+  };
+}
+
 /**
  * Chart view params from the URL. The server snapshot is empty so prerendered
  * HTML matches hydration, and the real values apply in the re-render React
  * runs right after hydration; a direct window.location read in a state
  * initializer would instead cause an attribute hydration mismatch, which
  * React 19 does not patch up.
+ *
+ * The store refreshes on history traversal (popstate) and when a subscriber
+ * mounts after a navigation changed the search string. Programmatic rewrites
+ * of the current entry (the router.replace issued when the user changes the
+ * range) carry values identical to the in-memory state, so not observing them
+ * immediately is harmless.
  */
 export function useChartViewUrlParams(): ChartViewParams {
   return useSyncExternalStore(
-    subscribeNever,
+    subscribeChartViewParams,
     getChartViewParamsSnapshot,
     () => EMPTY_CHART_VIEW_PARAMS
   );
@@ -95,60 +143,62 @@ export function useChartViewUrlParams(): ChartViewParams {
 
 /**
  * Build the URL reflecting the current chart view, preserving unrelated query
- * params. Both params are written together so a copied link reproduces the
- * exact view, not just the last setting the user touched.
+ * params and the hash fragment. Both params are written together so a copied
+ * link reproduces the exact view, not just the last setting the user touched.
  */
 export function buildChartViewUrl(
   pathname: string,
   currentSearch: string,
-  view: { range: TimeRange; network: string }
+  view: { range: TimeRange; network: string },
+  hash = ''
 ): string {
   const params = new URLSearchParams(currentSearch);
   params.set(CHART_RANGE_PARAM, view.range);
   params.set(CHART_NETWORK_PARAM, view.network);
-  return `${pathname}?${params.toString()}`;
+  return `${pathname}?${params.toString()}${hash}`;
 }
 
 /**
  * URL to load after a network change. The app fully reloads on network switch,
- * so on chart views the param is written into the reload target both to keep
- * the address shareable and so a stale ?network= param cannot override the new
- * selection when the page comes back. Returns null when the URL needs no
- * change and a plain reload suffices.
+ * so on chart views both view params are written into the reload target: the
+ * address stays shareable, a stale ?network= param cannot override the new
+ * selection when the page comes back, and the selected range survives the
+ * reload. The range comes from the in-memory state rather than the current
+ * search string, which may still predate an uncommitted router.replace.
+ * Returns null when the URL needs no change and a plain reload suffices.
  */
 export function buildNetworkChangeUrl(
   location: { pathname: string; search: string; hash: string },
-  apiParam: string
+  view: { range: TimeRange; network: string }
 ): string | null {
   const params = new URLSearchParams(location.search);
-  if (!isChartViewPath(location.pathname) && !params.has(CHART_NETWORK_PARAM)) {
-    return null;
-  }
-  params.set(CHART_NETWORK_PARAM, apiParam);
+  const onChartView = isChartViewPath(location.pathname);
+  const writeNetwork = onChartView || params.has(CHART_NETWORK_PARAM);
+  const writeRange = onChartView || params.has(CHART_RANGE_PARAM);
+  if (!writeNetwork && !writeRange) return null;
+  if (writeRange) params.set(CHART_RANGE_PARAM, view.range);
+  if (writeNetwork) params.set(CHART_NETWORK_PARAM, view.network);
   return `${location.pathname}?${params.toString()}${location.hash}`;
 }
 
 /**
- * Carry the chart view params from the current URL onto an internal href, so
- * navigation between the dashboard and chart pages keeps the selected view.
- * Invalid params are dropped rather than propagated; 'all' normalizes to the
- * capped range actually shown. Hash fragments in the href are preserved.
+ * Internal href carrying the resolved chart view, so navigation between the
+ * dashboard and chart pages keeps the selected view and a copied link
+ * reproduces it exactly. Built from state rather than the current URL: the
+ * URL may lack params (selection came from localStorage) or carry values the
+ * app fell back from. Hash fragments in the href are preserved.
  */
-export function appendChartViewParams(href: string, currentSearch: string): string {
-  const current = new URLSearchParams(currentSearch);
-  const carried = new URLSearchParams();
-
-  const range = parseChartRangeParam(current.get(CHART_RANGE_PARAM));
-  if (range) carried.set(CHART_RANGE_PARAM, range);
-  const network = parseChartNetworkParam(current.get(CHART_NETWORK_PARAM));
-  if (network) carried.set(CHART_NETWORK_PARAM, network);
-
-  const query = carried.toString();
-  if (!query) return href;
-
+export function buildChartViewHref(
+  href: string,
+  view: { range: TimeRange; network: string }
+): string {
   const hashIndex = href.indexOf('#');
   const base = hashIndex === -1 ? href : href.slice(0, hashIndex);
   const hash = hashIndex === -1 ? '' : href.slice(hashIndex);
-  const separator = base.includes('?') ? '&' : '?';
-  return `${base}${separator}${query}${hash}`;
+  const queryIndex = base.indexOf('?');
+  const path = queryIndex === -1 ? base : base.slice(0, queryIndex);
+  const params = new URLSearchParams(queryIndex === -1 ? '' : base.slice(queryIndex + 1));
+  params.set(CHART_RANGE_PARAM, view.range);
+  params.set(CHART_NETWORK_PARAM, view.network);
+  return `${path}?${params.toString()}${hash}`;
 }

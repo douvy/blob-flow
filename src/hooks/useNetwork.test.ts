@@ -1,7 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useNetwork } from './useNetwork';
+import { TimeRangeProvider } from '../contexts/TimeRangeContext';
 import { DEFAULT_NETWORK, NETWORKS } from '../constants';
 import { api } from '../lib/api';
+import { resetChartViewParamsForTests } from '../lib/chartViewUrl';
 import { createQueryWrapper } from '../test/queryClient';
 import type { BackendNetwork } from '../types';
 
@@ -23,6 +25,7 @@ describe('useNetwork', () => {
   beforeEach(() => {
     vi.mocked(api.getNetworks).mockReset();
     window.localStorage.clear();
+    resetChartViewParamsForTests();
     getNetworks.mockResolvedValue({ success: true, data: BACKEND_NETWORKS });
   });
 
@@ -255,7 +258,7 @@ describe('useNetwork', () => {
     stub.restore();
   });
 
-  it('reloads with the network in the URL on chart views', () => {
+  it('reloads with the current view in the URL on chart views', () => {
     const reloadSpy = vi.fn();
     const replaceSpy = vi.fn();
     const stub = stubLocation({
@@ -266,7 +269,11 @@ describe('useNetwork', () => {
       replace: replaceSpy,
     });
 
-    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+    // TimeRangeProvider supplies the in-memory range (seeded from the URL
+    // here), which the reload target must carry so the range survives.
+    const { result } = renderHook(() => useNetwork(), {
+      wrapper: createQueryWrapper(TimeRangeProvider),
+    });
 
     act(() => {
       result.current.setSelectedNetwork({ name: 'Sepolia', apiParam: 'sepolia' });

@@ -146,10 +146,12 @@ export default function Header() {
     // address is shareable; replace instead of push to avoid history spam.
     if (isChartViewPath(pathname)) {
       router.replace(
-        buildChartViewUrl(pathname, window.location.search, {
-          range,
-          network: selectedNetwork.apiParam,
-        }),
+        buildChartViewUrl(
+          pathname,
+          window.location.search,
+          { range, network: selectedNetwork.apiParam },
+          window.location.hash
+        ),
         { scroll: false }
       );
     }
