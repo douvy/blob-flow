@@ -2,6 +2,8 @@ import {
   assignSeriesColors,
   attributionColorKey,
   beaconSlotForBlob,
+  buildTweetIntentUrl,
+  chartImageFileName,
   deriveBeaconSlot,
   formatBlobCount,
   formatBlobFee,
@@ -421,5 +423,50 @@ describe('beaconSlotForBlob', () => {
     expect(
       beaconSlotForBlob({ timestamp: 'not-a-date', network_name: 'holesky' })
     ).toBeNull();
+  });
+});
+
+describe('buildTweetIntentUrl', () => {
+  it('prefills the tweet with title, stat, and deep link', () => {
+    const url = buildTweetIntentUrl({
+      title: 'Blob Usage over 1h view',
+      stat: '1,234 blobs posted on Mainnet',
+      url: 'https://blobflow.example/charts/blob-usage',
+    });
+
+    const parsed = new URL(url);
+    expect(parsed.origin + parsed.pathname).toBe('https://twitter.com/intent/tweet');
+    expect(parsed.searchParams.get('text')).toBe(
+      'Blob Usage over 1h view: 1,234 blobs posted on Mainnet'
+    );
+    expect(parsed.searchParams.get('url')).toBe(
+      'https://blobflow.example/charts/blob-usage'
+    );
+  });
+
+  it('omits the stat clause when no headline stat is available', () => {
+    const url = buildTweetIntentUrl({
+      title: 'Rolling Market Stats',
+      stat: null,
+      url: 'https://blobflow.example/charts/rolling-market-stats',
+    });
+
+    expect(new URL(url).searchParams.get('text')).toBe('Rolling Market Stats');
+  });
+});
+
+describe('chartImageFileName', () => {
+  const capturedAt = new Date(2026, 7, 2, 9, 5);
+
+  it('slugs the title and appends a sortable local timestamp', () => {
+    expect(chartImageFileName('Blob vs Calldata Cost (1h view)', capturedAt)).toBe(
+      'blob-flow-blob-vs-calldata-cost-1h-view-20260802-0905.png'
+    );
+  });
+
+  it('falls back to a generic slug when the title has no usable characters', () => {
+    expect(chartImageFileName('***', capturedAt)).toBe(
+      'blob-flow-chart-20260802-0905.png'
+    );
   });
 });

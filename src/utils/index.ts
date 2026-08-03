@@ -272,6 +272,38 @@ addresses:
   return `${ATTRIBUTION_REPO_URL}/new/main?${params.toString()}`;
 }
 
+/**
+ * Builds a twitter.com tweet intent URL prefilled with chart share copy: the
+ * chart title, an optional headline stat, and a deep link to the chart page.
+ */
+export function buildTweetIntentUrl(options: {
+  title: string;
+  stat?: string | null;
+  url: string;
+}): string {
+  const { title, stat, url } = options;
+  const text = stat ? `${title}: ${stat}` : title;
+  const params = new URLSearchParams({ text, url });
+  return `https://twitter.com/intent/tweet?${params.toString()}`;
+}
+
+/**
+ * Filename for an exported chart image: slugged title plus a sortable local
+ * timestamp, so repeated captures of the same chart never collide.
+ */
+export function chartImageFileName(title: string, capturedAt: Date): string {
+  const slug =
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'chart';
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const stamp =
+    `${capturedAt.getFullYear()}${pad(capturedAt.getMonth() + 1)}${pad(capturedAt.getDate())}` +
+    `-${pad(capturedAt.getHours())}${pad(capturedAt.getMinutes())}`;
+  return `blob-flow-${slug}-${stamp}.png`;
+}
+
 export function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', {
     year: 'numeric',

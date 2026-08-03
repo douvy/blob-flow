@@ -1,10 +1,11 @@
 "use client";
 
-import React from 'react';
+import React, { useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Minimize2 } from 'lucide-react';
 import DataStateWrapper from '@/components/DataStateWrapper';
+import ChartCardActions from '@/components/charts/ChartCardActions';
 import { useChartData } from '@/hooks/useChartData';
 import { CHART_CARD_CLASS } from '@/constants/chartTheme';
 import {
@@ -52,6 +53,7 @@ function EmptyChartState() {
 
 function ChartDetail({ view }: { view: ChartView }) {
   const { chartData, isLoading, error } = useChartData();
+  const captureRef = useRef<HTMLDivElement>(null);
 
   const loadingComponent = (
     <div className={CHART_CARD_CLASS}>
@@ -77,15 +79,24 @@ function ChartDetail({ view }: { view: ChartView }) {
                 {view.getCoverageLabel(chartData)}
               </p>
             </div>
-            <Link
-              href="/#data-trends"
-              className="inline-flex h-8 items-center justify-center gap-2 self-start rounded-md border border-divider bg-[#1d1f23] px-3 text-sm text-bodyText transition-colors hover:bg-[#252936] hover:text-white focus:outline-none focus:ring-2 focus:ring-blue/60"
-            >
-              <Minimize2 className="h-4 w-4" aria-hidden="true" />
-              Dashboard
-            </Link>
+            <div className="flex flex-none items-center gap-2 self-start">
+              <ChartCardActions
+                chartId={view.id}
+                chartTitle={view.getTitle(chartData)}
+                headlineStat={view.getHeadlineStat(chartData)}
+                rangeLabel={chartData.chartRangeLabel}
+                captureRef={captureRef}
+              />
+              <Link
+                href="/#data-trends"
+                className="inline-flex h-8 items-center justify-center gap-2 rounded-md border border-divider bg-[#1d1f23] px-3 text-sm text-bodyText transition-colors hover:bg-[#252936] hover:text-white focus:outline-none focus:ring-2 focus:ring-blue/60"
+              >
+                <Minimize2 className="h-4 w-4" aria-hidden="true" />
+                Dashboard
+              </Link>
+            </div>
           </div>
-          <div className={view.detailFrameClassName}>
+          <div ref={captureRef} className={view.detailFrameClassName}>
             {view.getPointCount(chartData) > 0 ? view.render(chartData) : <EmptyChartState />}
           </div>
         </div>
