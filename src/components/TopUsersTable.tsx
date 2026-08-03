@@ -188,7 +188,7 @@ export default function TopUsersTable() {
 
           return (
             <div className="flex items-center">
-              <span className="mr-3">{user.percentage}%</span>
+              <span className="mr-3 shrink-0 tabular-nums sm:w-14">{user.percentage}%</span>
               <div className="hidden h-2.5 w-32 rounded-full bg-[#2a2f37] sm:block">
                 <div
                   className="h-2.5 rounded-full"
@@ -263,7 +263,7 @@ export default function TopUsersTable() {
               </TableCell>
               <TableCell className={CELL_PADDING}>
                 <div className="flex items-center">
-                  <Skeleton className="mr-3 h-5 w-12" />
+                  <Skeleton className="mr-3 h-5 w-12 shrink-0 sm:w-14" />
                   <div className="hidden h-2.5 w-32 rounded-full bg-[#2a2f37] sm:block">
                     <Skeleton className="h-2.5 w-3/5 rounded-full" />
                   </div>
