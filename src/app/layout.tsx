@@ -37,18 +37,19 @@ export const metadata: Metadata = {
     'Base',
     'zkSync',
   ],
+  // Open Graph and Twitter images come from the opengraph-image.tsx file
+  // conventions (dynamic cards rendered with live indexer data); listing
+  // static images here would override them.
   openGraph: {
     type: 'website',
     siteName: SITE_NAME,
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: [{ url: '/images/logo.png', alt: 'BlobFlow logo' }],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: ['/images/logo.png'],
   },
   icons: {
     icon: '/images/favicon.png',
