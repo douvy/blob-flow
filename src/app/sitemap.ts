@@ -28,6 +28,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'hourly',
       priority: 0.7,
     },
+    {
+      url: `${SITE_URL}/card`,
+      changeFrequency: 'weekly',
+      priority: 0.5,
+    },
     ...CHART_PAGES.map((chartPage) => ({
       url: `${SITE_URL}/charts/${chartPage.slug}`,
       changeFrequency: 'hourly' as const,
