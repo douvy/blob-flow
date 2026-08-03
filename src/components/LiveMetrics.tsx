@@ -3,6 +3,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { Banknote, Box, Hourglass, User as UserIcon } from 'lucide-react';
 import MetricCard from './MetricCard';
+import { RankMarker } from './RankIndicators';
 import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { selectRollingWindow, transformStatsWindows } from '../lib/chartAggregation';
@@ -174,6 +175,9 @@ export default function LiveMetrics() {
     {
       title: `Top User (${timeRange})`,
       value: user ? user.name : '-',
+      // The card is the compact face of the leaderboard's podium; mirror the
+      // table's rank 1 medal so the two surfaces read as one ranking.
+      valueAdornment: user ? <RankMarker rank={1} size="sm" /> : undefined,
       trend: 'neutral' as const,
       // Mirrors the Top Blob Users table's Count and share columns for the
       // same window. The share denominator depends on the payload: server
@@ -233,6 +237,7 @@ export default function LiveMetrics() {
                 icon={metric.icon}
                 href={metric.href}
                 ariaLabel={metric.ariaLabel}
+                valueAdornment={'valueAdornment' in metric ? metric.valueAdornment : undefined}
               />
             ))}
           </div>

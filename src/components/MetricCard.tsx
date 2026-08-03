@@ -12,6 +12,8 @@ interface MetricCardProps {
   icon?: LucideIcon;
   href?: string;
   ariaLabel?: string;
+  /** Rendered before the value, e.g. a rank medal on the Top User card. */
+  valueAdornment?: React.ReactNode;
 }
 
 export default function MetricCard({
@@ -22,6 +24,7 @@ export default function MetricCard({
   icon,
   href,
   ariaLabel,
+  valueAdornment,
 }: MetricCardProps) {
   const Icon = icon;
   const cardClassName = "block rounded-lg border border-divider bg-[#14161a] p-4 h-full";
@@ -40,7 +43,10 @@ export default function MetricCard({
         )}
       </div>
       <div>
-        <p className="truncate text-2xl font-windsor-bold text-white" title={value}>{value}</p>
+        <p className="flex items-center gap-2 text-2xl font-windsor-bold text-white" title={value}>
+          {valueAdornment}
+          <span className="min-w-0 truncate">{value}</span>
+        </p>
         {description && <p className="text-xs mt-1 text-[#b8bdc7]">{description}</p>}
       </div>
     </>

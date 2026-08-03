@@ -39,17 +39,38 @@ import {
 import { Skeleton } from './ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { useFlipRows } from '../hooks/useFlipRows';
+import { useRankMovements } from '../hooks/useRankMovements';
+import { RankMarker, RankMovementIndicator } from './RankIndicators';
+import {
+  competitionRanks,
+  normalizeAddress,
+  toRankSnapshotEntries,
+} from '../lib/rankMovement';
+import { formatRelativeTime } from '../lib/api/core';
 
-// On phones the name column takes half the row so attribution names stay
-// readable; Count and % of Total shrink to fit their compact mobile content.
+// On phones the name column keeps the lion's share so attribution names stay
+// readable; Rank, Count and % of Total shrink to fit their compact content.
 const COLUMN_WIDTHS: Record<string, string> = {
-  name: 'w-1/2 sm:w-1/3',
-  dataCount: 'w-[28%] sm:w-1/3',
-  percentage: 'w-[22%] sm:w-1/3',
+  rank: 'w-[15%] sm:w-[12%]',
+  name: 'w-[45%] sm:w-[30%]',
+  dataCount: 'w-[22%] sm:w-[29%]',
+  percentage: 'w-[18%] sm:w-[29%]',
 };
 // Overrides the table primitives' px-6, which is too wide for phone columns.
 const CELL_PADDING = 'px-3 sm:px-6';
 const EMPTY_USERS: User[] = [];
+
+const ROW_BASE_CLASS =
+  'cursor-pointer hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset';
+const DEFAULT_ROW_GRADIENT = 'bg-gradient-to-r from-[#17181b] to-[#141519]/60';
+// Podium rows (ranks 1-3) get a medal-colored inset accent and a faint warm
+// tint. Inset shadows do not shift layout, so useFlipRows measurements stay
+// accurate while rows animate between positions.
+const PODIUM_ROW_CLASSES: Record<number, string> = {
+  1: 'bg-gradient-to-r from-[#221d10]/80 to-[#141519]/60 shadow-[inset_3px_0_0_#d4a94a]',
+  2: 'bg-gradient-to-r from-[#1d2025]/80 to-[#141519]/60 shadow-[inset_3px_0_0_#9aa4b2]',
+  3: 'bg-gradient-to-r from-[#211a13]/80 to-[#141519]/60 shadow-[inset_3px_0_0_#b0714a]',
+};
 
 const RANGE_LABELS: Record<TimeRange, string> = {
   '1h': 'Last hour',
@@ -105,16 +126,16 @@ function ariaSort(direction: false | 'asc' | 'desc'): 'ascending' | 'descending'
   return 'none';
 }
 
-function UserIdentity({ user }: { user: User }) {
+function UserIdentity({ user, podium }: { user: User; podium: boolean }) {
   return (
     <div className="flex min-w-0 items-center">
       <AttributionBadge
         user={user.name}
-        sizeClass="h-5 w-5"
+        sizeClass={podium ? 'h-6 w-6' : 'h-5 w-5'}
         className="mr-3"
-        textClass="text-[10px]"
+        textClass={podium ? 'text-[11px]' : 'text-[10px]'}
       />
-      <span className="truncate">{user.name}</span>
+      <span className={`truncate ${podium ? 'text-[15px] font-medium' : ''}`}>{user.name}</span>
     </div>
   );
 }
@@ -140,6 +161,16 @@ export default function TopUsersTable() {
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   useFlipRows(tbodyRef, liveScopeKey);
 
+  // Movement is relative to the ranking last seen for this scope, persisted
+  // in localStorage; the backend has no historical-rank endpoint to diff
+  // against. Ranks are recomputed from counts (ties share a rank) instead of
+  // trusting row order, so they stay attached to users under column sorting.
+  const { movements, baselineAt } = useRankMovements(liveScopeKey, tableData);
+  const ranks = React.useMemo(
+    () => competitionRanks(toRankSnapshotEntries(tableData)),
+    [tableData]
+  );
+
   const userColors = React.useMemo(
     () => assignSeriesColors(tableData.map(userColorInput)),
     [tableData]
@@ -148,11 +179,33 @@ export default function TopUsersTable() {
   const columns = React.useMemo<ColumnDef<User>[]>(
     () => [
       {
+        id: 'rank',
+        enableSorting: false,
+        header: () => (
+          <>
+            <span aria-hidden="true">#</span>
+            <span className="sr-only">Rank</span>
+          </>
+        ),
+        cell: ({ row }) => {
+          const key = normalizeAddress(row.original.address);
+          return (
+            <div className="flex items-center gap-1.5">
+              <RankMarker rank={ranks.get(key) ?? row.original.id} />
+              <RankMovementIndicator movement={movements.get(key)} />
+            </div>
+          );
+        },
+      },
+      {
         accessorKey: 'name',
         header: ({ column }) => (
           <SortableHeader column={column}>User</SortableHeader>
         ),
-        cell: ({ row }) => <UserIdentity user={row.original} />,
+        cell: ({ row }) => {
+          const rank = ranks.get(normalizeAddress(row.original.address));
+          return <UserIdentity user={row.original} podium={rank !== undefined && rank <= 3} />;
+        },
       },
       {
         accessorKey: 'dataCount',
@@ -203,7 +256,7 @@ export default function TopUsersTable() {
         },
       },
     ],
-    [timeRange, userColors]
+    [timeRange, userColors, ranks, movements]
   );
 
   const table = useReactTable({
@@ -239,6 +292,10 @@ export default function TopUsersTable() {
       <Table className="min-w-full table-fixed overflow-hidden">
         <TableHeader>
           <TableRow className="bg-gradient-to-b from-[#22252c] to-[#16171b]">
+            <TableHead className={`${CELL_PADDING} ${COLUMN_WIDTHS.rank}`}>
+              <span aria-hidden="true">#</span>
+              <span className="sr-only">Rank</span>
+            </TableHead>
             <TableHead className={`${CELL_PADDING} ${COLUMN_WIDTHS.name}`}>User</TableHead>
             <TableHead className={`whitespace-nowrap ${CELL_PADDING} ${COLUMN_WIDTHS.dataCount}`}>
               Count
@@ -252,6 +309,9 @@ export default function TopUsersTable() {
         <TableBody className="divide-y divide-divider">
           {[...Array(5)].map((_, index) => (
             <TableRow key={index} className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
+              <TableCell className={CELL_PADDING}>
+                <Skeleton className="h-6 w-6 rounded-full" />
+              </TableCell>
               <TableCell className={CELL_PADDING}>
                 <div className="flex min-w-0 items-center">
                   <Skeleton className="mr-3 h-5 w-5 shrink-0 rounded-full" />
@@ -321,7 +381,11 @@ export default function TopUsersTable() {
                   <TableRow
                     key={row.original.address}
                     data-row-key={row.original.address}
-                    className="cursor-pointer bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
+                    className={`${ROW_BASE_CLASS} ${
+                      PODIUM_ROW_CLASSES[
+                        ranks.get(normalizeAddress(row.original.address)) ?? 0
+                      ] ?? DEFAULT_ROW_GRADIENT
+                    }`}
                     onClick={() => goToUser(row.original.address)}
                     onKeyDown={(event) => handleRowKeyDown(event, row.original.address)}
                     tabIndex={0}
@@ -343,6 +407,13 @@ export default function TopUsersTable() {
           </div>
         )}
       </DataStateWrapper>
+
+      {displayData && baselineAt !== null && movements.size > 0 && (
+        <p className="mt-2 text-xs text-[#6e7787]">
+          Rank movement compares against the leaderboard you last saw for this window
+          ({formatRelativeTime(new Date(baselineAt).toISOString())}).
+        </p>
+      )}
     </section>
   );
 }

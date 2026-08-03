@@ -93,9 +93,17 @@ function renderTable() {
   );
 }
 
+function seedRankSnapshot(entries: { address: string; dataCount: number }[], savedAt = 1000) {
+  window.localStorage.setItem(
+    `topUsersRankSnapshot:${DEFAULT_NETWORK.apiParam}:1h`,
+    JSON.stringify({ savedAt, entries })
+  );
+}
+
 describe('TopUsersTable', () => {
   beforeEach(() => {
     usersUpdateHandler = undefined;
+    window.localStorage.clear();
     vi.mocked(useNetwork).mockReturnValue({
       selectedNetwork: DEFAULT_NETWORK,
       setSelectedNetwork: vi.fn(),
@@ -165,6 +173,60 @@ describe('TopUsersTable', () => {
 
     expect(screen.getByText('Arbitrum')).toBeInTheDocument();
     expect(screen.queryByText('Optimism')).not.toBeInTheDocument();
+  });
+
+  it('renders medal rank markers for podium rows', () => {
+    renderTable();
+
+    expect(screen.getByText('Rank 1')).toBeInTheDocument();
+    expect(screen.getByText('Rank 2')).toBeInTheDocument();
+  });
+
+  it('shows no movement indicators or caption on a first visit', () => {
+    renderTable();
+
+    expect(screen.queryByText(/since your last visit/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Rank movement compares/)).not.toBeInTheDocument();
+  });
+
+  it('shows movement against the ranking stored from the last visit', () => {
+    // Last visit: Base led, Arbitrum trailed, and 0x99... has since left.
+    seedRankSnapshot([
+      { address: '0x2222222222222222222222222222222222222222', dataCount: 10 },
+      { address: '0x1111111111111111111111111111111111111111', dataCount: 5 },
+      { address: '0x9999999999999999999999999999999999999999', dataCount: 1 },
+    ]);
+
+    renderTable();
+
+    expect(screen.getByText('Up 1 place since your last visit')).toBeInTheDocument();
+    expect(screen.getByText('Down 1 place since your last visit')).toBeInTheDocument();
+    expect(screen.getByText(/Rank movement compares/)).toBeInTheDocument();
+  });
+
+  it('marks entrants absent from the stored ranking as new', () => {
+    seedRankSnapshot([
+      { address: '0x1111111111111111111111111111111111111111', dataCount: 6 },
+    ]);
+
+    renderTable();
+
+    expect(screen.getByText('New entry since your last visit')).toBeInTheDocument();
+    expect(screen.getByText('No rank change since your last visit')).toBeInTheDocument();
+  });
+
+  it('persists the current ranking for the next visit', () => {
+    renderTable();
+
+    const stored = window.localStorage.getItem(
+      `topUsersRankSnapshot:${DEFAULT_NETWORK.apiParam}:1h`
+    );
+    expect(stored).not.toBeNull();
+    const parsed = JSON.parse(stored ?? '');
+    expect(parsed.entries).toEqual([
+      { address: '0x1111111111111111111111111111111111111111', dataCount: 6 },
+      { address: '0x2222222222222222222222222222222222222222', dataCount: 4 },
+    ]);
   });
 
   it('falls back to fetched data when the selected range changes', () => {
