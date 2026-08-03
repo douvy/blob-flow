@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
 import useScrollLock from '../hooks/useScrollLock';
 import { MempoolTransaction } from '../types';
@@ -11,6 +11,7 @@ import {
 } from '../utils';
 import { RelativeTime } from './RelativeTime';
 import AttributionBadge from './AttributionBadge';
+import NetworkLink from './NetworkLink';
 
 interface MempoolBlobDetailsModalProps {
   transaction: MempoolTransaction | null;
@@ -44,10 +45,11 @@ export default function MempoolBlobDetailsModal({
 
   const blob = transaction.rawBlob;
   const user = blob.user_attribution || 'Unknown';
-  const transactionUrl = safeExplorerUrl(transaction.transactionUrl);
   const fromAddressUrl = safeExplorerUrl(blob.from_address_url);
   const blockValue =
-    blob.confirmed && blob.block_number > 0 ? blob.block_number.toLocaleString() : 'Pending';
+    blob.confirmed && blob.block_number !== null && blob.block_number > 0
+      ? blob.block_number.toLocaleString()
+      : 'Pending';
 
   return (
     <div
@@ -93,17 +95,15 @@ export default function MempoolBlobDetailsModal({
               {blob.network_name || `Network ${blob.network_id}`}
             </span>
             <span className="text-sm text-[#6e7687]"><RelativeTime timestamp={transaction.timeInMempool} /></span>
-            {transactionUrl && (
-              <a
-                href={transactionUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-auto inline-flex items-center gap-2 text-sm text-blue hover:underline"
-              >
-                View on Etherscan
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-              </a>
-            )}
+            {/* The transaction page carries the explorer link, correctly
+                labelled for whichever explorer the indexer points at. */}
+            <NetworkLink
+              href={`/tx/${transaction.txHash}`}
+              className="ml-auto inline-flex items-center gap-2 text-sm text-blue hover:underline"
+            >
+              Open transaction page
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </NetworkLink>
           </div>
 
           <div className="mb-6 flex items-center gap-3 border-b border-divider pb-5">
@@ -118,7 +118,7 @@ export default function MempoolBlobDetailsModal({
             <DetailItem
               label="Transaction Hash"
               value={transaction.txHash}
-              href={transactionUrl}
+              internalHref={`/tx/${transaction.txHash}`}
               mono
               full
             />
@@ -148,19 +148,33 @@ export default function MempoolBlobDetailsModal({
 interface DetailItemProps {
   label: string;
   value: string;
+  /** Outbound link, opened in a new tab. */
   href?: string;
+  /** In-app destination, taking precedence over href. */
+  internalHref?: string;
   mono?: boolean;
   full?: boolean;
 }
 
-function DetailItem({ label, value, href, mono = false, full = false }: DetailItemProps) {
+function DetailItem({
+  label,
+  value,
+  href,
+  internalHref,
+  mono = false,
+  full = false,
+}: DetailItemProps) {
   const valueClasses = `${mono ? 'font-mono ' : ''}break-words text-sm text-white`;
 
   return (
     <div className={full ? 'sm:col-span-2' : undefined}>
       <dt className="mb-1 text-xs uppercase tracking-wider text-[#6e7787]">{label}</dt>
       <dd className={valueClasses}>
-        {href ? (
+        {internalHref ? (
+          <NetworkLink href={internalHref} className="text-blue hover:underline">
+            {value}
+          </NetworkLink>
+        ) : href ? (
           <a
             href={href}
             target="_blank"

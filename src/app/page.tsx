@@ -7,12 +7,9 @@ import RecentBlocksPanel from '@/components/RecentBlocksPanel';
 import TopUsersTable from '@/components/TopUsersTable';
 import MempoolSummary from '@/components/MempoolSummary';
 import ExplainerSection from '@/components/ExplainerSection';
+import { homeMetadata } from '@/lib/pageMetadata';
 
-export const metadata: Metadata = {
-  alternates: {
-    canonical: '/',
-  },
-};
+export const metadata: Metadata = homeMetadata();
 
 export default function Home() {
   return (

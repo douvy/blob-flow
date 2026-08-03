@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
+import Link from '@/components/NetworkLink';
 import { usePathname } from 'next/navigation';
 import { Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, type LucideIcon } from 'lucide-react';
 import SearchModal from './SearchModal';
@@ -13,6 +13,7 @@ import { DEFAULT_NETWORK } from '../constants';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import { useBlobWebSocket } from '../contexts/LiveDataContext';
 import { BlobWebSocketConnectionState, type Network } from '../types';
+import { stripNetworkPath } from '../utils';
 import {
   Select,
   SelectContent,
@@ -112,8 +113,14 @@ function LiveStatusIndicator({
 }
 
 export default function Header() {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
+  // Which page is showing is a property of the route, not of the network it is
+  // scoped to, so nav highlighting compares against the unscoped path.
+  const pathname = stripNetworkPath(
+    rawPathname,
+    networkOptions.map((option) => option.apiParam)
+  );
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
   // Chart detail pages read the time range via useChartData, so they keep the filter too
   const showTimeFilters = pathname === '/' || pathname.startsWith('/charts/');

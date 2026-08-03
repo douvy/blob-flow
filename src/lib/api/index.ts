@@ -12,6 +12,7 @@ import { getNetworks } from './networks';
 import { getBlobPricing } from './pricing';
 import { getStats, getStatsWindows } from './stats';
 import { getStatus } from './status';
+import { getBlobTransaction } from './transactions';
 import { getTopUsers, getUserByAddress, getUserBlobs } from './users';
 
 export const api = {
@@ -19,6 +20,7 @@ export const api = {
     getBlockByNumber,
     getBlobByTxHash,
     getBlobByVersionedHash,
+    getBlobTransaction,
     search,
     getRawBlobs,
     getBlobPricing,

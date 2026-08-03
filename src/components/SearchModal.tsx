@@ -27,7 +27,7 @@ import { isNotFoundError } from '@/lib/api/core';
 import { useNetwork } from '@/hooks/useNetwork';
 import useSearchMatches from '@/hooks/useSearchMatches';
 import { SearchMatchResponse, SearchTarget } from '@/types';
-import { parseSearchQuery, truncateAddress } from '@/utils';
+import { networkPath, parseSearchQuery, truncateAddress } from '@/utils';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -75,7 +75,7 @@ function describeTarget(target: SearchTarget): string {
     case 'address':
       return `View blob activity for ${truncateAddress(target.address)}`;
     case 'transaction':
-      return `Find the block for transaction ${truncateAddress(target.txHash)}`;
+      return `View blob transaction ${truncateAddress(target.txHash)}`;
     case 'blob':
       return `Find the block for blob ${truncateAddress(target.versionedHash)}`;
   }
@@ -83,8 +83,13 @@ function describeTarget(target: SearchTarget): string {
 
 function matchPath(match: SearchMatchResponse): string | null {
   switch (match.type) {
-    case 'block':
     case 'transaction':
+      return match.tx_hash
+        ? `/tx/${match.tx_hash}`
+        : match.block_number != null
+          ? `/block/${match.block_number}`
+          : null;
+    case 'block':
     case 'blob':
       return match.block_number != null ? `/block/${match.block_number}` : null;
     case 'address':
@@ -238,7 +243,9 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
   };
 
   const navigateTo = (path: string) => {
-    router.push(path);
+    // Results are looked up on the network being viewed, so they must open on
+    // it too rather than falling back to the default network's routes.
+    router.push(networkPath(path, selectedNetwork.apiParam));
     onClose();
   };
 
@@ -284,13 +291,9 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
         navigateTo(`/user/${target.address}`);
         return;
       case 'transaction':
-        void resolveHashToBlock(
-          () =>
-            api
-              .getBlobByTxHash(target.txHash, selectedNetwork.apiParam)
-              .then((response) => (response.success ? response.data?.block_number : null)),
-          `No confirmed blob transaction found for ${truncateAddress(target.txHash)}. It may be pending or outside the indexed window.`
-        );
+        // The transaction page resolves the hash itself, so a pending or
+        // unindexed hash still lands somewhere that explains why.
+        navigateTo(`/tx/${target.txHash}`);
         return;
       case 'blob':
         void resolveHashToBlock(

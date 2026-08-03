@@ -2,7 +2,10 @@ import {
   assignSeriesColors,
   attributionColorKey,
   beaconSlotForBlob,
+  costToWei,
   deriveBeaconSlot,
+  explorerHostLabel,
+  explorerTxUrl,
   formatBlobCount,
   formatBlobFee,
   formatBlobSize,
@@ -26,9 +29,12 @@ import {
   getAttributionTestnetLabels,
   getBlobCount,
   getNetworkIconSrc,
+  networkPath,
   parseSearchQuery,
   safeExplorerUrl,
+  stripNetworkPath,
   truncateAddress,
+  truncateTxHash,
 } from './index';
 import { NETWORKS } from '@/constants';
 
@@ -50,6 +56,63 @@ describe('utils', () => {
     expect(safeExplorerUrl('not a url')).toBeUndefined();
     expect(safeExplorerUrl('')).toBeUndefined();
     expect(safeExplorerUrl(undefined)).toBeUndefined();
+  });
+
+  it('scopes in-app paths to a network, leaving the default network bare', () => {
+    expect(networkPath('/blocks', 'sepolia')).toBe('/sepolia/blocks');
+    expect(networkPath('/', 'sepolia')).toBe('/sepolia');
+    expect(networkPath('/blocks', 'mainnet')).toBe('/blocks');
+    expect(networkPath('/blocks', undefined)).toBe('/blocks');
+    // Query strings and fragments survive the prefix.
+    expect(networkPath('/#data-trends', 'sepolia')).toBe('/sepolia#data-trends');
+    expect(networkPath('/charts/base-fee?range=24h', 'sepolia')).toBe(
+      '/sepolia/charts/base-fee?range=24h'
+    );
+    // Anything that is not an in-app path, or not a network slug, is left be.
+    expect(networkPath('https://etherscan.io/tx/0xabc', 'sepolia')).toBe(
+      'https://etherscan.io/tx/0xabc'
+    );
+    expect(networkPath('/blocks', '../evil')).toBe('/blocks');
+  });
+
+  it('strips a known network segment back off a path', () => {
+    const known = ['mainnet', 'sepolia', 'hoodi'];
+    expect(stripNetworkPath('/sepolia/block/123', known)).toBe('/block/123');
+    expect(stripNetworkPath('/sepolia', known)).toBe('/');
+    expect(stripNetworkPath('/Sepolia/blocks', known)).toBe('/blocks');
+    // A first segment that is a page, not a network, stays put.
+    expect(stripNetworkPath('/blocks', known)).toBe('/blocks');
+    expect(stripNetworkPath('/', known)).toBe('/');
+  });
+
+  it('truncates transaction hashes from both ends', () => {
+    const hash = `0x${'ab'.repeat(32)}`;
+    expect(truncateTxHash(hash)).toBe('0xabababab...abab');
+    expect(truncateTxHash('0xabcdef')).toBe('0xabcdef');
+  });
+
+  it('normalizes cost fields to wei so they can be summed', () => {
+    expect(costToWei('523396972544')).toBe(BigInt('523396972544'));
+    // Decimal values are ETH by the indexer's convention.
+    expect(costToWei('0.001')).toBe(BigInt('1000000000000000'));
+    expect(costToWei('0')).toBe(BigInt(0));
+    expect(costToWei('')).toBeNull();
+    expect(costToWei(undefined)).toBeNull();
+    expect(costToWei('not a number')).toBeNull();
+  });
+
+  it('labels explorer links with their host', () => {
+    expect(explorerHostLabel('https://etherscan.io/tx/0xabc')).toBe('etherscan.io');
+    expect(explorerHostLabel('https://www.blockscout.com/tx/0xabc')).toBe('blockscout.com');
+    expect(explorerHostLabel('javascript:alert(1)')).toBeNull();
+    expect(explorerHostLabel(undefined)).toBeNull();
+  });
+
+  it('builds fallback explorer transaction urls per network', () => {
+    expect(explorerTxUrl('0xabc', 'mainnet')).toBe('https://etherscan.io/tx/0xabc');
+    expect(explorerTxUrl('0xabc', 'sepolia')).toBe('https://sepolia.etherscan.io/tx/0xabc');
+    expect(explorerTxUrl('0xabc')).toBe('https://etherscan.io/tx/0xabc');
+    expect(explorerTxUrl('0xabc', 'holesky')).toBeNull();
   });
 
   it('maps known network names to vendored registry icons', () => {

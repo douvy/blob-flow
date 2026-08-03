@@ -25,6 +25,7 @@ import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import {
   assignSeriesColors,
   attributionColorKey,
+  networkPath,
   type SeriesColorInput,
 } from '../utils';
 import AttributionBadge from './AttributionBadge';
@@ -219,9 +220,9 @@ export default function TopUsersTable() {
 
   const goToUser = React.useCallback(
     (address: string) => {
-      router.push(`/user/${address}`);
+      router.push(networkPath(`/user/${address}`, selectedNetwork.apiParam));
     },
-    [router]
+    [router, selectedNetwork.apiParam]
   );
 
   const handleRowKeyDown = React.useCallback(
