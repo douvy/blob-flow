@@ -64,13 +64,27 @@ export function slugForEntityKey(key: string): string {
   return key.trim().toLowerCase().replace(/_/g, '-');
 }
 
-/** The share matching a URL slug, or undefined when absent from this range. */
+// The backend folds the long tail of small posters into an "other" bucket and
+// unattributed senders into an "unknown" bucket. Neither is a real entity, so
+// neither belongs in a head-to-head matchup.
+const AGGREGATE_BUCKETS = new Set(['other', 'unknown']);
+
+/** Whether a share is a real attributed entity rather than an aggregate bucket. */
+export function isComparableShare(share: BackendAttributionUsageShare): boolean {
+  return !AGGREGATE_BUCKETS.has(share.key) && !AGGREGATE_BUCKETS.has(share.category);
+}
+
+/**
+ * The comparable share matching a URL slug, or undefined when absent from
+ * this range. Aggregate buckets never match, so /vs/base/unknown falls into
+ * the same no-contender state as any entity without data.
+ */
 export function findShareBySlug(
   shares: readonly BackendAttributionUsageShare[],
   raw: string | undefined,
 ): BackendAttributionUsageShare | undefined {
   const key = entityKeyForSlug(raw);
-  return shares.find((share) => share.key === key);
+  return shares.find((share) => share.key === key && isComparableShare(share));
 }
 
 // Words whose brand casing title-casing would get wrong.

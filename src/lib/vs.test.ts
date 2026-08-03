@@ -8,6 +8,7 @@ import {
   entityKeyForSlug,
   findShareBySlug,
   humanizeEntitySlug,
+  isComparableShare,
   normalizeEntitySlug,
   parseVsRange,
   slugForEntityKey,
@@ -69,6 +70,23 @@ describe('slug handling', () => {
     const shares = [makeShare({ key: 'arbitrum_one', name: 'Arbitrum One' })];
     expect(findShareBySlug(shares, 'arbitrum')?.key).toBe('arbitrum_one');
     expect(findShareBySlug(shares, 'base')).toBeUndefined();
+  });
+
+  it('never matches the aggregate other and unknown buckets', () => {
+    const shares = [
+      makeShare({ key: 'other', name: 'Other', category: 'other' }),
+      makeShare({ key: 'unknown', name: 'Unknown', category: 'unknown' }),
+      makeShare({ key: 'base', name: 'Base' }),
+    ];
+    expect(findShareBySlug(shares, 'other')).toBeUndefined();
+    expect(findShareBySlug(shares, 'unknown')).toBeUndefined();
+    expect(findShareBySlug(shares, 'base')?.key).toBe('base');
+  });
+
+  it('classifies aggregate buckets as non-comparable', () => {
+    expect(isComparableShare(makeShare({ key: 'other', category: 'other' }))).toBe(false);
+    expect(isComparableShare(makeShare({ key: 'unknown', category: 'unknown' }))).toBe(false);
+    expect(isComparableShare(makeShare({ key: 'base', category: 'rollup' }))).toBe(true);
   });
 
   it('humanizes slugs with brand casing', () => {

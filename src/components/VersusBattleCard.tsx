@@ -16,6 +16,7 @@ import {
   buildVsHref,
   findShareBySlug,
   humanizeEntitySlug,
+  isComparableShare,
   normalizeEntitySlug,
   slugForEntityKey,
 } from '@/lib/vs';
@@ -252,7 +253,9 @@ export default function VersusBattleCard({ aSlug, bSlug, range }: VersusBattleCa
 
   const shares = useMemo(
     () =>
-      [...(data?.summary.shares ?? [])].sort((first, second) => second.blob_count - first.blob_count),
+      (data?.summary.shares ?? [])
+        .filter(isComparableShare)
+        .sort((first, second) => second.blob_count - first.blob_count),
     [data]
   );
 
