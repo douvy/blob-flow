@@ -27,6 +27,7 @@ export const CHART_PAGES = [
   { slug: 'base-fee', title: 'Blob Base Fee Chart' },
   { slug: 'gas-utilization', title: 'Blob Gas Utilization Chart' },
   { slug: 'blob-usage', title: 'Blob Usage Chart' },
+  { slug: 'blob-share', title: 'Blob Share Chart' },
   { slug: 'cost-comparison', title: 'Blob vs Calldata Cost Chart' },
   { slug: 'rolling-market-stats', title: 'Rolling Market Stats' },
 ] as const;
