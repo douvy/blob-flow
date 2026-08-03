@@ -763,3 +763,34 @@ export interface SearchMatchResponse {
   name?: string;
   addresses?: string[];
 }
+
+// ---- Rollup head-to-head comparison (/vs/[a]/[b]) ----
+
+/** How a comparison row's raw values should be rendered. */
+export type VsMetricFormat = 'count' | 'percent' | 'eth' | 'cost';
+
+/** Which side of the matchup a row or the overall result favors. */
+export type VsWinner = 'a' | 'b' | 'tie';
+
+/**
+ * One metric row of the battle card. Raw values are numeric strings: plain
+ * numbers for count/percent formats, integer wei for eth/cost formats, so
+ * they survive serialization and BigInt comparison without precision loss.
+ */
+export interface VsComparisonRow {
+  key: string;
+  label: string;
+  format: VsMetricFormat;
+  /** Whether a higher or a lower value wins this row. */
+  betterDirection: 'higher' | 'lower';
+  a: string;
+  b: string;
+  winner: VsWinner;
+}
+
+/** Full matchup result: per-metric rows plus the overall verdict. */
+export interface VsComparison {
+  rows: VsComparisonRow[];
+  rowWins: { a: number; b: number };
+  overall: VsWinner;
+}
