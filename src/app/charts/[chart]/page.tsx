@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import ChartDetailView from '@/components/charts/ChartDetailView';
-import { CHART_PAGES, SITE_NAME, parseTimeRange } from '@/constants';
+import { CHART_PAGES, SITE_NAME, parseNetwork, parseTimeRange } from '@/constants';
 import { OG_CARD_DEFAULT_RANGE } from '@/lib/ogChartSeries';
 
 /**
@@ -21,10 +21,16 @@ export async function generateMetadata({
   const title = page?.title ?? 'Charts';
   const description = page?.description;
 
-  const rawRange = Array.isArray(query.range) ? query.range[0] : query.range;
-  const range = parseTimeRange(rawRange, OG_CARD_DEFAULT_RANGE);
-  const cardUrl = `/api/og/chart/${chart}?range=${range}`;
-  const cardAlt = `${title} over the last ${range} on ${SITE_NAME}`;
+  const first = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
+  const range = parseTimeRange(first(query.range), OG_CARD_DEFAULT_RANGE);
+  const network = parseNetwork(first(query.network));
+  const cardUrl = `/api/og/chart/${chart}?range=${range}&network=${network.apiParam}`;
+  const cardAlt = `${title}: ${network.name} over the last ${range} on ${SITE_NAME}`;
+
+  if (!page) {
+    return { title, alternates: { canonical: `/charts/${chart}` } };
+  }
 
   return {
     title,

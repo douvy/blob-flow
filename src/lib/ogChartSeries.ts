@@ -5,7 +5,8 @@
  */
 
 import { api } from '@/lib/api';
-import { DEFAULT_NETWORK, type TimeRange } from '@/constants';
+import { DEFAULT_NETWORK, DEFAULT_TIME_RANGE, type TimeRange } from '@/constants';
+import type { Network } from '@/types';
 import { COLORS } from '@/constants/chartTheme';
 import { formatGwei, formatNumber } from '@/utils';
 import type {
@@ -15,18 +16,13 @@ import type {
 } from '@/types';
 
 /**
- * Cards default to a day when no range is given: long enough to show shape,
- * short enough to stay current. A share link carries the sharer's selected
- * range, so a link to a 7d view does not unfurl as 1h.
+ * A share link carries the sharer's selected range and network, so a link to
+ * a 7d Sepolia view does not unfurl as 1h mainnet. A link without them (a
+ * hand-typed URL) has to match what the page itself will show, which is the
+ * app defaults.
  */
-export const OG_CARD_DEFAULT_RANGE: TimeRange = '24h';
-
-/**
- * Share cards have no user session to read a network preference from, and
- * the backend rejects chart requests that omit the network entirely, so
- * cards always show the default network.
- */
-export const OG_CARD_NETWORK = DEFAULT_NETWORK;
+export const OG_CARD_DEFAULT_RANGE: TimeRange = DEFAULT_TIME_RANGE;
+export const OG_CARD_DEFAULT_NETWORK: Network = DEFAULT_NETWORK;
 
 const WEI_PER_ETH = 1e18;
 
@@ -49,6 +45,17 @@ export function withoutPartialBucket<T>(points: readonly T[]): readonly T[] {
   return points.length > 8 ? points.slice(0, -1) : points;
 }
 
+/**
+ * Keeps only finite, non-negative readings. A backend field that is missing
+ * or unparseable would otherwise reach the caption as NaN, and none of these
+ * metrics (fees, utilization, counts, cost) can legitimately go negative.
+ * Filtering here rather than in the renderer matters because captions are
+ * computed from the same values.
+ */
+function plottable(values: readonly number[]): number[] {
+  return values.filter((value) => Number.isFinite(value) && value >= 0);
+}
+
 function average(values: readonly number[]): number {
   if (values.length === 0) return 0;
   return values.reduce((total, value) => total + value, 0) / values.length;
@@ -61,10 +68,13 @@ function sum(values: readonly number[]): number {
 function baseFeeSeries(
   market: BackendBlobMarketChartResponse,
   range: TimeRange
-): OgChartSeries {
-  const values = withoutPartialBucket(market.points).map((point) =>
-    Number(point.average_blob_base_fee_gwei)
+): OgChartSeries | null {
+  const values = plottable(
+    withoutPartialBucket(market.points).map((point) =>
+      Number(point.average_blob_base_fee_gwei)
+    )
   );
+  if (values.length === 0) return null;
   return {
     values,
     caption: `avg ${formatGwei(average(values), 4)} over ${range}`,
@@ -76,11 +86,14 @@ function baseFeeSeries(
 function utilizationSeries(
   market: BackendBlobMarketChartResponse,
   range: TimeRange
-): OgChartSeries {
+): OgChartSeries | null {
   // The backend reports utilization as a 0-1 fraction.
-  const values = withoutPartialBucket(market.points).map(
-    (point) => Number(point.average_utilization) * 100
+  const values = plottable(
+    withoutPartialBucket(market.points).map(
+      (point) => Number(point.average_utilization) * 100
+    )
   );
+  if (values.length === 0) return null;
   return {
     values,
     caption: `avg ${average(values).toFixed(1)}% of target over ${range}`,
@@ -92,10 +105,13 @@ function utilizationSeries(
 function blobUsageSeries(
   usage: BackendAttributionUsageChartResponse,
   range: TimeRange
-): OgChartSeries {
-  const values = withoutPartialBucket(usage.points).map((point) =>
-    sum(Object.values(point.values).map((value) => value.blob_count))
+): OgChartSeries | null {
+  const values = plottable(
+    withoutPartialBucket(usage.points).map((point) =>
+      sum(Object.values(point.values ?? {}).map((value) => Number(value?.blob_count)))
+    )
   );
+  if (values.length === 0) return null;
   return {
     values,
     caption: `${formatNumber(Math.round(sum(values)))} blobs over ${range}`,
@@ -107,10 +123,13 @@ function blobUsageSeries(
 function costSeries(
   cost: BackendCostComparisonChartResponse,
   range: TimeRange
-): OgChartSeries {
-  const values = withoutPartialBucket(cost.points).map(
-    (point) => Number(point.blob_cost_wei) / WEI_PER_ETH
+): OgChartSeries | null {
+  const values = plottable(
+    withoutPartialBucket(cost.points).map(
+      (point) => Number(point.blob_cost_wei) / WEI_PER_ETH
+    )
   );
+  if (values.length === 0) return null;
   const total = sum(values);
   return {
     values,
@@ -123,8 +142,11 @@ function costSeries(
 function blobCountSeries(
   market: BackendBlobMarketChartResponse,
   range: TimeRange
-): OgChartSeries {
-  const values = withoutPartialBucket(market.points).map((point) => point.blob_count);
+): OgChartSeries | null {
+  const values = plottable(
+    withoutPartialBucket(market.points).map((point) => Number(point.blob_count))
+  );
+  if (values.length === 0) return null;
   return {
     values,
     caption: `${formatNumber(Math.round(sum(values)))} blobs over ${range}`,
@@ -140,10 +162,11 @@ function blobCountSeries(
  */
 export async function fetchOgChartSeries(
   slug: string,
-  range: TimeRange = OG_CARD_DEFAULT_RANGE
+  range: TimeRange = OG_CARD_DEFAULT_RANGE,
+  selectedNetwork: Network = OG_CARD_DEFAULT_NETWORK
 ): Promise<OgChartSeries | null> {
   try {
-    const network = OG_CARD_NETWORK.apiParam;
+    const network = selectedNetwork.apiParam;
     switch (slug) {
       case 'base-fee':
         return baseFeeSeries(await api.getBlobMarketChart(range, network), range);

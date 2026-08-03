@@ -543,8 +543,23 @@ function safeFormat(formatter: () => string): string {
   }
 }
 
+/**
+ * Numbers stringify to exponent form outside roughly 1e-7 to 1e21, which the
+ * decimal parser below rejects. Runaway blob base fees reach that range on a
+ * congested testnet, so a numeric caller would throw on exactly the values
+ * the scientific-notation formatters exist to handle. "fullwide" keeps plain
+ * notation, leaving non-finite and negative values to fail as before.
+ */
+function decimalNotation(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  return value.toLocaleString('fullwide', {
+    useGrouping: false,
+    maximumFractionDigits: 20,
+  });
+}
+
 function normalizeDecimalString(value: string | number): string {
-  const rawValue = typeof value === 'string' ? value.trim() : value.toString();
+  const rawValue = typeof value === 'string' ? value.trim() : decimalNotation(value);
 
   if (!/^\d+(?:\.\d+)?$/.test(rawValue)) {
     throw new Error(`Invalid decimal value: ${rawValue}`);

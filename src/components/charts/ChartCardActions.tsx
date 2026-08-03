@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Camera, Check, Download, Loader2 } from 'lucide-react';
 import { copyOrDownloadChartImage } from '@/lib/chartExport';
-import { SITE_URL } from '@/constants';
+import { DEFAULT_NETWORK, SITE_URL } from '@/constants';
 import { buildTweetIntentUrl, chartImageFileName } from '@/utils';
 import { useNetwork } from '@/hooks/useNetwork';
 import { useTimeRange } from '@/contexts/TimeRangeContext';
@@ -95,12 +95,17 @@ export default function ChartCardActions({
       .catch(() => setCopyState('error'));
   };
 
-  // The range rides along so the link opens on the same view the sharer saw,
-  // and so its unfurled card plots that range rather than the default.
+  // Range and network ride along so the link opens on the view the sharer
+  // saw, and so its unfurled card plots that data. Without the network the
+  // card would show mainnet while the tweet text named another chain.
+  const shareQuery = new URLSearchParams({ range: timeRange });
+  if (selectedNetwork.apiParam !== DEFAULT_NETWORK.apiParam) {
+    shareQuery.set('network', selectedNetwork.apiParam);
+  }
   const tweetUrl = buildTweetIntentUrl({
     title: chartTitle,
     stat: headlineStat ? `${headlineStat} on ${selectedNetwork.name}` : null,
-    url: `${SITE_URL}/charts/${chartId}?range=${timeRange}`,
+    url: `${SITE_URL}/charts/${chartId}?${shareQuery.toString()}`,
   });
 
   return (

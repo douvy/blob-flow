@@ -120,20 +120,25 @@ function UnknownChart({ chartId }: { chartId: string | undefined }) {
 }
 
 /**
- * Applies a ?range= deep link to the shared time range once, on arrival.
- * Shared chart links carry the range they were captured at, so the page has
- * to open on that range instead of the header default. Later header changes
- * win: the URL is only read on mount.
+ * Applies a ?range= deep link to the shared time range. Shared chart links
+ * carry the range they were captured at, so the page has to open on that
+ * range instead of the header default.
+ *
+ * Keyed on the parameter's value rather than a once-per-mount flag: browser
+ * history and in-app navigation swap the range without remounting, and a
+ * one-shot guard would leave the chart on the previous range while the URL
+ * and the page metadata said otherwise. Header changes still win, since the
+ * effect only re-runs when the URL itself changes.
  */
 function useDeepLinkedTimeRange() {
   const searchParams = useSearchParams();
   const { setTimeRange } = useTimeRange();
   const rangeParam = searchParams.get('range');
-  const applied = useRef(false);
+  const applied = useRef<string | null>(null);
 
   useEffect(() => {
-    if (applied.current || !isTimeRange(rangeParam)) return;
-    applied.current = true;
+    if (applied.current === rangeParam || !isTimeRange(rangeParam)) return;
+    applied.current = rangeParam;
     setTimeRange(rangeParam);
   }, [rangeParam, setTimeRange]);
 }

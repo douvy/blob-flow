@@ -224,13 +224,33 @@ const MIN_PIXEL_RATIO = 3;
 const MAX_PIXEL_RATIO = 4;
 /** Width to aim for, so narrow cards still export something worth sharing. */
 const TARGET_EXPORT_WIDTH = 2400;
+/**
+ * Total pixels the canvas may cover. A tall detail chart is wide *and* deep,
+ * so a width-only cap can still ask for a canvas past what browsers allow:
+ * Safari refuses to allocate much beyond 16M pixels, and every pixel costs
+ * 4 bytes in the raster before the PNG encoder takes its own copy.
+ */
+const MAX_PIXEL_AREA = 12_000_000;
 
-export function capturePixelRatio(frameWidth: number, devicePixelRatio = 1): number {
+export function capturePixelRatio(
+  frameWidth: number,
+  frameHeight: number,
+  devicePixelRatio = 1
+): number {
   const toReachTarget = frameWidth > 0 ? TARGET_EXPORT_WIDTH / frameWidth : MIN_PIXEL_RATIO;
-  return Math.min(
+  const wanted = Math.min(
     MAX_PIXEL_RATIO,
     Math.max(MIN_PIXEL_RATIO, devicePixelRatio, toReachTarget)
   );
+
+  const area = frameWidth * frameHeight;
+  if (area <= 0) return wanted;
+  // Area grows with the square of the ratio, so the affordable ratio is the
+  // square root of the budget, rounded down so float error cannot land just
+  // over it. Never drop below 1x: a smaller-than-CSS export would be worse
+  // than a heavy one.
+  const affordable = Math.floor(Math.sqrt(MAX_PIXEL_AREA / area) * 100) / 100;
+  return Math.max(1, Math.min(wanted, affordable));
 }
 
 /** Renders the chart node inside the branded frame and encodes it as a PNG blob. */
@@ -247,7 +267,11 @@ export async function captureChartImage(
   document.body.appendChild(mount);
   try {
     const blob = await toBlob(frame, {
-      pixelRatio: capturePixelRatio(frame.offsetWidth, window.devicePixelRatio || 1),
+      pixelRatio: capturePixelRatio(
+        frame.offsetWidth,
+        frame.offsetHeight,
+        window.devicePixelRatio || 1
+      ),
       backgroundColor: FRAME_BACKGROUND,
       // With an explicit value html-to-image skips its own stylesheet scan;
       // an empty string (font fetch failed) lets it try that scan instead.

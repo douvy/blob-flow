@@ -489,3 +489,24 @@ describe('parseTimeRange', () => {
     expect(isTimeRange(30)).toBe(false);
   });
 });
+
+describe('runaway gwei values', () => {
+  // A congested testnet drives the blob base fee into exponent range, where
+  // Number.toString() switches notation. Charts hand these in as numbers.
+  it('formats numeric runaway fees in scientific notation instead of throwing', () => {
+    expect(formatGwei(2.838e22, 4)).toBe('2.84e22 Gwei');
+    expect(formatGwei(1e21, 4)).toBe('1e21 Gwei');
+    expect(formatGwei(1e9, 4)).toBe('1e9 Gwei');
+  });
+
+  it('leaves ordinary numeric fees in positional form', () => {
+    expect(formatGwei(12.34, 4)).toBe('12.34 Gwei');
+    expect(formatGwei(0.000001234, 6)).toBe('0.000001 Gwei');
+  });
+
+  it('still rejects values that are not decimals', () => {
+    expect(() => formatGwei(Number.NaN)).toThrow('Invalid decimal value');
+    expect(() => formatGwei(Number.POSITIVE_INFINITY)).toThrow('Invalid decimal value');
+    expect(() => formatGwei(-5)).toThrow('Invalid decimal value');
+  });
+});

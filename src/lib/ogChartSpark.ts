@@ -47,8 +47,15 @@ export function buildSparkGeometry(
   const innerHeight = height - 2 * padding;
   if (innerWidth <= 0 || innerHeight <= 0) return null;
 
-  const min = Math.min(...finite);
-  const max = Math.max(...finite);
+  // Iterative rather than Math.min(...finite): spreading throws RangeError
+  // somewhere above 100k arguments, and the series length is the backend's
+  // to choose, not ours.
+  let min = finite[0];
+  let max = finite[0];
+  for (const value of finite) {
+    if (value < min) min = value;
+    if (value > max) max = value;
+  }
   const range = max - min;
 
   const xAt = (index: number) =>

@@ -115,6 +115,19 @@ export const NETWORKS: Record<string, Network> = {
 
 export const DEFAULT_NETWORK: Network = NETWORKS.MAINNET;
 
+/**
+ * Narrows an untrusted network value (a share link's query param) to one of
+ * the known networks. The live list comes from GET /networks, but share
+ * rendering happens without a session, so it stays on this finite bootstrap
+ * set rather than forwarding an arbitrary string to the backend.
+ */
+export function parseNetwork(value: string | undefined | null): Network {
+  return (
+    Object.values(NETWORKS).find((network) => network.apiParam === value) ??
+    DEFAULT_NETWORK
+  );
+}
+
 export const ROUTES = {
   HOME: '/',
   BLOCKS: '/blocks',

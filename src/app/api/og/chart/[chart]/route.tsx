@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
-import { CHART_PAGES, SITE_NAME, SITE_URL, parseTimeRange } from '@/constants';
-import { fetchOgChartSeries, OG_CARD_DEFAULT_RANGE, OG_CARD_NETWORK } from '@/lib/ogChartSeries';
+import { CHART_PAGES, SITE_NAME, SITE_URL, parseNetwork, parseTimeRange } from '@/constants';
+import { fetchOgChartSeries, OG_CARD_DEFAULT_RANGE } from '@/lib/ogChartSeries';
 import { buildSparkDataUrl } from '@/lib/ogChartSpark';
 
 /**
@@ -17,7 +17,12 @@ import { buildSparkDataUrl } from '@/lib/ogChartSpark';
  * honor the ?range= the sharer had selected.
  *
  * Query params:
- *   range  one of the header's time ranges; anything else falls back to 24h
+ *   range    one of the header's time ranges
+ *   network  one of the known networks; both fall back to the app defaults
+ *
+ * Unknown slugs 404 rather than rendering a generic card: every distinct URL
+ * is its own rasterization and its own CDN cache key, so answering for
+ * arbitrary paths turns this into unbounded work for anyone who asks.
  *
  * Fonts are the site's woff (v1) files; satori does not accept woff2.
  */
@@ -37,20 +42,24 @@ export async function GET(
   { params }: { params: Promise<{ chart: string }> }
 ) {
   const { chart } = await params;
-  const range = parseTimeRange(
-    new URL(request.url).searchParams.get('range'),
-    OG_CARD_DEFAULT_RANGE
-  );
+  const query = new URL(request.url).searchParams;
+  const range = parseTimeRange(query.get('range'), OG_CARD_DEFAULT_RANGE);
+  const network = parseNetwork(query.get('network'));
 
   const page = CHART_PAGES.find((chartPage) => chartPage.slug === chart);
-  const title = page?.title ?? 'Charts';
-  const description = page?.description ?? 'Real-time Ethereum EIP-4844 blob analytics.';
+  if (!page) {
+    return new Response('Not found', {
+      status: 404,
+      headers: { 'Cache-Control': CACHE_CONTROL },
+    });
+  }
+  const { title, description } = page;
 
   const [windsorBold, gtFlexa, logo, series] = await Promise.all([
     readFile(join(process.cwd(), 'public/fonts/WindsorBold/WindsorBold.woff')),
     readFile(join(process.cwd(), 'public/fonts/GT Flexa/GT-Flexa-Standard-Regular.woff')),
     readFile(join(process.cwd(), 'public/images/logo.png')),
-    fetchOgChartSeries(chart, range),
+    fetchOgChartSeries(chart, range, network),
   ]);
   const logoSrc = `data:image/png;base64,${logo.toString('base64')}`;
   const sparkSrc = series
@@ -108,7 +117,7 @@ export async function GET(
               </div>
             </div>
             <div style={{ fontSize: '24px', color: '#6e7687' }}>
-              {`${OG_CARD_NETWORK.name} · last ${range}`}
+              {`${network.name} · last ${range}`}
             </div>
           </div>
 

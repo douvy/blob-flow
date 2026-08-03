@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { DEFAULT_NETWORK, DEFAULT_TIME_RANGE, NETWORKS } from '@/constants';
 import { fetchOgChartSeries, withoutPartialBucket } from './ogChartSeries';
 import type {
   BackendAttributionUsageChartResponse,
@@ -58,7 +59,7 @@ describe('fetchOgChartSeries', () => {
       ])
     );
 
-    const series = await fetchOgChartSeries('base-fee');
+    const series = await fetchOgChartSeries('base-fee', '24h');
 
     expect(series?.values).toEqual([2, 4]);
     expect(series?.caption).toBe('avg 3 Gwei over 24h');
@@ -73,7 +74,7 @@ describe('fetchOgChartSeries', () => {
       ])
     );
 
-    const series = await fetchOgChartSeries('gas-utilization');
+    const series = await fetchOgChartSeries('gas-utilization', '24h');
 
     expect(series?.values).toEqual([25, 75]);
     expect(series?.caption).toBe('avg 50.0% of target over 24h');
@@ -92,7 +93,7 @@ describe('fetchOgChartSeries', () => {
       ],
     } as unknown as BackendAttributionUsageChartResponse);
 
-    const series = await fetchOgChartSeries('blob-usage');
+    const series = await fetchOgChartSeries('blob-usage', '24h');
 
     expect(series?.values).toEqual([5]);
     expect(series?.caption).toBe('5 blobs over 24h');
@@ -109,14 +110,25 @@ describe('fetchOgChartSeries', () => {
     expect(series?.caption).toBe('avg 5 Gwei over 7d');
   });
 
-  it('defaults to a day when the link carried no range', async () => {
+  it('defaults to what the page itself shows when the link carried nothing', async () => {
     vi.mocked(api.getBlobMarketChart).mockResolvedValue(
       marketResponse([{ fee: '5', utilization: '0.5', blobs: 1 }])
     );
 
     await fetchOgChartSeries('base-fee');
 
-    expect(api.getBlobMarketChart).toHaveBeenCalledWith('24h', 'mainnet');
+    // A hand-typed link unfurls the same view it opens on: the app defaults.
+    expect(api.getBlobMarketChart).toHaveBeenCalledWith(DEFAULT_TIME_RANGE, DEFAULT_NETWORK.apiParam);
+  });
+
+  it('requests the network a share link carried, not always the default', async () => {
+    vi.mocked(api.getBlobMarketChart).mockResolvedValue(
+      marketResponse([{ fee: '5', utilization: '0.5', blobs: 1 }])
+    );
+
+    await fetchOgChartSeries('base-fee', '24h', NETWORKS.SEPOLIA);
+
+    expect(api.getBlobMarketChart).toHaveBeenCalledWith('24h', 'sepolia');
   });
 
   it('falls back to no series for an unknown slug', async () => {
@@ -127,5 +139,40 @@ describe('fetchOgChartSeries', () => {
     vi.mocked(api.getBlobMarketChart).mockRejectedValue(new Error('backend down'));
 
     expect(await fetchOgChartSeries('base-fee')).toBeNull();
+  });
+});
+
+describe('malformed backend data', () => {
+  it('drops points whose metric is missing rather than captioning NaN', async () => {
+    vi.mocked(api.getBlobMarketChart).mockResolvedValue({
+      points: [
+        { average_blob_base_fee_gwei: '1' },
+        { average_blob_base_fee_gwei: '2', average_utilization: '0.5' },
+      ],
+    } as unknown as BackendBlobMarketChartResponse);
+
+    const series = await fetchOgChartSeries('gas-utilization', '24h');
+
+    expect(series?.values).toEqual([50]);
+    expect(series?.caption).toBe('avg 50.0% of target over 24h');
+  });
+
+  it('declines to plot an empty series instead of claiming a zero average', async () => {
+    vi.mocked(api.getBlobMarketChart).mockResolvedValue({
+      points: [],
+    } as unknown as BackendBlobMarketChartResponse);
+
+    expect(await fetchOgChartSeries('base-fee', '24h')).toBeNull();
+  });
+
+  it('declines when every point is unusable', async () => {
+    vi.mocked(api.getBlobMarketChart).mockResolvedValue({
+      points: [
+        { average_blob_base_fee_gwei: 'not-a-number' },
+        { average_blob_base_fee_gwei: '-1' },
+      ],
+    } as unknown as BackendBlobMarketChartResponse);
+
+    expect(await fetchOgChartSeries('base-fee', '24h')).toBeNull();
   });
 });

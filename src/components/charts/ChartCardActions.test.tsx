@@ -114,6 +114,38 @@ describe('ChartCardActions', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
+  it('carries the selected network so the card cannot contradict the tweet', () => {
+    vi.mocked(useNetwork).mockReturnValue({
+      selectedNetwork: NETWORKS.SEPOLIA,
+      setSelectedNetwork: vi.fn(),
+      networkOptions: Object.values(NETWORKS),
+    });
+    renderActions('7d');
+
+    const link = screen.getByRole('link', {
+      name: 'Share Blob Usage over 1h view on X',
+    });
+    const href = new URL(link.getAttribute('href') ?? '');
+    const shared = new URL(href.searchParams.get('url') ?? '');
+
+    expect(shared.searchParams.get('network')).toBe('sepolia');
+    expect(shared.searchParams.get('range')).toBe('7d');
+    expect(href.searchParams.get('text')).toContain('on Sepolia');
+  });
+
+  it('leaves the default network out of the link', () => {
+    renderActions('24h');
+
+    const link = screen.getByRole('link', {
+      name: 'Share Blob Usage over 1h view on X',
+    });
+    const shared = new URL(
+      new URL(link.getAttribute('href') ?? '').searchParams.get('url') ?? ''
+    );
+
+    expect(shared.searchParams.get('network')).toBeNull();
+  });
+
   it('shares the range currently selected, not the default', () => {
     renderActions('30d');
 
