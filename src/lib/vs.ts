@@ -26,6 +26,14 @@ export const VS_RANGE_LABELS: Record<BackendChartRange, string> = {
   all: 'All time',
 };
 
+/**
+ * The attribution-usage endpoint only breaks out the top few entities by
+ * default and folds the rest into an "other" bucket, which would wrongly
+ * report a quieter rollup as having no activity. Ask for enough entities to
+ * cover the whole registry so every real poster is addressable.
+ */
+export const VS_ENTITY_LIMIT = 50;
+
 /** Coerce an arbitrary ?range= value to a supported range, defaulting to 24h. */
 export function parseVsRange(value: string | null | undefined): BackendChartRange {
   return (VS_RANGES as readonly string[]).includes(value ?? '')

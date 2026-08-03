@@ -10,6 +10,7 @@ import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
 import {
+  VS_ENTITY_LIMIT,
   VS_RANGES,
   VS_RANGE_LABELS,
   buildVsComparison,
@@ -242,13 +243,15 @@ export default function VersusBattleCard({ aSlug, bSlug, range }: VersusBattleCa
   const network = selectedNetwork.apiParam;
 
   const fetchAttribution = useCallback(
-    () => api.getAttributionUsageChart(range, network),
+    () => api.getAttributionUsageChart(range, network, 'auto', VS_ENTITY_LIMIT),
     [range, network]
   );
 
+  // The limit is part of the key: the dashboard caches the same endpoint at
+  // its default top-N breakout, which folds quieter rollups into "other".
   const { data, isLoading, error } = useApiData<BackendAttributionUsageChartResponse>(
     fetchAttribution,
-    ['chart-attribution', network, range]
+    ['chart-attribution', network, range, VS_ENTITY_LIMIT]
   );
 
   const shares = useMemo(

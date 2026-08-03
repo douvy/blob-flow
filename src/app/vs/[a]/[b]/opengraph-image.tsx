@@ -4,6 +4,7 @@ import { ImageResponse } from 'next/og';
 import { API_BASE_URL } from '@/constants';
 import {
   DEFAULT_VS_RANGE,
+  VS_ENTITY_LIMIT,
   VS_RANGE_LABELS,
   buildVsComparison,
   findShareBySlug,
@@ -52,7 +53,7 @@ const OG_ROW_KEYS = ['blobs', 'blob-share', 'eth-spent', 'cost-per-mb'];
 async function fetchShares(range: BackendChartRange): Promise<BackendAttributionUsageShare[]> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/charts/attribution-usage?range=${range}&granularity=auto&network=${OG_NETWORK}`,
+      `${API_BASE_URL}/charts/attribution-usage?range=${range}&granularity=auto&network=${OG_NETWORK}&limit=${VS_ENTITY_LIMIT}`,
       { next: { revalidate }, signal: AbortSignal.timeout(5000) },
     );
     if (!response.ok) return [];
