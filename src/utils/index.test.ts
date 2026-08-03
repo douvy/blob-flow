@@ -20,7 +20,7 @@ import {
   formatDate,
   formatDuration,
   formatFeeHeadroom,
-  formatFloppyEquivalent,
+  formatDataComparison,
   formatGwei,
   formatNumber,
   formatPercent,
@@ -43,6 +43,7 @@ import {
 } from './index';
 import { NETWORKS } from '@/constants';
 import type { BackendAttributionUsageShare } from '@/types';
+import { DATA_COMPARISONS } from '@/constants/dataComparisons';
 
 describe('utils', () => {
   it('formats numbers with locale separators', () => {
@@ -580,20 +581,110 @@ describe('formatDataRate', () => {
   });
 });
 
-describe('formatFloppyEquivalent', () => {
-  it('counts 1.44 MB floppy disks', () => {
-    expect(formatFloppyEquivalent(1474560)).toBe('1 floppy disk');
-    expect(formatFloppyEquivalent(1073741824)).toBe('728 floppy disks');
+describe('formatDataComparison', () => {
+  const MB = 1024 * 1024;
+  const GB = MB * 1024;
+  const TB = GB * 1024;
+
+  it('renders a comparison with a count for the volume', () => {
+    // A floppy disk is the first pool entry, so seed 0 lands on it.
+    expect(formatDataComparison(200 * MB, 0)).toBe('139 floppy disks');
   });
 
-  it('compacts large counts', () => {
-    expect(formatFloppyEquivalent(107374182400)).toBe('72.8K floppy disks');
+  it('walks the pool as the seed advances and wraps around', () => {
+    const first = formatDataComparison(200 * MB, 0);
+    const second = formatDataComparison(200 * MB, 1);
+    expect(second).not.toBe(first);
+
+    // Mirrors the picker's own eligibility rules: the comparison must fit
+    // inside the volume, and its count must stay under a million.
+    const poolSize = DATA_COMPARISONS.filter(
+      (comparison) =>
+        (200 * MB) / comparison.bytes >= 1 &&
+        (200 * MB) / comparison.bytes <= 1_000_000
+    ).length;
+    expect(formatDataComparison(200 * MB, poolSize)).toBe(first);
   });
 
-  it('returns null below one full disk', () => {
-    expect(formatFloppyEquivalent(131072)).toBeNull();
-    expect(formatFloppyEquivalent(0)).toBeNull();
-    expect(formatFloppyEquivalent(NaN)).toBeNull();
+  it('never picks a comparison larger than the volume', () => {
+    // 2 MB is smaller than a DVD, a Blu-ray, or Wikipedia, so no seed may
+    // land on one and render a fractional "0.5 DVDs" caption. Sweeping a
+    // range of volumes catches entries that only just overshoot.
+    for (const bytes of [300, 2 * MB, 176.3 * MB, 3 * GB, 9 * TB]) {
+      for (let seed = 0; seed < 120; seed += 1) {
+        const result = formatDataComparison(bytes, seed);
+        expect(result).not.toBeNull();
+        const count = Number.parseFloat(result ?? '');
+        expect(count).toBeGreaterThanOrEqual(1);
+      }
+    }
+  });
+
+  it('keeps a decimal below ten and rounds above it', () => {
+    // 1.44 MB per floppy: 3 MB is a fractional handful of disks.
+    expect(formatDataComparison(3 * MB, 0)).toBe('2.1 floppy disks');
+    expect(formatDataComparison(200 * MB, 0)).toBe('139 floppy disks');
+  });
+
+  it('uses the singular form only for an exact count of one', () => {
+    expect(formatDataComparison(1.44 * MB, 0)).toBe('1 floppy disk');
+    // English pluralizes anything that is not exactly one.
+    expect(formatDataComparison(1.6 * MB, 0)).toBe('1.1 floppy disks');
+  });
+
+  it('compacts very large counts', () => {
+    expect(formatDataComparison(500 * 1024 * MB, 0)).toBe('356K floppy disks');
+  });
+
+  it('reaches for byte-scale comparisons on tiny volumes', () => {
+    // Only the punch card, tweet, text message and emoji fit in 300 bytes.
+    expect(formatDataComparison(300, 0)).toBe('3.8 punch cards');
+    expect(formatDataComparison(300, 1)).toBe('1.1 tweets');
+  });
+
+  it('accepts million-plus counts when nothing smaller fits', () => {
+    // Past this scale even the largest comparison in the pool runs into the
+    // millions, so the readability ceiling gives way rather than returning null.
+    const result = formatDataComparison(1e20, 0);
+    expect(result).not.toBeNull();
+    expect(result).toContain('floppy disks');
+  });
+
+  it('is stable for a given volume and seed', () => {
+    expect(formatDataComparison(200 * MB, 7)).toBe(formatDataComparison(200 * MB, 7));
+  });
+
+  it('tolerates negative and non-finite seeds', () => {
+    expect(formatDataComparison(200 * MB, -1)).not.toBeNull();
+    expect(formatDataComparison(200 * MB, NaN)).toBe(formatDataComparison(200 * MB, 0));
+    expect(formatDataComparison(200 * MB, 2.9)).toBe(formatDataComparison(200 * MB, 2));
+  });
+
+  it('returns null for empty or invalid volumes', () => {
+    expect(formatDataComparison(0, 0)).toBeNull();
+    expect(formatDataComparison(-1, 0)).toBeNull();
+    expect(formatDataComparison(NaN, 0)).toBeNull();
+    // Smaller than the smallest comparison in the pool (a 4-byte emoji).
+    expect(formatDataComparison(1, 0)).toBeNull();
+  });
+});
+
+describe('DATA_COMPARISONS registry', () => {
+  it('offers a hundred comparisons', () => {
+    expect(DATA_COMPARISONS).toHaveLength(100);
+  });
+
+  it('gives every entry a positive size and both grammatical forms', () => {
+    for (const comparison of DATA_COMPARISONS) {
+      expect(comparison.bytes).toBeGreaterThan(0);
+      expect(comparison.singular.length).toBeGreaterThan(0);
+      expect(comparison.plural.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('has no duplicate labels', () => {
+    const labels = DATA_COMPARISONS.map((comparison) => comparison.plural);
+    expect(new Set(labels).size).toBe(labels.length);
   });
 });
 

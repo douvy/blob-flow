@@ -5,6 +5,7 @@ import { getAddress } from 'viem';
 import { BackendAttributionUsageShare, BlobResponse, Network, SearchTarget } from '@/types';
 import { ATTRIBUTION_CONTRIBUTING_URL, ATTRIBUTION_REPO_URL, NETWORKS, SECONDS_PER_BLOCK } from '@/constants';
 import { SERIES_COLOR_PALETTE, SERIES_CATEGORY_NEUTRALS } from '@/constants/chartTheme';
+import { DATA_COMPARISONS } from '@/constants/dataComparisons';
 import { ENTITY_ICONS, EntityIcon } from '@/constants/entityIcons.generated';
 
 // The indexer sends blob-list entity names verbatim, which is what the
@@ -33,8 +34,6 @@ const BYTES_PER_GIB = BYTES_PER_MIB * 1024;
 const BYTES_PER_TIB = BYTES_PER_GIB * 1024;
 const BLOB_GAS_PER_BLOB = 131072;
 const BYTES_PER_BLOB = 131072;
-/** Formatted capacity of a 3.5" HD floppy disk, the universal save icon. */
-const BYTES_PER_FLOPPY = 1_474_560;
 
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
@@ -855,20 +854,52 @@ export function formatDataRate(bytesPerSecond: number | null): string {
 }
 
 /**
- * How many 1.44 MB floppy disks the bytes would fill, e.g. "728 floppy
- * disks" or "72.8K floppy disks". Returns null below one full disk so
- * callers can fall back to a plainer caption.
+ * Comparisons small enough that the count reads as a quantity rather than
+ * noise. Above this, "4.7B emoji" says less about scale than a comparison
+ * whose count is in the thousands, so the larger-count entries are only
+ * used when nothing in this band fits.
  */
-export function formatFloppyEquivalent(bytes: number): string | null {
-  if (!Number.isFinite(bytes) || bytes < BYTES_PER_FLOPPY) return null;
+const RELATABLE_COMPARISON_CEILING = 1_000_000;
 
-  const floppies = Math.round(bytes / BYTES_PER_FLOPPY);
+/**
+ * One of DATA_COMPARISONS rendered against a byte volume, e.g. "138 floppy
+ * disks" or "1.4K copies of the Bible". The seed picks which comparison,
+ * so callers can rotate through the pool (by passing a refresh timestamp,
+ * say) while keeping this function pure. Comparisons bigger than the
+ * volume itself are skipped, so the count is always at least one.
+ *
+ * Returns null when the volume is invalid or smaller than every comparison
+ * in the pool, letting callers fall back to a plainer caption.
+ */
+export function formatDataComparison(bytes: number, seed: number): string | null {
+  if (!Number.isFinite(bytes) || bytes <= 0) return null;
+
+  // The comparison must fit inside the volume at least once. Rounding here
+  // instead would admit entries half again the size of the volume and
+  // render them as "0.5 DVDs".
+  const eligible = DATA_COMPARISONS.filter(
+    (comparison) => comparison.bytes > 0 && bytes / comparison.bytes >= 1
+  );
+  if (eligible.length === 0) return null;
+
+  const relatable = eligible.filter(
+    (comparison) => bytes / comparison.bytes <= RELATABLE_COMPARISON_CEILING
+  );
+  const pool = relatable.length > 0 ? relatable : eligible;
+
+  const normalizedSeed = Number.isFinite(seed) ? Math.abs(Math.trunc(seed)) : 0;
+  const comparison = pool[normalizedSeed % pool.length];
+
+  const count = bytes / comparison.bytes;
   const formatted = new Intl.NumberFormat('en-US', {
     notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(floppies);
+    // Below ten, a bare integer loses too much ("1 DVD" for 1.9 DVDs), so
+    // keep a decimal place there and round to whole units above it.
+    maximumFractionDigits: count < 10 ? 1 : 0,
+  }).format(count);
 
-  return `${formatted} floppy disk${floppies === 1 ? '' : 's'}`;
+  // Only an exact one takes the singular: English pluralizes "1.1 tweets".
+  return `${formatted} ${formatted === '1' ? comparison.singular : comparison.plural}`;
 }
 
 /**

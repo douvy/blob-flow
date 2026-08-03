@@ -27,9 +27,9 @@ import {
   formatBlobCadence,
   formatBlobCount,
   formatCostEthOrWei,
+  formatDataComparison,
   formatDataRate,
   formatDataVolume,
-  formatFloppyEquivalent,
   formatPercent,
   formatSignedWeiToEth,
   selectTopUsageShare,
@@ -71,6 +71,7 @@ export default function RelatableStats() {
     data: statsWindows,
     isLoading: windowsLoading,
     error: windowsError,
+    dataUpdatedAt: windowsUpdatedAt,
   } = useApiData<BackendStatsWindowsResponse>(fetchStatsWindows, ['stats-windows', network]);
 
   const {
@@ -130,6 +131,9 @@ export default function RelatableStats() {
 
     const postedBytes = blobCountToBytes(totalBlobs);
     const bytesPerSecond = computeBlobBytesPerSecond(totalBlobs, selectedWindow.durationSeconds);
+    // Seeding from the fetch timestamp keeps the pick pure for a given
+    // render while advancing it whenever the window data refreshes.
+    const comparison = formatDataComparison(postedBytes, Math.floor(windowsUpdatedAt / 1000));
 
     return [
       {
@@ -173,14 +177,15 @@ export default function RelatableStats() {
       {
         title: `Data Posted (${label})`,
         value: formatDataVolume(postedBytes),
-        description:
-          formatFloppyEquivalent(postedBytes) !== null
-            ? `That is ${formatFloppyEquivalent(postedBytes)} of rollup data`
-            : `${formatBlobCount(totalBlobs)} of 128 KiB each`,
+        // Rotates through the comparison pool as the window data refreshes,
+        // so the card offers a different frame of reference over time.
+        description: comparison
+          ? `About the same as ${comparison}`
+          : `${formatBlobCount(totalBlobs)} of 128 KiB each`,
         icon: HardDrive,
       },
     ];
-  }, [selectedWindow, rawWindow, attribution, costComparison, timeRange]);
+  }, [selectedWindow, rawWindow, attribution, costComparison, timeRange, windowsUpdatedAt]);
 
   const isLoading = windowsLoading || attributionLoading || costComparisonLoading;
   const haveHeadline = Boolean(selectedWindow);
