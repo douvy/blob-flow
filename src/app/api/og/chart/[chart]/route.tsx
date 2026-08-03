@@ -1,38 +1,47 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
-import { CHART_PAGES, SITE_URL } from '@/constants';
-import { fetchOgChartSeries, OG_CARD_NETWORK } from '@/lib/ogChartSeries';
+import { CHART_PAGES, SITE_URL, parseTimeRange } from '@/constants';
+import { fetchOgChartSeries, OG_CARD_DEFAULT_RANGE, OG_CARD_NETWORK } from '@/lib/ogChartSeries';
 import { buildSparkDataUrl } from '@/lib/ogChartSpark';
 
 /**
  * Branded social share card for chart deep links (og:image, and X's
- * summary_large_image). The chart itself is drawn server-side from the same
- * backend series the page plots: Recharts needs a DOM, which this route does
- * not have. When the backend is unreachable the card still renders, just
- * without the plot.
+ * summary_large_image). The chart is drawn server-side from the same backend
+ * series the page plots: Recharts needs a DOM, which this route does not
+ * have. When the backend is unreachable the card still renders, just without
+ * the plot.
+ *
+ * This is a route handler rather than the opengraph-image file convention
+ * because that convention only receives route params, and the card has to
+ * honor the ?range= the sharer had selected.
+ *
+ * Query params:
+ *   range  one of the header's time ranges; anything else falls back to 24h
  *
  * Fonts are the site's woff (v1) files; satori does not accept woff2.
  */
 
-export const alt = 'BlobFlow chart preview';
 export const size = { width: 1200, height: 630 };
-export const contentType = 'image/png';
-
-// Cards are cached for five minutes so crawler traffic cannot turn every
-// unfurl into a backend request, while shares still show recent data.
-export const revalidate = 300;
 
 const SITE_HOST = SITE_URL.replace(/^https?:\/\//, '');
 const SPARK_WIDTH = 1072;
 const SPARK_HEIGHT = 190;
 
-export default async function OpenGraphImage({
-  params,
-}: {
-  params: Promise<{ chart: string }>;
-}) {
+// Crawlers refetch cards often, so serve them from cache for five minutes
+// instead of turning every unfurl into a backend request.
+const CACHE_CONTROL = 'public, max-age=300, s-maxage=300, stale-while-revalidate=86400';
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ chart: string }> }
+) {
   const { chart } = await params;
+  const range = parseTimeRange(
+    new URL(request.url).searchParams.get('range'),
+    OG_CARD_DEFAULT_RANGE
+  );
+
   const page = CHART_PAGES.find((chartPage) => chartPage.slug === chart);
   const title = page?.title ?? 'Charts';
   const description = page?.description ?? 'Real-time Ethereum EIP-4844 blob analytics.';
@@ -41,7 +50,7 @@ export default async function OpenGraphImage({
     readFile(join(process.cwd(), 'public/fonts/WindsorBold/WindsorBold.woff')),
     readFile(join(process.cwd(), 'public/fonts/GT Flexa/GT-Flexa-Standard-Regular.woff')),
     readFile(join(process.cwd(), 'public/images/logo.png')),
-    fetchOgChartSeries(chart),
+    fetchOgChartSeries(chart, range),
   ]);
   const logoSrc = `data:image/png;base64,${logo.toString('base64')}`;
   const sparkSrc = series
@@ -84,13 +93,22 @@ export default async function OpenGraphImage({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-              <img src={logoSrc} alt="" width={56} height={56} />
+              {/* Satori renders background images; next/image cannot run here. */}
+              <div
+                style={{
+                  display: 'flex',
+                  width: '56px',
+                  height: '56px',
+                  backgroundImage: `url(${logoSrc})`,
+                  backgroundSize: '56px 56px',
+                }}
+              />
               <div style={{ fontFamily: 'Windsor Bold', fontSize: '38px', color: '#ffffff' }}>
                 BlobFlow
               </div>
             </div>
             <div style={{ fontSize: '24px', color: '#6e7687' }}>
-              {`${OG_CARD_NETWORK.name} · last 24h`}
+              {`${OG_CARD_NETWORK.name} · last ${range}`}
             </div>
           </div>
 
@@ -118,12 +136,16 @@ export default async function OpenGraphImage({
           </div>
 
           {sparkSrc ? (
-            <img
-              src={sparkSrc}
-              alt=""
-              width={SPARK_WIDTH}
-              height={SPARK_HEIGHT}
-              style={{ marginTop: '20px', marginBottom: '20px' }}
+            <div
+              style={{
+                display: 'flex',
+                width: `${SPARK_WIDTH}px`,
+                height: `${SPARK_HEIGHT}px`,
+                backgroundImage: `url(${sparkSrc})`,
+                backgroundSize: `${SPARK_WIDTH}px ${SPARK_HEIGHT}px`,
+                marginTop: '20px',
+                marginBottom: '20px',
+              }}
             />
           ) : (
             <div
@@ -157,6 +179,7 @@ export default async function OpenGraphImage({
     ),
     {
       ...size,
+      headers: { 'Cache-Control': CACHE_CONTROL },
       fonts: [
         { name: 'Windsor Bold', data: windsorBold, style: 'normal' },
         { name: 'GT Flexa', data: gtFlexa, style: 'normal' },

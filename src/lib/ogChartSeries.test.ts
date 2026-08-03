@@ -98,6 +98,27 @@ describe('fetchOgChartSeries', () => {
     expect(series?.caption).toBe('5 blobs over 24h');
   });
 
+  it('requests whichever range the share link carried', async () => {
+    vi.mocked(api.getBlobMarketChart).mockResolvedValue(
+      marketResponse([{ fee: '5', utilization: '0.5', blobs: 1 }])
+    );
+
+    const series = await fetchOgChartSeries('base-fee', '7d');
+
+    expect(api.getBlobMarketChart).toHaveBeenCalledWith('7d', 'mainnet');
+    expect(series?.caption).toBe('avg 5 Gwei over 7d');
+  });
+
+  it('defaults to a day when the link carried no range', async () => {
+    vi.mocked(api.getBlobMarketChart).mockResolvedValue(
+      marketResponse([{ fee: '5', utilization: '0.5', blobs: 1 }])
+    );
+
+    await fetchOgChartSeries('base-fee');
+
+    expect(api.getBlobMarketChart).toHaveBeenCalledWith('24h', 'mainnet');
+  });
+
   it('falls back to no series for an unknown slug', async () => {
     expect(await fetchOgChartSeries('not-a-chart')).toBeNull();
   });

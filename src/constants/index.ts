@@ -50,6 +50,30 @@ export const CHART_PAGES = [
     description: 'Windowed fee, utilization, cost, and sender totals.',
   },
 ] as const;
+/**
+ * Time ranges the header offers. Defined here rather than in
+ * TimeRangeContext so server code (share card metadata and image rendering)
+ * can read them: every export of a "use client" module reaches the server as
+ * a client reference, not a callable value.
+ */
+export const TIME_RANGES = ['1h', '24h', '7d', '30d'] as const;
+
+export type TimeRange = (typeof TIME_RANGES)[number];
+
+export const DEFAULT_TIME_RANGE: TimeRange = '1h';
+
+export function isTimeRange(value: unknown): value is TimeRange {
+  return TIME_RANGES.some((range) => range === value);
+}
+
+/** Narrows an untrusted value (query param, storage) to a header range. */
+export function parseTimeRange(
+  value: string | undefined | null,
+  fallback: TimeRange = DEFAULT_TIME_RANGE
+): TimeRange {
+  return isTimeRange(value) ? value : fallback;
+}
+
 export const HOMEPAGE_BLOCK_ROWS = 5;
 export const BLOCKS_PAGE_LIMIT = 100;
 export const BLOCKS_PAGE_SIZE = 20;

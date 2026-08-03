@@ -32,7 +32,7 @@ import {
   safeExplorerUrl,
   truncateAddress,
 } from './index';
-import { NETWORKS } from '@/constants';
+import { isTimeRange, NETWORKS, parseTimeRange, TIME_RANGES } from '@/constants';
 
 describe('utils', () => {
   it('formats numbers with locale separators', () => {
@@ -468,5 +468,24 @@ describe('chartImageFileName', () => {
     expect(chartImageFileName('***', capturedAt)).toBe(
       'blob-flow-chart-20260802-0905.png'
     );
+  });
+});
+
+describe('parseTimeRange', () => {
+  it('accepts every range the header offers', () => {
+    expect(TIME_RANGES.map((range) => parseTimeRange(range))).toEqual([...TIME_RANGES]);
+  });
+
+  it('falls back rather than passing an untrusted value through', () => {
+    expect(parseTimeRange('7 days')).toBe('1h');
+    expect(parseTimeRange(null)).toBe('1h');
+    expect(parseTimeRange(undefined, '24h')).toBe('24h');
+    expect(parseTimeRange('nonsense', '24h')).toBe('24h');
+  });
+
+  it('narrows the type for valid ranges only', () => {
+    expect(isTimeRange('30d')).toBe(true);
+    expect(isTimeRange('30D')).toBe(false);
+    expect(isTimeRange(30)).toBe(false);
   });
 });

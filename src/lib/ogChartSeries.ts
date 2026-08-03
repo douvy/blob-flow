@@ -5,7 +5,7 @@
  */
 
 import { api } from '@/lib/api';
-import { DEFAULT_NETWORK } from '@/constants';
+import { DEFAULT_NETWORK, type TimeRange } from '@/constants';
 import { COLORS } from '@/constants/chartTheme';
 import { formatGwei, formatNumber } from '@/utils';
 import type {
@@ -14,8 +14,12 @@ import type {
   BackendCostComparisonChartResponse,
 } from '@/types';
 
-/** Cards summarize a day; long enough to show shape, short enough to stay current. */
-const CARD_RANGE = '24h' as const;
+/**
+ * Cards default to a day when no range is given: long enough to show shape,
+ * short enough to stay current. A share link carries the sharer's selected
+ * range, so a link to a 7d view does not unfurl as 1h.
+ */
+export const OG_CARD_DEFAULT_RANGE: TimeRange = '24h';
 
 /**
  * Share cards have no user session to read a network preference from, and
@@ -54,61 +58,76 @@ function sum(values: readonly number[]): number {
   return values.reduce((total, value) => total + value, 0);
 }
 
-function baseFeeSeries(market: BackendBlobMarketChartResponse): OgChartSeries {
+function baseFeeSeries(
+  market: BackendBlobMarketChartResponse,
+  range: TimeRange
+): OgChartSeries {
   const values = withoutPartialBucket(market.points).map((point) =>
     Number(point.average_blob_base_fee_gwei)
   );
   return {
     values,
-    caption: `avg ${formatGwei(average(values), 4)} over 24h`,
+    caption: `avg ${formatGwei(average(values), 4)} over ${range}`,
     stroke: COLORS.blue,
     fill: COLORS.blue,
   };
 }
 
-function utilizationSeries(market: BackendBlobMarketChartResponse): OgChartSeries {
+function utilizationSeries(
+  market: BackendBlobMarketChartResponse,
+  range: TimeRange
+): OgChartSeries {
   // The backend reports utilization as a 0-1 fraction.
   const values = withoutPartialBucket(market.points).map(
     (point) => Number(point.average_utilization) * 100
   );
   return {
     values,
-    caption: `avg ${average(values).toFixed(1)}% of target over 24h`,
+    caption: `avg ${average(values).toFixed(1)}% of target over ${range}`,
     stroke: COLORS.green,
     fill: COLORS.green,
   };
 }
 
-function blobUsageSeries(usage: BackendAttributionUsageChartResponse): OgChartSeries {
+function blobUsageSeries(
+  usage: BackendAttributionUsageChartResponse,
+  range: TimeRange
+): OgChartSeries {
   const values = withoutPartialBucket(usage.points).map((point) =>
     sum(Object.values(point.values).map((value) => value.blob_count))
   );
   return {
     values,
-    caption: `${formatNumber(Math.round(sum(values)))} blobs over 24h`,
+    caption: `${formatNumber(Math.round(sum(values)))} blobs over ${range}`,
     stroke: COLORS.purple,
     fill: COLORS.purple,
   };
 }
 
-function costSeries(cost: BackendCostComparisonChartResponse): OgChartSeries {
+function costSeries(
+  cost: BackendCostComparisonChartResponse,
+  range: TimeRange
+): OgChartSeries {
   const values = withoutPartialBucket(cost.points).map(
     (point) => Number(point.blob_cost_wei) / WEI_PER_ETH
   );
   const total = sum(values);
   return {
     values,
-    caption: `${total.toFixed(total < 0.001 ? 6 : 4)} ETH on blobs over 24h`,
+    caption: `${total.toFixed(total < 0.001 ? 6 : 4)} ETH on blobs over ${range}`,
     stroke: COLORS.yellow,
     fill: COLORS.yellow,
   };
 }
 
-function blobCountSeries(market: BackendBlobMarketChartResponse): OgChartSeries {
+function blobCountSeries(
+  market: BackendBlobMarketChartResponse,
+  range: TimeRange
+): OgChartSeries {
   const values = withoutPartialBucket(market.points).map((point) => point.blob_count);
   return {
     values,
-    caption: `${formatNumber(Math.round(sum(values)))} blobs over 24h`,
+    caption: `${formatNumber(Math.round(sum(values)))} blobs over ${range}`,
     stroke: COLORS.lightBlue,
     fill: COLORS.lightBlue,
   };
@@ -119,20 +138,23 @@ function blobCountSeries(market: BackendBlobMarketChartResponse): OgChartSeries 
  * or any backend failure, so the card degrades to its text-only form rather
  * than failing the image request.
  */
-export async function fetchOgChartSeries(slug: string): Promise<OgChartSeries | null> {
+export async function fetchOgChartSeries(
+  slug: string,
+  range: TimeRange = OG_CARD_DEFAULT_RANGE
+): Promise<OgChartSeries | null> {
   try {
     const network = OG_CARD_NETWORK.apiParam;
     switch (slug) {
       case 'base-fee':
-        return baseFeeSeries(await api.getBlobMarketChart(CARD_RANGE, network));
+        return baseFeeSeries(await api.getBlobMarketChart(range, network), range);
       case 'gas-utilization':
-        return utilizationSeries(await api.getBlobMarketChart(CARD_RANGE, network));
+        return utilizationSeries(await api.getBlobMarketChart(range, network), range);
       case 'blob-usage':
-        return blobUsageSeries(await api.getAttributionUsageChart(CARD_RANGE, network));
+        return blobUsageSeries(await api.getAttributionUsageChart(range, network), range);
       case 'cost-comparison':
-        return costSeries(await api.getCostComparisonChart(CARD_RANGE, network));
+        return costSeries(await api.getCostComparisonChart(range, network), range);
       case 'rolling-market-stats':
-        return blobCountSeries(await api.getBlobMarketChart(CARD_RANGE, network));
+        return blobCountSeries(await api.getBlobMarketChart(range, network), range);
       default:
         return null;
     }

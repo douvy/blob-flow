@@ -1,7 +1,8 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NETWORKS, SITE_URL } from '@/constants';
+import { NETWORKS, SITE_URL, type TimeRange } from '@/constants';
+import { TimeRangeProvider } from '@/contexts/TimeRangeContext';
 import { useNetwork } from '@/hooks/useNetwork';
 import { copyOrDownloadChartImage } from '@/lib/chartExport';
 import ChartCardActions from './ChartCardActions';
@@ -17,15 +18,17 @@ vi.mock('@/lib/chartExport', () => ({
 const captureNode = document.createElement('div');
 const captureRef = { current: captureNode };
 
-function renderActions() {
+function renderActions(timeRange: TimeRange = '1h') {
   return render(
-    <ChartCardActions
-      chartId="blob-usage"
-      chartTitle="Blob Usage over 1h view"
-      headlineStat="1,234 blobs posted"
-      rangeLabel="1h view"
-      captureRef={captureRef}
-    />
+    <TimeRangeProvider initialRange={timeRange}>
+      <ChartCardActions
+        chartId="blob-usage"
+        chartTitle="Blob Usage over 1h view"
+        headlineStat="1,234 blobs posted"
+        rangeLabel="1h view"
+        captureRef={captureRef}
+      />
+    </TimeRangeProvider>
   );
 }
 
@@ -106,8 +109,21 @@ describe('ChartCardActions', () => {
     expect(href.searchParams.get('text')).toBe(
       'Blob Usage over 1h view: 1,234 blobs posted on Mainnet'
     );
-    expect(href.searchParams.get('url')).toBe(`${SITE_URL}/charts/blob-usage`);
+    expect(href.searchParams.get('url')).toBe(`${SITE_URL}/charts/blob-usage?range=1h`);
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('shares the range currently selected, not the default', () => {
+    renderActions('30d');
+
+    const link = screen.getByRole('link', {
+      name: 'Share Blob Usage over 1h view on X',
+    });
+    const href = new URL(link.getAttribute('href') ?? '');
+
+    // The range rides along so the link opens on the shared view and its
+    // unfurled card plots that range.
+    expect(href.searchParams.get('url')).toBe(`${SITE_URL}/charts/blob-usage?range=30d`);
   });
 });

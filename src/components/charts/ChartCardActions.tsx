@@ -6,6 +6,7 @@ import { copyOrDownloadChartImage } from '@/lib/chartExport';
 import { SITE_URL } from '@/constants';
 import { buildTweetIntentUrl, chartImageFileName } from '@/utils';
 import { useNetwork } from '@/hooks/useNetwork';
+import { useTimeRange } from '@/contexts/TimeRangeContext';
 
 type CopyState = 'idle' | 'busy' | 'copied' | 'downloaded' | 'error';
 
@@ -67,6 +68,7 @@ export default function ChartCardActions({
   captureRef,
 }: ChartCardActionsProps) {
   const { selectedNetwork } = useNetwork();
+  const { timeRange } = useTimeRange();
   const [copyState, setCopyState] = useState<CopyState>('idle');
 
   useEffect(() => {
@@ -93,10 +95,12 @@ export default function ChartCardActions({
       .catch(() => setCopyState('error'));
   };
 
+  // The range rides along so the link opens on the same view the sharer saw,
+  // and so its unfurled card plots that range rather than the default.
   const tweetUrl = buildTweetIntentUrl({
     title: chartTitle,
     stat: headlineStat ? `${headlineStat} on ${selectedNetwork.name}` : null,
-    url: `${SITE_URL}/charts/${chartId}`,
+    url: `${SITE_URL}/charts/${chartId}?range=${timeRange}`,
   });
 
   return (
