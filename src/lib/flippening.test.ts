@@ -45,9 +45,12 @@ function makeShare(
   };
 }
 
+type SeriesMeta = Record<string, { category?: string; address?: string; name?: string }>;
+
 function makeResponse(
   buckets: BucketCounts[],
-  shares: BackendAttributionUsageShare[] = []
+  shares: BackendAttributionUsageShare[] = [],
+  seriesMeta: SeriesMeta = {}
 ): BackendAttributionUsageChartResponse {
   const keys = new Set<string>();
   buckets.forEach((counts) => Object.keys(counts).forEach((key) => keys.add(key)));
@@ -62,8 +65,9 @@ function makeResponse(
     generated_at: makePoint(buckets.length, {}).timestamp,
     series: Array.from(keys).map((key) => ({
       key,
-      name: key.toUpperCase(),
-      category: 'l2',
+      name: seriesMeta[key]?.name ?? key.toUpperCase(),
+      category: seriesMeta[key]?.category ?? 'rollup',
+      ...(seriesMeta[key]?.address !== undefined && { address: seriesMeta[key].address }),
     })),
     points: buckets.map((counts, index) => makePoint(index, counts)),
     summary: {
@@ -92,6 +96,48 @@ describe('selectTopEntities', () => {
   it('excludes entities with zero blobs and breaks ties by key', () => {
     const response = makeResponse([{ b: 5, a: 5, silent: 0 }]);
     expect(selectTopEntities(response, 5).map((entity) => entity.key)).toEqual(['a', 'b']);
+  });
+
+  it('excludes the aggregate other bucket', () => {
+    const response = makeResponse([{ base: 5, other: 50 }], [], {
+      other: { category: 'other', name: 'Other' },
+    });
+    expect(selectTopEntities(response, 5).map((entity) => entity.key)).toEqual(['base']);
+  });
+
+  it('excludes the aggregate unknown bucket when it has no address', () => {
+    const response = makeResponse([{ base: 5, unknown: 50 }], [], {
+      unknown: { category: 'unknown', name: 'Unknown' },
+    });
+    expect(selectTopEntities(response, 5).map((entity) => entity.key)).toEqual(['base']);
+  });
+
+  it('labels a single-address unknown sender by its address', () => {
+    const response = makeResponse([{ base: 5, mystery: 50 }], [], {
+      mystery: {
+        category: 'unknown',
+        name: 'Unknown',
+        address: '0xDaa526086787d9DEbE1D7F3FFdb1fE50cf8687F4',
+      },
+    });
+    const entities = selectTopEntities(response, 5);
+    expect(entities.map((entity) => entity.key)).toEqual(['mystery', 'base']);
+    expect(entities[0].name).toBe('0xDaa5...87F4');
+  });
+
+  it('does not let excluded aggregates consume topN slots', () => {
+    const response = makeResponse(
+      [{ other: 100, unknown: 90, base: 5, arbitrum: 4 }],
+      [],
+      {
+        other: { category: 'other', name: 'Other' },
+        unknown: { category: 'unknown', name: 'Unknown' },
+      }
+    );
+    expect(selectTopEntities(response, 2).map((entity) => entity.key)).toEqual([
+      'base',
+      'arbitrum',
+    ]);
   });
 });
 

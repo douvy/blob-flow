@@ -42,6 +42,23 @@ function formatPoints(value: number): string {
   return value.toFixed(1);
 }
 
+/**
+ * Plain-language name for the chart's sampling period ("hour",
+ * "10-minute period"), so the feed never exposes the word "bucket".
+ */
+function describePeriod(bucketSeconds: number): string {
+  if (bucketSeconds >= 86400 && bucketSeconds % 86400 === 0) {
+    const days = bucketSeconds / 86400;
+    return days === 1 ? 'day' : `${days}-day period`;
+  }
+  if (bucketSeconds >= 3600 && bucketSeconds % 3600 === 0) {
+    const hours = bucketSeconds / 3600;
+    return hours === 1 ? 'hour' : `${hours}-hour period`;
+  }
+  const minutes = Math.max(1, Math.round(bucketSeconds / 60));
+  return minutes === 1 ? 'minute' : `${minutes}-minute period`;
+}
+
 function GapIndicator({ gap, rangeLabel }: { gap: FlippeningGap; rangeLabel: string }) {
   // Bar lengths are relative to the leader so the pair always fills the card,
   // making small gaps read as "almost there" at a glance.
@@ -90,7 +107,15 @@ function GapIndicator({ gap, rangeLabel }: { gap: FlippeningGap; rangeLabel: str
   );
 }
 
-function EventRow({ event, includeDate }: { event: FlippeningEvent; includeDate: boolean }) {
+function EventRow({
+  event,
+  includeDate,
+  periodLabel,
+}: {
+  event: FlippeningEvent;
+  includeDate: boolean;
+  periodLabel: string;
+}) {
   return (
     <li className="flex items-start gap-3 py-3">
       <span className="mt-0.5 flex items-center">
@@ -101,12 +126,12 @@ function EventRow({ event, includeDate }: { event: FlippeningEvent; includeDate:
       <div className="min-w-0">
         <p className="text-sm text-white">
           <span className="font-medium">{event.winner.name}</span> flipped{' '}
-          <span className="font-medium">{event.loser.name}</span> in blobs/bucket at{' '}
+          <span className="font-medium">{event.loser.name}</span> in blob share at{' '}
           <span className="tabular-nums">{formatEventTime(event.timestamp, includeDate)}</span>
         </p>
         <p className="text-xs text-[#8a93a5] tabular-nums">
           {formatPoints(event.winnerSharePercent)}% vs {formatPoints(event.loserSharePercent)}% of
-          that bucket&apos;s blobs
+          blobs in that {periodLabel}
         </p>
       </div>
     </li>
@@ -140,6 +165,7 @@ export default function FlippeningWatch() {
   );
 
   const includeDate = timeRange === '7d' || timeRange === '30d';
+  const periodLabel = data ? describePeriod(data.bucket_seconds) : 'period';
 
   return (
     <DataStateWrapper
@@ -155,7 +181,7 @@ export default function FlippeningWatch() {
             <GapIndicator gap={analysis.closestGap} rangeLabel={timeRange} />
           ) : (
             <div className="rounded-lg border border-divider bg-[#17181b] p-4 text-sm text-[#8a93a5]">
-              Not enough entities with blob activity in this window to compare.
+              Not enough rollups with blob activity in this window to compare.
             </div>
           )}
 
@@ -170,12 +196,13 @@ export default function FlippeningWatch() {
                     key={`${event.bucketIndex}-${event.winner.key}-${event.loser.key}`}
                     event={event}
                     includeDate={includeDate}
+                    periodLabel={periodLabel}
                   />
                 ))}
               </ul>
             ) : (
               <p className="px-4 py-6 text-center text-sm text-[#8a93a5]">
-                No flippenings among the top {DEFAULT_FLIPPENING_TOP_N} entities in this window.
+                No flippenings among the top {DEFAULT_FLIPPENING_TOP_N} rollups in this window.
               </p>
             )}
           </div>

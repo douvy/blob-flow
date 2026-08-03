@@ -22,6 +22,7 @@
  *   dropping a reversal pair leaves the pair's leader where it started.
  */
 
+import { truncateAddress } from '../utils';
 import type {
   BackendAttributionUsageChartResponse,
   BackendAttributionUsagePoint,
@@ -83,10 +84,34 @@ export interface FlippeningOptions {
 export const DEFAULT_FLIPPENING_TOP_N = 6;
 export const DEFAULT_FLIPPENING_EPSILON_POINTS = 0.5;
 
+interface EntityMeta {
+  name: string;
+  category?: string;
+  address?: string;
+}
+
+/**
+ * Display identity for a tracked entity, or null when the series is an
+ * aggregate rather than a single rollup. The backend's "other" bucket lumps
+ * the long tail together and the "unknown" bucket pools unattributed
+ * senders; a flip against a pool is not a flip against anyone, so both are
+ * excluded. An unknown-category series that does carry an address is a
+ * single unattributed sender: it stays tracked, labeled by its address.
+ */
+function resolveTrackedEntity(key: string, meta: EntityMeta | undefined): FlippeningEntity | null {
+  if (meta === undefined) return { key, name: key };
+  if (meta.category === 'other') return null;
+  if (meta.category === 'unknown') {
+    return meta.address ? { key, name: truncateAddress(meta.address) } : null;
+  }
+  return { key, name: meta.name };
+}
+
 /**
  * Top `topN` entities by total blob count across all buckets, highest first.
- * Entities with zero blobs in the window are excluded; ties break by key so
- * the ranking is deterministic.
+ * Entities with zero blobs in the window and the aggregate other/unknown
+ * buckets are excluded (see resolveTrackedEntity); ties break by key so the
+ * ranking is deterministic.
  */
 export function selectTopEntities(
   response: BackendAttributionUsageChartResponse,
@@ -99,12 +124,18 @@ export function selectTopEntities(
     }
   }
 
-  const nameByKey = new Map<string, string>();
+  const metaByKey = new Map<string, EntityMeta>();
   for (const series of response.series) {
-    nameByKey.set(series.key, series.name);
+    metaByKey.set(series.key, {
+      name: series.name,
+      category: series.category,
+      address: series.address,
+    });
   }
   for (const share of response.summary?.shares ?? []) {
-    if (!nameByKey.has(share.key)) nameByKey.set(share.key, share.name);
+    if (!metaByKey.has(share.key)) {
+      metaByKey.set(share.key, { name: share.name, category: share.category });
+    }
   }
 
   return Array.from(totals.entries())
@@ -112,8 +143,9 @@ export function selectTopEntities(
     .sort(([keyA, totalA], [keyB, totalB]) =>
       totalB !== totalA ? totalB - totalA : keyA.localeCompare(keyB)
     )
-    .slice(0, topN)
-    .map(([key]) => ({ key, name: nameByKey.get(key) ?? key }));
+    .map(([key]) => resolveTrackedEntity(key, metaByKey.get(key)))
+    .filter((entity): entity is FlippeningEntity => entity !== null)
+    .slice(0, topN);
 }
 
 /**
@@ -243,9 +275,9 @@ export function findClosestGap(
   response: BackendAttributionUsageChartResponse,
   entities: FlippeningEntity[]
 ): FlippeningGap | null {
-  const trackedKeys = new Set(entities.map((entity) => entity.key));
+  const entityByKey = new Map(entities.map((entity) => [entity.key, entity]));
   const ranked = (response.summary?.shares ?? [])
-    .filter((share) => trackedKeys.has(share.key))
+    .filter((share) => entityByKey.has(share.key))
     .sort((a, b) =>
       b.blob_share_percent !== a.blob_share_percent
         ? b.blob_share_percent - a.blob_share_percent
@@ -259,8 +291,10 @@ export function findClosestGap(
     const gapPoints = leader.blob_share_percent - trailer.blob_share_percent;
     if (closest === null || gapPoints < closest.gapPoints) {
       closest = {
-        leader: { key: leader.key, name: leader.name },
-        trailer: { key: trailer.key, name: trailer.name },
+        // Names come from the tracked entities, not the summary, so
+        // address-labeled unknown senders keep their address label here.
+        leader: entityByKey.get(leader.key) ?? { key: leader.key, name: leader.name },
+        trailer: entityByKey.get(trailer.key) ?? { key: trailer.key, name: trailer.name },
         leaderSharePercent: leader.blob_share_percent,
         trailerSharePercent: trailer.blob_share_percent,
         gapPoints,
