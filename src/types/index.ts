@@ -756,6 +756,84 @@ export interface StreakRecord {
   percentRecentBlocksAtMaxBlobs: number;
 }
 
+// Backend historical records response. Matches the proposed GET /records
+// endpoint in blob-indexer-api; backends that predate it 404 and the records
+// page falls back to live market-pressure and rolling-window figures.
+export interface BackendBlobStreakRun {
+  length: number;
+  start_block: number;
+  end_block: number;
+  start_timestamp: string;
+  end_timestamp: string;
+}
+
+export interface BackendBlobStreakBoard {
+  /** Run ending at the last indexed block; null when that block does not qualify. */
+  current: BackendBlobStreakRun | null;
+  /** Longest runs, sorted by length desc, then end_block desc. */
+  top: BackendBlobStreakRun[];
+}
+
+export interface BackendBlobFeePeak {
+  block_number: number;
+  timestamp: string;
+  blob_base_fee: string;
+  blob_base_fee_gwei: string;
+  blob_count: number;
+}
+
+export interface BackendBusiestHour {
+  /** Start of the UTC hour bucket, ISO-8601. */
+  hour_start: string;
+  blob_count: number;
+  total_cost_wei: string;
+}
+
+export interface BackendBlobRecordsResponse {
+  network_id: number;
+  network_name: string;
+  generated_at: string;
+  /** Streaks of consecutive blocks that used every available blob slot. */
+  full_block_streaks: BackendBlobStreakBoard;
+  /** Streaks of consecutive blocks with blob gas usage above target. */
+  above_target_streaks: BackendBlobStreakBoard;
+  /** Highest blob base fee blocks ever indexed, highest first. */
+  base_fee_peaks: BackendBlobFeePeak[];
+  /** Busiest UTC hours by blob count ever indexed, busiest first. */
+  busiest_hours: BackendBusiestHour[];
+}
+
+/** One historical streak run (frontend shape). */
+export interface StreakRun {
+  length: number;
+  startBlock: number;
+  endBlock: number;
+  endTimestamp: string;
+}
+
+/** Historical streak leaderboard for one streak kind. */
+export interface StreakLeaderboard {
+  /** Run ending at the last indexed block; null when the tip does not qualify. */
+  current: StreakRun | null;
+  /** Longest runs, best first. */
+  top: StreakRun[];
+}
+
+/** One all-time base fee peak (frontend shape). */
+export interface FeePeak {
+  blockNumber: number;
+  timestamp: string;
+  feeGwei: number;
+  blobCount: number;
+}
+
+/** One all-time busiest UTC hour (frontend shape). */
+export interface BusiestHour {
+  hourStart: string;
+  blobCount: number;
+  totalCostWei: string;
+}
+
 export interface WindowFeeEntry {
   window: string;
   p95Gwei: number;
@@ -785,7 +863,7 @@ export interface WindowThroughputRecord extends WindowThroughputEntry {
   perWindow: WindowThroughputEntry[];
 }
 
-/** Attributed entity with the largest total blob spend in the range. */
+/** One attributed entity in the spend ranking. */
 export interface SpenderRecord {
   key: string;
   name: string;
@@ -819,10 +897,22 @@ export interface AllTimeTotalsRecord {
  * it has instead of failing entirely.
  */
 export interface BlobRecords {
+  /** Live market-pressure figures, the fallback when history is unavailable. */
   streak: StreakRecord | null;
+  /** Historical full-block streaks; null until the records endpoint ships. */
+  fullBlockStreaks: StreakLeaderboard | null;
+  /** Historical above-target streaks; null until the records endpoint ships. */
+  aboveTargetStreaks: StreakLeaderboard | null;
+  /** All-time base fee peaks; null until the records endpoint ships. */
+  feePeaks: FeePeak[] | null;
+  /** All-time busiest hours; null until the records endpoint ships. */
+  busiestHours: BusiestHour[] | null;
+  /** Windowed fee fallback when feePeaks is unavailable. */
   peakWindowFee: WindowFeeRecord | null;
+  /** Windowed throughput fallback when busiestHours is unavailable. */
   busiestWindow: WindowThroughputRecord | null;
-  biggestSpender: SpenderRecord | null;
+  /** Attributed entities ranked by total blob spend, biggest first. */
+  topSpenders: SpenderRecord[];
   allTime: AllTimeTotalsRecord | null;
   milestones: RollupMilestone[];
 }

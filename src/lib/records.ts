@@ -2,13 +2,19 @@ import type {
   AllTimeTotalsRecord,
   BackendAttributionUsageChartResponse,
   BackendAttributionUsageShare,
+  BackendBlobRecordsResponse,
+  BackendBlobStreakBoard,
+  BackendBlobStreakRun,
   BackendStatsWindow,
   BackendStatsWindowsResponse,
   BlobPricing,
   BlobRecords,
+  BusiestHour,
+  FeePeak,
   RollupMilestone,
   SpenderRecord,
   StatsResponse,
+  StreakLeaderboard,
   StreakRecord,
   WindowFeeRecord,
   WindowThroughputRecord,
@@ -18,26 +24,36 @@ import type {
  * Source payloads the records are derived from. Each is the narrowest slice
  * of its endpoint's response that the derivation reads, and each is nullable
  * so a failed source degrades to missing sections instead of failing all of
- * them. When the backend grows a dedicated records endpoint, only
- * getBlobRecords (src/lib/api/records.ts) needs to change; this derivation
- * and everything above it can be retired or kept as a fallback.
+ * them.
+ *
+ * `records` is the proposed GET /records endpoint carrying true historical
+ * leaderboards (streaks, fee peaks, busiest hours). Until it ships every
+ * backend 404s it, and the live pricing and rolling-window sources below
+ * provide the fallback presentation.
  */
 export interface BlobRecordSources {
   pricing: Pick<BlobPricing, 'marketPressure'> | null;
   statsWindows: Pick<BackendStatsWindowsResponse, 'windows'> | null;
   stats: StatsResponse | null;
   attribution: Pick<BackendAttributionUsageChartResponse, 'summary'> | null;
+  records: Pick<
+    BackendBlobRecordsResponse,
+    'full_block_streaks' | 'above_target_streaks' | 'base_fee_peaks' | 'busiest_hours'
+  > | null;
 }
 
 /**
  * Aggregate share buckets that are not a single entity. They are excluded
- * from entity records (biggest spender, milestones): "Unknown" reaching five
+ * from entity records (spend ranking, milestones): "Unknown" reaching five
  * million blobs is not a milestone anyone celebrates.
  */
 const AGGREGATE_SHARE_CATEGORIES = new Set(['other', 'unknown']);
 
 /** How many entities the milestone board shows, largest blob counts first. */
 export const MILESTONE_ENTITY_LIMIT = 8;
+
+/** How many rows every top-N leaderboard keeps (streaks, peaks, spenders). */
+export const RECORDS_TOP_LIMIT = 10;
 
 const MILESTONE_STEPS = [1, 2, 5];
 const SECONDS_PER_HOUR = 3600;
@@ -82,6 +98,65 @@ function deriveStreak(pricing: BlobRecordSources['pricing']): StreakRecord | nul
     recentBlocksAboveTarget: pressure.recentBlocksAboveTarget,
     percentRecentBlocksAtMaxBlobs: pressure.percentRecentBlocksAtMaxBlobs,
   };
+}
+
+function toStreakRun(run: BackendBlobStreakRun) {
+  return {
+    length: run.length,
+    startBlock: run.start_block,
+    endBlock: run.end_block,
+    endTimestamp: run.end_timestamp,
+  };
+}
+
+function deriveStreakLeaderboard(
+  board: BackendBlobStreakBoard | undefined
+): StreakLeaderboard | null {
+  if (!board) return null;
+  const top = (board.top ?? [])
+    .slice()
+    .sort((a, b) => b.length - a.length || b.end_block - a.end_block)
+    .slice(0, RECORDS_TOP_LIMIT)
+    .map(toStreakRun);
+  return {
+    current: board.current ? toStreakRun(board.current) : null,
+    top,
+  };
+}
+
+function deriveFeePeaks(
+  records: BlobRecordSources['records']
+): FeePeak[] | null {
+  if (!records) return null;
+  return (records.base_fee_peaks ?? [])
+    .map((peak) => ({
+      blockNumber: peak.block_number,
+      timestamp: peak.timestamp,
+      feeGwei:
+        peak.blob_base_fee_gwei !== undefined && peak.blob_base_fee_gwei !== ''
+          ? parseFinite(peak.blob_base_fee_gwei)
+          : parseFinite(peak.blob_base_fee) / 1e9,
+      blobCount: peak.blob_count,
+    }))
+    .sort((a, b) => b.feeGwei - a.feeGwei || b.blockNumber - a.blockNumber)
+    .slice(0, RECORDS_TOP_LIMIT);
+}
+
+function deriveBusiestHours(
+  records: BlobRecordSources['records']
+): BusiestHour[] | null {
+  if (!records) return null;
+  return (records.busiest_hours ?? [])
+    .map((hour) => ({
+      hourStart: hour.hour_start,
+      blobCount: hour.blob_count,
+      totalCostWei: hour.total_cost_wei,
+    }))
+    .sort(
+      (a, b) =>
+        b.blobCount - a.blobCount || a.hourStart.localeCompare(b.hourStart)
+    )
+    .slice(0, RECORDS_TOP_LIMIT);
 }
 
 function derivePeakWindowFee(
@@ -130,24 +205,25 @@ function entityShares(
   );
 }
 
-function deriveBiggestSpender(
+function deriveTopSpenders(
   attribution: BlobRecordSources['attribution']
-): SpenderRecord | null {
-  const shares = entityShares(attribution);
-  if (shares.length === 0) return null;
-
-  const biggest = shares.reduce((best, share) =>
-    weiMagnitude(share.total_cost_wei) > weiMagnitude(best.total_cost_wei) ? share : best
-  );
-
-  return {
-    key: biggest.key,
-    name: biggest.name,
-    category: biggest.category,
-    totalCostWei: biggest.total_cost_wei,
-    spendSharePercent: biggest.spend_share_percent,
-    blobCount: biggest.blob_count,
-  };
+): SpenderRecord[] {
+  return entityShares(attribution)
+    .slice()
+    .sort((a, b) => {
+      const difference =
+        weiMagnitude(b.total_cost_wei) - weiMagnitude(a.total_cost_wei);
+      return difference > BigInt(0) ? 1 : difference < BigInt(0) ? -1 : 0;
+    })
+    .slice(0, RECORDS_TOP_LIMIT)
+    .map((share) => ({
+      key: share.key,
+      name: share.name,
+      category: share.category,
+      totalCostWei: share.total_cost_wei,
+      spendSharePercent: share.spend_share_percent,
+      blobCount: share.blob_count,
+    }));
 }
 
 function deriveMilestones(
@@ -184,9 +260,15 @@ function deriveAllTime(stats: BlobRecordSources['stats']): AllTimeTotalsRecord |
 export function deriveBlobRecords(sources: BlobRecordSources): BlobRecords {
   return {
     streak: deriveStreak(sources.pricing),
+    fullBlockStreaks: deriveStreakLeaderboard(sources.records?.full_block_streaks),
+    aboveTargetStreaks: deriveStreakLeaderboard(
+      sources.records?.above_target_streaks
+    ),
+    feePeaks: deriveFeePeaks(sources.records),
+    busiestHours: deriveBusiestHours(sources.records),
     peakWindowFee: derivePeakWindowFee(sources.statsWindows),
     busiestWindow: deriveBusiestWindow(sources.statsWindows),
-    biggestSpender: deriveBiggestSpender(sources.attribution),
+    topSpenders: deriveTopSpenders(sources.attribution),
     allTime: deriveAllTime(sources.stats),
     milestones: deriveMilestones(sources.attribution),
   };
