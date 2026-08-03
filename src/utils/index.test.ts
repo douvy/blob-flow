@@ -2,19 +2,27 @@ import {
   assignSeriesColors,
   attributionColorKey,
   beaconSlotForBlob,
+  blobCountToBytes,
+  computeCostPerMibWei,
+  computeSecondsPerBlob,
   deriveBeaconSlot,
+  durationSecondsBetween,
+  formatBlobCadence,
   formatBlobCount,
   formatBlobFee,
   formatBlobSize,
   formatBlobTotalCost,
   formatBlobWeiCost,
   formatCostEthOrWei,
+  formatDataVolume,
   formatDate,
   formatDuration,
   formatFeeHeadroom,
+  formatFloppyEquivalent,
   formatGwei,
   formatNumber,
   formatPercent,
+  formatSignedWeiToEth,
   formatUtilizationPercent,
   formatWeiToGwei,
   formatWeiToEth,
@@ -28,9 +36,11 @@ import {
   getNetworkIconSrc,
   parseSearchQuery,
   safeExplorerUrl,
+  selectTopUsageShare,
   truncateAddress,
 } from './index';
 import { NETWORKS } from '@/constants';
+import type { BackendAttributionUsageShare } from '@/types';
 
 describe('utils', () => {
   it('formats numbers with locale separators', () => {
@@ -421,5 +431,215 @@ describe('beaconSlotForBlob', () => {
     expect(
       beaconSlotForBlob({ timestamp: 'not-a-date', network_name: 'holesky' })
     ).toBeNull();
+  });
+});
+
+describe('computeCostPerMibWei', () => {
+  it('divides the total wei cost by the window blob payload', () => {
+    // 8 blobs carry exactly 1 MiB, so cost per MiB equals the total cost.
+    expect(computeCostPerMibWei(8, '1000000000000000000')).toBe(BigInt('1000000000000000000'));
+    // 16 blobs carry 2 MiB, halving the per-MiB cost.
+    expect(computeCostPerMibWei(16, '1000000000000000000')).toBe(BigInt('500000000000000000'));
+  });
+
+  it('keeps exact precision for totals beyond Number range', () => {
+    expect(computeCostPerMibWei(8, '123456789012345678901234567890')).toBe(
+      BigInt('123456789012345678901234567890')
+    );
+  });
+
+  it('truncates fractional wei totals instead of misreading them', () => {
+    expect(computeCostPerMibWei(8, '1000.9')).toBe(BigInt(1000));
+  });
+
+  it('falls back to total_cost_eth with the decimal-means-ETH heuristic', () => {
+    // 4 blobs carry 0.5 MiB, so 0.5 ETH total is 1 ETH per MiB.
+    expect(computeCostPerMibWei(4, undefined, '0.5')).toBe(BigInt('1000000000000000000'));
+    // Integer strings in the eth field are wei from older backends.
+    expect(computeCostPerMibWei(8, undefined, '1000000000000000000')).toBe(
+      BigInt('1000000000000000000')
+    );
+  });
+
+  it('returns null for zero blobs, missing cost, or malformed input', () => {
+    expect(computeCostPerMibWei(0, '1000')).toBeNull();
+    expect(computeCostPerMibWei(-3, '1000')).toBeNull();
+    expect(computeCostPerMibWei(2.5, '1000')).toBeNull();
+    expect(computeCostPerMibWei(NaN, '1000')).toBeNull();
+    expect(computeCostPerMibWei(8)).toBeNull();
+    expect(computeCostPerMibWei(8, '')).toBeNull();
+    expect(computeCostPerMibWei(8, 'abc')).toBeNull();
+    expect(computeCostPerMibWei(8, undefined, 'abc')).toBeNull();
+    expect(computeCostPerMibWei(8, undefined, '-1.5')).toBeNull();
+  });
+});
+
+describe('computeSecondsPerBlob', () => {
+  it('averages the window duration across its blobs', () => {
+    expect(computeSecondsPerBlob(7200, 86400)).toBe(12);
+    expect(computeSecondsPerBlob(1, 5)).toBe(5);
+  });
+
+  it('returns null without blobs or a positive duration', () => {
+    expect(computeSecondsPerBlob(0, 86400)).toBeNull();
+    expect(computeSecondsPerBlob(-5, 86400)).toBeNull();
+    expect(computeSecondsPerBlob(NaN, 86400)).toBeNull();
+    expect(computeSecondsPerBlob(100, 0)).toBeNull();
+    expect(computeSecondsPerBlob(100, -60)).toBeNull();
+    expect(computeSecondsPerBlob(100, NaN)).toBeNull();
+  });
+});
+
+describe('formatBlobCadence', () => {
+  it('renders sub-minute intervals in seconds', () => {
+    expect(formatBlobCadence(1.34)).toBe('1.3s');
+    expect(formatBlobCadence(45)).toBe('45s');
+  });
+
+  it('clamps sub-tenth intervals instead of showing 0s', () => {
+    expect(formatBlobCadence(0.04)).toBe('<0.1s');
+  });
+
+  it('delegates minute-plus intervals to formatDuration', () => {
+    expect(formatBlobCadence(90)).toBe('2 min');
+    expect(formatBlobCadence(7200)).toBe('2 hr');
+  });
+
+  it('renders a placeholder for missing or invalid cadence', () => {
+    expect(formatBlobCadence(null)).toBe('-');
+    expect(formatBlobCadence(0)).toBe('-');
+    expect(formatBlobCadence(-3)).toBe('-');
+    expect(formatBlobCadence(Infinity)).toBe('-');
+  });
+});
+
+describe('blobCountToBytes', () => {
+  it('multiplies by the 128 KiB blob payload', () => {
+    expect(blobCountToBytes(1)).toBe(131072);
+    expect(blobCountToBytes(8)).toBe(1048576);
+  });
+
+  it('maps malformed counts to zero bytes', () => {
+    expect(blobCountToBytes(0)).toBe(0);
+    expect(blobCountToBytes(-4)).toBe(0);
+    expect(blobCountToBytes(NaN)).toBe(0);
+  });
+});
+
+describe('formatDataVolume', () => {
+  it('adds GB and TB tiers above formatBlobSize', () => {
+    expect(formatDataVolume(1073741824)).toBe('1 GB');
+    expect(formatDataVolume(1073741824 * 1.5)).toBe('1.5 GB');
+    expect(formatDataVolume(1099511627776)).toBe('1 TB');
+    expect(formatDataVolume(1099511627776 * 2.25)).toBe('2.25 TB');
+  });
+
+  it('falls through to formatBlobSize below a GB', () => {
+    expect(formatDataVolume(1048576)).toBe('1 MB');
+    expect(formatDataVolume(131072)).toBe('128 KB');
+  });
+
+  it('renders a placeholder for empty or invalid volumes', () => {
+    expect(formatDataVolume(0)).toBe('-');
+    expect(formatDataVolume(-1)).toBe('-');
+    expect(formatDataVolume(NaN)).toBe('-');
+  });
+});
+
+describe('formatFloppyEquivalent', () => {
+  it('counts 1.44 MB floppy disks', () => {
+    expect(formatFloppyEquivalent(1474560)).toBe('1 floppy disk');
+    expect(formatFloppyEquivalent(1073741824)).toBe('728 floppy disks');
+  });
+
+  it('compacts large counts', () => {
+    expect(formatFloppyEquivalent(107374182400)).toBe('72.8K floppy disks');
+  });
+
+  it('returns null below one full disk', () => {
+    expect(formatFloppyEquivalent(131072)).toBeNull();
+    expect(formatFloppyEquivalent(0)).toBeNull();
+    expect(formatFloppyEquivalent(NaN)).toBeNull();
+  });
+});
+
+describe('formatSignedWeiToEth', () => {
+  it('formats positive and negative wei as compact ETH', () => {
+    expect(formatSignedWeiToEth('1000000000000000000')).toBe('1 ETH');
+    expect(formatSignedWeiToEth('-500000000000000000')).toBe('-0.5 ETH');
+  });
+
+  it('truncates fractional wei', () => {
+    expect(formatSignedWeiToEth('1500000000000000000.75')).toBe('1.5 ETH');
+  });
+
+  it('collapses zero and negative zero to 0 ETH', () => {
+    expect(formatSignedWeiToEth('0')).toBe('0 ETH');
+    expect(formatSignedWeiToEth('-0')).toBe('0 ETH');
+  });
+
+  it('returns null for missing or malformed values', () => {
+    expect(formatSignedWeiToEth(undefined)).toBeNull();
+    expect(formatSignedWeiToEth('')).toBeNull();
+    expect(formatSignedWeiToEth('abc')).toBeNull();
+    expect(formatSignedWeiToEth('--5')).toBeNull();
+  });
+});
+
+describe('selectTopUsageShare', () => {
+  const makeShare = (
+    key: string,
+    category: string,
+    blobCount: number
+  ): BackendAttributionUsageShare => ({
+    key,
+    name: key,
+    category,
+    blob_count: blobCount,
+    total_cost_wei: '0',
+    blob_share_percent: 0,
+    spend_share_percent: 0,
+  });
+
+  it('picks the named entity with the most blobs', () => {
+    const shares = [
+      makeShare('base', 'rollup', 500),
+      makeShare('arbitrum', 'rollup', 900),
+      makeShare('optimism', 'rollup', 700),
+    ];
+    expect(selectTopUsageShare(shares)?.key).toBe('arbitrum');
+  });
+
+  it('never crowns the neutral other/unknown buckets', () => {
+    const shares = [
+      makeShare('unknown', 'unknown', 5000),
+      makeShare('leftovers', 'Other', 4000),
+      makeShare('base', 'rollup', 900),
+    ];
+    expect(selectTopUsageShare(shares)?.key).toBe('base');
+  });
+
+  it('returns null when no named entity posted blobs', () => {
+    expect(selectTopUsageShare([])).toBeNull();
+    expect(selectTopUsageShare([makeShare('unknown', 'unknown', 5000)])).toBeNull();
+    expect(selectTopUsageShare([makeShare('base', 'rollup', 0)])).toBeNull();
+  });
+});
+
+describe('durationSecondsBetween', () => {
+  it('measures the span between two timestamps', () => {
+    expect(
+      durationSecondsBetween('2026-01-01T00:00:00Z', '2026-01-01T01:00:00Z')
+    ).toBe(3600);
+  });
+
+  it('returns null for reversed, equal, or unparseable timestamps', () => {
+    expect(
+      durationSecondsBetween('2026-01-01T01:00:00Z', '2026-01-01T00:00:00Z')
+    ).toBeNull();
+    expect(
+      durationSecondsBetween('2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+    ).toBeNull();
+    expect(durationSecondsBetween('not-a-date', '2026-01-01T00:00:00Z')).toBeNull();
   });
 });

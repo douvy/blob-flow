@@ -2,7 +2,7 @@
  * Utility functions for the application
  */
 import { getAddress } from 'viem';
-import { BlobResponse, Network, SearchTarget } from '@/types';
+import { BackendAttributionUsageShare, BlobResponse, Network, SearchTarget } from '@/types';
 import { ATTRIBUTION_CONTRIBUTING_URL, ATTRIBUTION_REPO_URL, NETWORKS, SECONDS_PER_BLOCK } from '@/constants';
 import { SERIES_COLOR_PALETTE, SERIES_CATEGORY_NEUTRALS } from '@/constants/chartTheme';
 import { ENTITY_ICONS, EntityIcon } from '@/constants/entityIcons.generated';
@@ -29,8 +29,12 @@ function lookupEntityIcon(name: string): EntityIcon | undefined {
 
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * 1024;
+const BYTES_PER_GIB = BYTES_PER_MIB * 1024;
+const BYTES_PER_TIB = BYTES_PER_GIB * 1024;
 const BLOB_GAS_PER_BLOB = 131072;
 const BYTES_PER_BLOB = 131072;
+/** Formatted capacity of a 3.5" HD floppy disk, the universal save icon. */
+const BYTES_PER_FLOPPY = 1_474_560;
 
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num);
@@ -720,4 +724,178 @@ export function beaconSlotForBlob(
     return blob.slot;
   }
   return deriveBeaconSlot(blob.timestamp, blob.network_name);
+}
+
+// ---- Relatable derived stats ----
+// Pure conversions that translate raw blob metrics (blob counts, wei costs,
+// window durations) into everyday units for the dashboard's "Blob Math"
+// strip. Cost math stays in BigInt wei so totals beyond Number precision
+// divide exactly.
+
+/**
+ * Total cost fields arrive in two shapes: `total_cost_wei` is an integer wei
+ * string (defensively truncate any fractional part, wei is indivisible), and
+ * `total_cost_eth` follows chartAggregation's weiToEth heuristic: a decimal
+ * point means an ETH amount, a bare integer means wei from an older backend.
+ * Returns null when neither field parses.
+ */
+function parseWindowCostToWei(totalCostWei?: string, totalCostEth?: string): bigint | null {
+  const weiField = totalCostWei?.trim();
+  if (weiField) {
+    const wholeWei = weiField.split('.')[0];
+    return /^\d+$/.test(wholeWei) ? BigInt(wholeWei) : null;
+  }
+
+  const ethField = totalCostEth?.trim();
+  if (!ethField) return null;
+
+  if (ethField.includes('.')) {
+    return /^\d+\.\d+$/.test(ethField) ? ethStringToWei(ethField) : null;
+  }
+
+  return /^\d+$/.test(ethField) ? BigInt(ethField) : null;
+}
+
+/**
+ * Average cost of posting one MiB of blob data over a stats window, in wei.
+ * Each blob carries 128 KiB, so the denominator is the window's full blob
+ * payload. Returns null when the window has no blobs or no parseable cost.
+ */
+export function computeCostPerMibWei(
+  totalBlobs: number,
+  totalCostWei?: string,
+  totalCostEth?: string
+): bigint | null {
+  if (!Number.isInteger(totalBlobs) || totalBlobs <= 0) return null;
+
+  const costWei = parseWindowCostToWei(totalCostWei, totalCostEth);
+  if (costWei === null) return null;
+
+  return (costWei * BigInt(BYTES_PER_MIB)) / (BigInt(totalBlobs) * BigInt(BYTES_PER_BLOB));
+}
+
+/**
+ * Average spacing between blobs across a window. Returns null when the
+ * window has no blobs or no positive duration, so callers can distinguish
+ * "no cadence" from a genuinely tiny interval.
+ */
+export function computeSecondsPerBlob(
+  totalBlobs: number,
+  durationSeconds: number
+): number | null {
+  if (!Number.isFinite(totalBlobs) || totalBlobs <= 0) return null;
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return null;
+
+  return durationSeconds / totalBlobs;
+}
+
+/**
+ * Render a blob interval like "12.5s" or "2 min". Sub-tenth intervals clamp
+ * to "<0.1s" instead of rounding to a nonsensical "0s".
+ */
+export function formatBlobCadence(secondsPerBlob: number | null): string {
+  if (secondsPerBlob === null || !Number.isFinite(secondsPerBlob) || secondsPerBlob <= 0) {
+    return '-';
+  }
+
+  if (secondsPerBlob < 0.1) return '<0.1s';
+  if (secondsPerBlob < 60) return `${formatCompactDecimal(secondsPerBlob, 1)}s`;
+
+  return formatDuration(secondsPerBlob);
+}
+
+/** Bytes carried by a blob count (128 KiB per blob). Malformed counts map to 0. */
+export function blobCountToBytes(blobCount: number): number {
+  if (!Number.isFinite(blobCount) || blobCount <= 0) return 0;
+
+  return blobCount * BYTES_PER_BLOB;
+}
+
+/**
+ * Data volume with GB/TB tiers on top of formatBlobSize's B/KB/MB. Like
+ * formatBlobSize, uses binary multiples with the everyday decimal labels.
+ */
+export function formatDataVolume(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '-';
+
+  if (bytes >= BYTES_PER_TIB) {
+    return `${formatCompactDecimal(bytes / BYTES_PER_TIB, 2)} TB`;
+  }
+
+  if (bytes >= BYTES_PER_GIB) {
+    return `${formatCompactDecimal(bytes / BYTES_PER_GIB, 2)} GB`;
+  }
+
+  return formatBlobSize(bytes);
+}
+
+/**
+ * How many 1.44 MB floppy disks the bytes would fill, e.g. "728 floppy
+ * disks" or "72.8K floppy disks". Returns null below one full disk so
+ * callers can fall back to a plainer caption.
+ */
+export function formatFloppyEquivalent(bytes: number): string | null {
+  if (!Number.isFinite(bytes) || bytes < BYTES_PER_FLOPPY) return null;
+
+  const floppies = Math.round(bytes / BYTES_PER_FLOPPY);
+  const formatted = new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(floppies);
+
+  return `${formatted} floppy disk${floppies === 1 ? '' : 's'}`;
+}
+
+/**
+ * ETH rendering for wei values that may be negative, like the cost
+ * comparison's savings_wei when calldata would somehow have been cheaper.
+ * Fractional wei is truncated. Returns null when the value is missing or
+ * unparseable; "-0" collapses to "0 ETH".
+ */
+export function formatSignedWeiToEth(weiValue?: string): string | null {
+  if (weiValue === undefined) return null;
+
+  const trimmed = weiValue.trim();
+  const negative = trimmed.startsWith('-');
+  const magnitude = (negative ? trimmed.slice(1) : trimmed).split('.')[0];
+  if (!/^\d+$/.test(magnitude)) return null;
+
+  if (BigInt(magnitude) === BigInt(0)) return '0 ETH';
+
+  const formatted = formatWeiToEth(magnitude, true);
+  return negative ? `-${formatted}` : formatted;
+}
+
+/**
+ * Attribution categories that bucket unidentified senders rather than naming
+ * a real poster; a "top rollup" readout must never crown them.
+ */
+const NEUTRAL_USAGE_CATEGORIES = new Set(['other', 'unknown']);
+
+/**
+ * The named entity posting the most blobs in an attribution summary, or null
+ * when every share is a neutral bucket or empty. Selecting the max locally
+ * keeps the result correct even if the backend's ordering contract changes.
+ */
+export function selectTopUsageShare(
+  shares: ReadonlyArray<BackendAttributionUsageShare>
+): BackendAttributionUsageShare | null {
+  return shares.reduce<BackendAttributionUsageShare | null>((top, share) => {
+    if (NEUTRAL_USAGE_CATEGORIES.has((share.category ?? '').toLowerCase())) return top;
+    if (!Number.isFinite(share.blob_count) || share.blob_count <= 0) return top;
+
+    return !top || share.blob_count > top.blob_count ? share : top;
+  }, null);
+}
+
+/**
+ * Seconds covered by a chart response's start/end timestamps. Returns null
+ * when either timestamp is unparseable or the interval is not positive.
+ */
+export function durationSecondsBetween(startTime: string, endTime: string): number | null {
+  const start = Date.parse(startTime);
+  const end = Date.parse(endTime);
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return null;
+
+  return (end - start) / 1000;
 }
