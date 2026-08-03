@@ -109,15 +109,18 @@ export function useNetwork() {
     // rewrite storage so the loading-phase optimistic path doesn't re-query a dead
     // network on every reload. Gated on a real list (not error) so a transient
     // failure never erases a still-valid preference; it returns when /networks does.
+    // Also skipped while a ?network= param is active: the selection then reflects
+    // the shared link, and persisting it would break the guarantee that links only
+    // affect display. The repair still runs on the next param-less load.
     useEffect(() => {
-        if (!fetchedNetworks) return;
+        if (!fetchedNetworks || urlApiParam) return;
         const stillExists = fetchedNetworks.some(
             (network) => network.apiParam === storedApiParam
         );
         if (!stillExists && storedApiParam !== selectedNetwork.apiParam) {
             setStoredValue(selectedNetwork.apiParam);
         }
-    }, [fetchedNetworks, storedApiParam, selectedNetwork.apiParam, setStoredValue]);
+    }, [fetchedNetworks, urlApiParam, storedApiParam, selectedNetwork.apiParam, setStoredValue]);
 
     // Update the selected network and store it in local storage
     const setSelectedNetwork = (network: Network) => {

@@ -194,6 +194,19 @@ describe('useNetwork', () => {
     await waitFor(() => expect(result.current.selectedNetwork.apiParam).toBe('hoodi'));
   });
 
+  it('does not persist the URL network when the stored network no longer exists', async () => {
+    window.history.replaceState(null, '', '/charts/base-fee?network=sepolia');
+    window.localStorage.setItem('selectedNetwork', JSON.stringify('holesky'));
+
+    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.selectedNetwork.apiParam).toBe('sepolia'));
+    // The stale stored value is repaired on the next param-less load instead;
+    // a shared link must never rewrite the persisted preference.
+    await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+    expect(window.localStorage.getItem('selectedNetwork')).toBe(JSON.stringify('holesky'));
+  });
+
   it('falls back to the default when the ?network= param is malformed', async () => {
     window.history.replaceState(null, '', '/charts/base-fee?network=bad%20name');
 
