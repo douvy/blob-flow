@@ -1,4 +1,4 @@
-import { fetchOgApi, getBlockOgData, getUserOgData } from './data';
+import { fetchOgApi, getAttributionOgChart, getBlockOgData, getUserOgData } from './data';
 
 const originalFetch = global.fetch;
 
@@ -81,6 +81,21 @@ describe('og/data', () => {
 
         await expect(fetchOgApi('/stats')).resolves.toBeNull();
         await expect(fetchOgApi('/stats')).resolves.toBeNull();
+    });
+
+    it('passes the requested range through to chart endpoints', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ success: true, data: {} }),
+        });
+        global.fetch = fetchMock as unknown as typeof fetch;
+
+        await getAttributionOgChart('30d');
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            expect.stringContaining('/charts/attribution-usage?range=30d'),
+            expect.anything()
+        );
     });
 
     it('rejects malformed user addresses without hitting the API', async () => {

@@ -7,12 +7,36 @@ import RecentBlocksPanel from '@/components/RecentBlocksPanel';
 import TopUsersTable from '@/components/TopUsersTable';
 import MempoolSummary from '@/components/MempoolSummary';
 import ExplainerSection from '@/components/ExplainerSection';
+import { ogImageMetadata } from '@/lib/og/metadata';
+import {
+  DEFAULT_TIME_RANGE,
+  TIME_RANGE_PARAM,
+  parseTimeRange,
+  timeRangeQuery,
+} from '@/lib/timeRange';
 
-export const metadata: Metadata = {
-  alternates: {
-    canonical: '/',
-  },
-};
+// The Open Graph card mirrors the time range selected in the UI, carried in
+// the shared URL as ?range=. Reading searchParams makes this page dynamic;
+// its content is client-fetched, so nothing else changes.
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const resolvedParams = await searchParams;
+  const rawRange = resolvedParams[TIME_RANGE_PARAM];
+  const range = parseTimeRange(typeof rawRange === 'string' ? rawRange : null) ?? DEFAULT_TIME_RANGE;
+
+  return {
+    alternates: {
+      canonical: '/',
+    },
+    ...ogImageMetadata({
+      imageUrl: `/opengraph-image${timeRangeQuery(range)}`,
+      alt: 'BlobFlow: live Ethereum blob base fee and top rollup blob shares',
+    }),
+  };
+}
 
 export default function Home() {
   return (

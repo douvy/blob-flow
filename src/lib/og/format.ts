@@ -19,6 +19,7 @@ import {
     truncateAddress,
 } from '@/utils';
 import type { HomeOgData } from './data';
+import { DEFAULT_TIME_RANGE, timeRangeLabel, type TimeRange } from '@/lib/timeRange';
 
 /** Accent keys map to OG_COLORS in card.tsx. */
 export type OgAccent = 'blue' | 'lightBlue' | 'green' | 'red';
@@ -81,7 +82,10 @@ function shareSummaryLine(
     return `${parts.join(', ')} of blobs (${windowLabel})`;
 }
 
-export function buildHomeCard({ pricing, attribution }: HomeOgData): OgCardContent | null {
+export function buildHomeCard(
+    { pricing, attribution }: HomeOgData,
+    range: TimeRange = DEFAULT_TIME_RANGE
+): OgCardContent | null {
     if (!pricing) return null;
 
     const stats: OgStat[] = [
@@ -99,7 +103,7 @@ export function buildHomeCard({ pricing, attribution }: HomeOgData): OgCardConte
 
     if (attribution) {
         stats.push({
-            label: 'Blobs (24h)',
+            label: `Blobs (${range})`,
             value: formatNumber(attribution.summary.total_blobs),
             accent: 'green',
         });
@@ -108,26 +112,36 @@ export function buildHomeCard({ pricing, attribution }: HomeOgData): OgCardConte
     return {
         eyebrow: 'Current blob base fee',
         title: formatGwei(pricing.current_base_fee_gwei, 4),
-        subtitle: attribution ? shareSummaryLine(attribution, '24h') ?? TAGLINE : TAGLINE,
+        subtitle: attribution ? shareSummaryLine(attribution, range) ?? TAGLINE : TAGLINE,
         stats,
     };
 }
 
-export function buildBaseFeeCard(chart: BackendBlobMarketChartResponse): OgCardContent {
+export function buildBaseFeeCard(
+    chart: BackendBlobMarketChartResponse,
+    range: TimeRange = DEFAULT_TIME_RANGE
+): OgCardContent {
     const { summary } = chart;
     return {
-        eyebrow: 'Blob base fee, last 24h',
+        eyebrow: `Blob base fee, ${timeRangeLabel(range)}`,
         title: formatGwei(summary.current_base_fee_gwei, 4),
         subtitle: 'Current blob base fee on Ethereum',
         stats: [
-            { label: '24h average', value: formatGwei(summary.average_blob_base_fee_gwei, 4), accent: 'lightBlue' },
-            { label: '24h p95', value: formatGwei(summary.p95_blob_base_fee_gwei, 4), accent: 'blue' },
-            { label: '24h blobs', value: formatNumber(summary.total_blobs), accent: 'green' },
+            {
+                label: `${range} average`,
+                value: formatGwei(summary.average_blob_base_fee_gwei, 4),
+                accent: 'lightBlue',
+            },
+            { label: `${range} p95`, value: formatGwei(summary.p95_blob_base_fee_gwei, 4), accent: 'blue' },
+            { label: `${range} blobs`, value: formatNumber(summary.total_blobs), accent: 'green' },
         ],
     };
 }
 
-export function buildGasUtilizationCard(chart: BackendBlobMarketChartResponse): OgCardContent {
+export function buildGasUtilizationCard(
+    chart: BackendBlobMarketChartResponse,
+    range: TimeRange = DEFAULT_TIME_RANGE
+): OgCardContent {
     const { summary } = chart;
     const utilizationRatio = Number(summary.average_utilization);
     const utilization = Number.isFinite(utilizationRatio)
@@ -135,11 +149,11 @@ export function buildGasUtilizationCard(chart: BackendBlobMarketChartResponse): 
         : '-';
 
     return {
-        eyebrow: 'Blob gas utilization, last 24h',
+        eyebrow: `Blob gas utilization, ${timeRangeLabel(range)}`,
         title: `${utilization} of target`,
         subtitle: 'Average blob gas used versus the protocol target',
         stats: [
-            { label: '24h blobs', value: formatNumber(summary.total_blobs), accent: 'green' },
+            { label: `${range} blobs`, value: formatNumber(summary.total_blobs), accent: 'green' },
             { label: 'Unique senders', value: formatNumber(summary.unique_senders), accent: 'lightBlue' },
             { label: 'Current fee', value: formatGwei(summary.current_base_fee_gwei, 4), accent: 'blue' },
         ],
@@ -147,7 +161,8 @@ export function buildGasUtilizationCard(chart: BackendBlobMarketChartResponse): 
 }
 
 export function buildBlobUsageCard(
-    attribution: BackendAttributionUsageChartResponse
+    attribution: BackendAttributionUsageChartResponse,
+    range: TimeRange = DEFAULT_TIME_RANGE
 ): OgCardContent {
     const shares = topAttributedShares(attribution);
     const stats: OgStat[] = shares.map((share, index) => ({
@@ -157,7 +172,7 @@ export function buildBlobUsageCard(
     }));
 
     return {
-        eyebrow: 'Blob usage by rollup, last 7d',
+        eyebrow: `Blob usage by rollup, ${timeRangeLabel(range)}`,
         title: `${formatNumber(attribution.summary.total_blobs)} blobs`,
         subtitle: 'Share of blobspace by L2 rollup',
         stats,
@@ -165,11 +180,12 @@ export function buildBlobUsageCard(
 }
 
 export function buildCostComparisonCard(
-    chart: BackendCostComparisonChartResponse
+    chart: BackendCostComparisonChartResponse,
+    range: TimeRange = DEFAULT_TIME_RANGE
 ): OgCardContent {
     const { summary } = chart;
     return {
-        eyebrow: 'Blobs versus calldata, last 7d',
+        eyebrow: `Blobs versus calldata, ${timeRangeLabel(range)}`,
         title: `${formatPercent(summary.savings_percent)} cheaper`,
         subtitle: 'What rollups saved by posting blobs instead of calldata',
         stats: [
@@ -226,20 +242,23 @@ export function buildChartCard(
         | BackendAttributionUsageChartResponse
         | BackendCostComparisonChartResponse
         | BackendStatsWindowsResponse
-        | null
+        | null,
+    range: TimeRange = DEFAULT_TIME_RANGE
 ): OgCardContent | null {
     if (!data) return null;
 
     switch (slug) {
         case 'base-fee':
-            return buildBaseFeeCard(data as BackendBlobMarketChartResponse);
+            return buildBaseFeeCard(data as BackendBlobMarketChartResponse, range);
         case 'gas-utilization':
-            return buildGasUtilizationCard(data as BackendBlobMarketChartResponse);
+            return buildGasUtilizationCard(data as BackendBlobMarketChartResponse, range);
         case 'blob-usage':
-            return buildBlobUsageCard(data as BackendAttributionUsageChartResponse);
+            return buildBlobUsageCard(data as BackendAttributionUsageChartResponse, range);
         case 'cost-comparison':
-            return buildCostComparisonCard(data as BackendCostComparisonChartResponse);
+            return buildCostComparisonCard(data as BackendCostComparisonChartResponse, range);
         case 'rolling-market-stats':
+            // Rolling stats always show the same fixed windows; the selected
+            // range does not change what this chart displays.
             return buildRollingStatsCard(data as BackendStatsWindowsResponse);
         default:
             return null;

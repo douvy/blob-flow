@@ -81,15 +81,29 @@ describe('og/format', () => {
         expect(shares.map((share) => share.name)).toEqual(['Base', 'Arbitrum One', 'OP Mainnet']);
     });
 
-    it('builds the home card from pricing and attribution', () => {
+    it('builds the home card from pricing and attribution for the given range', () => {
         const attribution = makeAttribution([{ name: 'Base', blob_share_percent: 41.2 }]);
 
-        const card = buildHomeCard({ pricing, attribution });
+        const card = buildHomeCard({ pricing, attribution }, '24h');
 
         expect(card).not.toBeNull();
         expect(card!.title).toBe('1.5 Gwei');
         expect(card!.subtitle).toBe('Base 41.2% of blobs (24h)');
+        expect(card!.stats.map((stat) => stat.label)).toEqual([
+            'Predicted next fee',
+            'Recent blocks at max',
+            'Blobs (24h)',
+        ]);
         expect(card!.stats.map((stat) => stat.value)).toEqual(['1.6 Gwei', '35%', '12,345']);
+    });
+
+    it('defaults the home card to the UI default range', () => {
+        const attribution = makeAttribution([{ name: 'Base', blob_share_percent: 41.2 }]);
+
+        const card = buildHomeCard({ pricing, attribution });
+
+        expect(card!.subtitle).toBe('Base 41.2% of blobs (1h)');
+        expect(card!.stats[2].label).toBe('Blobs (1h)');
     });
 
     it('returns null for the home card without pricing data', () => {
@@ -197,6 +211,31 @@ describe('og/format', () => {
             { label: '24h avg fee', value: '1.5 Gwei', accent: 'lightBlue' },
             { label: '24h unique senders', value: '87', accent: 'blue' },
             { label: '7d blobs', value: '150,000', accent: 'green' },
+        ]);
+    });
+
+    it('labels chart cards with the requested range', () => {
+        const chart = {
+            summary: {
+                current_base_fee_gwei: '1.5',
+                average_blob_base_fee_gwei: '1.2',
+                median_blob_base_fee_gwei: '1.1',
+                p95_blob_base_fee_gwei: '2.0',
+                total_blobs: 900,
+                total_blob_gas_used: 0,
+                average_utilization: '0.5',
+                total_cost_wei: '0',
+                unique_senders: 12,
+            },
+        } as unknown as Parameters<typeof buildChartCard>[1];
+
+        const card = buildChartCard('base-fee', chart, '7d');
+
+        expect(card!.eyebrow).toBe('Blob base fee, last 7d');
+        expect(card!.stats.map((stat) => stat.label)).toEqual([
+            '7d average',
+            '7d p95',
+            '7d blobs',
         ]);
     });
 

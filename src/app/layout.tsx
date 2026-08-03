@@ -4,16 +4,10 @@ import AppProviders from '@/components/AppProviders';
 import Header from '@/components/Header';
 import IndexerStatusBanner from '@/components/IndexerStatusBanner';
 import Footer from '@/components/Footer';
-import { SITE_URL } from '@/constants';
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from '@/constants';
+import { ogImageMetadata } from '@/lib/og/metadata';
 
 // Removed Inter font
-
-const SITE_NAME = 'BlobFlow';
-const SITE_TITLE = 'BlobFlow: Real-Time Ethereum Blob Analytics';
-const SITE_DESCRIPTION =
-  'Track the Ethereum EIP-4844 blob market in real time: live blob base fees, ' +
-  'next-block fee predictions, mempool pressure, and L2 rollup usage across ' +
-  'Arbitrum, Optimism, Base, and zkSync, streamed block by block.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -37,20 +31,14 @@ export const metadata: Metadata = {
     'Base',
     'zkSync',
   ],
-  // Open Graph and Twitter images come from the opengraph-image.tsx file
-  // conventions (dynamic cards rendered with live indexer data); listing
-  // static images here would override them.
-  openGraph: {
-    type: 'website',
-    siteName: SITE_NAME,
-    title: SITE_TITLE,
-    description: SITE_DESCRIPTION,
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: SITE_TITLE,
-    description: SITE_DESCRIPTION,
-  },
+  // Default Open Graph card for routes without their own: the dynamic home
+  // card at its default time range. Home and chart pages override this per
+  // request with a range-carrying URL, and block/user pages override it via
+  // their opengraph-image.tsx file conventions.
+  ...ogImageMetadata({
+    imageUrl: '/opengraph-image',
+    alt: 'BlobFlow: live Ethereum blob base fee and top rollup blob shares',
+  }),
   icons: {
     icon: '/images/favicon.png',
   },

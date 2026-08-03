@@ -9,6 +9,7 @@ import type {
     UserResponse,
 } from '@/types';
 import { API_BASE_URL, DEFAULT_NETWORK } from '@/constants';
+import { DEFAULT_TIME_RANGE, type TimeRange } from '@/lib/timeRange';
 
 /**
  * Unfurl crawlers (X, Discord, Telegram) give up on slow responses, so the
@@ -55,32 +56,38 @@ export interface HomeOgData {
 }
 
 /** Live fee plus rollup shares for the home page card. */
-export async function getHomeOgData(): Promise<HomeOgData> {
+export async function getHomeOgData(range: TimeRange = DEFAULT_TIME_RANGE): Promise<HomeOgData> {
     const [pricing, attribution] = await Promise.all([
         fetchOgApi<BackendBlobPricingResponse>('/blob/pricing?blocks=20'),
         fetchOgApi<BackendAttributionUsageChartResponse>(
-            '/charts/attribution-usage?range=24h&granularity=auto'
+            `/charts/attribution-usage?range=${range}&granularity=auto`
         ),
     ]);
 
     return { pricing, attribution };
 }
 
-export function getBlobMarketOgChart(): Promise<BackendBlobMarketChartResponse | null> {
+export function getBlobMarketOgChart(
+    range: TimeRange = DEFAULT_TIME_RANGE
+): Promise<BackendBlobMarketChartResponse | null> {
     return fetchOgApi<BackendBlobMarketChartResponse>(
-        '/charts/blob-market?range=24h&granularity=auto'
+        `/charts/blob-market?range=${range}&granularity=auto`
     );
 }
 
-export function getAttributionOgChart(): Promise<BackendAttributionUsageChartResponse | null> {
+export function getAttributionOgChart(
+    range: TimeRange = DEFAULT_TIME_RANGE
+): Promise<BackendAttributionUsageChartResponse | null> {
     return fetchOgApi<BackendAttributionUsageChartResponse>(
-        '/charts/attribution-usage?range=7d&granularity=auto'
+        `/charts/attribution-usage?range=${range}&granularity=auto`
     );
 }
 
-export function getCostComparisonOgChart(): Promise<BackendCostComparisonChartResponse | null> {
+export function getCostComparisonOgChart(
+    range: TimeRange = DEFAULT_TIME_RANGE
+): Promise<BackendCostComparisonChartResponse | null> {
     return fetchOgApi<BackendCostComparisonChartResponse>(
-        '/charts/cost-comparison?range=7d&granularity=auto'
+        `/charts/cost-comparison?range=${range}&granularity=auto`
     );
 }
 
