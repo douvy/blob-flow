@@ -741,6 +741,92 @@ export interface ChartDataset {
   costComparisonCoverageLabel: string;
 }
 
+// ---- Blob market records ----
+//
+// The backend has no dedicated records endpoint yet, so these shapes are
+// derived client-side from the pricing, rolling-window, stats, and
+// attribution endpoints (see src/lib/records.ts). When a /records endpoint
+// ships, its response should be mapped onto BlobRecords so the page and
+// components below it stay unchanged.
+
+/** Live streak figures from the pricing endpoint's market pressure block. */
+export interface StreakRecord {
+  consecutiveFullBlocks: number;
+  recentBlocksAboveTarget: number;
+  percentRecentBlocksAtMaxBlobs: number;
+}
+
+export interface WindowFeeEntry {
+  window: string;
+  p95Gwei: number;
+}
+
+/**
+ * Highest p95 blob base fee among the rolling stats windows. This is a
+ * window-scoped record (at most the last 30 days), not an all-time high;
+ * consumers must label it as such.
+ */
+export interface WindowFeeRecord extends WindowFeeEntry {
+  perWindow: WindowFeeEntry[];
+}
+
+export interface WindowThroughputEntry {
+  window: string;
+  totalBlobs: number;
+  blobsPerHour: number;
+}
+
+/**
+ * Rolling window with the highest blob throughput. Windows nest (30d
+ * contains 7d contains 24h), so the comparison is by rate, not raw count:
+ * the raw count would trivially always pick the longest window.
+ */
+export interface WindowThroughputRecord extends WindowThroughputEntry {
+  perWindow: WindowThroughputEntry[];
+}
+
+/** Attributed entity with the largest total blob spend in the range. */
+export interface SpenderRecord {
+  key: string;
+  name: string;
+  category: string;
+  totalCostWei: string;
+  spendSharePercent: number;
+  blobCount: number;
+}
+
+/** Progress of one attributed entity toward its next round blob-count milestone. */
+export interface RollupMilestone {
+  key: string;
+  name: string;
+  category: string;
+  blobCount: number;
+  blobSharePercent: number;
+  nextMilestone: number;
+  remainingToMilestone: number;
+  /** Percent of the way from zero to nextMilestone, in [0, 100). */
+  progressPercent: number;
+}
+
+export interface AllTimeTotalsRecord {
+  totalBlobs: number;
+  averageBaseFee: string;
+}
+
+/**
+ * All records shown on /records. Each section is null when its source
+ * endpoint failed or returned nothing, so the page can render the sections
+ * it has instead of failing entirely.
+ */
+export interface BlobRecords {
+  streak: StreakRecord | null;
+  peakWindowFee: WindowFeeRecord | null;
+  busiestWindow: WindowThroughputRecord | null;
+  biggestSpender: SpenderRecord | null;
+  allTime: AllTimeTotalsRecord | null;
+  milestones: RollupMilestone[];
+}
+
 // ---- Search ----
 
 /** A navigable destination parsed from a search query. */
