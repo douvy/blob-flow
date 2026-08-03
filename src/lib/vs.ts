@@ -178,10 +178,29 @@ interface VsRowSpec {
   betterDirection: VsComparisonRow['betterDirection'];
   numeric: 'bigint' | 'number';
   value: (share: BackendAttributionUsageShare) => string;
+  /**
+   * Whether the metric means anything for this share. A per-unit cost is
+   * undefined (not zero) for an entity that posted nothing, so without this
+   * an idle rollup would win every efficiency row on a placeholder zero.
+   */
+  isDefined?: (share: BackendAttributionUsageShare) => boolean;
+  /**
+   * A figure derived from `value` by a shared positive factor, so it can
+   * never disagree about the winner: showing it as its own contest would
+   * double-count one result. Rendered as context on the same row instead.
+   */
+  detail?: {
+    format: VsComparisonRow['format'];
+    label: string;
+    value: (share: BackendAttributionUsageShare) => string;
+  };
 }
 
-// Volume and share rows reward dominance (higher wins); the per-unit cost
-// rows reward efficiency (lower wins).
+// Three independent contests. Volume and spend reward dominance (higher
+// wins); the per-unit cost rewards efficiency (lower wins). Each carries the
+// derived figure it fully determines: blob share is blob count over the same
+// network total, spend share is ETH spent over the same total, and cost per
+// blob is exactly cost per MB divided by eight.
 const VS_ROW_SPECS: readonly VsRowSpec[] = [
   {
     key: 'blobs',
@@ -190,14 +209,11 @@ const VS_ROW_SPECS: readonly VsRowSpec[] = [
     betterDirection: 'higher',
     numeric: 'number',
     value: (share) => String(share.blob_count),
-  },
-  {
-    key: 'blob-share',
-    label: 'Blob share',
-    format: 'percent',
-    betterDirection: 'higher',
-    numeric: 'number',
-    value: (share) => String(share.blob_share_percent),
+    detail: {
+      format: 'percent',
+      label: 'share',
+      value: (share) => String(share.blob_share_percent),
+    },
   },
   {
     key: 'eth-spent',
@@ -206,22 +222,11 @@ const VS_ROW_SPECS: readonly VsRowSpec[] = [
     betterDirection: 'higher',
     numeric: 'bigint',
     value: (share) => share.total_cost_wei || '0',
-  },
-  {
-    key: 'spend-share',
-    label: 'Spend share',
-    format: 'percent',
-    betterDirection: 'higher',
-    numeric: 'number',
-    value: (share) => String(share.spend_share_percent),
-  },
-  {
-    key: 'avg-cost-per-blob',
-    label: 'Avg cost per blob',
-    format: 'cost',
-    betterDirection: 'lower',
-    numeric: 'bigint',
-    value: averageCostPerBlobWei,
+    detail: {
+      format: 'percent',
+      label: 'share',
+      value: (share) => String(share.spend_share_percent),
+    },
   },
   {
     key: 'cost-per-mb',
@@ -230,8 +235,17 @@ const VS_ROW_SPECS: readonly VsRowSpec[] = [
     betterDirection: 'lower',
     numeric: 'bigint',
     value: costPerMbWei,
+    isDefined: (share) => share.blob_count > 0,
+    detail: {
+      format: 'cost',
+      label: 'per blob',
+      value: averageCostPerBlobWei,
+    },
   },
 ];
+
+/** How many independent contests decide a matchup. */
+export const VS_ROW_COUNT = VS_ROW_SPECS.length;
 
 /** Build the full matchup: every metric row plus the overall verdict. */
 export function buildVsComparison(
@@ -241,6 +255,18 @@ export function buildVsComparison(
   const rows: VsComparisonRow[] = VS_ROW_SPECS.map((spec) => {
     const aValue = spec.value(a);
     const bValue = spec.value(b);
+    const aDefined = spec.isDefined?.(a) ?? true;
+    const bDefined = spec.isDefined?.(b) ?? true;
+    // A side the metric does not apply to cannot win it; if it applies to
+    // neither, nobody takes the row.
+    const winner =
+      aDefined && bDefined
+        ? decideWinner(aValue, bValue, spec.betterDirection, spec.numeric)
+        : aDefined
+          ? 'a'
+          : bDefined
+            ? 'b'
+            : 'tie';
     return {
       key: spec.key,
       label: spec.label,
@@ -248,7 +274,15 @@ export function buildVsComparison(
       betterDirection: spec.betterDirection,
       a: aValue,
       b: bValue,
-      winner: decideWinner(aValue, bValue, spec.betterDirection, spec.numeric),
+      winner,
+      ...(spec.detail && {
+        detail: {
+          format: spec.detail.format,
+          label: spec.detail.label,
+          a: spec.detail.value(a),
+          b: spec.detail.value(b),
+        },
+      }),
     };
   });
 

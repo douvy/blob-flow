@@ -12,6 +12,7 @@ import {
   normalizeEntitySlug,
   parseVsRange,
   slugForEntityKey,
+  VS_ROW_COUNT,
 } from './vs';
 
 function makeShare(overrides: Partial<BackendAttributionUsageShare>): BackendAttributionUsageShare {
@@ -147,23 +148,43 @@ describe('buildVsComparison', () => {
     spend_share_percent: 4.1,
   });
 
-  it('builds six rows with higher-wins and lower-wins directions', () => {
+  it('scores three independent contests, not their derived twins', () => {
     const comparison = buildVsComparison(base, arbitrum);
-    expect(comparison.rows).toHaveLength(6);
+    expect(comparison.rows.map((row) => row.key)).toEqual([
+      'blobs',
+      'eth-spent',
+      'cost-per-mb',
+    ]);
+    expect(comparison.rows).toHaveLength(VS_ROW_COUNT);
     const byKey = Object.fromEntries(comparison.rows.map((row) => [row.key, row]));
 
     expect(byKey['blobs'].winner).toBe('a');
-    expect(byKey['blob-share'].winner).toBe('a');
     expect(byKey['eth-spent'].winner).toBe('a');
-    expect(byKey['spend-share'].winner).toBe('a');
     // Base: 424096065 wei/blob; Arbitrum: 500000000 wei/blob. Lower wins.
-    expect(byKey['avg-cost-per-blob'].winner).toBe('a');
     expect(byKey['cost-per-mb'].winner).toBe('a');
     expect(comparison.overall).toBe('a');
-    expect(comparison.rowWins).toEqual({ a: 6, b: 0 });
+    expect(comparison.rowWins).toEqual({ a: 3, b: 0 });
   });
 
-  it('awards efficiency rows to the cheaper side', () => {
+  it('carries each derived figure as row context rather than its own row', () => {
+    const comparison = buildVsComparison(base, arbitrum);
+    const byKey = Object.fromEntries(comparison.rows.map((row) => [row.key, row]));
+
+    expect(byKey['blobs'].detail).toEqual({
+      format: 'percent',
+      label: 'share',
+      a: '22.65',
+      b: '3.5',
+    });
+    expect(byKey['eth-spent'].detail).toMatchObject({ label: 'share', a: '22.38', b: '4.1' });
+    // Cost per blob is exactly cost per MB divided by eight.
+    expect(byKey['cost-per-mb'].detail).toMatchObject({ label: 'per blob', format: 'cost' });
+    expect(BigInt(byKey['cost-per-mb'].a) / BigInt(8)).toBe(
+      BigInt(byKey['cost-per-mb'].detail!.a)
+    );
+  });
+
+  it('awards the efficiency row to the cheaper side', () => {
     const spender = makeShare({ key: 'a', blob_count: 100, total_cost_wei: '1000000' });
     const efficient = makeShare({ key: 'b', blob_count: 50, total_cost_wei: '100000' });
     const comparison = buildVsComparison(spender, efficient);
@@ -171,8 +192,9 @@ describe('buildVsComparison', () => {
 
     expect(byKey['blobs'].winner).toBe('a');
     expect(byKey['eth-spent'].winner).toBe('a');
-    expect(byKey['avg-cost-per-blob'].winner).toBe('b');
     expect(byKey['cost-per-mb'].winner).toBe('b');
+    expect(comparison.rowWins).toEqual({ a: 2, b: 1 });
+    expect(comparison.overall).toBe('a');
   });
 
   it('marks identical shares as a full tie', () => {
@@ -183,25 +205,36 @@ describe('buildVsComparison', () => {
     expect(comparison.rowWins).toEqual({ a: 0, b: 0 });
   });
 
-  it('breaks an even card on blob volume', () => {
-    // a wins blobs and eth-spent, b wins both efficiency rows, shares tie:
-    // a 2-2 card decided by raw blob volume.
-    const bulky = makeShare({
-      key: 'a',
-      blob_count: 200,
-      total_cost_wei: '2000',
-      blob_share_percent: 5,
-      spend_share_percent: 5,
-    });
-    const lean = makeShare({
-      key: 'b',
-      blob_count: 100,
-      total_cost_wei: '500',
-      blob_share_percent: 5,
-      spend_share_percent: 5,
-    });
+  it('splits the card when volume and efficiency disagree', () => {
+    // The big spender buys dominance; the small one buys it cheaper.
+    const bulky = makeShare({ key: 'a', blob_count: 200, total_cost_wei: '2000' });
+    const lean = makeShare({ key: 'b', blob_count: 100, total_cost_wei: '500' });
     const comparison = buildVsComparison(bulky, lean);
-    expect(comparison.rowWins).toEqual({ a: 2, b: 2 });
+    const byKey = Object.fromEntries(comparison.rows.map((row) => [row.key, row]));
+
+    expect(byKey['blobs'].winner).toBe('a');
+    expect(byKey['eth-spent'].winner).toBe('a');
+    expect(byKey['cost-per-mb'].winner).toBe('b');
     expect(comparison.overall).toBe('a');
+  });
+
+  it('does not let an idle side win the efficiency row on a zero cost', () => {
+    const idle = makeShare({ key: 'a', blob_count: 0, total_cost_wei: '0' });
+    const active = makeShare({ key: 'b', blob_count: 5, total_cost_wei: '100' });
+    const comparison = buildVsComparison(idle, active);
+    const byKey = Object.fromEntries(comparison.rows.map((row) => [row.key, row]));
+
+    expect(byKey['cost-per-mb'].winner).toBe('b');
+    expect(comparison.rowWins).toEqual({ a: 0, b: 3 });
+    expect(comparison.overall).toBe('b');
+  });
+
+  it('leaves the efficiency row untaken when neither side posted', () => {
+    const idle = makeShare({ key: 'a', blob_count: 0, total_cost_wei: '0' });
+    const comparison = buildVsComparison(idle, { ...idle, key: 'b' });
+    const byKey = Object.fromEntries(comparison.rows.map((row) => [row.key, row]));
+
+    expect(byKey['cost-per-mb'].winner).toBe('tie');
+    expect(comparison.overall).toBe('tie');
   });
 });

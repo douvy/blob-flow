@@ -776,6 +776,11 @@ export type VsWinner = 'a' | 'b' | 'tie';
  * One metric row of the battle card. Raw values are numeric strings: plain
  * numbers for count/percent formats, integer wei for eth/cost formats, so
  * they survive serialization and BigInt comparison without precision loss.
+ *
+ * `detail` carries a metric that is fully derived from the primary one
+ * (blob share from blob count, spend share from ETH spent, per-blob cost
+ * from per-MB cost) and therefore always shares its winner; it is shown as
+ * context but never scored as a separate contest.
  */
 export interface VsComparisonRow {
   key: string;
@@ -786,6 +791,13 @@ export interface VsComparisonRow {
   a: string;
   b: string;
   winner: VsWinner;
+  detail?: {
+    format: VsMetricFormat;
+    /** Short suffix rendered after the value, e.g. "share" or "per blob". */
+    label: string;
+    a: string;
+    b: string;
+  };
 }
 
 /** Full matchup result: per-metric rows plus the overall verdict. */

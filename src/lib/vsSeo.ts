@@ -22,8 +22,8 @@ export function buildVsMetadata(
   const title = `${aName} vs ${bName}: Blob Battle`;
   const description =
     `Head-to-head Ethereum blobspace battle between ${aName} and ${bName}, ` +
-    `${VS_RANGE_LABELS[range].toLowerCase()}: blobs posted, blobspace share, ` +
-    'ETH spent, and cost per blob and per MB.';
+    `${VS_RANGE_LABELS[range].toLowerCase()}: blobs posted, ETH spent, and ` +
+    'cost per MB of blobspace.';
 
   return {
     title,

@@ -13,6 +13,7 @@ import {
   VS_ENTITY_LIMIT,
   VS_RANGES,
   VS_RANGE_LABELS,
+  VS_ROW_COUNT,
   buildVsComparison,
   buildVsHref,
   findShareBySlug,
@@ -26,6 +27,7 @@ import type {
   BackendAttributionUsageShare,
   BackendChartRange,
   VsComparisonRow,
+  VsMetricFormat,
   VsWinner,
 } from '@/types';
 import {
@@ -41,9 +43,8 @@ interface VersusBattleCardProps {
   range: BackendChartRange;
 }
 
-function formatRowValue(row: VsComparisonRow, side: 'a' | 'b'): string {
-  const raw = side === 'a' ? row.a : row.b;
-  switch (row.format) {
+function formatMetric(raw: string, format: VsMetricFormat): string {
+  switch (format) {
     case 'count':
       return formatNumber(Number(raw));
     case 'percent':
@@ -53,6 +54,17 @@ function formatRowValue(row: VsComparisonRow, side: 'a' | 'b'): string {
     case 'cost':
       return formatCostEthOrWei(raw);
   }
+}
+
+function formatRowValue(row: VsComparisonRow, side: 'a' | 'b'): string {
+  return formatMetric(side === 'a' ? row.a : row.b, row.format);
+}
+
+/** The derived figure shown under a row's headline value, e.g. "24.62% share". */
+function formatRowDetail(row: VsComparisonRow, side: 'a' | 'b'): string | null {
+  if (!row.detail) return null;
+  const raw = side === 'a' ? row.detail.a : row.detail.b;
+  return `${formatMetric(raw, row.detail.format)} ${row.detail.label}`;
 }
 
 function RangeSwitcher({
@@ -191,6 +203,9 @@ function ComparisonRows({
             className={`px-3 py-3 text-right text-sm tabular-nums sm:text-base ${winnerCellClass(row.winner, 'a')}`}
           >
             {formatRowValue(row, 'a')}
+            {row.detail && (
+              <div className="text-xs text-secondaryText">{formatRowDetail(row, 'a')}</div>
+            )}
           </div>
           <div className="px-2 py-3 text-center sm:px-4">
             <div className="text-xs uppercase tracking-wider text-secondaryText">{row.label}</div>
@@ -202,6 +217,9 @@ function ComparisonRows({
             className={`px-3 py-3 text-left text-sm tabular-nums sm:text-base ${winnerCellClass(row.winner, 'b')}`}
           >
             {formatRowValue(row, 'b')}
+            {row.detail && (
+              <div className="text-xs text-secondaryText">{formatRowDetail(row, 'b')}</div>
+            )}
           </div>
         </div>
       ))}
@@ -232,7 +250,7 @@ function OverallVerdict({
   return (
     <div className="border-t border-green/40 bg-green/10 px-4 py-3 text-center text-sm text-green">
       <Crown className="mr-1.5 inline h-4 w-4 fill-current align-[-2px]" aria-hidden="true" />
-      {winnerName} takes the matchup, winning {wins} of 6 stats.
+      {winnerName} takes the matchup, winning {wins} of {VS_ROW_COUNT} stats.
     </div>
   );
 }

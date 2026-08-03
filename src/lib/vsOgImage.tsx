@@ -15,6 +15,7 @@ import type {
   BackendAttributionUsageShare,
   BackendChartRange,
   VsComparisonRow,
+  VsMetricFormat,
   VsWinner,
 } from '@/types';
 import {
@@ -121,9 +122,8 @@ async function loadFont(relativePath: string): Promise<ArrayBuffer | null> {
   }
 }
 
-function formatOgValue(row: VsComparisonRow, side: 'a' | 'b'): string {
-  const raw = side === 'a' ? row.a : row.b;
-  switch (row.format) {
+function formatMetric(raw: string, format: VsMetricFormat): string {
+  switch (format) {
     case 'count':
       return formatNumber(Number(raw));
     case 'percent':
@@ -133,6 +133,17 @@ function formatOgValue(row: VsComparisonRow, side: 'a' | 'b'): string {
     case 'cost':
       return formatCostEthOrWei(raw);
   }
+}
+
+function formatOgValue(row: VsComparisonRow, side: 'a' | 'b'): string {
+  return formatMetric(side === 'a' ? row.a : row.b, row.format);
+}
+
+/** The derived figure shown under a row's headline value, e.g. "24.62% share". */
+function formatOgDetail(row: VsComparisonRow, side: 'a' | 'b'): string | null {
+  if (!row.detail) return null;
+  const raw = side === 'a' ? row.detail.a : row.detail.b;
+  return `${formatMetric(raw, row.detail.format)} ${row.detail.label}`;
 }
 
 function Contender({
@@ -334,43 +345,55 @@ export async function renderVsOgImage(
                     display: 'flex',
                     alignItems: 'center',
                     borderBottom: `1px solid ${COLORS.divider}`,
-                    padding: '8px 0',
-                    fontSize: 25,
+                    padding: '14px 0',
+                    fontSize: 32,
                   }}
                 >
-                  <span
+                  <div
                     style={{
                       display: 'flex',
-                      justifyContent: 'flex-end',
+                      flexDirection: 'column',
+                      alignItems: 'flex-end',
                       width: 440,
                       color: cellColor('a'),
                     }}
                   >
-                    {formatOgValue(row, 'a')}
-                  </span>
+                    <span>{formatOgValue(row, 'a')}</span>
+                    {row.detail ? (
+                      <span style={{ color: COLORS.secondary, fontSize: 20 }}>
+                        {formatOgDetail(row, 'a')}
+                      </span>
+                    ) : null}
+                  </div>
                   <span
                     style={{
                       display: 'flex',
                       justifyContent: 'center',
                       flexGrow: 1,
                       color: COLORS.secondary,
-                      fontSize: 17,
+                      fontSize: 19,
                       textTransform: 'uppercase',
                       letterSpacing: 2,
                     }}
                   >
                     {row.label}
                   </span>
-                  <span
+                  <div
                     style={{
                       display: 'flex',
-                      justifyContent: 'flex-start',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
                       width: 440,
                       color: cellColor('b'),
                     }}
                   >
-                    {formatOgValue(row, 'b')}
-                  </span>
+                    <span>{formatOgValue(row, 'b')}</span>
+                    {row.detail ? (
+                      <span style={{ color: COLORS.secondary, fontSize: 20 }}>
+                        {formatOgDetail(row, 'b')}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               );
             })}
@@ -385,7 +408,7 @@ export async function renderVsOgImage(
               fontSize: 28,
             }}
           >
-            Compare blobs posted, blobspace share, ETH spent, and cost per MB.
+            Compare blobs posted, ETH spent, and cost per MB of blobspace.
           </div>
         )}
 
