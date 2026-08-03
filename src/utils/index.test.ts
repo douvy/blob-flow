@@ -3,6 +3,7 @@ import {
   attributionColorKey,
   beaconSlotForBlob,
   blobCountToBytes,
+  computeBlobBytesPerSecond,
   computeCostPerMibWei,
   computeSecondsPerBlob,
   deriveBeaconSlot,
@@ -14,6 +15,7 @@ import {
   formatBlobTotalCost,
   formatBlobWeiCost,
   formatCostEthOrWei,
+  formatDataRate,
   formatDataVolume,
   formatDate,
   formatDuration,
@@ -543,6 +545,38 @@ describe('formatDataVolume', () => {
     expect(formatDataVolume(0)).toBe('-');
     expect(formatDataVolume(-1)).toBe('-');
     expect(formatDataVolume(NaN)).toBe('-');
+  });
+});
+
+describe('computeBlobBytesPerSecond', () => {
+  it('spreads the window blob payload across its duration', () => {
+    // 8 blobs carry 1 MiB; over 2 seconds that is 512 KiB/s.
+    expect(computeBlobBytesPerSecond(8, 2)).toBe(524288);
+    expect(computeBlobBytesPerSecond(1, 131072)).toBe(1);
+  });
+
+  it('returns null without blobs or a positive duration', () => {
+    expect(computeBlobBytesPerSecond(0, 3600)).toBeNull();
+    expect(computeBlobBytesPerSecond(-5, 3600)).toBeNull();
+    expect(computeBlobBytesPerSecond(NaN, 3600)).toBeNull();
+    expect(computeBlobBytesPerSecond(100, 0)).toBeNull();
+    expect(computeBlobBytesPerSecond(100, -60)).toBeNull();
+    expect(computeBlobBytesPerSecond(100, NaN)).toBeNull();
+  });
+});
+
+describe('formatDataRate', () => {
+  it('appends /s to the tiered volume rendering', () => {
+    expect(formatDataRate(262144)).toBe('256 KB/s');
+    expect(formatDataRate(1048576)).toBe('1 MB/s');
+    expect(formatDataRate(1073741824 * 1.5)).toBe('1.5 GB/s');
+  });
+
+  it('renders a placeholder for missing or invalid rates', () => {
+    expect(formatDataRate(null)).toBe('-');
+    expect(formatDataRate(0)).toBe('-');
+    expect(formatDataRate(-1)).toBe('-');
+    expect(formatDataRate(Infinity)).toBe('-');
   });
 });
 

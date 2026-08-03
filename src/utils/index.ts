@@ -830,6 +830,31 @@ export function formatDataVolume(bytes: number): string {
 }
 
 /**
+ * Sustained data rate implied by a window's blob count, in bytes per
+ * second. Returns null without blobs or a positive duration.
+ */
+export function computeBlobBytesPerSecond(
+  totalBlobs: number,
+  durationSeconds: number
+): number | null {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return null;
+
+  const bytes = blobCountToBytes(totalBlobs);
+  if (bytes <= 0) return null;
+
+  return bytes / durationSeconds;
+}
+
+/** Render a byte rate like "57.1 KB/s" or "1.2 MB/s". */
+export function formatDataRate(bytesPerSecond: number | null): string {
+  if (bytesPerSecond === null || !Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) {
+    return '-';
+  }
+
+  return `${formatDataVolume(bytesPerSecond)}/s`;
+}
+
+/**
  * How many 1.44 MB floppy disks the bytes would fill, e.g. "728 floppy
  * disks" or "72.8K floppy disks". Returns null below one full disk so
  * callers can fall back to a plainer caption.

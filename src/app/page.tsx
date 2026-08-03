@@ -27,9 +27,6 @@ export default function Home() {
 
       <div className="container mx-auto px-4 py-12 max-w-7xl">
         <LiveMetrics />
-        <div className="mt-12">
-          <RelatableStats />
-        </div>
       </div>
 
       <div className="border-t border-frameLine" />
@@ -47,6 +44,12 @@ export default function Home() {
           </div>
           <MetricsCharts />
         </div>
+      </div>
+
+      <div className="border-t border-frameLine" />
+
+      <div className="container mx-auto px-4 py-12 max-w-7xl">
+        <RelatableStats />
       </div>
     </>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo } from 'react';
-import { Clock3, Coins, HardDrive, PiggyBank } from 'lucide-react';
+import { Clock3, Coins, Gauge, HardDrive, PiggyBank } from 'lucide-react';
 import MetricCard from './MetricCard';
 import DataStateWrapper from './DataStateWrapper';
 import { useApiData } from '../hooks/useApiData';
@@ -20,12 +20,14 @@ import {
 } from '../types';
 import {
   blobCountToBytes,
+  computeBlobBytesPerSecond,
   computeCostPerMibWei,
   computeSecondsPerBlob,
   durationSecondsBetween,
   formatBlobCadence,
   formatBlobCount,
   formatCostEthOrWei,
+  formatDataRate,
   formatDataVolume,
   formatFloppyEquivalent,
   formatPercent,
@@ -33,10 +35,13 @@ import {
   selectTopUsageShare,
 } from '../utils';
 
+const SECONDS_PER_DAY = 86400;
+
 /**
  * Derived stats that translate the raw window metrics into everyday units:
- * cost per MB posted, blob cadence, savings vs calldata, and total data
- * volume. Every card follows the global time range filter, and the query
+ * cost per MB posted, blob cadence, sustained bandwidth, savings vs
+ * calldata, and total data volume. Every card follows the global time range
+ * filter, and the query
  * keys deliberately match LiveMetrics (stats-windows) and useChartData
  * (chart-attribution, chart-cost-comparison) so the strip reads the same
  * cache entries instead of issuing extra requests.
@@ -124,6 +129,7 @@ export default function RelatableStats() {
     const savingsPercent = costComparison?.summary.savings_percent;
 
     const postedBytes = blobCountToBytes(totalBlobs);
+    const bytesPerSecond = computeBlobBytesPerSecond(totalBlobs, selectedWindow.durationSeconds);
 
     return [
       {
@@ -143,6 +149,15 @@ export default function RelatableStats() {
             ? `${topShare.name}: one every ${topShareCadence}`
             : 'Across every blob poster',
         icon: Clock3,
+      },
+      {
+        title: `Blob Bandwidth (${label})`,
+        value: formatDataRate(bytesPerSecond),
+        description:
+          bytesPerSecond !== null
+            ? `${formatDataVolume(bytesPerSecond * SECONDS_PER_DAY)} per day at this pace`
+            : 'No blob data in this window',
+        icon: Gauge,
       },
       {
         title: `Saved vs Calldata (${timeRange})`,
@@ -171,8 +186,8 @@ export default function RelatableStats() {
   const haveHeadline = Boolean(selectedWindow);
 
   const loadingComponent = (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-      {[...Array(4)].map((_, index) => (
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6">
+      {[...Array(5)].map((_, index) => (
         <div key={index} className="animate-pulse bg-[#14161a] rounded-lg p-5 border border-divider">
           <div className="h-5 bg-[#26282e] rounded w-3/4 mb-3"></div>
           <div className="h-7 bg-[#26282e] rounded w-1/2 mb-2"></div>
@@ -192,7 +207,7 @@ export default function RelatableStats() {
         loadingComponent={loadingComponent}
       >
         {selectedWindow && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6">
             {metrics.map((metric) => (
               <MetricCard
                 key={metric.title}
