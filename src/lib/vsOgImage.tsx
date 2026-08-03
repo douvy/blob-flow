@@ -154,48 +154,62 @@ function Contender({
         width: 440,
       }}
     >
-      {iconDataUri ? (
-        <div
-          style={{
-            display: 'flex',
-            width: 88,
-            height: 88,
-            borderRadius: 9999,
-            backgroundImage: `url("${iconDataUri}")`,
-            backgroundSize: '88px 88px',
-            backgroundRepeat: 'no-repeat',
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 88,
-            height: 88,
-            borderRadius: 9999,
-            backgroundColor: '#6b7280',
-            color: 'white',
-            fontSize: 40,
-          }}
-        >
-          {getAttributionInitial(name)}
-        </div>
-      )}
+      <div style={{ display: 'flex', position: 'relative' }}>
+        {iconDataUri ? (
+          <div
+            style={{
+              display: 'flex',
+              width: 88,
+              height: 88,
+              borderRadius: 9999,
+              backgroundImage: `url("${iconDataUri}")`,
+              backgroundSize: '88px 88px',
+              backgroundRepeat: 'no-repeat',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 88,
+              height: 88,
+              borderRadius: 9999,
+              backgroundColor: '#6b7280',
+              color: 'white',
+              fontSize: 40,
+            }}
+          >
+            {getAttributionInitial(name)}
+          </div>
+        )}
+        {isWinner ? (
+          <div
+            style={{
+              display: 'flex',
+              position: 'absolute',
+              top: -26,
+              left: 0,
+              width: 88,
+              justifyContent: 'center',
+              fontSize: 24,
+            }}
+          >
+            👑
+          </div>
+        ) : null}
+      </div>
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 10,
           color: 'white',
           fontFamily: 'Windsor Bold',
           fontSize: 38,
           textAlign: 'center',
         }}
       >
-        {isWinner ? <span style={{ fontSize: 28 }}>👑</span> : null}
-        <span>{name}</span>
+        {name}
       </div>
     </div>
   );
