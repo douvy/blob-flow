@@ -5,7 +5,7 @@
 import type { Network } from '../types';
 
 export const APP_NAME = 'Blob Flow';
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://blob-indexer.ahkc.win/api/v1';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.blobflow.com/api/v1';
 // Canonical site origin for SEO metadata (Open Graph URLs, sitemap, robots).
 // Set NEXT_PUBLIC_SITE_URL in production; falls back to Vercel's production
 // domain, then the current deployment URL. Trailing slashes are stripped so
