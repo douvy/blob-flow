@@ -1,8 +1,8 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
 import { Maximize2 } from 'lucide-react';
+import ChartViewLink from './ChartViewLink';
 import { useChartData } from '../hooks/useChartData';
 import DataStateWrapper from './DataStateWrapper';
 import { CHART_VIEWS } from './charts/chartViews';
@@ -38,14 +38,14 @@ export default function MetricsCharts() {
                   <h3 className="text-md font-medium text-white">
                     {view.getTitle(chartData)}
                   </h3>
-                  <Link
+                  <ChartViewLink
                     href={`/charts/${view.id}`}
                     className="flex h-8 w-8 flex-none items-center justify-center rounded-md border border-divider bg-[#1d1f23] text-blue transition-colors hover:bg-[#252936] hover:text-lightBlue focus:outline-none focus:ring-2 focus:ring-blue/60"
                     aria-label={`Open ${view.getTitle(chartData)} enlarged`}
                     title="Enlarge graph"
                   >
                     <Maximize2 className="h-4 w-4" aria-hidden="true" />
-                  </Link>
+                  </ChartViewLink>
                 </div>
                 <div className={view.dashboardFrameClassName}>
                   {view.render(chartData)}

@@ -1,9 +1,9 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Minimize2 } from 'lucide-react';
+import ChartViewLink from '@/components/ChartViewLink';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { useChartData } from '@/hooks/useChartData';
 import { CHART_CARD_CLASS } from '@/constants/chartTheme';
@@ -20,7 +20,7 @@ function ChartTabs({ activeId }: { activeId?: string }) {
         const isActive = chartView.id === activeId;
 
         return (
-          <Link
+          <ChartViewLink
             key={chartView.id}
             href={`/charts/${chartView.id}`}
             className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${isActive
@@ -30,7 +30,7 @@ function ChartTabs({ activeId }: { activeId?: string }) {
             aria-current={isActive ? 'page' : undefined}
           >
             {chartView.shortTitle}
-          </Link>
+          </ChartViewLink>
         );
       })}
     </nav>
@@ -77,13 +77,13 @@ function ChartDetail({ view }: { view: ChartView }) {
                 {view.getCoverageLabel(chartData)}
               </p>
             </div>
-            <Link
+            <ChartViewLink
               href="/#data-trends"
               className="inline-flex h-8 items-center justify-center gap-2 self-start rounded-md border border-divider bg-[#1d1f23] px-3 text-sm text-bodyText transition-colors hover:bg-[#252936] hover:text-white focus:outline-none focus:ring-2 focus:ring-blue/60"
             >
               <Minimize2 className="h-4 w-4" aria-hidden="true" />
               Dashboard
-            </Link>
+            </ChartViewLink>
           </div>
           <div className={view.detailFrameClassName}>
             {view.getPointCount(chartData) > 0 ? view.render(chartData) : <EmptyChartState />}
@@ -113,13 +113,13 @@ export default function ChartDetailPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-[1600px]">
-        <Link
+        <ChartViewLink
           href="/#data-trends"
           className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to Dashboard
-        </Link>
+        </ChartViewLink>
 
         {view ? (
           <section>
