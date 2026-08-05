@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
+import Link from '@/components/NetworkLink';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Minimize2 } from 'lucide-react';
 import DataStateWrapper from '@/components/DataStateWrapper';

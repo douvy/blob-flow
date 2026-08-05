@@ -3,7 +3,13 @@
  */
 import { getAddress } from 'viem';
 import { BackendAttributionUsageShare, BlobResponse, Network, SearchTarget } from '@/types';
-import { ATTRIBUTION_CONTRIBUTING_URL, ATTRIBUTION_REPO_URL, NETWORKS, SECONDS_PER_BLOCK } from '@/constants';
+import {
+  ATTRIBUTION_CONTRIBUTING_URL,
+  ATTRIBUTION_REPO_URL,
+  DEFAULT_NETWORK,
+  NETWORKS,
+  SECONDS_PER_BLOCK,
+} from '@/constants';
 import { SERIES_COLOR_PALETTE, SERIES_CATEGORY_NEUTRALS } from '@/constants/chartTheme';
 import { DATA_COMPARISONS } from '@/constants/dataComparisons';
 import { ENTITY_ICONS, EntityIcon } from '@/constants/entityIcons.generated';
@@ -57,6 +63,64 @@ export function safeExplorerUrl(url?: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+// Networks are identified by a short lowercase slug; anything else is not a
+// network segment and must never be pasted into a path.
+const NETWORK_SEGMENT_PATTERN = /^[a-z0-9-]{1,32}$/;
+
+/**
+ * Scope an in-app path to a network. The default network keeps the bare paths
+ * (`/blocks`) and every other network is prefixed (`/sepolia/blocks`), so a
+ * URL always states which network it shows and can be shared as-is. Query
+ * strings and fragments are preserved; anything that is not an in-app path is
+ * returned untouched.
+ */
+export function networkPath(path: string, apiParam?: string): string {
+  if (!apiParam || !path.startsWith('/')) return path;
+
+  const network = apiParam.toLowerCase();
+  if (network === DEFAULT_NETWORK.apiParam || !NETWORK_SEGMENT_PATTERN.test(network)) {
+    return path;
+  }
+
+  const [, pathname, suffix] = path.match(/^([^?#]*)(.*)$/) as RegExpMatchArray;
+  return `/${network}${pathname === '/' ? '' : pathname}${suffix}`;
+}
+
+/**
+ * Inverse of networkPath: drop a leading network segment so a path can be
+ * re-scoped to another network or matched against the bare routes.
+ */
+export function stripNetworkPath(path: string, knownNetworks: string[]): string {
+  const match = path.match(/^\/([^/?#]+)(.*)$/);
+  if (!match) return path;
+
+  const [, firstSegment, rest] = match;
+  if (!knownNetworks.includes(decodeURIComponent(firstSegment).toLowerCase())) return path;
+
+  return rest.startsWith('/') ? rest : `/${rest}`;
+}
+
+/**
+ * Shorten a transaction hash for display, keeping both ends so two hashes
+ * stay distinguishable at a glance.
+ */
+export function truncateTxHash(hash: string): string {
+  if (hash.length <= 14) return hash;
+  return `${hash.substring(0, 10)}...${hash.substring(hash.length - 4)}`;
+}
+
+/**
+ * Host of a block explorer URL, so outbound links can name where they go
+ * (e.g. "etherscan.io") instead of leaving the destination to guesswork.
+ * Returns null for anything safeExplorerUrl rejects.
+ */
+export function explorerHostLabel(url?: string): string | null {
+  const safe = safeExplorerUrl(url);
+  if (!safe) return null;
+
+  return new URL(safe).hostname.replace(/^www\./, '');
 }
 
 export function getAttributionImageSrc(name: string): string | null {
@@ -211,6 +275,16 @@ const ATTRIBUTION_CHAINS: Record<string, { caip2: string; explorerUrl: string }>
 };
 
 /**
+ * Block explorer transaction URL for a network, used when the indexer has no
+ * row for a hash and therefore no explorer link of its own. Returns null for
+ * networks with no known explorer.
+ */
+export function explorerTxUrl(txHash: string, networkApiParam?: string): string | null {
+  const chain = ATTRIBUTION_CHAINS[networkApiParam ?? 'mainnet'];
+  return chain ? `${chain.explorerUrl}/tx/${txHash}` : null;
+}
+
+/**
  * Prefilled GitHub "new file" URL for suggesting an attribution in the
  * blob-list registry. When a contributor without write access commits the
  * prefilled file, GitHub forks the repo and opens a pull request, so the
@@ -273,6 +347,26 @@ addresses:
     value: template,
   });
   return `${ATTRIBUTION_REPO_URL}/new/main?${params.toString()}`;
+}
+
+/**
+ * Render an ISO timestamp in the viewer's local timezone, e.g.
+ * "Jul 13, 2026, 14:56:35", matching the local-time labels on the charts.
+ * Unparseable input is passed through unchanged.
+ */
+export function formatLocalTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp;
+
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
 }
 
 export function formatDate(date: Date): string {
@@ -498,6 +592,24 @@ export function formatBlobWeiCost(weiValue?: string): string {
   // branch, which would overstate the cost by 1e18.
   const integerWei = weiValue.split('.')[0];
   return safeFormat(() => formatCostEthOrWei(integerWei));
+}
+
+/**
+ * A cost field as a wei amount, so costs from different rows can be added.
+ * Follows the indexer's convention that a decimal string is denominated in
+ * ETH and an integer string in wei. Returns null for a missing or malformed
+ * value, which lets callers tell a genuine zero from an unusable field
+ * instead of silently dropping it from a total.
+ */
+export function costToWei(costEthOrWei?: string | number): bigint | null {
+  if (costEthOrWei === undefined || costEthOrWei === null || costEthOrWei === '') return null;
+
+  try {
+    const rawCost = normalizeDecimalString(costEthOrWei);
+    return rawCost.includes('.') ? ethStringToWei(rawCost) : BigInt(rawCost);
+  } catch {
+    return null;
+  }
 }
 
 export function formatBlobTotalCost(totalCost?: string): string {

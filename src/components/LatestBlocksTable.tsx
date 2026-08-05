@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
+import Link from '@/components/NetworkLink';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLiveBlockList } from '../hooks/useLiveBlockList';
 import { useApiData } from '../hooks/useApiData';

@@ -11,6 +11,14 @@ vi.mock('../lib/api', () => ({
   },
 }));
 
+// The network is a route segment, so the hook reads it out of the URL.
+const route = { params: {} as Record<string, string>, pathname: '/' };
+
+vi.mock('next/navigation', () => ({
+  useParams: () => route.params,
+  usePathname: () => route.pathname,
+}));
+
 const getNetworks = vi.mocked(api.getNetworks);
 
 const BACKEND_NETWORKS: BackendNetwork[] = [
@@ -19,10 +27,15 @@ const BACKEND_NETWORKS: BackendNetwork[] = [
   { chain_id: 560048, name: 'hoodi' },
 ];
 
+function onPath(pathname: string, network?: string) {
+  route.pathname = pathname;
+  route.params = network ? { network } : {};
+}
+
 describe('useNetwork', () => {
   beforeEach(() => {
     vi.mocked(api.getNetworks).mockReset();
-    window.localStorage.clear();
+    onPath('/');
     getNetworks.mockResolvedValue({ success: true, data: BACKEND_NETWORKS });
   });
 
@@ -80,8 +93,15 @@ describe('useNetwork', () => {
     expect(sepolia.icon).toBeUndefined();
   });
 
-  it('honors a persisted selection stored as an apiParam', async () => {
-    window.localStorage.setItem('selectedNetwork', JSON.stringify('hoodi'));
+  it('shows the default network on the bare paths', async () => {
+    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+    expect(result.current.selectedNetwork.apiParam).toBe(DEFAULT_NETWORK.apiParam);
+  });
+
+  it('reads the network out of the path', async () => {
+    onPath('/hoodi/blocks', 'hoodi');
 
     const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
 
@@ -89,24 +109,36 @@ describe('useNetwork', () => {
     expect(result.current.selectedNetwork.apiParam).toBe('hoodi');
   });
 
-  it('honors a legacy selection persisted as a display name', async () => {
-    window.localStorage.setItem('selectedNetwork', JSON.stringify('Hoodi'));
+  it('accepts a network segment in any casing', async () => {
+    onPath('/Hoodi/blocks', 'Hoodi');
 
     const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
 
     await waitFor(() => expect(result.current.selectedNetwork.apiParam).toBe('hoodi'));
   });
 
-  it('selects a dynamic-only persisted network immediately while loading', () => {
+  it('trusts a dynamic-only path network while the list is in flight', () => {
     // Never resolves, so only the pre-fetch (fallback) path runs.
     getNetworks.mockReturnValue(new Promise(() => {}));
-    window.localStorage.setItem('selectedNetwork', JSON.stringify('hoodi'));
+    onPath('/hoodi', 'hoodi');
 
     const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
 
-    // Hoodi is not in the hardcoded fallback, but must not flash to the default.
+    // Hoodi is not in the hardcoded fallback, but must not flash to the
+    // default and open the wrong live-data connection.
     expect(result.current.selectedNetwork.apiParam).toBe('hoodi');
     expect(result.current.selectedNetwork.name).toBe('Hoodi');
+  });
+
+  it('ignores a segment that is not shaped like a network', async () => {
+    // The route matches any single segment; a value that cannot be a network
+    // must never reach the API as a query value.
+    onPath('/mainnet&limit=1/blocks', 'mainnet&limit=1');
+
+    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+    expect(result.current.selectedNetwork.apiParam).toBe(DEFAULT_NETWORK.apiParam);
   });
 
   it('falls back to the hardcoded networks while the request is in flight', () => {
@@ -118,43 +150,16 @@ describe('useNetwork', () => {
     expect(result.current.selectedNetwork.name).toBe(DEFAULT_NETWORK.name);
   });
 
-  it('resets to the default when a persisted network no longer exists', async () => {
-    window.localStorage.setItem('selectedNetwork', JSON.stringify('holesky'));
-
-    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
-
-    // Once the list loads and holesky is absent, selection lands on the default.
-    await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
-    expect(result.current.selectedNetwork.apiParam).toBe(DEFAULT_NETWORK.apiParam);
-  });
-
-  it('rewrites storage when a persisted network no longer exists', async () => {
-    window.localStorage.setItem('selectedNetwork', JSON.stringify('holesky'));
-
-    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
-
-    // Storage is corrected to the resolved default so later reloads stay clean.
-    await waitFor(() =>
-      expect(window.localStorage.getItem('selectedNetwork')).toBe(
-        JSON.stringify(DEFAULT_NETWORK.apiParam)
-      )
-    );
-    expect(result.current.selectedNetwork.apiParam).toBe(DEFAULT_NETWORK.apiParam);
-  });
-
-  it('does not trust a persisted network on fetch error, but preserves it', async () => {
+  it('keeps reading the path network when the list failed to load', async () => {
     getNetworks.mockRejectedValue(new Error('network down'));
-    window.localStorage.setItem('selectedNetwork', JSON.stringify('hoodi'));
+    onPath('/hoodi/blocks', 'hoodi');
 
     const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
 
-    // On error the list is unknown, so selection settles on a network the selector
-    // can actually show instead of querying a maybe-dead one.
-    await waitFor(() =>
-      expect(result.current.selectedNetwork.apiParam).toBe(DEFAULT_NETWORK.apiParam)
-    );
-    // The preference is left intact so it returns once /networks recovers.
-    expect(window.localStorage.getItem('selectedNetwork')).toBe(JSON.stringify('hoodi'));
+    // The segment was already validated server-side, so an unreachable list is
+    // no reason to stop showing the network the URL asks for.
+    await waitFor(() => expect(getNetworks).toHaveBeenCalled());
+    expect(result.current.selectedNetwork.apiParam).toBe('hoodi');
   });
 
   it('ignores malformed network entries with empty names', async () => {
@@ -169,25 +174,96 @@ describe('useNetwork', () => {
     expect(result.current.networkOptions.every((n) => n.apiParam !== '')).toBe(true);
   });
 
-  it('updates selected network and persists selection', () => {
-    const reloadSpy = vi.fn();
+  describe('switching network', () => {
+    const assignSpy = vi.fn();
     const originalLocation = window.location;
-    // Replace location object so reload can be controlled in jsdom.
-    delete (window as Window & { location?: Location }).location;
-    (window as Window & { location: Location }).location = {
-      ...originalLocation,
-      reload: reloadSpy,
-    };
 
-    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
-
-    act(() => {
-      result.current.setSelectedNetwork(DEFAULT_NETWORK);
+    beforeEach(() => {
+      assignSpy.mockReset();
+      // Replace location so navigation can be observed in jsdom.
+      delete (window as Window & { location?: Location }).location;
+      (window as Window & { location: Location }).location = {
+        ...originalLocation,
+        search: '',
+        hash: '',
+        assign: assignSpy,
+      };
     });
 
-    expect(window.localStorage.getItem('selectedNetwork')).toBe(JSON.stringify('mainnet'));
-    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    function withLocation(search: string, hash: string) {
+      (window as Window & { location: Location }).location = {
+        ...window.location,
+        search,
+        hash,
+        assign: assignSpy,
+      };
+    }
 
-    (window as Window & { location: Location }).location = originalLocation;
+    afterEach(() => {
+      (window as Window & { location: Location }).location = originalLocation;
+    });
+
+    it('keeps the current page and swaps the network segment', async () => {
+      onPath('/block/123');
+      const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+      await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+
+      act(() => {
+        result.current.setSelectedNetwork({ name: 'Hoodi', apiParam: 'hoodi' });
+      });
+
+      expect(assignSpy).toHaveBeenCalledWith('/hoodi/block/123');
+    });
+
+    it('swaps a network the option list has not caught up with', async () => {
+      // /networks is still in flight, so hoodi is not in networkOptions. The
+      // segment must still be replaced rather than stacked onto.
+      getNetworks.mockReturnValue(new Promise(() => {}));
+      onPath('/hoodi/block/123', 'hoodi');
+      const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+
+      act(() => {
+        result.current.setSelectedNetwork({ name: 'Sepolia', apiParam: 'sepolia' });
+      });
+
+      expect(assignSpy).toHaveBeenCalledWith('/sepolia/block/123');
+    });
+
+    it('carries the query string and fragment across the switch', async () => {
+      onPath('/charts/base-fee');
+      withLocation('?range=24h', '#chart');
+      const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+      await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+
+      act(() => {
+        result.current.setSelectedNetwork({ name: 'Sepolia', apiParam: 'sepolia' });
+      });
+
+      expect(assignSpy).toHaveBeenCalledWith('/sepolia/charts/base-fee?range=24h#chart');
+    });
+
+    it('returns to the bare paths for the default network', async () => {
+      onPath('/hoodi/block/123', 'hoodi');
+      const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+      await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+
+      act(() => {
+        result.current.setSelectedNetwork(DEFAULT_NETWORK);
+      });
+
+      expect(assignSpy).toHaveBeenCalledWith('/block/123');
+    });
+
+    it('switches the dashboard without leaving a trailing slash', async () => {
+      onPath('/');
+      const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+      await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+
+      act(() => {
+        result.current.setSelectedNetwork({ name: 'Sepolia', apiParam: 'sepolia' });
+      });
+
+      expect(assignSpy).toHaveBeenCalledWith('/sepolia');
+    });
   });
 });
