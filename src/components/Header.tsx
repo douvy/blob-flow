@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore }
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, type LucideIcon } from 'lucide-react';
+import { Blocks, Clock3, Database, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, type LucideIcon } from 'lucide-react';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
@@ -35,6 +35,12 @@ const NAV_LINKS: NavLink[] = [
   { href: '/', label: 'Home', icon: Home, activePrefixes: [] },
   { href: '/blocks', label: 'Blocks', icon: Blocks, activePrefixes: ['/blocks', '/block'] },
   { href: '/mempool', label: 'Mempool', icon: Hourglass, activePrefixes: ['/mempool'] },
+  {
+    href: '/blob-archive',
+    label: 'Blob Archive',
+    icon: Database,
+    activePrefixes: ['/blob-archive'],
+  },
 ];
 
 const LIVE_STATUS_STYLES: Record<BlobWebSocketConnectionState, { label: string; color: string }> = {

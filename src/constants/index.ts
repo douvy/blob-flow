@@ -94,6 +94,16 @@ export const BLOB_ARCHIVE_SITE_URL = 'https://blobarchive.net';
 export const BLOAR_REPO_URL = 'https://github.com/blobarchive/bloar';
 
 /**
+ * Public read API of the BlobArchive follower, documented on /blob-archive.
+ * Distinct from BLOB_ARCHIVE_URL, the server-only in-cluster address the raw
+ * blob proxy route talks to.
+ */
+export const BLOB_ARCHIVE_PUBLIC_URL = 'https://blobs.blobflow.com';
+
+/** First slot of the Deneb fork, where blob history begins. */
+export const BLOB_ARCHIVE_DENEB_SLOT = 8626176;
+
+/**
  * Public registry mapping blob-submitting addresses to entities. Unattributed
  * user pages link here so visitors can contribute an attribution.
  */
