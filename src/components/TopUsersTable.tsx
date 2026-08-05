@@ -189,7 +189,10 @@ export default function TopUsersTable() {
 
           return (
             <div className="flex items-center">
-              <span className="mr-3">{user.percentage}%</span>
+              {/* min-w, not w: every real share reserves the same 56px so the
+                  bars line up, but an out-of-range value from the API widens
+                  its own cell instead of overlapping the bar. */}
+              <span className="mr-3 shrink-0 tabular-nums sm:min-w-14">{user.percentage}%</span>
               <div className="hidden h-2.5 w-32 rounded-full bg-[#2a2f37] sm:block">
                 <div
                   className="h-2.5 rounded-full"
@@ -264,7 +267,7 @@ export default function TopUsersTable() {
               </TableCell>
               <TableCell className={CELL_PADDING}>
                 <div className="flex items-center">
-                  <Skeleton className="mr-3 h-5 w-12" />
+                  <Skeleton className="mr-3 h-5 w-12 shrink-0 sm:w-14" />
                   <div className="hidden h-2.5 w-32 rounded-full bg-[#2a2f37] sm:block">
                     <Skeleton className="h-2.5 w-3/5 rounded-full" />
                   </div>

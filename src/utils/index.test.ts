@@ -2,22 +2,32 @@ import {
   assignSeriesColors,
   attributionColorKey,
   beaconSlotForBlob,
+  blobCountToBytes,
+  computeBlobBytesPerSecond,
+  computeCostPerMibWei,
+  computeSecondsPerBlob,
   costToWei,
   deriveBeaconSlot,
+  durationSecondsBetween,
   explorerHostLabel,
   explorerTxUrl,
+  formatBlobCadence,
   formatBlobCount,
   formatBlobFee,
   formatBlobSize,
   formatBlobTotalCost,
   formatBlobWeiCost,
   formatCostEthOrWei,
+  formatDataRate,
+  formatDataVolume,
   formatDate,
   formatDuration,
   formatFeeHeadroom,
+  formatDataComparison,
   formatGwei,
   formatNumber,
   formatPercent,
+  formatSignedWeiToEth,
   formatUtilizationPercent,
   formatWeiToGwei,
   formatWeiToEth,
@@ -32,11 +42,14 @@ import {
   networkPath,
   parseSearchQuery,
   safeExplorerUrl,
+  selectTopUsageShare,
   stripNetworkPath,
   truncateAddress,
   truncateTxHash,
 } from './index';
 import { NETWORKS } from '@/constants';
+import type { BackendAttributionUsageShare } from '@/types';
+import { DATA_COMPARISONS } from '@/constants/dataComparisons';
 
 describe('utils', () => {
   it('formats numbers with locale separators', () => {
@@ -484,5 +497,337 @@ describe('beaconSlotForBlob', () => {
     expect(
       beaconSlotForBlob({ timestamp: 'not-a-date', network_name: 'holesky' })
     ).toBeNull();
+  });
+});
+
+describe('computeCostPerMibWei', () => {
+  it('divides the total wei cost by the window blob payload', () => {
+    // 8 blobs carry exactly 1 MiB, so cost per MiB equals the total cost.
+    expect(computeCostPerMibWei(8, '1000000000000000000')).toBe(BigInt('1000000000000000000'));
+    // 16 blobs carry 2 MiB, halving the per-MiB cost.
+    expect(computeCostPerMibWei(16, '1000000000000000000')).toBe(BigInt('500000000000000000'));
+  });
+
+  it('keeps exact precision for totals beyond Number range', () => {
+    expect(computeCostPerMibWei(8, '123456789012345678901234567890')).toBe(
+      BigInt('123456789012345678901234567890')
+    );
+  });
+
+  it('truncates fractional wei totals instead of misreading them', () => {
+    expect(computeCostPerMibWei(8, '1000.9')).toBe(BigInt(1000));
+  });
+
+  it('falls back to total_cost_eth with the decimal-means-ETH heuristic', () => {
+    // 4 blobs carry 0.5 MiB, so 0.5 ETH total is 1 ETH per MiB.
+    expect(computeCostPerMibWei(4, undefined, '0.5')).toBe(BigInt('1000000000000000000'));
+    // Integer strings in the eth field are wei from older backends.
+    expect(computeCostPerMibWei(8, undefined, '1000000000000000000')).toBe(
+      BigInt('1000000000000000000')
+    );
+  });
+
+  it('returns null for zero blobs, missing cost, or malformed input', () => {
+    expect(computeCostPerMibWei(0, '1000')).toBeNull();
+    expect(computeCostPerMibWei(-3, '1000')).toBeNull();
+    expect(computeCostPerMibWei(2.5, '1000')).toBeNull();
+    expect(computeCostPerMibWei(NaN, '1000')).toBeNull();
+    expect(computeCostPerMibWei(8)).toBeNull();
+    expect(computeCostPerMibWei(8, '')).toBeNull();
+    expect(computeCostPerMibWei(8, 'abc')).toBeNull();
+    expect(computeCostPerMibWei(8, undefined, 'abc')).toBeNull();
+    expect(computeCostPerMibWei(8, undefined, '-1.5')).toBeNull();
+  });
+});
+
+describe('computeSecondsPerBlob', () => {
+  it('averages the window duration across its blobs', () => {
+    expect(computeSecondsPerBlob(7200, 86400)).toBe(12);
+    expect(computeSecondsPerBlob(1, 5)).toBe(5);
+  });
+
+  it('returns null without blobs or a positive duration', () => {
+    expect(computeSecondsPerBlob(0, 86400)).toBeNull();
+    expect(computeSecondsPerBlob(-5, 86400)).toBeNull();
+    expect(computeSecondsPerBlob(NaN, 86400)).toBeNull();
+    expect(computeSecondsPerBlob(100, 0)).toBeNull();
+    expect(computeSecondsPerBlob(100, -60)).toBeNull();
+    expect(computeSecondsPerBlob(100, NaN)).toBeNull();
+  });
+});
+
+describe('formatBlobCadence', () => {
+  it('renders sub-minute intervals in seconds', () => {
+    expect(formatBlobCadence(1.34)).toBe('1.3s');
+    expect(formatBlobCadence(45)).toBe('45s');
+  });
+
+  it('clamps sub-tenth intervals instead of showing 0s', () => {
+    expect(formatBlobCadence(0.04)).toBe('<0.1s');
+  });
+
+  it('delegates minute-plus intervals to formatDuration', () => {
+    expect(formatBlobCadence(90)).toBe('2 min');
+    expect(formatBlobCadence(7200)).toBe('2 hr');
+  });
+
+  it('renders a placeholder for missing or invalid cadence', () => {
+    expect(formatBlobCadence(null)).toBe('-');
+    expect(formatBlobCadence(0)).toBe('-');
+    expect(formatBlobCadence(-3)).toBe('-');
+    expect(formatBlobCadence(Infinity)).toBe('-');
+  });
+});
+
+describe('blobCountToBytes', () => {
+  it('multiplies by the 128 KiB blob payload', () => {
+    expect(blobCountToBytes(1)).toBe(131072);
+    expect(blobCountToBytes(8)).toBe(1048576);
+  });
+
+  it('maps malformed counts to zero bytes', () => {
+    expect(blobCountToBytes(0)).toBe(0);
+    expect(blobCountToBytes(-4)).toBe(0);
+    expect(blobCountToBytes(NaN)).toBe(0);
+  });
+});
+
+describe('formatDataVolume', () => {
+  it('adds GB and TB tiers above formatBlobSize', () => {
+    expect(formatDataVolume(1073741824)).toBe('1 GB');
+    expect(formatDataVolume(1073741824 * 1.5)).toBe('1.5 GB');
+    expect(formatDataVolume(1099511627776)).toBe('1 TB');
+    expect(formatDataVolume(1099511627776 * 2.25)).toBe('2.25 TB');
+  });
+
+  it('falls through to formatBlobSize below a GB', () => {
+    expect(formatDataVolume(1048576)).toBe('1 MB');
+    expect(formatDataVolume(131072)).toBe('128 KB');
+  });
+
+  it('renders a placeholder for empty or invalid volumes', () => {
+    expect(formatDataVolume(0)).toBe('-');
+    expect(formatDataVolume(-1)).toBe('-');
+    expect(formatDataVolume(NaN)).toBe('-');
+  });
+});
+
+describe('computeBlobBytesPerSecond', () => {
+  it('spreads the window blob payload across its duration', () => {
+    // 8 blobs carry 1 MiB; over 2 seconds that is 512 KiB/s.
+    expect(computeBlobBytesPerSecond(8, 2)).toBe(524288);
+    expect(computeBlobBytesPerSecond(1, 131072)).toBe(1);
+  });
+
+  it('returns null without blobs or a positive duration', () => {
+    expect(computeBlobBytesPerSecond(0, 3600)).toBeNull();
+    expect(computeBlobBytesPerSecond(-5, 3600)).toBeNull();
+    expect(computeBlobBytesPerSecond(NaN, 3600)).toBeNull();
+    expect(computeBlobBytesPerSecond(100, 0)).toBeNull();
+    expect(computeBlobBytesPerSecond(100, -60)).toBeNull();
+    expect(computeBlobBytesPerSecond(100, NaN)).toBeNull();
+  });
+});
+
+describe('formatDataRate', () => {
+  it('appends /s to the tiered volume rendering', () => {
+    expect(formatDataRate(262144)).toBe('256 KB/s');
+    expect(formatDataRate(1048576)).toBe('1 MB/s');
+    expect(formatDataRate(1073741824 * 1.5)).toBe('1.5 GB/s');
+  });
+
+  it('renders a placeholder for missing or invalid rates', () => {
+    expect(formatDataRate(null)).toBe('-');
+    expect(formatDataRate(0)).toBe('-');
+    expect(formatDataRate(-1)).toBe('-');
+    expect(formatDataRate(Infinity)).toBe('-');
+  });
+});
+
+describe('formatDataComparison', () => {
+  const MB = 1024 * 1024;
+  const GB = MB * 1024;
+  const TB = GB * 1024;
+
+  it('renders a comparison with a count for the volume', () => {
+    // A floppy disk is the first pool entry, so seed 0 lands on it.
+    expect(formatDataComparison(200 * MB, 0)).toBe('139 floppy disks');
+  });
+
+  it('walks the pool as the seed advances and wraps around', () => {
+    const first = formatDataComparison(200 * MB, 0);
+    const second = formatDataComparison(200 * MB, 1);
+    expect(second).not.toBe(first);
+
+    // Mirrors the picker's own eligibility rules: the comparison must fit
+    // inside the volume, and its count must stay under a million.
+    const poolSize = DATA_COMPARISONS.filter(
+      (comparison) =>
+        (200 * MB) / comparison.bytes >= 1 &&
+        (200 * MB) / comparison.bytes <= 1_000_000
+    ).length;
+    expect(formatDataComparison(200 * MB, poolSize)).toBe(first);
+  });
+
+  it('never picks a comparison larger than the volume', () => {
+    // 2 MB is smaller than a DVD, a Blu-ray, or Wikipedia, so no seed may
+    // land on one and render a fractional "0.5 DVDs" caption. Sweeping a
+    // range of volumes catches entries that only just overshoot.
+    for (const bytes of [300, 2 * MB, 176.3 * MB, 3 * GB, 9 * TB]) {
+      for (let seed = 0; seed < 120; seed += 1) {
+        const result = formatDataComparison(bytes, seed);
+        expect(result).not.toBeNull();
+        const count = Number.parseFloat(result ?? '');
+        expect(count).toBeGreaterThanOrEqual(1);
+      }
+    }
+  });
+
+  it('keeps a decimal below ten and rounds above it', () => {
+    // 1.44 MB per floppy: 3 MB is a fractional handful of disks.
+    expect(formatDataComparison(3 * MB, 0)).toBe('2.1 floppy disks');
+    expect(formatDataComparison(200 * MB, 0)).toBe('139 floppy disks');
+  });
+
+  it('uses the singular form only for an exact count of one', () => {
+    expect(formatDataComparison(1.44 * MB, 0)).toBe('1 floppy disk');
+    // English pluralizes anything that is not exactly one.
+    expect(formatDataComparison(1.6 * MB, 0)).toBe('1.1 floppy disks');
+  });
+
+  it('compacts very large counts', () => {
+    expect(formatDataComparison(500 * 1024 * MB, 0)).toBe('356K floppy disks');
+  });
+
+  it('reaches for byte-scale comparisons on tiny volumes', () => {
+    // Only the punch card, tweet, text message and emoji fit in 300 bytes.
+    expect(formatDataComparison(300, 0)).toBe('3.8 punch cards');
+    expect(formatDataComparison(300, 1)).toBe('1.1 tweets');
+  });
+
+  it('accepts million-plus counts when nothing smaller fits', () => {
+    // Past this scale even the largest comparison in the pool runs into the
+    // millions, so the readability ceiling gives way rather than returning null.
+    const result = formatDataComparison(1e20, 0);
+    expect(result).not.toBeNull();
+    expect(result).toContain('floppy disks');
+  });
+
+  it('is stable for a given volume and seed', () => {
+    expect(formatDataComparison(200 * MB, 7)).toBe(formatDataComparison(200 * MB, 7));
+  });
+
+  it('tolerates negative and non-finite seeds', () => {
+    expect(formatDataComparison(200 * MB, -1)).not.toBeNull();
+    expect(formatDataComparison(200 * MB, NaN)).toBe(formatDataComparison(200 * MB, 0));
+    expect(formatDataComparison(200 * MB, 2.9)).toBe(formatDataComparison(200 * MB, 2));
+  });
+
+  it('returns null for empty or invalid volumes', () => {
+    expect(formatDataComparison(0, 0)).toBeNull();
+    expect(formatDataComparison(-1, 0)).toBeNull();
+    expect(formatDataComparison(NaN, 0)).toBeNull();
+    // Smaller than the smallest comparison in the pool (a 4-byte emoji).
+    expect(formatDataComparison(1, 0)).toBeNull();
+  });
+});
+
+describe('DATA_COMPARISONS registry', () => {
+  it('offers a hundred comparisons', () => {
+    expect(DATA_COMPARISONS).toHaveLength(100);
+  });
+
+  it('gives every entry a positive size and both grammatical forms', () => {
+    for (const comparison of DATA_COMPARISONS) {
+      expect(comparison.bytes).toBeGreaterThan(0);
+      expect(comparison.singular.length).toBeGreaterThan(0);
+      expect(comparison.plural.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('has no duplicate labels', () => {
+    const labels = DATA_COMPARISONS.map((comparison) => comparison.plural);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+});
+
+describe('formatSignedWeiToEth', () => {
+  it('formats positive and negative wei as compact ETH', () => {
+    expect(formatSignedWeiToEth('1000000000000000000')).toBe('1 ETH');
+    expect(formatSignedWeiToEth('-500000000000000000')).toBe('-0.5 ETH');
+  });
+
+  it('truncates fractional wei', () => {
+    expect(formatSignedWeiToEth('1500000000000000000.75')).toBe('1.5 ETH');
+  });
+
+  it('collapses zero and negative zero to 0 ETH', () => {
+    expect(formatSignedWeiToEth('0')).toBe('0 ETH');
+    expect(formatSignedWeiToEth('-0')).toBe('0 ETH');
+  });
+
+  it('returns null for missing or malformed values', () => {
+    expect(formatSignedWeiToEth(undefined)).toBeNull();
+    expect(formatSignedWeiToEth('')).toBeNull();
+    expect(formatSignedWeiToEth('abc')).toBeNull();
+    expect(formatSignedWeiToEth('--5')).toBeNull();
+  });
+});
+
+describe('selectTopUsageShare', () => {
+  const makeShare = (
+    key: string,
+    category: string,
+    blobCount: number
+  ): BackendAttributionUsageShare => ({
+    key,
+    name: key,
+    category,
+    blob_count: blobCount,
+    total_cost_wei: '0',
+    blob_share_percent: 0,
+    spend_share_percent: 0,
+  });
+
+  it('picks the named entity with the most blobs', () => {
+    const shares = [
+      makeShare('base', 'rollup', 500),
+      makeShare('arbitrum', 'rollup', 900),
+      makeShare('optimism', 'rollup', 700),
+    ];
+    expect(selectTopUsageShare(shares)?.key).toBe('arbitrum');
+  });
+
+  it('never crowns the neutral other/unknown buckets', () => {
+    const shares = [
+      makeShare('unknown', 'unknown', 5000),
+      makeShare('leftovers', 'Other', 4000),
+      makeShare('base', 'rollup', 900),
+    ];
+    expect(selectTopUsageShare(shares)?.key).toBe('base');
+  });
+
+  it('returns null when no named entity posted blobs', () => {
+    expect(selectTopUsageShare([])).toBeNull();
+    expect(selectTopUsageShare([makeShare('unknown', 'unknown', 5000)])).toBeNull();
+    expect(selectTopUsageShare([makeShare('base', 'rollup', 0)])).toBeNull();
+  });
+});
+
+describe('durationSecondsBetween', () => {
+  it('measures the span between two timestamps', () => {
+    expect(
+      durationSecondsBetween('2026-01-01T00:00:00Z', '2026-01-01T01:00:00Z')
+    ).toBe(3600);
+  });
+
+  it('returns null for reversed, equal, or unparseable timestamps', () => {
+    expect(
+      durationSecondsBetween('2026-01-01T01:00:00Z', '2026-01-01T00:00:00Z')
+    ).toBeNull();
+    expect(
+      durationSecondsBetween('2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+    ).toBeNull();
+    expect(durationSecondsBetween('not-a-date', '2026-01-01T00:00:00Z')).toBeNull();
   });
 });

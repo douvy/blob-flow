@@ -2,6 +2,7 @@ import React from 'react';
 import type { Metadata } from 'next';
 import BlobFeeHero from '@/components/BlobFeeHero';
 import LiveMetrics from '@/components/LiveMetrics';
+import RelatableStats from '@/components/RelatableStats';
 import MetricsCharts from '@/components/MetricsCharts';
 import RecentBlocksPanel from '@/components/RecentBlocksPanel';
 import TopUsersTable from '@/components/TopUsersTable';
@@ -40,6 +41,12 @@ export default function Home() {
           </div>
           <MetricsCharts />
         </div>
+      </div>
+
+      <div className="border-t border-frameLine" />
+
+      <div className="container mx-auto px-4 py-12 max-w-7xl">
+        <RelatableStats />
       </div>
     </>
   );
