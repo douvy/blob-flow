@@ -87,6 +87,13 @@ function makeRecords(overrides: Partial<BlobRecords> = {}): BlobRecords {
         totalCostWei: '90000000000000000000',
       },
     ],
+    priciestDays: [
+      {
+        dayStart: '2024-06-20T00:00:00Z',
+        blobCount: 20_762,
+        totalCostWei: '249270000000000000000',
+      },
+    ],
     utilizationDays: [
       {
         dayStart: '2026-05-14T00:00:00Z',
@@ -197,6 +204,12 @@ describe('RecordsPage', () => {
     const dayCard = document.getElementById('busiest-day')!;
     expect(within(dayCard).getByText('98,431')).toBeInTheDocument();
 
+    const priciestCard = document.getElementById('priciest-day')!;
+    expect(
+      within(priciestCard).getByText(/The most burned on blobs in a single UTC day/)
+    ).toBeInTheDocument();
+    expect(within(priciestCard).getByText('20,762 blobs')).toBeInTheDocument();
+
     const utilizationCard = document.getElementById('highest-utilization-day')!;
     // Headline value plus its ranked row repeat the record percentage.
     expect(within(utilizationCard).getAllByText('87.4%')).toHaveLength(2);
@@ -215,6 +228,7 @@ describe('RecordsPage', () => {
         expensiveBlocks: [],
         busiestHours: [],
         busiestDays: [],
+        priciestDays: [],
         utilizationDays: [],
       })
     );
@@ -228,6 +242,7 @@ describe('RecordsPage', () => {
       'most-expensive-block',
       'busiest-hour',
       'busiest-day',
+      'priciest-day',
       'highest-utilization-day',
     ]) {
       expect(document.getElementById(id)).toBeNull();

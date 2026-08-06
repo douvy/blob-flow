@@ -25,7 +25,7 @@ import type {
  */
 export interface BlobRecordSources {
   stats: StatsResponse;
-  attribution: Pick<BackendAttributionUsageChartResponse, 'summary'>;
+  attribution: Pick<BackendAttributionUsageChartResponse, 'summary' | 'points'>;
   records: Pick<
     BackendBlobRecordsResponse,
     | 'full_block_streaks'
@@ -171,6 +171,37 @@ function deriveBusiestDays(records: BlobRecordSources['records']): BusiestDay[] 
     .slice(0, RECORDS_TOP_LIMIT);
 }
 
+/**
+ * UTC days ranked by total blob spend, summed across every attribution
+ * series (including the Unknown and Other buckets, so the totals cover the
+ * whole network). Derived from the attribution day buckets because GET
+ * /records has no spend-per-day list.
+ */
+function derivePriciestDays(
+  attribution: BlobRecordSources['attribution']
+): BusiestDay[] {
+  return (attribution.points ?? [])
+    .map((point) => {
+      let totalCostWei = BigInt(0);
+      let blobCount = 0;
+      for (const value of Object.values(point.values)) {
+        totalCostWei += weiMagnitude(value.total_cost_wei);
+        blobCount += value.blob_count;
+      }
+      return {
+        dayStart: point.timestamp,
+        blobCount,
+        totalCostWei: totalCostWei.toString(),
+      };
+    })
+    .sort(
+      (a, b) =>
+        compareWeiDesc(a.totalCostWei, b.totalCostWei) ||
+        a.dayStart.localeCompare(b.dayStart)
+    )
+    .slice(0, RECORDS_TOP_LIMIT);
+}
+
 function deriveUtilizationDays(
   records: BlobRecordSources['records']
 ): UtilizationDay[] {
@@ -257,6 +288,7 @@ export function deriveBlobRecords(sources: BlobRecordSources): BlobRecords {
     expensiveBlocks: deriveExpensiveBlocks(sources.records),
     busiestHours: deriveBusiestHours(sources.records),
     busiestDays: deriveBusiestDays(sources.records),
+    priciestDays: derivePriciestDays(sources.attribution),
     utilizationDays: deriveUtilizationDays(sources.records),
     topSpenders: deriveTopSpenders(sources.attribution),
     allTime: deriveAllTime(sources.stats),

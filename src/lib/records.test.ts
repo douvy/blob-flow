@@ -67,6 +67,7 @@ function makeSources(overrides: Partial<BlobRecordSources> = {}): BlobRecordSour
     },
     attribution: {
       summary: { total_blobs: 0, total_cost_wei: '0', shares: [] },
+      points: [],
     },
     records: EMPTY_RECORDS,
     ...overrides,
@@ -102,6 +103,7 @@ describe('deriveBlobRecords', () => {
       expensiveBlocks: [],
       busiestHours: [],
       busiestDays: [],
+      priciestDays: [],
       utilizationDays: [],
       topSpenders: [],
       allTime: { totalBlobs: 21_000_000, averageBaseFee: '12.3 Gwei' },
@@ -280,6 +282,7 @@ describe('deriveBlobRecords', () => {
               ...entityShares,
             ],
           },
+          points: [],
         },
       })
     );
@@ -291,6 +294,44 @@ describe('deriveBlobRecords', () => {
     expect(
       records.topSpenders.some((spender) => spender.key === 'unknown')
     ).toBe(false);
+  });
+
+  it('ranks priciest days by network-wide spend summed across series', () => {
+    const records = deriveBlobRecords(
+      makeSources({
+        attribution: {
+          summary: { total_blobs: 0, total_cost_wei: '0', shares: [] },
+          points: [
+            {
+              timestamp: '2024-06-20T00:00:00Z',
+              values: {
+                base: { blob_count: 9_000, total_cost_wei: '200000000000000000000', blob_gas_used: 0 },
+                unknown: { blob_count: 2_000, total_cost_wei: '49000000000000000000', blob_gas_used: 0 },
+              },
+            },
+            {
+              timestamp: '2024-04-02T00:00:00Z',
+              values: {
+                base: { blob_count: 21_000, total_cost_wei: '170000000000000000000', blob_gas_used: 0 },
+              },
+            },
+          ],
+        },
+      })
+    );
+
+    expect(records.priciestDays).toEqual([
+      {
+        dayStart: '2024-06-20T00:00:00Z',
+        blobCount: 11_000,
+        totalCostWei: '249000000000000000000',
+      },
+      {
+        dayStart: '2024-04-02T00:00:00Z',
+        blobCount: 21_000,
+        totalCostWei: '170000000000000000000',
+      },
+    ]);
   });
 
   it('builds milestone progress for the largest entities, capped and sorted', () => {
@@ -306,6 +347,7 @@ describe('deriveBlobRecords', () => {
       makeSources({
         attribution: {
           summary: { total_blobs: 0, total_cost_wei: '0', shares },
+          points: [],
         },
       })
     );
@@ -328,6 +370,7 @@ describe('deriveBlobRecords', () => {
               makeShare({ key: 'base', name: 'Base', blob_count: 4_812_332 }),
             ],
           },
+          points: [],
         },
       })
     );

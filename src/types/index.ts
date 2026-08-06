@@ -938,6 +938,11 @@ export interface BlobRecords {
   expensiveBlocks: ExpensiveBlock[];
   busiestHours: BusiestHour[];
   busiestDays: BusiestDay[];
+  /**
+   * UTC days ranked by total blob spend, derived from the all-time
+   * attribution day buckets rather than GET /records.
+   */
+  priciestDays: BusiestDay[];
   utilizationDays: UtilizationDay[];
   /** Attributed entities ranked by total blob spend, biggest first. */
   topSpenders: SpenderRecord[];

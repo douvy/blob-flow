@@ -246,6 +246,7 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
     expensiveBlocks,
     busiestHours,
     busiestDays,
+    priciestDays,
     utilizationDays,
     topSpenders,
     allTime,
@@ -256,6 +257,7 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
   const topExpensive = expensiveBlocks.length > 0 ? expensiveBlocks[0] : null;
   const topHour = busiestHours.length > 0 ? busiestHours[0] : null;
   const topDay = busiestDays.length > 0 ? busiestDays[0] : null;
+  const topPriciestDay = priciestDays.length > 0 ? priciestDays[0] : null;
   const topUtilization = utilizationDays.length > 0 ? utilizationDays[0] : null;
   const topSpender = topSpenders.length > 0 ? topSpenders[0] : null;
 
@@ -350,6 +352,29 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
                   <>
                     <BlockLink blockNumber={block.blockNumber} />
                     <span>{formatRunDate(block.timestamp)}</span>
+                  </>
+                ),
+              }))}
+            />
+          </RecordCard>
+        )}
+
+        {topPriciestDay && (
+          <RecordCard
+            id="priciest-day"
+            title="Priciest Day"
+            accent="purple"
+            value={formatWeiToEth(topPriciestDay.totalCostWei, true)}
+            caption={`The most burned on blobs in a single UTC day: ${formatUtcDay(topPriciestDay.dayStart)}, across ${formatNumber(topPriciestDay.blobCount)} blobs.`}
+          >
+            <RankedRows
+              rows={priciestDays.map((day) => ({
+                key: day.dayStart,
+                primary: <span>{formatWeiToEth(day.totalCostWei, true)}</span>,
+                secondary: (
+                  <>
+                    <span>{formatBlobCount(day.blobCount)}</span>
+                    <span>{formatUtcDay(day.dayStart)}</span>
                   </>
                 ),
               }))}
