@@ -18,30 +18,25 @@ import type {
 } from '../types';
 
 /**
- * Source payloads the records are derived from. Each is the narrowest slice
- * of its endpoint's response that the derivation reads, and each is nullable
- * so a failed source degrades to missing sections instead of failing all of
- * them.
- *
- * `records` is GET /records, the indexer's historical leaderboards. There is
- * deliberately no fallback for it: on backends that predate the endpoint the
- * leaderboard sections are null and their cards simply do not render.
+ * Source payloads the records are derived from: GET /records for the
+ * historical leaderboards, all-time attribution shares for the entity spend
+ * ranking and milestones, and /stats for the totals card. Each is the
+ * narrowest slice of its endpoint's response that the derivation reads.
  */
 export interface BlobRecordSources {
-  stats: StatsResponse | null;
-  attribution: Pick<BackendAttributionUsageChartResponse, 'summary'> | null;
+  stats: StatsResponse;
+  attribution: Pick<BackendAttributionUsageChartResponse, 'summary'>;
   records: Pick<
     BackendBlobRecordsResponse,
     | 'full_block_streaks'
     | 'above_target_streaks'
-    | 'drought_streaks'
     | 'below_target_streaks'
     | 'base_fee_peaks'
     | 'most_expensive_blocks'
     | 'busiest_hours'
     | 'busiest_days'
     | 'highest_utilization_days'
-  > | null;
+  >;
 }
 
 /**
@@ -101,9 +96,8 @@ function toStreakRun(run: BackendBlobStreakRun) {
 }
 
 function deriveStreakLeaderboard(
-  board: BackendBlobStreakBoard | undefined
-): StreakLeaderboard | null {
-  if (!board) return null;
+  board: BackendBlobStreakBoard
+): StreakLeaderboard {
   const top = (board.top ?? [])
     .slice()
     .sort((a, b) => b.length - a.length || b.end_block - a.end_block)
@@ -115,10 +109,7 @@ function deriveStreakLeaderboard(
   };
 }
 
-function deriveFeePeaks(
-  records: BlobRecordSources['records']
-): FeePeak[] | null {
-  if (!records) return null;
+function deriveFeePeaks(records: BlobRecordSources['records']): FeePeak[] {
   return (records.base_fee_peaks ?? [])
     .map((peak) => ({
       blockNumber: peak.block_number,
@@ -135,8 +126,7 @@ function deriveFeePeaks(
 
 function deriveExpensiveBlocks(
   records: BlobRecordSources['records']
-): ExpensiveBlock[] | null {
-  if (!records) return null;
+): ExpensiveBlock[] {
   return (records.most_expensive_blocks ?? [])
     .map((block) => ({
       blockNumber: block.block_number,
@@ -154,8 +144,7 @@ function deriveExpensiveBlocks(
 
 function deriveBusiestHours(
   records: BlobRecordSources['records']
-): BusiestHour[] | null {
-  if (!records) return null;
+): BusiestHour[] {
   return (records.busiest_hours ?? [])
     .map((hour) => ({
       hourStart: hour.hour_start,
@@ -169,10 +158,7 @@ function deriveBusiestHours(
     .slice(0, RECORDS_TOP_LIMIT);
 }
 
-function deriveBusiestDays(
-  records: BlobRecordSources['records']
-): BusiestDay[] | null {
-  if (!records) return null;
+function deriveBusiestDays(records: BlobRecordSources['records']): BusiestDay[] {
   return (records.busiest_days ?? [])
     .map((day) => ({
       dayStart: day.day_start,
@@ -187,8 +173,7 @@ function deriveBusiestDays(
 
 function deriveUtilizationDays(
   records: BlobRecordSources['records']
-): UtilizationDay[] | null {
-  if (!records) return null;
+): UtilizationDay[] {
   return (records.highest_utilization_days ?? [])
     .map((day) => ({
       dayStart: day.day_start,
@@ -207,7 +192,7 @@ function deriveUtilizationDays(
 function entityShares(
   attribution: BlobRecordSources['attribution']
 ): BackendAttributionUsageShare[] {
-  return (attribution?.summary.shares ?? []).filter(
+  return (attribution.summary.shares ?? []).filter(
     (share) => !AGGREGATE_SHARE_CATEGORIES.has(share.category)
   );
 }
@@ -251,24 +236,22 @@ function deriveMilestones(
     });
 }
 
-function deriveAllTime(stats: BlobRecordSources['stats']): AllTimeTotalsRecord | null {
-  if (!stats) return null;
+function deriveAllTime(stats: BlobRecordSources['stats']): AllTimeTotalsRecord {
   return {
     totalBlobs: stats.data.totalBlobs,
     averageBaseFee: stats.data.averageBaseFee,
   };
 }
 
-/** Derive every record section from whichever sources are available. */
+/** Derive every record section from the source payloads. */
 export function deriveBlobRecords(sources: BlobRecordSources): BlobRecords {
   return {
-    fullBlockStreaks: deriveStreakLeaderboard(sources.records?.full_block_streaks),
+    fullBlockStreaks: deriveStreakLeaderboard(sources.records.full_block_streaks),
     aboveTargetStreaks: deriveStreakLeaderboard(
-      sources.records?.above_target_streaks
+      sources.records.above_target_streaks
     ),
-    droughtStreaks: deriveStreakLeaderboard(sources.records?.drought_streaks),
     belowTargetStreaks: deriveStreakLeaderboard(
-      sources.records?.below_target_streaks
+      sources.records.below_target_streaks
     ),
     feePeaks: deriveFeePeaks(sources.records),
     expensiveBlocks: deriveExpensiveBlocks(sources.records),

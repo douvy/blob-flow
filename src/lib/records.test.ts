@@ -37,18 +37,11 @@ function makeRun(overrides: Partial<BackendBlobStreakRun>): BackendBlobStreakRun
   };
 }
 
-const EMPTY_SOURCES: BlobRecordSources = {
-  stats: null,
-  attribution: null,
-  records: null,
-};
-
 const EMPTY_BOARD = { current: null, top: [] };
 
-const EMPTY_RECORDS = {
+const EMPTY_RECORDS: BlobRecordSources['records'] = {
   full_block_streaks: EMPTY_BOARD,
   above_target_streaks: EMPTY_BOARD,
-  drought_streaks: EMPTY_BOARD,
   below_target_streaks: EMPTY_BOARD,
   base_fee_peaks: [],
   most_expensive_blocks: [],
@@ -56,6 +49,29 @@ const EMPTY_RECORDS = {
   busiest_days: [],
   highest_utilization_days: [],
 };
+
+function makeSources(overrides: Partial<BlobRecordSources> = {}): BlobRecordSources {
+  return {
+    stats: {
+      data: {
+        averageBaseFee: '12.3 Gwei',
+        totalBlobs: 21_000_000,
+        totalConfirmedBlobs: 20_999_000,
+        pendingBlobsCount: 1_000,
+        avgBlobsPerBlock: 4.2,
+        averageTip: '0.1 Gwei',
+        averageTotalCost: '0.001 ETH',
+        lastIndexedBlock: 23_000_000,
+        lastIndexedTime: '2026-08-02T00:00:00Z',
+      },
+    },
+    attribution: {
+      summary: { total_blobs: 0, total_cost_wei: '0', shares: [] },
+    },
+    records: EMPTY_RECORDS,
+    ...overrides,
+  };
+}
 
 describe('nextBlobMilestone', () => {
   it('walks the 1/2/5 ladder', () => {
@@ -77,19 +93,18 @@ describe('nextBlobMilestone', () => {
 });
 
 describe('deriveBlobRecords', () => {
-  it('returns null sections and empty rankings when every source is missing', () => {
-    expect(deriveBlobRecords(EMPTY_SOURCES)).toEqual({
-      fullBlockStreaks: null,
-      aboveTargetStreaks: null,
-      droughtStreaks: null,
-      belowTargetStreaks: null,
-      feePeaks: null,
-      expensiveBlocks: null,
-      busiestHours: null,
-      busiestDays: null,
-      utilizationDays: null,
+  it('maps empty payloads onto empty boards and rankings', () => {
+    expect(deriveBlobRecords(makeSources())).toEqual({
+      fullBlockStreaks: { current: null, top: [] },
+      aboveTargetStreaks: { current: null, top: [] },
+      belowTargetStreaks: { current: null, top: [] },
+      feePeaks: [],
+      expensiveBlocks: [],
+      busiestHours: [],
+      busiestDays: [],
+      utilizationDays: [],
       topSpenders: [],
-      allTime: null,
+      allTime: { totalBlobs: 21_000_000, averageBaseFee: '12.3 Gwei' },
       milestones: [],
     });
   });
@@ -99,57 +114,54 @@ describe('deriveBlobRecords', () => {
       makeRun({ length: index + 2, end_block: 1_000 + index })
     );
 
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      records: {
-        ...EMPTY_RECORDS,
-        full_block_streaks: {
-          current: makeRun({ length: 3, end_block: 9_999 }),
-          top,
+    const records = deriveBlobRecords(
+      makeSources({
+        records: {
+          ...EMPTY_RECORDS,
+          full_block_streaks: {
+            current: makeRun({ length: 3, end_block: 9_999 }),
+            top,
+          },
         },
-        drought_streaks: {
-          current: null,
-          top: [makeRun({ length: 120, end_block: 5_000 })],
-        },
-      },
-    });
+      })
+    );
 
-    expect(records.fullBlockStreaks?.top).toHaveLength(RECORDS_TOP_LIMIT);
-    expect(records.fullBlockStreaks?.top[0]).toMatchObject({
+    expect(records.fullBlockStreaks.top).toHaveLength(RECORDS_TOP_LIMIT);
+    expect(records.fullBlockStreaks.top[0]).toMatchObject({
       length: RECORDS_TOP_LIMIT + 4,
     });
-    expect(records.fullBlockStreaks?.current).toMatchObject({
+    expect(records.fullBlockStreaks.current).toMatchObject({
       length: 3,
       endBlock: 9_999,
     });
-    expect(records.droughtStreaks?.top[0]).toMatchObject({ length: 120 });
     expect(records.aboveTargetStreaks).toEqual({ current: null, top: [] });
     expect(records.belowTargetStreaks).toEqual({ current: null, top: [] });
   });
 
   it('sorts fee peaks by fee and falls back to the wei field for gwei', () => {
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      records: {
-        ...EMPTY_RECORDS,
-        base_fee_peaks: [
-          {
-            block_number: 1,
-            timestamp: '2026-01-01T00:00:00Z',
-            blob_base_fee: '2000000000',
-            blob_base_fee_gwei: '',
-            blob_count: 6,
-          },
-          {
-            block_number: 2,
-            timestamp: '2026-02-01T00:00:00Z',
-            blob_base_fee: '5000000000',
-            blob_base_fee_gwei: '5',
-            blob_count: 6,
-          },
-        ],
-      },
-    });
+    const records = deriveBlobRecords(
+      makeSources({
+        records: {
+          ...EMPTY_RECORDS,
+          base_fee_peaks: [
+            {
+              block_number: 1,
+              timestamp: '2026-01-01T00:00:00Z',
+              blob_base_fee: '2000000000',
+              blob_base_fee_gwei: '',
+              blob_count: 6,
+            },
+            {
+              block_number: 2,
+              timestamp: '2026-02-01T00:00:00Z',
+              blob_base_fee: '5000000000',
+              blob_base_fee_gwei: '5',
+              blob_count: 6,
+            },
+          ],
+        },
+      })
+    );
 
     expect(records.feePeaks).toEqual([
       { blockNumber: 2, timestamp: '2026-02-01T00:00:00Z', feeGwei: 5, blobCount: 6 },
@@ -158,83 +170,86 @@ describe('deriveBlobRecords', () => {
   });
 
   it('sorts most expensive blocks by wei spend', () => {
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      records: {
-        ...EMPTY_RECORDS,
-        most_expensive_blocks: [
-          {
-            block_number: 10,
-            timestamp: '2026-01-01T00:00:00Z',
-            blob_count: 3,
-            blob_base_fee: '1',
-            blob_base_fee_gwei: '0.000000001',
-            total_cost_wei: '5000000000000000000',
-          },
-          {
-            block_number: 11,
-            timestamp: '2026-01-02T00:00:00Z',
-            blob_count: 6,
-            blob_base_fee: '2',
-            blob_base_fee_gwei: '0.000000002',
-            total_cost_wei: '90000000000000000000',
-          },
-        ],
-      },
-    });
+    const records = deriveBlobRecords(
+      makeSources({
+        records: {
+          ...EMPTY_RECORDS,
+          most_expensive_blocks: [
+            {
+              block_number: 10,
+              timestamp: '2026-01-01T00:00:00Z',
+              blob_count: 3,
+              blob_base_fee: '1',
+              blob_base_fee_gwei: '0.000000001',
+              total_cost_wei: '5000000000000000000',
+            },
+            {
+              block_number: 11,
+              timestamp: '2026-01-02T00:00:00Z',
+              blob_count: 6,
+              blob_base_fee: '2',
+              blob_base_fee_gwei: '0.000000002',
+              total_cost_wei: '90000000000000000000',
+            },
+          ],
+        },
+      })
+    );
 
-    expect(records.expensiveBlocks?.map((block) => block.blockNumber)).toEqual([
+    expect(records.expensiveBlocks.map((block) => block.blockNumber)).toEqual([
       11, 10,
     ]);
   });
 
   it('sorts busiest hours and days by blob count', () => {
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      records: {
-        ...EMPTY_RECORDS,
-        busiest_hours: [
-          { hour_start: '2026-01-01T04:00:00Z', blob_count: 900, total_cost_wei: '1' },
-          { hour_start: '2026-01-01T05:00:00Z', blob_count: 1_200, total_cost_wei: '2' },
-        ],
-        busiest_days: [
-          { day_start: '2026-01-01T00:00:00Z', blob_count: 9_000, total_cost_wei: '1' },
-          { day_start: '2026-02-01T00:00:00Z', blob_count: 12_000, total_cost_wei: '2' },
-        ],
-      },
-    });
+    const records = deriveBlobRecords(
+      makeSources({
+        records: {
+          ...EMPTY_RECORDS,
+          busiest_hours: [
+            { hour_start: '2026-01-01T04:00:00Z', blob_count: 900, total_cost_wei: '1' },
+            { hour_start: '2026-01-01T05:00:00Z', blob_count: 1_200, total_cost_wei: '2' },
+          ],
+          busiest_days: [
+            { day_start: '2026-01-01T00:00:00Z', blob_count: 9_000, total_cost_wei: '1' },
+            { day_start: '2026-02-01T00:00:00Z', blob_count: 12_000, total_cost_wei: '2' },
+          ],
+        },
+      })
+    );
 
-    expect(records.busiestHours?.map((hour) => hour.blobCount)).toEqual([1_200, 900]);
-    expect(records.busiestDays?.map((day) => day.blobCount)).toEqual([12_000, 9_000]);
+    expect(records.busiestHours.map((hour) => hour.blobCount)).toEqual([1_200, 900]);
+    expect(records.busiestDays.map((day) => day.blobCount)).toEqual([12_000, 9_000]);
   });
 
   it('sorts utilization days by mean utilization', () => {
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      records: {
-        ...EMPTY_RECORDS,
-        highest_utilization_days: [
-          {
-            day_start: '2026-01-01T00:00:00Z',
-            average_utilization_percent: 74.2,
-            block_count: 7_100,
-            blob_count: 30_000,
-            blocks_at_max: 900,
-            blocks_above_target: 3_000,
-          },
-          {
-            day_start: '2026-02-01T00:00:00Z',
-            average_utilization_percent: 87.4,
-            block_count: 7_150,
-            blob_count: 39_000,
-            blocks_at_max: 1_200,
-            blocks_above_target: 5_300,
-          },
-        ],
-      },
-    });
+    const records = deriveBlobRecords(
+      makeSources({
+        records: {
+          ...EMPTY_RECORDS,
+          highest_utilization_days: [
+            {
+              day_start: '2026-01-01T00:00:00Z',
+              average_utilization_percent: 74.2,
+              block_count: 7_100,
+              blob_count: 30_000,
+              blocks_at_max: 900,
+              blocks_above_target: 3_000,
+            },
+            {
+              day_start: '2026-02-01T00:00:00Z',
+              average_utilization_percent: 87.4,
+              block_count: 7_150,
+              blob_count: 39_000,
+              blocks_at_max: 1_200,
+              blocks_above_target: 5_300,
+            },
+          ],
+        },
+      })
+    );
 
-    expect(records.utilizationDays?.[0]).toMatchObject({
+    expect(records.utilizationDays[0]).toMatchObject({
       dayStart: '2026-02-01T00:00:00Z',
       averageUtilizationPercent: 87.4,
     });
@@ -249,24 +264,25 @@ describe('deriveBlobRecords', () => {
       })
     );
 
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      attribution: {
-        summary: {
-          total_blobs: 100,
-          total_cost_wei: '0',
-          shares: [
-            makeShare({
-              key: 'unknown',
-              name: 'Unknown',
-              category: 'unknown',
-              total_cost_wei: '999000000000000000000000',
-            }),
-            ...entityShares,
-          ],
+    const records = deriveBlobRecords(
+      makeSources({
+        attribution: {
+          summary: {
+            total_blobs: 100,
+            total_cost_wei: '0',
+            shares: [
+              makeShare({
+                key: 'unknown',
+                name: 'Unknown',
+                category: 'unknown',
+                total_cost_wei: '999000000000000000000000',
+              }),
+              ...entityShares,
+            ],
+          },
         },
-      },
-    });
+      })
+    );
 
     expect(records.topSpenders).toHaveLength(RECORDS_TOP_LIMIT);
     expect(records.topSpenders[0]).toMatchObject({
@@ -286,12 +302,13 @@ describe('deriveBlobRecords', () => {
       })
     );
 
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      attribution: {
-        summary: { total_blobs: 0, total_cost_wei: '0', shares },
-      },
-    });
+    const records = deriveBlobRecords(
+      makeSources({
+        attribution: {
+          summary: { total_blobs: 0, total_cost_wei: '0', shares },
+        },
+      })
+    );
 
     expect(records.milestones).toHaveLength(MILESTONE_ENTITY_LIMIT);
     expect(records.milestones[0]).toMatchObject({
@@ -301,18 +318,19 @@ describe('deriveBlobRecords', () => {
   });
 
   it('computes milestone distance and progress', () => {
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      attribution: {
-        summary: {
-          total_blobs: 0,
-          total_cost_wei: '0',
-          shares: [
-            makeShare({ key: 'base', name: 'Base', blob_count: 4_812_332 }),
-          ],
+    const records = deriveBlobRecords(
+      makeSources({
+        attribution: {
+          summary: {
+            total_blobs: 0,
+            total_cost_wei: '0',
+            shares: [
+              makeShare({ key: 'base', name: 'Base', blob_count: 4_812_332 }),
+            ],
+          },
         },
-      },
-    });
+      })
+    );
 
     expect(records.milestones[0]).toMatchObject({
       blobCount: 4_812_332,
@@ -320,29 +338,5 @@ describe('deriveBlobRecords', () => {
       remainingToMilestone: 187_668,
     });
     expect(records.milestones[0].progressPercent).toBeCloseTo(96.24664, 4);
-  });
-
-  it('maps all-time stats totals', () => {
-    const records = deriveBlobRecords({
-      ...EMPTY_SOURCES,
-      stats: {
-        data: {
-          averageBaseFee: '12.3 Gwei',
-          totalBlobs: 21_000_000,
-          totalConfirmedBlobs: 20_999_000,
-          pendingBlobsCount: 1_000,
-          avgBlobsPerBlock: 4.2,
-          averageTip: '0.1 Gwei',
-          averageTotalCost: '0.001 ETH',
-          lastIndexedBlock: 23_000_000,
-          lastIndexedTime: '2026-08-02T00:00:00Z',
-        },
-      },
-    });
-
-    expect(records.allTime).toEqual({
-      totalBlobs: 21_000_000,
-      averageBaseFee: '12.3 Gwei',
-    });
   });
 });

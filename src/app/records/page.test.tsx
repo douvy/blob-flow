@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { DEFAULT_NETWORK } from '@/constants';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
@@ -53,17 +53,6 @@ function makeRecords(overrides: Partial<BlobRecords> = {}): BlobRecords {
           startBlock: 22_811_359,
           endBlock: 22_811_400,
           endTimestamp: '2026-05-14T09:23:00Z',
-        },
-      ],
-    },
-    droughtStreaks: {
-      current: null,
-      top: [
-        {
-          length: 120,
-          startBlock: 18_500_000,
-          endBlock: 18_500_119,
-          endTimestamp: '2025-02-01T04:00:00Z',
         },
       ],
     },
@@ -188,17 +177,13 @@ describe('RecordsPage', () => {
       within(aboveTargetCard).getByText(/Current streak: 0\./)
     ).toBeInTheDocument();
 
-    const droughtCard = document.getElementById('blob-drought')!;
-    expect(within(droughtCard).getByText('120')).toBeInTheDocument();
-    expect(
-      within(droughtCard).getByText(/blocks without a single blob/)
-    ).toBeInTheDocument();
-
     const feeCard = document.getElementById('highest-base-fee')!;
     expect(within(feeCard).getByText('644.00')).toBeInTheDocument();
     expect(
-      within(feeCard).getByText(/Highest blob base fee ever indexed/)
+      within(feeCard).getByText(/Highest blob base fee ever quoted/)
     ).toBeInTheDocument();
+    // Peaks disclose their blob count: record-fee blocks are often empty.
+    expect(within(feeCard).getByText('6 blobs')).toBeInTheDocument();
 
     const expensiveCard = document.getElementById('most-expensive-block')!;
     expect(
@@ -220,18 +205,17 @@ describe('RecordsPage', () => {
     expect(document.getElementById('below-target-streak')).toBeNull();
   });
 
-  it('omits leaderboard cards entirely when the records endpoint is unavailable', () => {
+  it('omits cards whose sections are empty', () => {
     mockRecords(
       makeRecords({
-        fullBlockStreaks: null,
-        aboveTargetStreaks: null,
-        droughtStreaks: null,
-        belowTargetStreaks: null,
-        feePeaks: null,
-        expensiveBlocks: null,
-        busiestHours: null,
-        busiestDays: null,
-        utilizationDays: null,
+        fullBlockStreaks: EMPTY_BOARD,
+        aboveTargetStreaks: EMPTY_BOARD,
+        belowTargetStreaks: EMPTY_BOARD,
+        feePeaks: [],
+        expensiveBlocks: [],
+        busiestHours: [],
+        busiestDays: [],
+        utilizationDays: [],
       })
     );
     render(<RecordsPage />);
@@ -239,7 +223,6 @@ describe('RecordsPage', () => {
     for (const id of [
       'full-block-streak',
       'blocks-above-target',
-      'blob-drought',
       'below-target-streak',
       'highest-base-fee',
       'most-expensive-block',
@@ -249,7 +232,6 @@ describe('RecordsPage', () => {
     ]) {
       expect(document.getElementById(id)).toBeNull();
     }
-    expect(screen.queryByText(/window/i)).not.toBeInTheDocument();
 
     // Attribution and stats sections still render.
     expect(document.getElementById('top-spenders')).not.toBeNull();

@@ -750,8 +750,7 @@ export interface ChartDataset {
 // components below it stay unchanged.
 
 // Backend historical records response. Matches GET /records in
-// blob-indexer-api (a-thomas-22/blob-indexer-api PR 316); backends that
-// predate it 404 and the page simply omits the historical cards.
+// blob-indexer-api (a-thomas-22/blob-indexer-api PR 316).
 export interface BackendBlobStreakRun {
   length: number;
   start_block: number;
@@ -927,24 +926,22 @@ export interface AllTimeTotalsRecord {
 
 /**
  * All records shown on /records. The leaderboard sections come from GET
- * /records and are null when that endpoint is unavailable; the page omits
- * their cards rather than substituting a fallback. The spend ranking,
- * totals, and milestones come from the attribution and stats endpoints and
- * degrade the same way.
+ * /records; the spend ranking and milestones from all-time attribution
+ * shares; the totals from /stats. A section that is empty (a board with no
+ * runs, an empty list) simply renders no card.
  */
 export interface BlobRecords {
-  fullBlockStreaks: StreakLeaderboard | null;
-  aboveTargetStreaks: StreakLeaderboard | null;
-  droughtStreaks: StreakLeaderboard | null;
-  belowTargetStreaks: StreakLeaderboard | null;
-  feePeaks: FeePeak[] | null;
-  expensiveBlocks: ExpensiveBlock[] | null;
-  busiestHours: BusiestHour[] | null;
-  busiestDays: BusiestDay[] | null;
-  utilizationDays: UtilizationDay[] | null;
+  fullBlockStreaks: StreakLeaderboard;
+  aboveTargetStreaks: StreakLeaderboard;
+  belowTargetStreaks: StreakLeaderboard;
+  feePeaks: FeePeak[];
+  expensiveBlocks: ExpensiveBlock[];
+  busiestHours: BusiestHour[];
+  busiestDays: BusiestDay[];
+  utilizationDays: UtilizationDay[];
   /** Attributed entities ranked by total blob spend, biggest first. */
   topSpenders: SpenderRecord[];
-  allTime: AllTimeTotalsRecord | null;
+  allTime: AllTimeTotalsRecord;
   milestones: RollupMilestone[];
 }
 

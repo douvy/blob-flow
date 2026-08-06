@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import type { BlobRecords, RollupMilestone, StreakLeaderboard } from '@/types';
 import {
   assignSeriesColors,
+  formatBlobCount,
   formatDate,
   formatNumber,
   formatPercent,
@@ -118,7 +119,7 @@ function RankedRows({
             <span className="w-5 shrink-0 tabular-nums text-[#6e7687]">
               {index + 1}
             </span>
-            <span className="flex min-w-0 items-center gap-2 truncate font-medium">
+            <span className="flex min-w-0 items-center gap-2 font-medium">
               {row.primary}
             </span>
             {index === 0 && (
@@ -137,8 +138,8 @@ function RankedRows({
 }
 
 /**
- * One historical streak leaderboard card. Renders nothing when the board is
- * missing or empty: there is deliberately no live fallback.
+ * One historical streak leaderboard card. Renders nothing when the board has
+ * no runs yet (a young network).
  */
 function StreakCard({
   id,
@@ -152,17 +153,15 @@ function StreakCard({
   accent: RecordAccent;
   /** Plural noun phrase completing "run of consecutive {kind}". */
   kind: string;
-  board: StreakLeaderboard | null;
+  board: StreakLeaderboard;
 }) {
-  if (!board || board.top.length === 0) return null;
+  if (board.top.length === 0) return null;
   const record = board.top[0];
 
   return (
     <RecordCard
       id={id}
       title={title}
-      scope="all-time"
-      scopeLabel="All indexed"
       accent={accent}
       value={formatNumber(record.length)}
       unit={record.length === 1 ? 'block' : 'blocks'}
@@ -242,7 +241,6 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
   const {
     fullBlockStreaks,
     aboveTargetStreaks,
-    droughtStreaks,
     belowTargetStreaks,
     feePeaks,
     expensiveBlocks,
@@ -254,13 +252,11 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
     milestones,
   } = records;
 
-  const topFeePeak = feePeaks && feePeaks.length > 0 ? feePeaks[0] : null;
-  const topExpensive =
-    expensiveBlocks && expensiveBlocks.length > 0 ? expensiveBlocks[0] : null;
-  const topHour = busiestHours && busiestHours.length > 0 ? busiestHours[0] : null;
-  const topDay = busiestDays && busiestDays.length > 0 ? busiestDays[0] : null;
-  const topUtilization =
-    utilizationDays && utilizationDays.length > 0 ? utilizationDays[0] : null;
+  const topFeePeak = feePeaks.length > 0 ? feePeaks[0] : null;
+  const topExpensive = expensiveBlocks.length > 0 ? expensiveBlocks[0] : null;
+  const topHour = busiestHours.length > 0 ? busiestHours[0] : null;
+  const topDay = busiestDays.length > 0 ? busiestDays[0] : null;
+  const topUtilization = utilizationDays.length > 0 ? utilizationDays[0] : null;
   const topSpender = topSpenders.length > 0 ? topSpenders[0] : null;
 
   const milestoneColors = useMemo(
@@ -294,14 +290,6 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
         />
 
         <StreakCard
-          id="blob-drought"
-          title="Blob Drought"
-          accent="red"
-          kind="blocks without a single blob"
-          board={droughtStreaks}
-        />
-
-        <StreakCard
           id="below-target-streak"
           title="Below-Target Streak"
           accent="purple"
@@ -313,25 +301,24 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
           <RecordCard
             id="highest-base-fee"
             title="Highest Base Fee"
-            scope="all-time"
-            scopeLabel="All indexed"
             accent="red"
             value={formatGweiValue(topFeePeak.feeGwei)}
             unit="Gwei"
             caption={
               <>
-                {'Highest blob base fee ever indexed, set at '}
+                {'Highest blob base fee ever quoted, at '}
                 <BlockLink blockNumber={topFeePeak.blockNumber} />
-                {` on ${formatRunDate(topFeePeak.timestamp)}.`}
+                {` on ${formatRunDate(topFeePeak.timestamp)}. The protocol prices blobspace in every block, so peak blocks often carry zero blobs: at the top of a spike everyone is priced out.`}
               </>
             }
           >
             <RankedRows
-              rows={(feePeaks ?? []).map((peak) => ({
+              rows={feePeaks.map((peak) => ({
                 key: `${peak.blockNumber}`,
                 primary: <span>{formatGweiValue(peak.feeGwei)} Gwei</span>,
                 secondary: (
                   <>
+                    <span>{formatBlobCount(peak.blobCount)}</span>
                     <BlockLink blockNumber={peak.blockNumber} />
                     <span>{formatRunDate(peak.timestamp)}</span>
                   </>
@@ -345,8 +332,6 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
           <RecordCard
             id="most-expensive-block"
             title="Most Expensive Block"
-            scope="all-time"
-            scopeLabel="All indexed"
             accent="yellow"
             value={formatWeiToEth(topExpensive.totalCostWei, true)}
             caption={
@@ -358,7 +343,7 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
             }
           >
             <RankedRows
-              rows={(expensiveBlocks ?? []).map((block) => ({
+              rows={expensiveBlocks.map((block) => ({
                 key: `${block.blockNumber}`,
                 primary: <span>{formatWeiToEth(block.totalCostWei, true)}</span>,
                 secondary: (
@@ -376,15 +361,13 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
           <RecordCard
             id="busiest-hour"
             title="Busiest Hour"
-            scope="all-time"
-            scopeLabel="All indexed"
             accent="yellow"
             value={formatNumber(topHour.blobCount)}
             unit="blobs in one hour"
             caption={`The most blobs ever landed in a single UTC hour, on ${formatUtcHour(topHour.hourStart)}.`}
           >
             <RankedRows
-              rows={(busiestHours ?? []).map((hour) => ({
+              rows={busiestHours.map((hour) => ({
                 key: hour.hourStart,
                 primary: <span>{formatNumber(hour.blobCount)} blobs</span>,
                 secondary: <span>{formatUtcHour(hour.hourStart)}</span>,
@@ -397,15 +380,13 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
           <RecordCard
             id="busiest-day"
             title="Busiest Day"
-            scope="all-time"
-            scopeLabel="All indexed"
             accent="green"
             value={formatNumber(topDay.blobCount)}
             unit="blobs in one day"
             caption={`The most blobs ever landed in a single UTC day, on ${formatUtcDay(topDay.dayStart)}.`}
           >
             <RankedRows
-              rows={(busiestDays ?? []).map((day) => ({
+              rows={busiestDays.map((day) => ({
                 key: day.dayStart,
                 primary: <span>{formatNumber(day.blobCount)} blobs</span>,
                 secondary: <span>{formatUtcDay(day.dayStart)}</span>,
@@ -418,15 +399,13 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
           <RecordCard
             id="highest-utilization-day"
             title="Highest Utilization Day"
-            scope="all-time"
-            scopeLabel="All indexed"
             accent="blue"
             value={formatPercent(topUtilization.averageUtilizationPercent)}
             unit="avg utilization"
             caption={`The most saturated day of blobspace on record: ${formatUtcDay(topUtilization.dayStart)}, averaged across ${formatNumber(topUtilization.blockCount)} blocks.`}
           >
             <RankedRows
-              rows={(utilizationDays ?? []).map((day) => ({
+              rows={utilizationDays.map((day) => ({
                 key: day.dayStart,
                 primary: (
                   <span>{formatPercent(day.averageUtilizationPercent)}</span>
@@ -441,8 +420,6 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
           <RecordCard
             id="top-spenders"
             title="Top Spenders"
-            scope="all-time"
-            scopeLabel="All indexed"
             accent="purple"
             value={formatWeiToEth(topSpender.totalCostWei, true)}
             caption={
@@ -491,8 +468,6 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
           <RecordCard
             id="total-blobs"
             title="Total Blobs Indexed"
-            scope="all-time"
-            scopeLabel="All indexed"
             accent="blue"
             value={formatNumber(allTime.totalBlobs)}
             unit="blobs"
@@ -506,14 +481,9 @@ function RecordsGrid({ records }: { records: BlobRecords }) {
           id="rollup-milestones"
           className="mt-4 scroll-mt-28 overflow-hidden rounded-lg border border-divider bg-gradient-to-b from-[#1a1c22] to-[#141519] p-5 sm:p-6"
         >
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <h2 className="font-windsor-bold text-2xl text-titleText">
-              Milestone Watch
-            </h2>
-            <span className="inline-flex items-center rounded-full border border-[#b3a6f5]/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#b3a6f5]">
-              All indexed
-            </span>
-          </div>
+          <h2 className="mb-2 font-windsor-bold text-2xl text-titleText">
+            Milestone Watch
+          </h2>
           <p className="mb-4 text-sm text-[#a9adb6]">
             Each rollup&apos;s march toward its next round blob-count milestone,
             counted over all indexed history.
