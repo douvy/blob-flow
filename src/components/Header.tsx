@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore }
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, type LucideIcon } from 'lucide-react';
+import { Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, Tv, type LucideIcon } from 'lucide-react';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
@@ -239,6 +239,16 @@ export default function Header() {
             <div className="flex-grow order-last md:order-none mt-2 md:mt-0"></div>
 
             <div className="hidden md:flex items-center gap-4">
+              {/* TV mode: full-screen display view at /live */}
+              <Link
+                href="/live"
+                aria-label="Open TV mode"
+                title="TV mode: full-screen display view"
+                className="group select-none rounded-sm flex items-center justify-center text-nowrap border border-transparent transition-colors duration-75 text-bodyText h-8 px-2.5 hover:bg-[#202327]"
+              >
+                <Tv className="h-4 w-4" aria-hidden="true" />
+              </Link>
+
               {/* Search Button */}
               <button
                 onClick={toggleSearchModal}
