@@ -9,6 +9,7 @@ import TapTooltip from '@/components/TapTooltip';
 import { useFlippening } from '@/hooks/useFlippening';
 import {
   DEFAULT_FLIPPENING_TOP_N,
+  formatGapPoints,
   type FlippeningEvent,
   type FlippeningGap,
   type FlippeningStanding,
@@ -85,6 +86,7 @@ function GapIndicator({ gap, rangeLabel }: { gap: FlippeningGap; rangeLabel: str
     gap.leaderSharePercent > 0
       ? Math.max(2, (gap.trailerSharePercent / gap.leaderSharePercent) * 100)
       : 0;
+  const gapLabel = formatGapPoints(gap.gapPoints);
 
   return (
     <div className="rounded-lg border border-divider bg-[#17181b] p-4">
@@ -92,10 +94,19 @@ function GapIndicator({ gap, rangeLabel }: { gap: FlippeningGap; rangeLabel: str
         Closest to flipping
       </div>
       <p className="text-sm text-white mb-3">
-        <span className="font-medium">{gap.trailer.name}</span> trails{' '}
-        <span className="font-medium">{gap.leader.name}</span> by{' '}
-        <span className="font-medium tabular-nums">{formatPoints(gap.gapPoints)} pts</span> in{' '}
-        {rangeLabel} blob share.
+        {gapLabel === null ? (
+          <>
+            <span className="font-medium">{gap.trailer.name}</span> is level with{' '}
+            <span className="font-medium">{gap.leader.name}</span> in {rangeLabel} blob share.
+          </>
+        ) : (
+          <>
+            <span className="font-medium">{gap.trailer.name}</span> trails{' '}
+            <span className="font-medium">{gap.leader.name}</span> by{' '}
+            <span className="font-medium tabular-nums">{gapLabel} pts</span> in {rangeLabel} blob
+            share.
+          </>
+        )}
       </p>
       <div className="space-y-2">
         {[
@@ -151,6 +162,8 @@ function Standings({
         {standings.map((standing) => {
           const barWidth = topShare > 0 ? Math.max(2, (standing.sharePercent / topShare) * 100) : 0;
           const inClosestPair = closestPairKeys.has(standing.entity.key);
+          const gapLabel =
+            standing.gapToAbovePoints === null ? null : formatGapPoints(standing.gapToAbovePoints);
           return (
             <li key={standing.entity.key} className="flex items-center gap-3 py-2.5">
               <span className="w-4 text-right text-xs text-[#6e7787] tabular-nums">
@@ -186,7 +199,7 @@ function Standings({
                 </div>
                 {standing.gapToAbovePoints !== null && (
                   <div className="text-[10px] text-[#6e7787] tabular-nums">
-                    {formatPoints(standing.gapToAbovePoints)} pts behind
+                    {gapLabel === null ? 'level' : `${gapLabel} pts behind`}
                   </div>
                 )}
               </div>

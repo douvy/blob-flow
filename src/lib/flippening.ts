@@ -68,6 +68,32 @@ export interface FlippeningGap {
   gapPoints: number;
 }
 
+/**
+ * Gaps at or below this are the float residue of an exact tie: two rollups
+ * with the same blob count over the window differ only in the last bits.
+ */
+const TIE_EPSILON_POINTS = 1e-9;
+
+/** Shares render with one decimal, so a gap under half of it rounds away. */
+const SUB_PRECISION_GAP_POINTS = 0.05;
+
+/**
+ * A share gap as the UI should read it, or null when the pair is level.
+ *
+ * A real gap too small for the one decimal shown reads as "<0.1" rather
+ * than "0.0": trailing by 0.03 points is not the same as not trailing, and
+ * rounding it down made "trails by 0.0 pts" contradict itself. A genuine
+ * tie returns null so callers can drop the number and say the two are
+ * level, which is what a 0.0 gap was trying to mean.
+ */
+export function formatGapPoints(gapPoints: number): string | null {
+  const magnitude = Math.abs(gapPoints);
+  // A gap that is not a number describes nothing; better to say nothing
+  // than to print NaN into the sentence.
+  if (!Number.isFinite(magnitude) || magnitude <= TIE_EPSILON_POINTS) return null;
+  return magnitude < SUB_PRECISION_GAP_POINTS ? '<0.1' : magnitude.toFixed(1);
+}
+
 /** One row of the current standings, ranked by the latest window's share. */
 export interface FlippeningStanding {
   /** 1-based position in the current ranking. */

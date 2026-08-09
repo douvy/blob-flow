@@ -5,12 +5,16 @@ import { ArrowRight } from 'lucide-react';
 import React from 'react';
 import { FLIPPENING_WINDOW_SECONDS, useFlippening } from '../hooks/useFlippening';
 import type { TimeRange } from '../contexts/TimeRangeContext';
-import type { FlippeningEntity, FlippeningEvent } from '../lib/flippening';
+import { formatGapPoints, type FlippeningEntity, type FlippeningEvent } from '../lib/flippening';
 import AttributionBadge from './AttributionBadge';
 import { RelativeTime } from './RelativeTime';
 
-function formatPoints(value: number): string {
-  return value.toFixed(1);
+/**
+ * "<0.1" is a glyph a screen reader has no good reading for, so the spoken
+ * label says it in words.
+ */
+function spokenPoints(label: string): string {
+  return label.startsWith('<') ? `under ${label.slice(1)}` : label;
 }
 
 /**
@@ -85,11 +89,16 @@ export default function FlippeningSummary() {
 
   const latestFlip = newestFlipInWindow(analysis?.events, timeRange);
   const gap = analysis?.closestGap ?? null;
+  // Null once the pair is level, which the sentence says in words instead of
+  // reporting a gap of zero.
+  const gapLabel = gap ? formatGapPoints(gap.gapPoints) : null;
 
   const summaryLabel = latestFlip
     ? `${latestFlip.winner.name} flipped ${latestFlip.loser.name} in ${timeRange} share`
     : gap
-      ? `${gap.trailer.name} trails ${gap.leader.name} by ${formatPoints(gap.gapPoints)} points in ${timeRange} share`
+      ? gapLabel === null
+        ? `${gap.trailer.name} is level with ${gap.leader.name} in ${timeRange} share`
+        : `${gap.trailer.name} trails ${gap.leader.name} by ${spokenPoints(gapLabel)} points in ${timeRange} share`
       : 'no rollups to compare yet';
 
   return (
@@ -117,12 +126,18 @@ export default function FlippeningSummary() {
               </span>
             </>
           ) : gap ? (
-            <>
-              <Rollup entity={gap.trailer} /> trails <Rollup entity={gap.leader} />{' '}
-              <span className="whitespace-nowrap text-[#6e7787]">
-                by <span className="tabular-nums">{formatPoints(gap.gapPoints)} pts</span>
-              </span>
-            </>
+            gapLabel === null ? (
+              <>
+                <Rollup entity={gap.trailer} /> is level with <Rollup entity={gap.leader} />
+              </>
+            ) : (
+              <>
+                <Rollup entity={gap.trailer} /> trails <Rollup entity={gap.leader} />{' '}
+                <span className="whitespace-nowrap text-[#6e7787]">
+                  by <span className="tabular-nums">{gapLabel} pts</span>
+                </span>
+              </>
+            )
           ) : (
             'not enough rollups with blob activity to compare'
           )}
