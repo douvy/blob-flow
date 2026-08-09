@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import Link from 'next/link';
+import Link from '@/components/NetworkLink';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Minimize2 } from 'lucide-react';
 import DataStateWrapper from '@/components/DataStateWrapper';

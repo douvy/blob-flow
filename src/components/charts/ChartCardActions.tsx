@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Camera, Check, Download, Loader2 } from 'lucide-react';
 import { copyOrDownloadChartImage } from '@/lib/chartExport';
-import { DEFAULT_NETWORK, SITE_URL } from '@/constants';
-import { buildTweetIntentUrl, chartImageFileName } from '@/utils';
+import { SITE_URL } from '@/constants';
+import { buildTweetIntentUrl, chartImageFileName, networkPath } from '@/utils';
 import { useNetwork } from '@/hooks/useNetwork';
 import { useTimeRange } from '@/contexts/TimeRangeContext';
 
@@ -12,8 +12,8 @@ type CopyState = 'idle' | 'busy' | 'copied' | 'downloaded' | 'error';
 
 const FEEDBACK_RESET_MS = 2000;
 
-export const CHART_ACTION_BUTTON_CLASS =
-  'flex h-8 w-8 flex-none items-center justify-center rounded-md border border-divider bg-[#1d1f23] text-blue transition-colors hover:bg-[#252936] hover:text-lightBlue focus:outline-none focus:ring-2 focus:ring-blue/60 disabled:pointer-events-none disabled:opacity-60';
+const CHART_ACTION_BUTTON_BASE =
+  'flex flex-none items-center justify-center rounded-md border border-divider bg-[#1d1f23] text-blue transition-colors hover:bg-[#252936] hover:text-lightBlue focus:outline-none focus:ring-2 focus:ring-blue/60 disabled:pointer-events-none disabled:opacity-60';
 
 const COPY_STATE_LABELS: Record<CopyState, string> = {
   idle: 'Copy chart as image',
@@ -23,8 +23,7 @@ const COPY_STATE_LABELS: Record<CopyState, string> = {
   error: 'Copying chart image failed',
 };
 
-function CopyStateIcon({ state }: { state: CopyState }) {
-  const iconClass = 'h-4 w-4';
+function CopyStateIcon({ state, iconClass }: { state: CopyState; iconClass: string }) {
   switch (state) {
     case 'busy':
       return <Loader2 className={`${iconClass} animate-spin`} aria-hidden="true" />;
@@ -54,6 +53,9 @@ interface ChartCardActionsProps {
   rangeLabel: string;
   /** The chart body node to capture; the branded frame supplies the title. */
   captureRef: React.RefObject<HTMLElement | null>;
+  /** Button footprint, so a denser header (the hero) can size them down. */
+  sizeClass?: string;
+  iconClass?: string;
 }
 
 /**
@@ -66,10 +68,13 @@ export default function ChartCardActions({
   headlineStat,
   rangeLabel,
   captureRef,
+  sizeClass = 'h-8 w-8',
+  iconClass = 'h-4 w-4',
 }: ChartCardActionsProps) {
   const { selectedNetwork } = useNetwork();
   const { timeRange } = useTimeRange();
   const [copyState, setCopyState] = useState<CopyState>('idle');
+  const buttonClass = `${CHART_ACTION_BUTTON_BASE} ${sizeClass}`;
 
   useEffect(() => {
     if (copyState === 'idle' || copyState === 'busy') return;
@@ -96,16 +101,17 @@ export default function ChartCardActions({
   };
 
   // Range and network ride along so the link opens on the view the sharer
-  // saw, and so its unfurled card plots that data. Without the network the
-  // card would show mainnet while the tweet text named another chain.
-  const shareQuery = new URLSearchParams({ range: timeRange });
-  if (selectedNetwork.apiParam !== DEFAULT_NETWORK.apiParam) {
-    shareQuery.set('network', selectedNetwork.apiParam);
-  }
+  // saw, and so its unfurled card plots that data. Network travels in the
+  // path, the way every other in-app link carries it; without it the card
+  // would show mainnet while the tweet text named another chain.
+  const sharePath = networkPath(
+    `/charts/${chartId}?range=${timeRange}`,
+    selectedNetwork.apiParam
+  );
   const tweetUrl = buildTweetIntentUrl({
     title: chartTitle,
     stat: headlineStat ? `${headlineStat} on ${selectedNetwork.name}` : null,
-    url: `${SITE_URL}/charts/${chartId}?${shareQuery.toString()}`,
+    url: `${SITE_URL}${sharePath}`,
   });
 
   return (
@@ -114,21 +120,21 @@ export default function ChartCardActions({
         type="button"
         onClick={handleCopy}
         disabled={copyState === 'busy'}
-        className={CHART_ACTION_BUTTON_CLASS}
+        className={buttonClass}
         aria-label={COPY_STATE_LABELS[copyState]}
         title="Copy chart as image"
       >
-        <CopyStateIcon state={copyState} />
+        <CopyStateIcon state={copyState} iconClass={iconClass} />
       </button>
       <a
         href={tweetUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className={CHART_ACTION_BUTTON_CLASS}
+        className={buttonClass}
         aria-label={`Share ${chartTitle} on X`}
         title="Share on X"
       >
-        <XLogoIcon className="h-3.5 w-3.5" />
+        <XLogoIcon className={iconClass === 'h-4 w-4' ? 'h-3.5 w-3.5' : 'h-3 w-3'} />
       </a>
     </>
   );

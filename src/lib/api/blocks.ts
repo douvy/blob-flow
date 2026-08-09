@@ -75,6 +75,9 @@ export function transformBlobResponsesToBlocks(blobsResponse: BlobResponse[]): L
     // Group blobs by block number
     const blockMap = new Map<string, { blobs: BlobResponse[]; firstSeen: string }>();
     for (const blob of blobsResponse) {
+        // Pending blobs have no block to group under.
+        if (blob.block_number === null) continue;
+
         const blockNum = blob.block_number.toString();
         if (!blockMap.has(blockNum)) {
             blockMap.set(blockNum, { blobs: [], firstSeen: blob.timestamp });
@@ -131,7 +134,9 @@ async function fetchBlobsForBlockWindow(
         }
 
         if (rows.length < BLOB_FEED_PAGE_SIZE) break;
-        const oldestFetched = Math.min(...rows.map((blob) => blob.block_number));
+        const oldestFetched = Math.min(
+            ...rows.map((blob) => blob.block_number ?? Number.POSITIVE_INFINITY)
+        );
         if (oldestFetched < oldestBlockNumber) break;
     }
 
@@ -165,7 +170,7 @@ export async function getLatestBlocks(limit = 20, network?: string): Promise<Lat
 
     const blobsByBlock = new Map<number, BlobResponse[]>();
     for (const blob of windowBlobs) {
-        if (blob.block_number < 0) continue;
+        if (blob.block_number === null || blob.block_number < 0) continue;
 
         const blobs = blobsByBlock.get(blob.block_number) || [];
         blobs.push(blob);

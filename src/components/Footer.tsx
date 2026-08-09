@@ -20,6 +20,21 @@ function GitHubStarLink() {
   );
 }
 
+function StatusLink() {
+  return (
+    <Link
+      href="https://status.blobflow.com"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center"
+    >
+      <span className="decoration-[#4a5568] underline underline-offset-2 hover:text-[#d9d9d9] hover:decoration-[#d9d9d9]">
+        Status <ArrowUpRight className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" />
+      </span>
+    </Link>
+  );
+}
+
 export default function Footer() {
   return (
     <footer className="relative z-10 w-full py-6 border-t border-divider bg-[#101114]">
@@ -62,6 +77,8 @@ export default function Footer() {
               >
                 v{process.env.NEXT_PUBLIC_APP_VERSION}
               </Link>
+              <span aria-hidden="true">•</span>
+              <StatusLink />
               <span aria-hidden="true">•</span>
               <GitHubStarLink />
             </p>

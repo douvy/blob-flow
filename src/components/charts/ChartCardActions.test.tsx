@@ -128,7 +128,8 @@ describe('ChartCardActions', () => {
     const href = new URL(link.getAttribute('href') ?? '');
     const shared = new URL(href.searchParams.get('url') ?? '');
 
-    expect(shared.searchParams.get('network')).toBe('sepolia');
+    // Network travels in the path, matching every other in-app link.
+    expect(shared.pathname).toBe('/sepolia/charts/blob-usage');
     expect(shared.searchParams.get('range')).toBe('7d');
     expect(href.searchParams.get('text')).toContain('on Sepolia');
   });
@@ -143,7 +144,7 @@ describe('ChartCardActions', () => {
       new URL(link.getAttribute('href') ?? '').searchParams.get('url') ?? ''
     );
 
-    expect(shared.searchParams.get('network')).toBeNull();
+    expect(shared.pathname).toBe('/charts/blob-usage');
   });
 
   it('shares the range currently selected, not the default', () => {
