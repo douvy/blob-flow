@@ -176,12 +176,21 @@ describe('parseCardParams', () => {
     expect(params.metrics).toEqual(['blob-count']);
   });
 
-  it('narrows the network to one the deployment serves', () => {
+  it('keeps a network identifier and rejects anything not shaped like one', () => {
     expect(parseCardParams(new URLSearchParams('network=sepolia')).network).toBe('sepolia');
     expect(parseCardParams(new URLSearchParams('network=main%26limit%3D9')).network).toBe(
       DEFAULT_CARD_NETWORK
     );
     expect(parseCardParams(new URLSearchParams('network=')).network).toBe(DEFAULT_CARD_NETWORK);
+  });
+
+  it('keeps a network the indexer serves dynamically rather than reading it as mainnet', () => {
+    // Callers check the network against the served list first (the page via
+    // its [network] layout, the image route via resolveCardNetwork), so
+    // clamping here to the bootstrap constants would put mainnet's numbers
+    // under another network's name.
+    expect(parseCardParams(new URLSearchParams(), 'holesky').network).toBe('holesky');
+    expect(parseCardParams(new URLSearchParams('network=holesky')).network).toBe('holesky');
   });
 
   it('takes the network from the page segment over the query', () => {

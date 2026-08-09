@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from '@/components/NetworkLink';
+import ChartViewLink from '@/components/ChartViewLink';
 import { usePathname, useRouter } from 'next/navigation';
 import { ArrowLeftRight, Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, Trophy, Tv, type LucideIcon } from 'lucide-react';
 import SearchModal from './SearchModal';
@@ -40,6 +41,16 @@ const NAV_LINKS: NavLink[] = [
   { href: '/records', label: 'Records', icon: Trophy, activePrefixes: ['/records'] },
   { href: '/flippening', label: 'Flippening', icon: ArrowLeftRight, activePrefixes: ['/flippening'] },
 ];
+
+/**
+ * Nav links to a range-driven view carry the selected range, so the address
+ * bar keeps describing what is on screen. Without it, picking 30d and then
+ * clicking through to another such page left a bare URL showing 30d data,
+ * which opened as 1h for anyone the link was sent to.
+ */
+function navLinkComponent(href: string) {
+  return isChartViewPath(href) ? ChartViewLink : Link;
+}
 
 const LIVE_STATUS_STYLES: Record<BlobWebSocketConnectionState, { label: string; color: string }> = {
   connecting: { label: 'Connecting', color: 'bg-yellow-400' },
@@ -118,12 +129,19 @@ function LiveStatusIndicator({
 export default function Header() {
   const rawPathname = usePathname();
   const router = useRouter();
-  const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
+  const { selectedNetwork, setSelectedNetwork, networkOptions, pathNetwork } = useNetwork();
   // Which page is showing is a property of the route, not of the network it is
   // scoped to, so nav highlighting compares against the unscoped path.
+  //
+  // The route's own segment is stripped alongside the listed ones: the list
+  // falls back to the bootstrap networks while GET /networks is in flight or
+  // after it fails, and leaving a dynamically served network's segment in
+  // place would drop the time filters and nav highlighting on every page.
   const pathname = stripNetworkPath(
     rawPathname,
-    networkOptions.map((option) => option.apiParam)
+    pathNetwork
+      ? [pathNetwork, ...networkOptions.map((option) => option.apiParam)]
+      : networkOptions.map((option) => option.apiParam)
   );
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
   // Chart detail pages read the time range via useChartData, so they keep the filter too
@@ -321,8 +339,9 @@ export default function Header() {
             <div className="flex items-center gap-1">
               {NAV_LINKS.map((link) => {
                 const active = isNavLinkActive(link);
+                const NavItem = navLinkComponent(link.href);
                 return (
-                  <Link
+                  <NavItem
                     key={link.href}
                     href={link.href}
                     aria-current={pathname === link.href ? 'page' : undefined}
@@ -332,7 +351,7 @@ export default function Header() {
                       }`}
                   >
                     {link.label}
-                  </Link>
+                  </NavItem>
                 );
               })}
             </div>
@@ -443,8 +462,9 @@ export default function Header() {
                 {NAV_LINKS.map((link) => {
                   const active = isNavLinkActive(link);
                   const Icon = link.icon;
+                  const NavItem = navLinkComponent(link.href);
                   return (
-                    <Link
+                    <NavItem
                       key={link.href}
                       href={link.href}
                       aria-current={pathname === link.href ? 'page' : undefined}
@@ -455,7 +475,7 @@ export default function Header() {
                       <span className={active ? 'font-medium text-titleText' : 'text-bodyText'}>
                         {link.label}
                       </span>
-                    </Link>
+                    </NavItem>
                   );
                 })}
               </nav>

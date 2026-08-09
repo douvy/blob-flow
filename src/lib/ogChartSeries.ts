@@ -4,8 +4,8 @@
  * series plus a headline stat, which is all a card-sized rendering can show.
  */
 
-import { api } from '@/lib/api';
 import { DEFAULT_NETWORK, DEFAULT_TIME_RANGE, type TimeRange } from '@/constants';
+import { fetchOgApi } from '@/lib/og/data';
 import type { Network } from '@/types';
 import { COLORS } from '@/constants/chartTheme';
 import { formatGwei, formatNumber } from '@/utils';
@@ -155,33 +155,66 @@ function blobCountSeries(
   };
 }
 
+/** The chart data a slug plots, or null when the backend could not answer. */
+async function fetchChartData<T>(endpoint: string, network: Network): Promise<T | null> {
+  const result = await fetchOgApi<T>(endpoint, network);
+  return result.status === 'ok' ? result.data : null;
+}
+
 /**
  * Fetches the series behind a chart slug. Returns null for an unknown slug
  * or any backend failure, so the card degrades to its text-only form rather
  * than failing the image request.
+ *
+ * Reads go through the card fetcher rather than the client API layer: that
+ * layer waits ten seconds and retries 5xx twice, which outlasts what an
+ * unfurl crawler will wait, so a limping backend produced no preview at all
+ * instead of the text-only card this returns.
  */
 export async function fetchOgChartSeries(
   slug: string,
   range: TimeRange = OG_CARD_DEFAULT_RANGE,
-  selectedNetwork: Network = OG_CARD_DEFAULT_NETWORK
+  network: Network = OG_CARD_DEFAULT_NETWORK
 ): Promise<OgChartSeries | null> {
-  try {
-    const network = selectedNetwork.apiParam;
-    switch (slug) {
-      case 'base-fee':
-        return baseFeeSeries(await api.getBlobMarketChart(range, network), range);
-      case 'gas-utilization':
-        return utilizationSeries(await api.getBlobMarketChart(range, network), range);
-      case 'blob-usage':
-        return blobUsageSeries(await api.getAttributionUsageChart(range, network), range);
-      case 'cost-comparison':
-        return costSeries(await api.getCostComparisonChart(range, network), range);
-      case 'rolling-market-stats':
-        return blobCountSeries(await api.getBlobMarketChart(range, network), range);
-      default:
-        return null;
+  const query = `range=${range}&granularity=auto`;
+
+  switch (slug) {
+    case 'base-fee': {
+      const market = await fetchChartData<BackendBlobMarketChartResponse>(
+        `/charts/blob-market?${query}`,
+        network
+      );
+      return market ? baseFeeSeries(market, range) : null;
     }
-  } catch {
-    return null;
+    case 'gas-utilization': {
+      const market = await fetchChartData<BackendBlobMarketChartResponse>(
+        `/charts/blob-market?${query}`,
+        network
+      );
+      return market ? utilizationSeries(market, range) : null;
+    }
+    case 'blob-usage': {
+      const usage = await fetchChartData<BackendAttributionUsageChartResponse>(
+        `/charts/attribution-usage?${query}`,
+        network
+      );
+      return usage ? blobUsageSeries(usage, range) : null;
+    }
+    case 'cost-comparison': {
+      const cost = await fetchChartData<BackendCostComparisonChartResponse>(
+        `/charts/cost-comparison?${query}`,
+        network
+      );
+      return cost ? costSeries(cost, range) : null;
+    }
+    case 'rolling-market-stats': {
+      const market = await fetchChartData<BackendBlobMarketChartResponse>(
+        `/charts/blob-market?${query}`,
+        network
+      );
+      return market ? blobCountSeries(market, range) : null;
+    }
+    default:
+      return null;
   }
 }

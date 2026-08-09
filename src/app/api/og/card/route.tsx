@@ -1,10 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { extname, join, sep } from 'node:path';
 import { ImageResponse } from 'next/og';
-import { parseNetwork, SITE_NAME, SITE_URL } from '@/constants';
+import { ATTRIBUTION_ENTITY_LIMIT, SITE_NAME, SITE_URL } from '@/constants';
 import { api } from '@/lib/api';
 import { OG_CARD_CACHE_CONTROL } from '@/lib/og/card';
 import { cardNotFound, hasCanonicalQuery, STAT_CARD_PARAMS } from '@/lib/og/request';
+import { resolveCardNetwork } from '@/lib/serverNetworks';
 import {
   CARD_RANGE_LABELS,
   cardDataNeeds,
@@ -84,8 +85,11 @@ async function loadCardSources(params: CardParams): Promise<CardSources> {
   const needs = cardDataNeeds(params.metrics);
 
   const [attribution, costComparison, baseFeeGwei] = await Promise.all([
+    // Whole registry rather than the backend's default top-few breakout: an
+    // entity folded into "other" would unfurl as the market-wide card, so a
+    // link that renders correctly on the page would not on X.
     api
-      .getAttributionUsageChart(params.range, params.network)
+      .getAttributionUsageChart(params.range, params.network, 'auto', ATTRIBUTION_ENTITY_LIMIT)
       .catch((): BackendAttributionUsageChartResponse | null => null),
     needs.costComparison
       ? api
@@ -173,8 +177,12 @@ export async function GET(request: Request) {
   const query = new URL(request.url).searchParams;
   if (!hasCanonicalQuery(query, STAT_CARD_PARAMS)) return cardNotFound();
 
-  const params = parseCardParams(query);
-  const networkName = parseNetwork(params.network).name;
+  // Resolved against the networks this deployment actually serves, so a card
+  // for a dynamically advertised network reports that network rather than
+  // silently rendering mainnet's numbers under its name.
+  const network = await resolveCardNetwork(query.get('network'));
+  const params = parseCardParams(query, network.apiParam);
+  const networkName = network.name;
 
   const [windsorBold, gtFlexa, logo, sources] = await Promise.all([
     readFile(join(PUBLIC_DIR, 'fonts/WindsorBold/WindsorBold.woff')),

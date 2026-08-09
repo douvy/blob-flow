@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from 'react';
+import { ATTRIBUTION_ENTITY_LIMIT } from '@/constants';
 import { useApiData } from './useApiData';
 import { useNetwork } from './useNetwork';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
@@ -46,14 +47,17 @@ export function useFlippening(): {
   const network = selectedNetwork.apiParam;
   const historyRange = FLIPPENING_HISTORY_RANGE[timeRange];
 
+  // Without an explicit limit the backend breaks out only its top few posters
+  // and folds the rest into "other", so a rollup outside that default could
+  // never appear in the standings and its crossovers would never be detected.
   const fetchAttribution = useCallback(
-    () => api.getAttributionUsageChart(historyRange, network),
+    () => api.getAttributionUsageChart(historyRange, network, 'auto', ATTRIBUTION_ENTITY_LIMIT),
     [historyRange, network]
   );
 
   const { data, isLoading, error } = useApiData<BackendAttributionUsageChartResponse>(
     fetchAttribution,
-    ['flippening-attribution', network, historyRange],
+    ['flippening-attribution', network, historyRange, ATTRIBUTION_ENTITY_LIMIT],
     { refetchInterval: REFRESH_INTERVAL_MS }
   );
 

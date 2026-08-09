@@ -13,7 +13,7 @@ import type {
   BackendChartRange,
   BackendCostComparisonChartResponse,
 } from '@/types';
-import { DEFAULT_NETWORK, parseNetwork } from '@/constants';
+import { DEFAULT_NETWORK, NETWORK_SLUG_PATTERN } from '@/constants';
 import {
   formatBlobWeiCost,
   formatGwei,
@@ -190,13 +190,18 @@ function parseRange(raw: string | undefined): CardRange {
 }
 
 /**
- * The card's network, narrowed to one the deployment ships with. Share
- * rendering happens without a session, so it stays on that finite set rather
- * than forwarding an arbitrary string to the backend (same reasoning as the
- * chart share cards).
+ * The card's network.
+ *
+ * Both entry points hand this a network that has already been checked against
+ * the ones the deployment serves: the page by its [network] layout, the image
+ * route by resolveCardNetwork. So this only has to reject anything not shaped
+ * like a network identifier, and must not narrow further. Clamping to the
+ * bootstrap constants here instead labeled a dynamically advertised network's
+ * card with that network's name while showing mainnet's numbers.
  */
 function parseCardNetwork(raw: string | undefined): string {
-  return parseNetwork(raw?.trim().toLowerCase()).apiParam;
+  const slug = raw?.trim().toLowerCase();
+  return slug && NETWORK_SLUG_PATTERN.test(slug) ? slug : DEFAULT_NETWORK.apiParam;
 }
 
 /** True when this metric can be shown on the given kind of card. */

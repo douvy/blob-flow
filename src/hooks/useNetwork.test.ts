@@ -130,6 +130,26 @@ describe('useNetwork', () => {
     expect(result.current.selectedNetwork.name).toBe('Hoodi');
   });
 
+  it('reports the path segment itself, so callers can strip it without the list', async () => {
+    // The Header strips this segment to decide nav highlighting and whether
+    // to show the time filters. Going by the option list instead loses both
+    // on a dynamic network whenever GET /networks is in flight or failed.
+    getNetworks.mockReturnValue(new Promise(() => {}));
+    onPath('/hoodi/charts/base-fee', 'hoodi');
+
+    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+
+    expect(result.current.pathNetwork).toBe('hoodi');
+    expect(result.current.networkOptions.map((option) => option.apiParam)).not.toContain('hoodi');
+  });
+
+  it('reports no path network on the bare paths', async () => {
+    const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+
+    await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+    expect(result.current.pathNetwork).toBeNull();
+  });
+
   it('ignores a segment that is not shaped like a network', async () => {
     // The route matches any single segment; a value that cannot be a network
     // must never reach the API as a query value.

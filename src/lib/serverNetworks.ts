@@ -1,10 +1,13 @@
-import { API_BASE_URL, DEFAULT_NETWORK, NETWORKS } from '@/constants';
+import {
+  API_BASE_URL,
+  DEFAULT_NETWORK,
+  NETWORK_SLUG_PATTERN,
+  NETWORKS,
+} from '@/constants';
 import type { ApiResponse, BackendNetwork, Network } from '@/types';
 
 /** How long a fetched network list is reused before being refetched. */
 const NETWORK_LIST_TTL_SECONDS = 300;
-
-const NETWORK_SLUG_PATTERN = /^[a-z0-9-]{1,32}$/;
 
 /**
  * Network identifiers the indexer serves, or null when the list cannot be

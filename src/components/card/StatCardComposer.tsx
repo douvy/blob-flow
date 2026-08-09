@@ -28,7 +28,7 @@ import {
   type CardRange,
   type MetricId,
 } from '@/lib/statCard';
-import { SITE_URL } from '@/constants';
+import { ATTRIBUTION_ENTITY_LIMIT, SITE_URL } from '@/constants';
 import {
   Select,
   SelectContent,
@@ -78,8 +78,13 @@ export default function StatCardComposer() {
   const isNetworkWide = params.entity === NETWORK_WIDE_ENTITY;
   const needs = cardDataNeeds(params.metrics);
 
+  // The entity picker and the card's own subject both come out of this
+  // response, so it asks for the whole registry rather than the backend's
+  // default top-few breakout: an entity folded into "other" would be missing
+  // from the picker and would degrade a valid ?entity= link to the
+  // market-wide card.
   const fetchAttribution = useCallback(
-    () => api.getAttributionUsageChart(params.range, params.network),
+    () => api.getAttributionUsageChart(params.range, params.network, 'auto', ATTRIBUTION_ENTITY_LIMIT),
     [params.range, params.network]
   );
   const fetchCostComparison = useCallback(
@@ -96,6 +101,7 @@ export default function StatCardComposer() {
     'card-attribution',
     params.network,
     params.range,
+    ATTRIBUTION_ENTITY_LIMIT,
   ]);
 
   const { data: costComparison } = useApiData<BackendCostComparisonChartResponse>(

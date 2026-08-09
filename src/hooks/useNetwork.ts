@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { useParams, usePathname } from 'next/navigation';
-import { DEFAULT_NETWORK, NETWORKS } from '../constants';
+import { DEFAULT_NETWORK, NETWORK_SLUG_PATTERN, NETWORKS } from '../constants';
 import type { BackendNetwork, Network } from '../types';
 import { api } from '@/lib/api';
 import { networkPath, stripNetworkPath } from '@/utils';
@@ -10,9 +10,6 @@ import { useApiData } from './useApiData';
 
 // Bootstrap list shown before GET /networks resolves and if it fails.
 const FALLBACK_NETWORKS = Object.values(NETWORKS);
-
-/** Shape of a network identifier, matching the route segment it comes from. */
-const NETWORK_SLUG_PATTERN = /^[a-z0-9-]{1,32}$/;
 
 /** Backend names are lowercase identifiers; present them title-cased. */
 function toDisplayName(apiParam: string): string {
@@ -53,8 +50,11 @@ function networkFromBackend(network: BackendNetwork): Network {
  * NETWORKS constant while loading or on error.
  *
  * @returns The network in the URL, a setter that navigates to another
- * network's copy of the current page, the option list, and whether the URL's
- * network is one the deployment actually serves.
+ * network's copy of the current page, the option list, and the URL's own
+ * network segment (null on an unscoped path). Callers that strip the segment
+ * need that last one rather than the option list: the list falls back to the
+ * bootstrap constants whenever GET /networks is in flight or failed, and a
+ * dynamically served network is absent from it.
  */
 export function useNetwork() {
     const params = useParams();
@@ -118,5 +118,6 @@ export function useNetwork() {
         selectedNetwork,
         setSelectedNetwork,
         networkOptions,
+        pathNetwork,
     };
 }

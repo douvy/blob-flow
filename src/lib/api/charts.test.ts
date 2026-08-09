@@ -1,3 +1,4 @@
+import { ATTRIBUTION_ENTITY_LIMIT } from '@/constants';
 import {
   getAttributionUsageChart,
   getBlobMarketChart,
@@ -122,6 +123,41 @@ describe('api/charts', () => {
       expect.any(Object)
     );
     expect(result).toBe(mockData);
+  });
+
+  it('leaves the entity breakout to the backend when no limit is asked for', async () => {
+    // Stacked charts want the leaders plus an "other" bucket, which is the
+    // endpoint's own default.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: { points: [] } }),
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await getAttributionUsageChart('24h', 'mainnet');
+
+    expect(fetchMock.mock.calls[0][0]).not.toContain('limit=');
+  });
+
+  it('asks for the whole registry when a caller addresses individual entities', async () => {
+    // Flippening standings, the stat card composer, and head to head all look
+    // up one named rollup. Without this the backend folds anything outside its
+    // default top-few into "other", and that rollup reads as having no
+    // activity at all.
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: { points: [] } }),
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await getAttributionUsageChart('24h', 'mainnet', 'auto', ATTRIBUTION_ENTITY_LIMIT);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`limit=${ATTRIBUTION_ENTITY_LIMIT}`),
+      expect.any(Object)
+    );
   });
 
   it('fetches rolling stats from the charts namespace', async () => {

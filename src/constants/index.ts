@@ -94,6 +94,18 @@ export const BLOCKS_PAGE_LIMIT = 100;
 export const BLOCKS_PAGE_SIZE = 20;
 
 /**
+ * How many entities the attribution-usage endpoint should break out rather
+ * than fold into its "other" bucket.
+ *
+ * The endpoint returns only the top few by default, which reports a quieter
+ * rollup as having no activity at all. Any feature that addresses a specific
+ * entity (head to head, flippening watch, stat cards) has to ask for enough
+ * to cover the whole registry, or that entity silently disappears. Charts
+ * that just stack the leaders keep the default breakout.
+ */
+export const ATTRIBUTION_ENTITY_LIMIT = 50;
+
+/**
  * Indexer health banner
  */
 export const SECONDS_PER_BLOCK = 12;
@@ -127,6 +139,9 @@ export const NETWORKS: Record<string, Network> = {
 };
 
 export const DEFAULT_NETWORK: Network = NETWORKS.MAINNET;
+
+/** Shape of a network identifier in a URL segment or query param. */
+export const NETWORK_SLUG_PATTERN = /^[a-z0-9-]{1,32}$/;
 
 /**
  * Narrows an untrusted network value (a share link's query param) to one of
