@@ -174,37 +174,6 @@
   }
 }
 
-/* Celebration for a 100% full block: a ring pushing out from the gauge. */
-@keyframes kiosk-full-ring {
-  0% {
-    opacity: 0.65;
-    transform: scale(0.92);
-  }
-
-  100% {
-    opacity: 0;
-    transform: scale(1.45);
-  }
-}
-
-/* Banner announcing the full block, held long enough to read and photograph. */
-@keyframes kiosk-full-banner {
-  0% {
-    opacity: 0;
-    transform: translateY(14px) scale(0.96);
-  }
-
-  10%, 80% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateY(-10px) scale(0.99);
-  }
-}
-
 /* Newest ticker card slides in from the leading edge as the row shifts. */
 @keyframes kiosk-ticker-in {
   0% {

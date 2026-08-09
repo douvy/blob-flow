@@ -1,12 +1,6 @@
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import React, { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowDownRight, ArrowUpRight, MoveRight } from 'lucide-react';
@@ -21,7 +15,6 @@ import {
   trimBlocksToWindow,
 } from '@/lib/blobFeeHero';
 import {
-  KIOSK_CELEBRATION_MS,
   KIOSK_FOCUS_PARAM,
   KIOSK_PRICING_BLOCKS,
   KIOSK_ROLLUP_FETCH,
@@ -29,6 +22,7 @@ import {
   KIOSK_TOP_ROLLUPS,
   buildChartPoints,
   buildFocusTickerSlots,
+  parseKioskFocus,
   buildRollupBars,
   buildTickerSlots,
   describeKioskConnection,
@@ -39,6 +33,7 @@ import {
   getPredictedDirection,
   summarizeKioskMempool,
   type KioskFeeDirection,
+  type KioskFocus,
 } from '@/lib/liveKiosk';
 import {
   aggregateMempoolAttribution,
@@ -118,10 +113,22 @@ function Panel({
 
 function PanelLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-[clamp(0.65rem,min(0.9vw,1.6vh),1rem)] font-medium uppercase tracking-[0.2em] text-[#6e7687]">
+    <h2 className="truncate text-[clamp(0.65rem,min(0.9vw,1.6vh),1rem)] font-medium uppercase tracking-[0.2em] text-[#6e7687]">
       {children}
     </h2>
   );
+}
+
+/**
+ * The focused target inside an uppercase panel label. Addresses opt out of
+ * the transform: "0X485F…9BFF" is harder to read than the hex as written,
+ * and the leading "0X" looks like a typo.
+ */
+export function FocusLabel({ focus }: { focus: KioskFocus }) {
+  if (focus.kind === 'address') {
+    return <span className="font-mono normal-case tracking-normal">{focus.label}</span>;
+  }
+  return <>{focus.label}</>;
 }
 
 /**
@@ -139,9 +146,11 @@ export default function LiveKiosk() {
   const network = selectedNetwork.apiParam;
   const { connectionState } = useBlobWebSocket();
   const queryClient = useQueryClient();
-  // Focused rollup, from the URL so a kiosk can be pinned to one L2.
+  // Focused rollup or sender address, from the URL so a kiosk can be pinned
+  // to one L2 (or one poster) permanently.
   const searchParams = useSearchParams();
-  const focus = searchParams.get(KIOSK_FOCUS_PARAM)?.trim() || null;
+  const rawFocus = searchParams.get(KIOSK_FOCUS_PARAM);
+  const focus = useMemo(() => parseKioskFocus(rawFocus), [rawFocus]);
 
   const fetchPricing = useCallback(
     () => api.getBlobPricing(network, KIOSK_PRICING_BLOCKS),
@@ -170,7 +179,6 @@ export default function LiveKiosk() {
     network: string;
     blocks: BlobPricingRecentBlock[];
   }>({ network, blocks: [] });
-  const [celebratedBlock, setCelebratedBlock] = useState<number | null>(null);
 
   const foldLiveBlocks = useCallback(
     (incoming: BlobPricingRecentBlock[]) => {
@@ -191,9 +199,6 @@ export default function LiveKiosk() {
     const record = event.data.pricing;
     if (record) {
       foldLiveBlocks([transformPricingRecentBlock(record)]);
-      if (record.is_full) {
-        setCelebratedBlock(record.block_number);
-      }
     }
     void refetchPricingHead();
     // The backend only broadcasts users_update for the all-time window, so
@@ -212,12 +217,6 @@ export default function LiveKiosk() {
       event.data.blocks.map((blockData) => transformPricingRecentBlock(blockData.pricing))
     );
   });
-
-  useEffect(() => {
-    if (celebratedBlock === null) return;
-    const timer = setTimeout(() => setCelebratedBlock(null), KIOSK_CELEBRATION_MS);
-    return () => clearTimeout(timer);
-  }, [celebratedBlock]);
 
   const blocks = useMemo(
     () =>
@@ -308,7 +307,11 @@ export default function LiveKiosk() {
       return null;
     }
     const scopedTransactions = focus
-      ? mempoolTransactions.filter((tx) => tx.user === focus)
+      ? mempoolTransactions.filter((tx) =>
+          focus.kind === 'address'
+            ? tx.fromAddressFull.toLowerCase() === focus.value
+            : tx.user === focus.value
+        )
       : mempoolTransactions;
     return summarizeKioskMempool(
       aggregateMempoolAttribution(scopedTransactions),
@@ -328,7 +331,6 @@ export default function LiveKiosk() {
   const connection = describeKioskConnection(connectionState);
   const now = useNow();
   const blockAgeSeconds = getBlockAgeSeconds(headBlock?.blockTimestamp, now);
-  const isCelebrating = celebratedBlock !== null;
   const pulseKey = headBlock?.blockNumber ?? 0;
 
   // The websocket alone is enough to run the wall. Gating the whole view on
@@ -364,14 +366,27 @@ export default function LiveKiosk() {
             {/* Always visible (not part of the auto-hiding controls) so a
                 screenshot of a focused kiosk carries its own context. */}
             {focus && (
-              <span className="flex min-w-0 items-center gap-2 text-[clamp(0.7rem,min(1vw,1.8vh),1.1rem)] uppercase tracking-[0.2em] text-lightBlue">
-                <AttributionBadge
-                  user={focus}
-                  sizeClass="h-[1.4em] w-[1.4em]"
-                  px={24}
-                  textClass="text-[0.6em]"
-                />
-                <span className="max-w-[14em] truncate">{focus}</span>
+              <span className="flex min-w-0 items-center gap-2 text-[clamp(0.7rem,min(1vw,1.8vh),1.1rem)] text-lightBlue">
+                {/* Only a named rollup gets a logo. An address has no entity
+                    behind it, and the badge's unknown-sender placeholder (a
+                    "?" with the network ribbon) reads as a broken icon. */}
+                {focus.kind === 'rollup' ? (
+                  <>
+                    <AttributionBadge
+                      user={focus.value}
+                      sizeClass="h-[1.4em] w-[1.4em]"
+                      px={24}
+                      textClass="text-[0.6em]"
+                    />
+                    <span className="max-w-[14em] truncate uppercase tracking-[0.2em]">
+                      {focus.label}
+                    </span>
+                  </>
+                ) : (
+                  // Hex stays lower case and monospaced: uppercasing turns
+                  // the prefix into "0X" and makes the digits hard to scan.
+                  <span className="max-w-[14em] truncate font-mono">{focus.label}</span>
+                )}
               </span>
             )}
           </div>
@@ -510,7 +525,11 @@ export default function LiveKiosk() {
               <div className="grid min-h-0 grid-cols-1 gap-[1.2vh] lg:grid-cols-12">
                 <Panel className="flex flex-col p-[2.2vh] lg:col-span-6">
                   <PanelLabel>
-                    {focus ? `Blocks · ${focus} blobs` : 'Blocks · newest first'}
+                    {focus ? (
+                      <>Blocks · <FocusLabel focus={focus} /> blobs</>
+                    ) : (
+                      'Blocks · newest first'
+                    )}
                   </PanelLabel>
                   <div className="mt-[0.9em] min-h-0 flex-1">
                     <KioskBlockTicker slots={tickerSlots} newestKey={newestTickerKey} />
@@ -528,12 +547,7 @@ export default function LiveKiosk() {
                 <Panel className="flex flex-col p-[2.2vh] lg:col-span-3" pulseKey={pulseKey}>
                   <PanelLabel>Blobspace fullness</PanelLabel>
                   <div className="min-h-0 flex-1">
-                    <KioskFullnessGauge
-                      fullness={fullness}
-                      pulseKey={pulseKey}
-                      celebrate={isCelebrating}
-                      compact
-                    />
+                    <KioskFullnessGauge fullness={fullness} compact />
                   </div>
                   {headlinePricing && (
                     <div className="flex shrink-0 items-baseline justify-between gap-3 text-[clamp(0.65rem,min(0.9vw,1.6vh),1rem)] text-[#6e7687]">
@@ -561,17 +575,6 @@ export default function LiveKiosk() {
         </div>
       </div>
 
-      {isCelebrating && (
-        <div
-          key={celebratedBlock}
-          role="status"
-          className="pointer-events-none absolute inset-x-0 top-[12vh] flex justify-center animate-[kiosk-full-banner_4500ms_ease-out_forwards] motion-reduce:animate-none"
-        >
-          <span className="rounded-full border border-red/50 bg-red/15 px-[1.5em] py-[0.5em] font-windsor-bold text-[clamp(1.25rem,min(3.5vw,6vh),3.5rem)] uppercase tracking-[0.15em] text-red backdrop-blur-sm">
-            Blobspace full · block {celebratedBlock?.toLocaleString()}
-          </span>
-        </div>
-      )}
     </div>
   );
 }

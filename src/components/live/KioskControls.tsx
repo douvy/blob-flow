@@ -10,6 +10,7 @@ import {
   KIOSK_CONTROL_IDLE_MS,
   KIOSK_FOCUS_OPTIONS,
   KIOSK_FOCUS_PARAM,
+  parseKioskFocus,
 } from '@/lib/liveKiosk';
 import {
   Select,
@@ -43,24 +44,28 @@ function NetworkOptionLabel({ network }: { network: Network }) {
 }
 
 /**
- * The only interactive controls in TV mode: a rollup focus picker and a
- * network switcher. The cluster fades out after KIOSK_CONTROL_IDLE_MS of no
+ * The only interactive controls in TV mode: a rollup focus picker, a sender
+ * address box, and a network switcher. The cluster fades out after KIOSK_CONTROL_IDLE_MS of no
  * pointer or keyboard activity so an unattended screen shows nothing but
  * data, and fades back in the moment someone touches the machine.
  *
  * While hidden it is also inert (`pointer-events-none`, `aria-hidden`), so a
  * stray click on a wall-mounted touchscreen cannot change anything.
  *
- * The focus lives in the URL (?focus=Base) rather than component state so a
- * kiosk can be pointed at a single rollup permanently and the view survives
- * reloads.
+ * The focus lives in the URL (?focus=Base or ?focus=0xabc…) rather than
+ * component state so a kiosk can be pointed at a single rollup or sender
+ * permanently and the view survives reloads. The address box covers posters
+ * the attribution registry does not name, which the picker cannot offer.
  */
 export default function KioskControls() {
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const focus = searchParams.get(KIOSK_FOCUS_PARAM)?.trim() || null;
+  const focus = parseKioskFocus(searchParams.get(KIOSK_FOCUS_PARAM));
+  // Only a rollup name can be the picker's value; an address focus leaves it
+  // on "All rollups" while the address box shows what is being watched.
+  const focusName = focus?.kind === 'rollup' ? focus.value : null;
 
   // 24h window so a rollup that has been quiet for an hour stays pickable.
   const { data: topUsers } = useTopUsers(
@@ -74,14 +79,16 @@ export default function KioskControls() {
       .map((user) => user.name);
     // A focus arriving via URL stays selectable even when it is not in the
     // top list, so the picker never silently misrepresents the view.
-    if (focus && !names.includes(focus)) {
-      names.unshift(focus);
+    if (focusName && !names.includes(focusName)) {
+      names.unshift(focusName);
     }
     return names;
-  }, [topUsers, focus]);
+  }, [topUsers, focusName]);
 
   const [isRevealed, setIsRevealed] = useState(false);
   const [openMenus, setOpenMenus] = useState(0);
+  const [addressDraft, setAddressDraft] = useState('');
+  const [addressError, setAddressError] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Read by the hide timer, which must not fire while a menu is open.
   const openMenusRef = useRef(0);
@@ -131,15 +138,43 @@ export default function KioskControls() {
     }
   };
 
+  const setFocusParam = useCallback(
+    (value: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value === null) {
+        params.delete(KIOSK_FOCUS_PARAM);
+      } else {
+        params.set(KIOSK_FOCUS_PARAM, value);
+      }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams]
+  );
+
   const handleFocusChange = (value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value === FOCUS_ALL) {
-      params.delete(KIOSK_FOCUS_PARAM);
-    } else {
-      params.set(KIOSK_FOCUS_PARAM, value);
+    setFocusParam(value === FOCUS_ALL ? null : value);
+    setAddressDraft('');
+  };
+
+  const handleAddressSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const entered = addressDraft.trim();
+    // An empty box clears the focus; anything else must be a real address, so
+    // a typo shows an error here instead of an unexplained empty wall.
+    if (!entered) {
+      setFocusParam(null);
+      setAddressError(false);
+      return;
     }
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    const parsed = parseKioskFocus(entered);
+    if (parsed?.kind !== 'address') {
+      setAddressError(true);
+      return;
+    }
+    setAddressError(false);
+    setFocusParam(parsed.value);
+    setAddressDraft('');
   };
 
   const isVisible = isRevealed || openMenus > 0;
@@ -152,7 +187,7 @@ export default function KioskControls() {
       aria-hidden={isVisible ? undefined : true}
     >
       <Select
-        value={focus ?? FOCUS_ALL}
+        value={focusName ?? FOCUS_ALL}
         onValueChange={handleFocusChange}
         onOpenChange={handleOpenChange}
       >
@@ -177,6 +212,31 @@ export default function KioskControls() {
           </SelectGroup>
         </SelectContent>
       </Select>
+
+      {/* Sender address, for posters the registry does not name. Submitting
+          an empty box clears the focus, which is how an address is undone
+          without reaching for the picker. */}
+      <form onSubmit={handleAddressSubmit}>
+        <input
+          type="text"
+          inputMode="text"
+          spellCheck={false}
+          autoComplete="off"
+          value={addressDraft}
+          onChange={(event) => {
+            setAddressDraft(event.target.value);
+            setAddressError(false);
+          }}
+          placeholder={focus?.kind === 'address' ? focus.label : 'Watch 0x address'}
+          aria-label="Watch a sender address"
+          aria-invalid={addressError || undefined}
+          title={focus?.kind === 'address' ? `Watching ${focus.value}` : undefined}
+          tabIndex={isVisible ? 0 : -1}
+          className={`h-9 w-44 rounded-md border bg-[#1d1f23] px-3 font-mono text-xs text-white placeholder:text-[#6e7687] focus:outline-none focus:ring-2 focus:ring-blue/60 ${
+            addressError ? 'border-red' : 'border-divider'
+          }`}
+        />
+      </form>
 
       <Select
         value={selectedNetwork.apiParam}

@@ -1,7 +1,9 @@
 import {
   KIOSK_TICKER_BLOCKS,
+  blobMatchesFocus,
   buildChartPoints,
   buildFocusTickerSlots,
+  parseKioskFocus,
   buildRollupBars,
   buildTickerSlots,
   describeKioskConnection,
@@ -222,6 +224,62 @@ describe('buildTickerSlots', () => {
   });
 });
 
+describe('parseKioskFocus', () => {
+  it('reads a rollup name as-is', () => {
+    expect(parseKioskFocus('Base')).toEqual({
+      value: 'Base',
+      kind: 'rollup',
+      label: 'Base',
+    });
+    expect(parseKioskFocus('  Robinhood Chain  ')?.value).toBe('Robinhood Chain');
+  });
+
+  it('normalizes an address to lower case and truncates its label', () => {
+    const focus = parseKioskFocus('0xAbC1230000000000000000000000000000000456');
+
+    expect(focus).toMatchObject({
+      value: '0xabc1230000000000000000000000000000000456',
+      kind: 'address',
+    });
+    expect(focus?.label).toBe('0xabc1...0456');
+  });
+
+  it('is null for nothing to focus on', () => {
+    expect(parseKioskFocus(null)).toBeNull();
+    expect(parseKioskFocus(undefined)).toBeNull();
+    expect(parseKioskFocus('   ')).toBeNull();
+  });
+
+  it('treats a malformed address as a name rather than a broken address', () => {
+    // Too short to be an address: matching it as a name simply finds nothing,
+    // which beats silently matching every sender.
+    expect(parseKioskFocus('0xabc')).toMatchObject({ kind: 'rollup', value: '0xabc' });
+  });
+});
+
+describe('blobMatchesFocus', () => {
+  const addressFocus = parseKioskFocus('0xAbC1230000000000000000000000000000000456')!;
+  const rollupFocus = parseKioskFocus('Base')!;
+
+  it('matches an address focus regardless of checksum casing', () => {
+    expect(
+      blobMatchesFocus(
+        { from_address: '0xABC1230000000000000000000000000000000456' },
+        addressFocus
+      )
+    ).toBe(true);
+    expect(blobMatchesFocus({ from_address: '0xdead' }, addressFocus)).toBe(false);
+    expect(blobMatchesFocus({}, addressFocus)).toBe(false);
+  });
+
+  it('matches a rollup focus on attribution, not on the sender', () => {
+    expect(blobMatchesFocus({ user_attribution: 'Base' }, rollupFocus)).toBe(true);
+    expect(
+      blobMatchesFocus({ from_address: '0xabc', user_attribution: 'Arbitrum' }, rollupFocus)
+    ).toBe(false);
+  });
+});
+
 describe('buildFocusTickerSlots', () => {
   it('counts the focused rollup blobs per block and their capacity share', () => {
     const [slot] = buildFocusTickerSlots(
@@ -237,7 +295,7 @@ describe('buildFocusTickerSlots', () => {
           ],
         }),
       ],
-      'Base',
+      parseKioskFocus('Base')!,
       1
     );
 
@@ -252,7 +310,7 @@ describe('buildFocusTickerSlots', () => {
   it('reports null rather than zero when blob details are missing', () => {
     const [withoutDetails] = buildFocusTickerSlots(
       [makeBlock({ blobCount: 4, blobs: [] })],
-      'Base',
+      parseKioskFocus('Base')!,
       1
     );
     expect(withoutDetails.kind === 'block' && withoutDetails.focus?.count).toBeNull();
@@ -260,7 +318,7 @@ describe('buildFocusTickerSlots', () => {
     // A genuinely empty block is an honest zero, not an unknown.
     const [emptyBlock] = buildFocusTickerSlots(
       [makeBlock({ blobCount: 0, utilizationPercent: 0, blobs: [] })],
-      'Base',
+      parseKioskFocus('Base')!,
       1
     );
     expect(emptyBlock.kind === 'block' && emptyBlock.focus?.count).toBe(0);
@@ -269,14 +327,14 @@ describe('buildFocusTickerSlots', () => {
   it('does not credit unattributed blobs to any focus', () => {
     const [slot] = buildFocusTickerSlots(
       [makeBlock({ blobCount: 2, blobs: [makeAttributedBlob(undefined), makeAttributedBlob('Scroll')] })],
-      'Base',
+      parseKioskFocus('Base')!,
       1
     );
     expect(slot.kind === 'block' && slot.focus?.count).toBe(0);
   });
 
   it('pads to the fixed slot count like the unfocused builder', () => {
-    const slots = buildFocusTickerSlots([makeBlock()], 'Base', 4);
+    const slots = buildFocusTickerSlots([makeBlock()], parseKioskFocus('Base')!, 4);
     expect(slots.map((slot) => slot.kind)).toEqual([
       'block',
       'placeholder',
@@ -299,16 +357,35 @@ describe('buildRollupBars', () => {
     expect(bars.every((bar) => !bar.isFocused)).toBe(true);
   });
 
-  it('drops unattributed senders so a raw address is never called a rollup', () => {
+  it('pools unattributed senders into one Unknown row instead of listing addresses', () => {
     const bars = buildRollupBars([
-      makeUser({ name: '0x12…34', attributed: false, dataCount: 500 }),
-      makeUser({ name: 'Base', dataCount: 400 }),
-      makeUser({ name: 'Arbitrum', dataCount: 200 }),
+      makeUser({ name: 'Base', percentage: 40, dataCount: 400 }),
+      makeUser({ name: '0x12…34', attributed: false, percentage: 20, dataCount: 200 }),
+      makeUser({ name: 'Arbitrum', percentage: 10, dataCount: 100 }),
+      makeUser({ name: '0xab…cd', attributed: false, percentage: 5, dataCount: 50 }),
     ]);
 
+    expect(bars.map((bar) => bar.name)).toEqual(['Base', 'Unknown', 'Arbitrum']);
+    // The pooled row sums the addresses it stands for.
+    expect(bars[1]).toMatchObject({ blobCount: 250, sharePercent: 25, isFocused: false });
+    expect(bars.map((bar) => bar.barPercent)).toEqual([100, 62.5, 25]);
+  });
+
+  it('re-ranks so a large unattributed pool can outrank a named rollup', () => {
+    const bars = buildRollupBars([
+      makeUser({ name: 'Base', dataCount: 300 }),
+      makeUser({ name: '0x12…34', attributed: false, dataCount: 200 }),
+      makeUser({ name: '0xab…cd', attributed: false, dataCount: 200 }),
+    ]);
+
+    expect(bars.map((bar) => bar.name)).toEqual(['Unknown', 'Base']);
+    expect(bars[0].blobCount).toBe(400);
+  });
+
+  it('omits the Unknown row when every sender is attributed', () => {
+    const bars = buildRollupBars([makeUser({ name: 'Base' }), makeUser({ name: 'Arbitrum' })]);
+
     expect(bars.map((bar) => bar.name)).toEqual(['Base', 'Arbitrum']);
-    // The dropped address must not skew the bar scale either.
-    expect(bars.map((bar) => bar.barPercent)).toEqual([100, 50]);
   });
 
   it('reports no share percentage when the backend did not compute one', () => {
@@ -329,7 +406,7 @@ describe('buildRollupBars', () => {
     const bars = buildRollupBars(
       [makeUser({ name: 'Base' }), makeUser({ name: 'Arbitrum' })],
       5,
-      'Arbitrum'
+      parseKioskFocus('Arbitrum')
     );
 
     expect(bars.map((bar) => bar.isFocused)).toEqual([false, true]);

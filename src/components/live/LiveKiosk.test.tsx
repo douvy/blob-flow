@@ -95,14 +95,19 @@ function makePricingRecord(
 }
 
 /** Minimal blob record; only attribution and identity matter to the kiosk. */
-function makeEventBlob(blockNumber: number, blobIndex: number, user?: string) {
+function makeEventBlob(
+  blockNumber: number,
+  blobIndex: number,
+  user?: string,
+  fromAddress = '0xsender'
+) {
   return {
     network_id: 1,
     network_name: 'mainnet',
     block_number: blockNumber,
     blob_index: blobIndex,
     tx_hash: `0xblock${blockNumber}blob${blobIndex}`,
-    from_address: '0xsender',
+    from_address: fromAddress,
     blob_size_bytes: 131072,
     base_fee_per_blob_gas: '250000000',
     tip_per_blob_gas: '0',
@@ -344,33 +349,17 @@ describe('LiveKiosk', () => {
     ).toBeInTheDocument();
   });
 
-  it('celebrates a 100% full block and clears the banner afterwards', () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
-      renderKiosk();
-      openSocket();
-
-      receive(makeNewBlockMessage(300, 6, '0.9'));
-
-      const banner = screen.getByRole('status');
-      expect(banner).toHaveTextContent('Blobspace full · block 300');
-
-      act(() => {
-        vi.advanceTimersByTime(5000);
-      });
-
-      expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('does not celebrate an ordinary block', () => {
+  it('marks a 100% full block in the gauge and ticker, with no overlay', () => {
     renderKiosk();
     openSocket();
 
-    receive(makeNewBlockMessage(301, 4, '0.9'));
+    receive(makeNewBlockMessage(300, 6, '0.9'));
 
+    expect(
+      screen.getByRole('meter', { name: /Blobspace fullness 100 percent, 6\/6 blobs/ })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Recent blocks')).toHaveTextContent('Full');
+    // No celebratory banner: it covered the headline fee for seconds at a time.
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
@@ -552,6 +541,48 @@ describe('LiveKiosk', () => {
     const exit = screen.getByLabelText('Leave TV mode for the dashboard');
     expect(exit).toHaveAttribute('href', '/');
     expect(exit).toHaveTextContent('BlobFlow');
+  });
+
+  it('focuses on a raw sender address, matching regardless of casing', () => {
+    const watched = '0xAbC1230000000000000000000000000000000456';
+    mockSearchParams.value = new URLSearchParams(`focus=${watched}`);
+    // One pending blob from the watched sender, one from someone else.
+    const mine = { ...makeMempoolTransaction(1, '500000000'), fromAddressFull: watched };
+    const theirs = { ...makeMempoolTransaction(2, '500000000'), fromAddressFull: '0xother' };
+    mockPricingQueries(makePricing(), false, null, { data: [mine, theirs], truncated: false });
+
+    renderKiosk();
+    openSocket();
+    // The block's blobs carry the address in a different checksum casing.
+    receive(
+      JSON.stringify({
+        type: 'new_block',
+        data: {
+          block_number: 900,
+          blob_count: 3,
+          timestamp: '2026-01-01T00:00:00.000Z',
+          blobs: [
+            makeEventBlob(900, 0, undefined, watched.toLowerCase()),
+            makeEventBlob(900, 1, undefined, watched.toUpperCase()),
+            makeEventBlob(900, 2, 'Base', '0xother'),
+          ],
+          pricing: makePricingRecord(900, 3, '0.5'),
+        },
+      })
+    );
+
+    // Header and panels name the address, truncated. Matched on the heading's
+    // accessible name: the hex is its own element so it can opt out of the
+    // labels' uppercase transform.
+    expect(
+      screen.getByRole('heading', { name: 'Blocks · 0xabc1...0456 blobs' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Mempool · 0xabc1...0456' })).toBeInTheDocument();
+    // Two of the block's three blobs are the watched sender's.
+    const ticker = screen.getByLabelText('Recent blocks');
+    expect(ticker.textContent).toContain('of 3/6');
+    // Only that sender's pending blob is counted.
+    expect(screen.getByText('1 priced in')).toBeInTheDocument();
   });
 
   it('lists the top rollups sized against the leader', () => {

@@ -1,4 +1,5 @@
 import { parseGwei } from './blobFeeHero';
+import { truncateAddress } from '../utils';
 import type { MempoolAttributionSummary } from './mempoolAttribution';
 import type {
   Block,
@@ -22,13 +23,56 @@ export const KIOSK_TOP_ROLLUPS = 5;
 
 /**
  * Rows requested for the share panel. Deeper than KIOSK_TOP_ROLLUPS because
- * unattributed senders are dropped before the top rollups are taken: a panel
- * titled "top rollups" must not list a raw address.
+ * unattributed senders are folded into one row before the top entries are
+ * taken, so the raw list must run past the rows that survive.
  */
 export const KIOSK_ROLLUP_FETCH = 20;
 
-/** How long the full-block celebration stays on screen. */
-export const KIOSK_CELEBRATION_MS = 4500;
+/** The pooled row for senders with no known attribution. */
+export const UNATTRIBUTED_ROLLUP = 'Unknown';
+
+const ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/;
+
+export interface KioskFocus {
+  /** Attributed rollup name, or a checksum-insensitive sender address. */
+  value: string;
+  kind: 'rollup' | 'address';
+  /** What the header shows: the name, or the address truncated. */
+  label: string;
+}
+
+/**
+ * The focus target from the URL. A rollup name scopes the kiosk to everything
+ * that rollup posts; a raw 0x address scopes it to one sender, which is the
+ * only way to watch a poster the attribution registry does not name yet.
+ *
+ * Returns null for an empty or malformed value, so a typo in the URL shows
+ * the unfocused wall rather than a view that silently matches nothing.
+ */
+export function parseKioskFocus(raw: string | null | undefined): KioskFocus | null {
+  const value = raw?.trim();
+  if (!value) return null;
+
+  if (ADDRESS_PATTERN.test(value)) {
+    const lower = value.toLowerCase();
+    return { value: lower, kind: 'address', label: truncateAddress(lower) };
+  }
+  // Anything else is treated as a name. A string that merely starts with 0x
+  // is not a usable address, and matching it as a name finds nothing, which
+  // is the honest outcome.
+  return { value, kind: 'rollup', label: value };
+}
+
+/** Does this blob belong to the focused rollup or sender? */
+export function blobMatchesFocus(
+  blob: { user_attribution?: string; from_address?: string },
+  focus: KioskFocus
+): boolean {
+  if (focus.kind === 'address') {
+    return blob.from_address?.toLowerCase() === focus.value;
+  }
+  return blob.user_attribution === focus.value;
+}
 
 /** Idle time after which the kiosk controls fade out. */
 export const KIOSK_CONTROL_IDLE_MS = 4000;
@@ -236,14 +280,14 @@ export function buildTickerSlots(
  */
 export function buildFocusTickerSlots(
   blocks: Block[],
-  focus: string,
+  focus: KioskFocus,
   limit = KIOSK_TICKER_BLOCKS
 ): KioskTickerSlot[] {
   const slots: KioskTickerSlot[] = blocks.slice(0, limit).map((block) => {
     const focusCount =
       block.blobs.length === 0 && block.blobCount > 0
         ? null
-        : block.blobs.filter((blob) => blob.user_attribution === focus).length;
+        : block.blobs.filter((blob) => blobMatchesFocus(blob, focus)).length;
 
     return {
       kind: 'block',
@@ -291,31 +335,70 @@ export interface KioskRollup {
 }
 
 /**
- * Top rollups sized against the leading rollup rather than against 100, so the
+ * Top rollups sized against the leading row rather than against 100, so the
  * bars stay readable from a distance when no single rollup dominates.
  *
- * Unattributed senders are dropped: they arrive as truncated addresses, and a
- * panel headed "top rollups" listing `0x12…34` misnames what it is showing.
- * Pass more rows than `limit` (see KIOSK_ROLLUP_FETCH) so the filtering does
- * not thin the list.
+ * Unattributed senders arrive as separate truncated-address rows. Listing
+ * those verbatim would misname them as rollups, but dropping them would hide
+ * real blobspace and make the named rollups look larger than they are, so
+ * they are pooled into one "Unknown" row and ranked alongside the rest. Pass
+ * more rows than `limit` (see KIOSK_ROLLUP_FETCH) so the pooling has the full
+ * unattributed tail to work with.
  */
 export function buildRollupBars(
   users: User[] | undefined,
   limit = KIOSK_TOP_ROLLUPS,
-  focus: string | null = null,
+  focus: KioskFocus | null = null,
   hasServerShares = true
 ): KioskRollup[] {
-  const rows = (users ?? []).filter((user) => user.attributed).slice(0, limit);
+  // Address focus highlights nothing here: these rows are rollups, and the
+  // address may be one of several a rollup posts from.
+  const focusName = focus?.kind === 'rollup' ? focus.value : null;
+  const named: KioskRollup[] = [];
+  let unknownBlobs = 0;
+  let unknownShare = 0;
+  let hasUnknown = false;
+
+  for (const user of users ?? []) {
+    if (user.attributed) {
+      named.push({
+        name: user.name,
+        sharePercent: hasServerShares ? user.percentage : null,
+        blobCount: user.dataCount,
+        barPercent: 0,
+        isFocused: focusName !== null && user.name === focusName,
+      });
+      continue;
+    }
+    hasUnknown = true;
+    unknownBlobs += user.dataCount;
+    unknownShare += user.percentage;
+  }
+
+  const rows = hasUnknown
+    ? [
+        ...named,
+        {
+          name: UNATTRIBUTED_ROLLUP,
+          sharePercent: hasServerShares ? unknownShare : null,
+          blobCount: unknownBlobs,
+          barPercent: 0,
+          // Focus targets a named rollup, so the pooled row is never focused.
+          isFocused: false,
+        },
+      ]
+    : named;
+
+  // Re-rank: pooling the tail can lift Unknown above named rollups, and the
+  // backend ordered the rows before they were combined.
+  const ranked = rows.sort((left, right) => right.blobCount - left.blobCount).slice(0, limit);
   // Normalized on blob counts rather than percentages: counts are always
   // present and carry the same proportions as server shares.
-  const leadCount = rows.reduce((max, user) => Math.max(max, user.dataCount), 0);
+  const leadCount = ranked.reduce((max, row) => Math.max(max, row.blobCount), 0);
 
-  return rows.map((user) => ({
-    name: user.name,
-    sharePercent: hasServerShares ? user.percentage : null,
-    blobCount: user.dataCount,
-    barPercent: leadCount > 0 ? clampPercent((user.dataCount / leadCount) * 100) : 0,
-    isFocused: focus !== null && user.name === focus,
+  return ranked.map((row) => ({
+    ...row,
+    barPercent: leadCount > 0 ? clampPercent((row.blobCount / leadCount) * 100) : 0,
   }));
 }
 

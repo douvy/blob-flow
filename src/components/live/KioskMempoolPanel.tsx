@@ -2,7 +2,7 @@
 
 import React from 'react';
 import AttributionBadge from '@/components/AttributionBadge';
-import type { KioskMempool } from '@/lib/liveKiosk';
+import type { KioskFocus, KioskMempool } from '@/lib/liveKiosk';
 
 /**
  * Pending blob demand: how many blobs are queued, how many of them can afford
@@ -22,7 +22,7 @@ export default function KioskMempoolPanel({
   isUnavailable = false,
 }: {
   mempool: KioskMempool | null;
-  focus?: string | null;
+  focus?: KioskFocus | null;
   /** The mempool fetch failed and no sample was ever received. */
   isUnavailable?: boolean;
 }) {
@@ -31,7 +31,18 @@ export default function KioskMempoolPanel({
       {/* The focused title drops "public" for width; the panel body's lower
           bound framing still communicates the partial view. */}
       <h2 className="truncate text-[clamp(0.65rem,min(0.9vw,1.6vh),1rem)] font-medium uppercase tracking-[0.2em] text-[#6e7687]">
-        {focus ? `Mempool · ${focus}` : 'Public mempool'}
+        {focus ? (
+          <>
+            Mempool ·{' '}
+            {focus.kind === 'address' ? (
+              <span className="font-mono normal-case tracking-normal">{focus.label}</span>
+            ) : (
+              focus.label
+            )}
+          </>
+        ) : (
+          'Public mempool'
+        )}
       </h2>
 
       <div className="flex min-h-0 flex-1 flex-col justify-center">

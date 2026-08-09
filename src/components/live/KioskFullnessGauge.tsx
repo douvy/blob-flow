@@ -16,19 +16,15 @@ function getGaugeStroke(fullness: KioskFullness): string {
  * Blobspace fullness of the newest block as a ring plus a percentage.
  *
  * The percentage is `tabular-nums` and the blob count sits on its own line,
- * so the readout never changes width as the numbers change. `pulseKey`
- * changes once per block and re-runs the ring sweep; `celebrate` adds the
- * expanding ring for a 100% full block.
+ * so the readout never changes width as the numbers change. A full block
+ * turns the ring red; it gets no animated treatment of its own, since the
+ * panel already flashes once per block.
  */
 export default function KioskFullnessGauge({
   fullness,
-  pulseKey,
-  celebrate,
   compact = false,
 }: {
   fullness: KioskFullness;
-  pulseKey: number;
-  celebrate: boolean;
   /** Smaller ring and type for the short bottom-row panel. */
   compact?: boolean;
 }) {
@@ -48,14 +44,6 @@ export default function KioskFullnessGauge({
 
   return (
     <div className="relative flex h-full w-full items-center justify-center">
-      {celebrate && (
-        <span
-          key={pulseKey}
-          aria-hidden="true"
-          className={`absolute ${ringSizeClass} rounded-full border-4 border-red animate-[kiosk-full-ring_1400ms_ease-out_infinite] motion-reduce:animate-none`}
-        />
-      )}
-
       <svg
         viewBox="0 0 100 100"
         className={`absolute ${ringSizeClass} -rotate-90`}
