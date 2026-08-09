@@ -222,7 +222,14 @@ export interface LatestBlocksResponse {
   data: Block[];
 }
 
-// Mempool transaction type (transformed for display)
+/**
+ * One entry from the mempool feed, transformed for display.
+ *
+ * Despite the name, an entry is a single pending blob rather than a whole
+ * transaction: a multi-blob transaction arrives as several entries sharing a
+ * tx hash, each carrying its own blob's size and cost. Roll them up with
+ * `groupMempoolByTransaction` before showing transaction-level figures.
+ */
 export interface MempoolTransaction {
   id: number;
   txHash: string;
@@ -231,12 +238,19 @@ export interface MempoolTransaction {
   fromAddressFull: string;
   fromAddressUrl?: string;
   user: string | null;
+  /**
+   * Blobs this entry accounts for, which every payload the indexer sends
+   * makes exactly one. The transaction's blob count comes from its versioned
+   * hash list, not from here.
+   */
   blobCount: number;
+  /** This entry's own blob. */
   blobSizeBytes: number;
   baseFeeGwei: string;
   tipGwei: string;
   maxFeeGwei: string;
   feeHeadroom: string;
+  /** This entry's own blob, so a transaction's cost is the sum of its entries'. */
   realizedCost: string;
   maxCost: string;
   estimatedCost: string;

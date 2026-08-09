@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DEFAULT_NETWORK } from '../constants';
 import { LiveDataProvider } from '../contexts/LiveDataContext';
@@ -70,12 +70,28 @@ function makePendingBlob(txHash: string): BlobResponse {
   return { ...blob, tx_hash: txHash };
 }
 
+/** A blob of a transaction that carries `blobCount` of them in total. */
+function makeBlobOfTransaction(
+  txHash: string,
+  blobIndex: number,
+  blobCount: number
+): BlobResponse {
+  return {
+    ...makePendingBlob(txHash),
+    blob_index: blobIndex,
+    versioned_hashes: Array.from(
+      { length: blobCount },
+      (_, index) => `0x01${index.toString().repeat(62)}`
+    ),
+  };
+}
+
 function makeMempoolUpdateMessage(data: MempoolUpdateData): string {
   return JSON.stringify({ type: 'mempool_update', data });
 }
 
 function detailsButtonName(txHash: string): string {
-  return `View pending blob details for transaction ${txHash}`;
+  return `View pending transaction details for ${txHash}`;
 }
 
 // Mirror the production QueryClient defaults that matter here: a nonzero
@@ -120,7 +136,7 @@ describe('MempoolTable', () => {
     });
   });
 
-  it('opens pending blob details from the transaction hash', async () => {
+  it('opens pending transaction details from the transaction hash', async () => {
     renderMempoolTable();
 
     fireEvent.click(
@@ -129,13 +145,13 @@ describe('MempoolTable', () => {
       })
     );
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText(blob.tx_hash)).toBeInTheDocument();
-    expect(screen.getByText(blob.from_address)).toBeInTheDocument();
-    expect(screen.getByText('Blob Index')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(blob.tx_hash)).toBeInTheDocument();
+    expect(within(dialog).getByText(blob.from_address)).toBeInTheDocument();
+    expect(within(dialog).getByText('Blobs')).toBeInTheDocument();
+    expect(within(dialog).getByText('1 blob')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /close blob details/i }));
+    fireEvent.click(screen.getByRole('button', { name: /close transaction details/i }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -193,7 +209,10 @@ describe('MempoolTable', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('accumulates one row per blob for a multi-blob transaction', async () => {
+  it('shows one row per transaction carrying its whole blob count', async () => {
+    // Regression: the feed sends an entry per blob, and each entry's own gas
+    // and size only ever describe a single blob. Rendering entries directly
+    // gave a run of near-identical rows all claiming "1 blob".
     renderMempoolTable();
     await screen.findByRole('button', { name: detailsButtonName(blob.tx_hash) });
     const socket = MockWebSocket.instances[0];
@@ -205,21 +224,24 @@ describe('MempoolTable', () => {
       socket.receive(
         makeMempoolUpdateMessage({
           action: 'add',
-          blob: { ...makePendingBlob(txHash), blob_index: 0 },
+          blob: makeBlobOfTransaction(txHash, 0, 3),
         })
       );
       socket.receive(
         makeMempoolUpdateMessage({
           action: 'add',
-          blob: { ...makePendingBlob(txHash), blob_index: 1 },
+          blob: makeBlobOfTransaction(txHash, 1, 3),
         })
       );
     });
     await waitFor(() =>
       expect(
         screen.getAllByRole('button', { name: detailsButtonName(txHash) })
-      ).toHaveLength(2)
+      ).toHaveLength(1)
     );
+    expect(screen.getByText('3 blobs')).toBeInTheDocument();
+    // Two of the three blobs are in the sample, so the size is a lower bound.
+    expect(screen.getByText('256 KB+')).toBeInTheDocument();
 
     // Removes drop every blob entry of the transaction.
     act(() => {
