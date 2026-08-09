@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import {
   CHART_PAGES,
   DEFAULT_NETWORK,
+  SITE_DESCRIPTION,
   SITE_NAME,
-  parseNetwork,
+  SITE_TITLE,
   parseTimeRange,
 } from '@/constants';
 import { networkPath } from '@/utils';
@@ -55,6 +56,83 @@ function shortTxHash(hash: string): string {
 }
 
 /**
+ * The network a card URL should name. Well-formed slugs pass through so a
+ * card can report on any network the deployment serves, not just the
+ * bootstrap two; anything else falls back to the default.
+ */
+function cardNetworkSlug(network?: string): string {
+  const slug = network?.toLowerCase();
+  return slug && NETWORK_SEGMENT_PATTERN.test(slug) ? slug : DEFAULT_NETWORK.apiParam;
+}
+
+/** How a network is named in card alt text. */
+function cardNetworkName(network?: string): string {
+  return networkLabel(network) ?? DEFAULT_NETWORK.name;
+}
+
+/**
+ * Social card tags for the pages whose card is a live stat card rather than a
+ * plotted chart: the dashboard, a block, and a sender. Same shape as
+ * chartMetadata's, so every page unfurls as a large image.
+ *
+ * Like the chart card, these are route handlers rather than opengraph-image
+ * file conventions: that convention only receives route params, and a card
+ * has to honor the network (and, on the dashboard, the range) the URL names.
+ */
+function statCard(
+  path: string,
+  alt: string,
+  { network, range, title = SITE_TITLE, description = SITE_DESCRIPTION }: {
+    network?: string;
+    range?: string;
+    title?: string;
+    description?: string;
+  } = {}
+): Pick<Metadata, 'openGraph' | 'twitter'> {
+  // The slug passes through rather than being narrowed to a bootstrap
+  // network: this page only rendered because the layout confirmed the network
+  // is served, and narrowing here would point a card for any other served
+  // network at mainnet's data. The route resolves it against the served list
+  // before reading anything.
+  const params = new URLSearchParams({ network: cardNetworkSlug(network) });
+  if (range !== undefined) {
+    // Same fallback as the chart card: a card read at a glance wants a window
+    // wider than the dashboard's live default.
+    params.set('range', parseTimeRange(range, OG_CARD_DEFAULT_RANGE));
+  }
+
+  const url = `${path}?${params.toString()}`;
+
+  return {
+    openGraph: {
+      type: 'website',
+      siteName: SITE_NAME,
+      title,
+      description,
+      images: [{ url, width: 1200, height: 630, alt }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [{ url, alt }],
+    },
+  };
+}
+
+/**
+ * Site-wide card for the root layout: the dashboard card at its defaults, so
+ * a route with no metadata of its own still unfurls as a branded live card
+ * rather than a bare logo.
+ */
+export function defaultOgMetadata(): Pick<Metadata, 'openGraph' | 'twitter'> {
+  return statCard(
+    '/api/og/home',
+    `Live blob base fee and top rollup shares on ${SITE_NAME}`
+  );
+}
+
+/**
  * For a URL whose network segment names no served network. The route answers
  * 404, so it must not advertise a title or a canonical of its own: metadata is
  * generated even when the layout rejects the request.
@@ -66,31 +144,54 @@ export function unknownNetworkMetadata(): Metadata {
   };
 }
 
-export function homeMetadata(network?: string): Metadata {
+export function homeMetadata(network?: string, range?: string): Metadata {
   const suffix = titleSuffix(network);
+  const title = suffix ? `Real-Time Ethereum Blob Analytics${suffix}` : SITE_TITLE;
+  const cardNetwork = cardNetworkName(network);
+
   return {
     // The default network's dashboard keeps the site-wide title.
-    ...(suffix ? { title: `Real-Time Ethereum Blob Analytics${suffix}` } : {}),
+    ...(suffix ? { title } : {}),
     alternates: canonical('/', network),
+    // The dashboard's card reports over the header's range, so a shared link
+    // unfurls the window the sharer was looking at.
+    ...statCard(
+      '/api/og/home',
+      `Live blob base fee and top rollup shares on ${cardNetwork}, from ${SITE_NAME}`,
+      { network, range: range ?? '', title }
+    ),
   };
 }
 
 export function blocksMetadata(network?: string): Metadata {
+  const title = `Latest Blocks & Blob Fees${titleSuffix(network)}`;
+  const description =
+    'Browse recent Ethereum blocks in real time with live blob counts, blob base fees, and per-blob details.';
   return {
-    title: `Latest Blocks & Blob Fees${titleSuffix(network)}`,
-    description:
-      'Browse recent Ethereum blocks in real time with live blob counts, blob base fees, and per-blob details.',
+    title,
+    description,
     alternates: canonical('/blocks', network),
+    // No card of its own, so it shares the dashboard's, scoped to this network.
+    ...statCard('/api/og/home', `Live Ethereum blob analytics on ${SITE_NAME}`, {
+      network,
+      title,
+      description,
+    }),
   };
 }
 
 export function mempoolMetadata(network?: string): Metadata {
   const suffix = titleSuffix(network);
+  const title = suffix ? `Pending Blob Transactions${suffix}` : SITE_TITLE;
   return {
     // The bare mempool page has never set a title; only the scoped copies need
     // one, to say which network's pending transactions they list.
     ...(suffix ? { title: `Pending Blob Transactions${suffix}` } : {}),
     alternates: canonical('/mempool', network),
+    ...statCard('/api/og/home', `Live Ethereum blob analytics on ${SITE_NAME}`, {
+      network,
+      title,
+    }),
   };
 }
 
@@ -113,27 +214,61 @@ export function flippeningMetadata(network?: string): Metadata {
 }
 
 export function liveMetadata(network?: string): Metadata {
+  const title = `TV Mode: Live Blob Market${titleSuffix(network)}`;
+  const description =
+    'Full-screen live view of the Ethereum blob market: current blob base fee, next-block ' +
+    'prediction, blobspace fullness, and the rollups filling recent blocks. Built for ' +
+    'conference screens and stream overlays.';
   return {
-    title: `TV Mode: Live Blob Market${titleSuffix(network)}`,
-    description:
-      'Full-screen live view of the Ethereum blob market: current blob base fee, next-block ' +
-      'prediction, blobspace fullness, and the rollups filling recent blocks. Built for ' +
-      'conference screens and stream overlays.',
+    title,
+    description,
     alternates: canonical('/live', network),
+    // No card of its own, so it shares the dashboard's, scoped to this network.
+    ...statCard(
+      '/api/og/home',
+      `Live Ethereum blob analytics on ${cardNetworkName(network)}, from ${SITE_NAME}`,
+      { network, title, description }
+    ),
   };
 }
 
 export function blockMetadata(blockNumber: string, network?: string): Metadata {
+  const title = `Block ${blockNumber} Blob Details${titleSuffix(network)}`;
+  const cardNetwork = cardNetworkName(network);
+  // The card route serves one URL per card, so a number that is not already
+  // canonical (leading zeros, non-numeric) gets no card rather than a 404 one.
+  const cardBlockNumber = /^(0|[1-9]\d*)$/.test(blockNumber) ? blockNumber : null;
+
   return {
-    title: `Block ${blockNumber} Blob Details${titleSuffix(network)}`,
+    title,
     alternates: canonical(`/block/${blockNumber}`, network),
+    ...(cardBlockNumber
+      ? statCard(
+          `/api/og/block/${cardBlockNumber}`,
+          `Blob details for block ${blockNumber} on ${cardNetwork}, from ${SITE_NAME}`,
+          { network, title }
+        )
+      : {}),
   };
 }
 
 export function userMetadata(address: string, network?: string): Metadata {
+  const title = `Blob Activity · ${shortAddress(address)}${titleSuffix(network)}`;
+  const cardNetwork = cardNetworkName(network);
+  // Same one-URL-per-card rule: the card route only answers for the lowercase
+  // spelling, so every casing of an address points at a single image.
+  const cardAddress = /^0x[0-9a-f]{40}$/i.test(address) ? address.toLowerCase() : null;
+
   return {
-    title: `Blob Activity · ${shortAddress(address)}${titleSuffix(network)}`,
+    title,
     alternates: canonical(`/user/${address}`, network),
+    ...(cardAddress
+      ? statCard(
+          `/api/og/user/${cardAddress}`,
+          `Blob activity for ${shortAddress(address)} on ${cardNetwork}, from ${SITE_NAME}`,
+          { network, title }
+        )
+      : {}),
   };
 }
 
@@ -141,9 +276,16 @@ export function transactionMetadata(hash: string, network?: string): Metadata {
   // The page reads hashes case-insensitively, so the canonical URL uses the
   // lowercase spelling and every casing of one hash points at a single page.
   const canonicalHash = /^0x[0-9a-f]{64}$/i.test(hash) ? hash.toLowerCase() : hash;
+  const title = `Blob Transaction · ${shortTxHash(canonicalHash)}${titleSuffix(network)}`;
   return {
-    title: `Blob Transaction · ${shortTxHash(canonicalHash)}${titleSuffix(network)}`,
+    title,
     alternates: canonical(`/tx/${canonicalHash}`, network),
+    // No card of its own, so it shares the dashboard's, scoped to this network.
+    ...statCard(
+      '/api/og/home',
+      `Live Ethereum blob analytics on ${cardNetworkName(network)}, from ${SITE_NAME}`,
+      { network, title }
+    ),
   };
 }
 
@@ -210,9 +352,8 @@ export function chartMetadata(
   }
 
   const cardRange = parseTimeRange(range, OG_CARD_DEFAULT_RANGE);
-  const cardNetwork = parseNetwork(network);
-  const cardUrl = `/api/og/chart/${chart}?range=${cardRange}&network=${cardNetwork.apiParam}`;
-  const cardAlt = `${page.title}: ${cardNetwork.name} over the last ${cardRange} on ${SITE_NAME}`;
+  const cardUrl = `/api/og/chart/${chart}?range=${cardRange}&network=${cardNetworkSlug(network)}`;
+  const cardAlt = `${page.title}: ${cardNetworkName(network)} over the last ${cardRange} on ${SITE_NAME}`;
 
   return {
     title,

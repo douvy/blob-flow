@@ -21,6 +21,14 @@ const rawSiteUrl =
   'http://localhost:3000';
 export const SITE_URL = rawSiteUrl.replace(/\/+$/, '');
 
+// Shared with per-page Open Graph metadata, which must restate them: Next
+// replaces the whole openGraph object per segment rather than deep-merging it.
+export const SITE_TITLE = 'BlobFlow: Real-Time Ethereum Blob Analytics';
+export const SITE_DESCRIPTION =
+  'Track the Ethereum EIP-4844 blob market in real time: live blob base fees, ' +
+  'next-block fee predictions, mempool pressure, and L2 rollup usage across ' +
+  'Arbitrum, Optimism, Base, and zkSync, streamed block by block.';
+
 // Chart detail pages, used for SEO (sitemap entries, per-chart page titles,
 // and social share cards). Keep the slugs and descriptions in sync with
 // CHART_VIEWS in src/components/charts/chartViews.tsx (a "use client" module,

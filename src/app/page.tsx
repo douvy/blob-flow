@@ -12,7 +12,22 @@ import FlippeningSummary from '@/components/FlippeningSummary';
 import ExplainerSection from '@/components/ExplainerSection';
 import { homeMetadata } from '@/lib/pageMetadata';
 
-export const metadata: Metadata = homeMetadata();
+/**
+ * The dashboard's share card reports over the header's range, which the URL
+ * carries as ?range=. Only pages receive searchParams, never layouts, which
+ * is why this is generateMetadata rather than a static export. The page's own
+ * content is client-fetched, so nothing else changes.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}): Promise<Metadata> {
+  const query = await searchParams;
+  const range = Array.isArray(query.range) ? query.range[0] : query.range;
+
+  return homeMetadata(undefined, range);
+}
 
 export default function Home() {
   return (
