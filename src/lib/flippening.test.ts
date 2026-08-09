@@ -6,6 +6,7 @@ import {
   computeStandings,
   detectCrossoverEvents,
   findClosestGap,
+  formatGapPoints,
   selectTopEntities,
 } from './flippening';
 import type {
@@ -401,6 +402,34 @@ describe('computeStandings', () => {
 
   it('returns nothing when there are no evaluated windows', () => {
     expect(computeStandings([], entities, [])).toEqual([]);
+  });
+});
+
+describe('formatGapPoints', () => {
+  it('shows a gap the reader can see at one decimal', () => {
+    expect(formatGapPoints(23.44)).toBe('23.4');
+    expect(formatGapPoints(0.75)).toBe('0.8');
+    expect(formatGapPoints(0.05)).toBe('0.1');
+  });
+
+  it('says "under a tenth" rather than rounding a real gap down to zero', () => {
+    // "trails by 0.0 pts" contradicts itself; the rollup is behind.
+    expect(formatGapPoints(0.04)).toBe('<0.1');
+    expect(formatGapPoints(0.0001)).toBe('<0.1');
+  });
+
+  it('returns null for a tie, so callers can say the pair is level', () => {
+    expect(formatGapPoints(0)).toBeNull();
+    // Equal blob counts can leave float residue rather than an exact zero.
+    expect(formatGapPoints(3.5e-15)).toBeNull();
+  });
+
+  it('reads a negative gap by its magnitude', () => {
+    expect(formatGapPoints(-2.5)).toBe('2.5');
+  });
+
+  it('drops a gap that is not a number rather than printing NaN', () => {
+    expect(formatGapPoints(Number.NaN)).toBeNull();
   });
 });
 
