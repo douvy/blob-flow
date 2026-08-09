@@ -2,11 +2,10 @@ import './globals.css';
 import type { Metadata } from 'next';
 import AppProviders from '@/components/AppProviders';
 import AppChrome from '@/components/AppChrome';
-import { SITE_URL } from '@/constants';
+import { SITE_NAME, SITE_URL } from '@/constants';
 
 // Removed Inter font
 
-const SITE_NAME = 'BlobFlow';
 const SITE_TITLE = 'BlobFlow: Real-Time Ethereum Blob Analytics';
 const SITE_DESCRIPTION =
   'Track the Ethereum EIP-4844 blob market in real time: live blob base fees, ' +

@@ -1,16 +1,57 @@
 "use client";
 
-import React from 'react';
+import React, { useRef } from 'react';
 import Link from '@/components/NetworkLink';
 import { Maximize2 } from 'lucide-react';
 import { useChartData } from '../hooks/useChartData';
 import DataStateWrapper from './DataStateWrapper';
-import { CHART_VIEWS } from './charts/chartViews';
+import { CHART_VIEWS, ChartView } from './charts/chartViews';
+import ChartCardActions from './charts/ChartCardActions';
 import { CHART_CARD_CLASS } from '../constants/chartTheme';
+import type { ChartDataset } from '../types';
 
 // The base fee trend already leads the hero, so it's omitted here to avoid a
 // duplicate graph. Its enlarged view stays reachable at /charts/base-fee.
 const DATA_TRENDS_VIEWS = CHART_VIEWS.filter((view) => view.id !== 'base-fee');
+
+function DashboardChartCard({
+  view,
+  chartData,
+}: {
+  view: ChartView;
+  chartData: ChartDataset;
+}) {
+  const captureRef = useRef<HTMLDivElement>(null);
+  const title = view.getTitle(chartData);
+
+  return (
+    <div className={CHART_CARD_CLASS}>
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <h3 className="text-md font-medium text-white">{title}</h3>
+        <div className="flex flex-none items-center gap-2">
+          <ChartCardActions
+            chartId={view.id}
+            chartTitle={title}
+            headlineStat={view.getHeadlineStat(chartData)}
+            rangeLabel={chartData.chartRangeLabel}
+            captureRef={captureRef}
+          />
+          <Link
+            href={`/charts/${view.id}`}
+            className="flex h-8 w-8 flex-none items-center justify-center rounded-md border border-divider bg-[#1d1f23] text-blue transition-colors hover:bg-[#252936] hover:text-lightBlue focus:outline-none focus:ring-2 focus:ring-blue/60"
+            aria-label={`Open ${title} enlarged`}
+            title="Enlarge graph"
+          >
+            <Maximize2 className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+      </div>
+      <div ref={captureRef} className={view.dashboardFrameClassName}>
+        {view.render(chartData)}
+      </div>
+    </div>
+  );
+}
 
 export default function MetricsCharts() {
   const { chartData, isLoading, error } = useChartData();
@@ -33,24 +74,7 @@ export default function MetricsCharts() {
         {chartData && (
           <div className="flex flex-col space-y-6">
             {DATA_TRENDS_VIEWS.map((view) => (
-              <div key={view.id} className={CHART_CARD_CLASS}>
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <h3 className="text-md font-medium text-white">
-                    {view.getTitle(chartData)}
-                  </h3>
-                  <Link
-                    href={`/charts/${view.id}`}
-                    className="flex h-8 w-8 flex-none items-center justify-center rounded-md border border-divider bg-[#1d1f23] text-blue transition-colors hover:bg-[#252936] hover:text-lightBlue focus:outline-none focus:ring-2 focus:ring-blue/60"
-                    aria-label={`Open ${view.getTitle(chartData)} enlarged`}
-                    title="Enlarge graph"
-                  >
-                    <Maximize2 className="h-4 w-4" aria-hidden="true" />
-                  </Link>
-                </div>
-                <div className={view.dashboardFrameClassName}>
-                  {view.render(chartData)}
-                </div>
-              </div>
+              <DashboardChartCard key={view.id} view={view} chartData={chartData} />
             ))}
 
             {/* Data coverage note */}

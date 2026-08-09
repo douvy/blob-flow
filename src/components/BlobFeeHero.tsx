@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import Link from '@/components/NetworkLink';
 import { useRouter } from 'next/navigation';
 import { TrendingDown, TrendingUp, MoveRight, Maximize2 } from 'lucide-react';
@@ -47,6 +47,7 @@ import {
   trimBlocksToWindow,
   type HeroStripBucket,
 } from '@/lib/blobFeeHero';
+import ChartCardActions from '@/components/charts/ChartCardActions';
 import { useApiData } from '@/hooks/useApiData';
 import { useLatestBlobBaseFee } from '@/hooks/useLatestBlobBaseFee';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -802,6 +803,19 @@ export default function BlobFeeHero() {
       ? parseGwei(marketChart.summary.average_blob_base_fee_gwei)
       : undefined;
 
+  const heroChartRef = useRef<HTMLDivElement>(null);
+
+  const heroChartTitle = isLiveRange
+    ? 'Blob Base Fee (Gwei)'
+    : `Blob Base Fee over ${RANGE_LABELS[timeRange]} (Gwei)`;
+
+  // The hero already computes the average it plots as a reference line, so
+  // the share copy reuses it rather than deriving a second number.
+  const heroHeadlineStat =
+    chartReferenceFeeGwei !== undefined
+      ? `avg base fee ${formatGwei(chartReferenceFeeGwei, 4)}`
+      : undefined;
+
   // Below the two-column `lg` breakpoint (1024px) the strip spans a narrower
   // card, so show fewer bars to keep each block a usable tap target. Use the
   // exact complement of Tailwind's `min-width: 1024px` so JS and CSS can't drift.
@@ -1008,6 +1022,15 @@ export default function BlobFeeHero() {
                         · {formatRelativeTime(headBlock.blockTimestamp, new Date(now))}
                       </span>
                     )}
+                    <ChartCardActions
+                      chartId="base-fee"
+                      chartTitle={heroChartTitle}
+                      headlineStat={heroHeadlineStat ?? null}
+                      rangeLabel={RANGE_LABELS[timeRange]}
+                      captureRef={heroChartRef}
+                      sizeClass="h-6 w-6"
+                      iconClass="h-3.5 w-3.5"
+                    />
                     <Link
                       href="/charts/base-fee"
                       className="flex h-6 w-6 flex-none items-center justify-center rounded-md border border-divider bg-[#1d1f23] text-blue transition-colors hover:bg-[#252936] hover:text-lightBlue focus:outline-none focus:ring-2 focus:ring-blue/60"
@@ -1018,7 +1041,7 @@ export default function BlobFeeHero() {
                     </Link>
                   </span>
                 </div>
-                <div className="mt-3 min-h-56 flex-1 sm:min-h-64">
+                <div ref={heroChartRef} className="mt-3 min-h-56 flex-1 sm:min-h-64">
                   {chartPoints.length > 1 ? (
                     <HeroFeeChart
                       points={chartPoints}

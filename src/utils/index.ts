@@ -350,6 +350,38 @@ addresses:
 }
 
 /**
+ * Builds a twitter.com tweet intent URL prefilled with chart share copy: the
+ * chart title, an optional headline stat, and a deep link to the chart page.
+ */
+export function buildTweetIntentUrl(options: {
+  title: string;
+  stat?: string | null;
+  url: string;
+}): string {
+  const { title, stat, url } = options;
+  const text = stat ? `${title}: ${stat}` : title;
+  const params = new URLSearchParams({ text, url });
+  return `https://twitter.com/intent/tweet?${params.toString()}`;
+}
+
+/**
+ * Filename for an exported chart image: slugged title plus a sortable local
+ * timestamp, so repeated captures of the same chart never collide.
+ */
+export function chartImageFileName(title: string, capturedAt: Date): string {
+  const slug =
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'chart';
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const stamp =
+    `${capturedAt.getFullYear()}${pad(capturedAt.getMonth() + 1)}${pad(capturedAt.getDate())}` +
+    `-${pad(capturedAt.getHours())}${pad(capturedAt.getMinutes())}`;
+  return `blob-flow-${slug}-${stamp}.png`;
+}
+
+/**
  * Render an ISO timestamp in the viewer's local timezone, e.g.
  * "Jul 13, 2026, 14:56:35", matching the local-time labels on the charts.
  * Unparseable input is passed through unchanged.
@@ -626,8 +658,23 @@ function safeFormat(formatter: () => string): string {
   }
 }
 
+/**
+ * Numbers stringify to exponent form outside roughly 1e-7 to 1e21, which the
+ * decimal parser below rejects. Runaway blob base fees reach that range on a
+ * congested testnet, so a numeric caller would throw on exactly the values
+ * the scientific-notation formatters exist to handle. "fullwide" keeps plain
+ * notation, leaving non-finite and negative values to fail as before.
+ */
+function decimalNotation(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  return value.toLocaleString('fullwide', {
+    useGrouping: false,
+    maximumFractionDigits: 20,
+  });
+}
+
 function normalizeDecimalString(value: string | number): string {
-  const rawValue = typeof value === 'string' ? value.trim() : value.toString();
+  const rawValue = typeof value === 'string' ? value.trim() : decimalNotation(value);
 
   if (!/^\d+(?:\.\d+)?$/.test(rawValue)) {
     throw new Error(`Invalid decimal value: ${rawValue}`);
