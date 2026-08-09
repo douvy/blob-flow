@@ -1,16 +1,18 @@
 "use client";
 
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
+import { useParams, usePathname } from 'next/navigation';
 import { DEFAULT_NETWORK, NETWORKS } from '../constants';
 import type { BackendNetwork, Network } from '../types';
 import { api } from '@/lib/api';
-import { buildNetworkChangeUrl, useChartViewUrlParams } from '@/lib/chartViewUrl';
-import { useTimeRange } from '../contexts/TimeRangeContext';
+import { networkPath, stripNetworkPath } from '@/utils';
 import { useApiData } from './useApiData';
-import { useLocalStorage } from './useLocalStorage';
 
 // Bootstrap list shown before GET /networks resolves and if it fails.
 const FALLBACK_NETWORKS = Object.values(NETWORKS);
+
+/** Shape of a network identifier, matching the route segment it comes from. */
+const NETWORK_SLUG_PATTERN = /^[a-z0-9-]{1,32}$/;
 
 /** Backend names are lowercase identifiers; present them title-cased. */
 function toDisplayName(apiParam: string): string {
@@ -39,34 +41,31 @@ function networkFromBackend(network: BackendNetwork): Network {
 }
 
 /**
- * Custom hook for managing network selection.
+ * Custom hook for the network a page is showing.
+ *
+ * The network lives in the URL: the default network keeps the bare paths and
+ * every other network is scoped under its own segment (`/sepolia/blocks`), so
+ * any page can be linked, bookmarked, or shared without the recipient's own
+ * preferences changing what they see.
  *
  * The option list is fetched from GET /networks (shared ['networks'] cache, so
  * every caller dedupes onto one request) and falls back to the hardcoded
  * NETWORKS constant while loading or on error.
  *
- * @returns Object with selected network, setter, and network options
+ * @returns The network in the URL, a setter that navigates to another
+ * network's copy of the current page, the option list, and whether the URL's
+ * network is one the deployment actually serves.
  */
 export function useNetwork() {
-    // Persist by apiParam, the stable identifier. Older builds stored the
-    // display name ("Mainnet"); lower-casing recovers the apiParam from those,
-    // so previously saved selections keep working.
-    const [storedValue, setStoredValue] = useLocalStorage(
-        'selectedNetwork',
-        DEFAULT_NETWORK.apiParam
-    );
-    const storedApiParam = storedValue.toLowerCase();
+    const params = useParams();
+    const pathname = usePathname();
 
-    // A valid ?network= query param wins over the persisted selection, so a
-    // shared chart link reproduces the network it was captured on. It only
-    // wins for display: storage is left untouched until the user changes
-    // network themselves.
-    const { network: urlApiParam } = useChartViewUrlParams();
-    const requestedApiParam = urlApiParam ?? storedApiParam;
-
-    // Current range, written into the reload URL on network change so the
-    // selected range survives the reload and the link stays exact.
-    const { timeRange } = useTimeRange();
+    // Next has already decoded the segment. Anything that is not a network
+    // slug is not treated as a network at all, so a hand-typed segment can
+    // neither reach the API as a query value nor crash a decode.
+    const rawPathNetwork = params?.network;
+    const pathSegment = typeof rawPathNetwork === 'string' ? rawPathNetwork.toLowerCase() : null;
+    const pathNetwork = pathSegment && NETWORK_SLUG_PATTERN.test(pathSegment) ? pathSegment : null;
 
     const fetchNetworks = useCallback(async () => {
         const response = await api.getNetworks();
@@ -82,7 +81,7 @@ export function useNetwork() {
 
     // Networks change rarely, so keep them fresh for a while to avoid refetching
     // on every mount across the many components that call this hook.
-    const { data, isLoading } = useApiData<Network[]>(fetchNetworks, ['networks'], {
+    const { data } = useApiData<Network[]>(fetchNetworks, ['networks'], {
         staleTime: 5 * 60 * 1000,
     });
 
@@ -91,61 +90,28 @@ export function useNetwork() {
     const fetchedNetworks = data && data.length > 0 ? data : undefined;
     const networkOptions = fetchedNetworks ?? FALLBACK_NETWORKS;
 
-    // Derive selected network from the requested apiParam (URL param first,
-    // then the persisted value); stays in sync without a separate effect.
-    const selectedNetwork =
-        networkOptions.find((network) => network.apiParam === requestedApiParam) ??
-        // Still loading: trust the requested choice so a dynamic-only network
-        // (absent from the fallback list) doesn't flash to the default and open
-        // the wrong live-data connection before /networks resolves. On error we
-        // deliberately do NOT trust it, so an unknown value resolves to a network
-        // the selector can actually show rather than querying a maybe-dead one.
-        (isLoading && requestedApiParam ? networkFromApiParam(requestedApiParam) : undefined) ??
-        // Settled without the URL network: fall back to the persisted selection.
-        (urlApiParam
-            ? networkOptions.find((network) => network.apiParam === storedApiParam)
-            : undefined) ??
-        // Settled without the persisted network: prefer the default.
+    const defaultNetwork =
         networkOptions.find((network) => network.apiParam === DEFAULT_NETWORK.apiParam) ??
-        networkOptions[0] ??
         DEFAULT_NETWORK;
 
-    // Only after a successful fetch, if the persisted network is genuinely gone,
-    // rewrite storage so the loading-phase optimistic path doesn't re-query a dead
-    // network on every reload. Gated on a real list (not error) so a transient
-    // failure never erases a still-valid preference; it returns when /networks does.
-    // Also skipped while a ?network= param is active: the selection then reflects
-    // the shared link, and persisting it would break the guarantee that links only
-    // affect display. The repair still runs on the next param-less load.
-    useEffect(() => {
-        if (!fetchedNetworks || urlApiParam) return;
-        const stillExists = fetchedNetworks.some(
-            (network) => network.apiParam === storedApiParam
-        );
-        if (!stillExists && storedApiParam !== selectedNetwork.apiParam) {
-            setStoredValue(selectedNetwork.apiParam);
-        }
-    }, [fetchedNetworks, urlApiParam, storedApiParam, selectedNetwork.apiParam, setStoredValue]);
+    // A network in the URL is trusted even before the list resolves, so a
+    // dynamic-only network doesn't flash to the default and open the wrong
+    // live-data connection while /networks is in flight.
+    const selectedNetwork = pathNetwork
+        ? (networkOptions.find((network) => network.apiParam === pathNetwork) ??
+          networkFromApiParam(pathNetwork))
+        : defaultNetwork;
 
-    // Update the selected network and store it in local storage
+    // Switching network means the same page on that network. A full navigation
+    // (rather than a soft one) rebuilds every cache and live subscription for
+    // the new network, as the previous reload-based switch did. The segment to
+    // replace comes from the route itself, not from the option list, so a
+    // network missing from a stalled list is still swapped rather than stacked.
     const setSelectedNetwork = (network: Network) => {
-        setStoredValue(network.apiParam);
-
-        // Force a page reload to refresh all data with the new network. On
-        // chart views (and wherever the view params are already present) the
-        // reload target carries the new selection and the current range, so
-        // the address stays shareable, a stale param cannot override the
-        // choice on load, and the range survives the reload.
-        // location.replace keeps history clean, mirroring router.replace.
-        const url = buildNetworkChangeUrl(window.location, {
-            range: timeRange,
-            network: network.apiParam,
-        });
-        if (url) {
-            window.location.replace(url);
-        } else {
-            window.location.reload();
-        }
+        const currentPath = pathname || '/';
+        const basePath = pathNetwork ? stripNetworkPath(currentPath, [pathNetwork]) : currentPath;
+        const { search, hash } = window.location;
+        window.location.assign(`${networkPath(basePath, network.apiParam)}${search}${hash}`);
     };
 
     return {

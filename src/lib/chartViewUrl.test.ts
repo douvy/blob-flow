@@ -1,9 +1,7 @@
 import {
   buildChartViewHref,
   buildChartViewUrl,
-  buildNetworkChangeUrl,
   isChartViewPath,
-  parseChartNetworkParam,
   parseChartRangeParam,
 } from './chartViewUrl';
 
@@ -37,29 +35,6 @@ describe('parseChartRangeParam', () => {
   });
 });
 
-describe('parseChartNetworkParam', () => {
-  it('accepts well-formed network identifiers', () => {
-    expect(parseChartNetworkParam('mainnet')).toBe('mainnet');
-    expect(parseChartNetworkParam('op-sepolia')).toBe('op-sepolia');
-    expect(parseChartNetworkParam('net_1')).toBe('net_1');
-  });
-
-  it('normalizes case and surrounding whitespace', () => {
-    expect(parseChartNetworkParam('Sepolia')).toBe('sepolia');
-    expect(parseChartNetworkParam(' hoodi ')).toBe('hoodi');
-  });
-
-  it('rejects malformed values', () => {
-    expect(parseChartNetworkParam('bad name')).toBeNull();
-    expect(parseChartNetworkParam('foo/bar')).toBeNull();
-    expect(parseChartNetworkParam('-mainnet')).toBeNull();
-    expect(parseChartNetworkParam('')).toBeNull();
-    expect(parseChartNetworkParam('   ')).toBeNull();
-    expect(parseChartNetworkParam(null)).toBeNull();
-    expect(parseChartNetworkParam(undefined)).toBeNull();
-  });
-});
-
 describe('isChartViewPath', () => {
   it('matches the dashboard and chart detail pages', () => {
     expect(isChartViewPath('/')).toBe(true);
@@ -77,104 +52,45 @@ describe('isChartViewPath', () => {
 });
 
 describe('buildChartViewUrl', () => {
-  it('writes both params from an empty query string', () => {
-    expect(
-      buildChartViewUrl('/charts/base-fee', '', { range: '7d', network: 'mainnet' })
-    ).toBe('/charts/base-fee?range=7d&network=mainnet');
+  it('writes the range from an empty query string', () => {
+    expect(buildChartViewUrl('/charts/base-fee', '', '7d')).toBe('/charts/base-fee?range=7d');
   });
 
-  it('overrides existing view params and preserves unrelated ones', () => {
-    const url = buildChartViewUrl('/charts/base-fee', '?range=1h&foo=bar', {
-      range: '7d',
-      network: 'sepolia',
-    });
+  it('overrides an existing range and preserves unrelated params', () => {
+    const url = buildChartViewUrl('/charts/base-fee', '?range=1h&foo=bar', '7d');
     const [pathname, search] = url.split('?');
     const params = new URLSearchParams(search);
 
     expect(pathname).toBe('/charts/base-fee');
     expect(params.get('range')).toBe('7d');
-    expect(params.get('network')).toBe('sepolia');
     expect(params.get('foo')).toBe('bar');
   });
 
+  it('keeps the network segment already in the path', () => {
+    // The caller passes the un-stripped pathname so the rewrite cannot drop
+    // the network the page is scoped to.
+    expect(buildChartViewUrl('/sepolia/charts/base-fee', '', '7d')).toBe(
+      '/sepolia/charts/base-fee?range=7d'
+    );
+  });
+
   it('appends the hash after the query', () => {
-    expect(
-      buildChartViewUrl('/', '', { range: '7d', network: 'mainnet' }, '#data-trends')
-    ).toBe('/?range=7d&network=mainnet#data-trends');
-  });
-});
-
-describe('buildNetworkChangeUrl', () => {
-  it('writes both view params on chart views', () => {
-    const url = buildNetworkChangeUrl(
-      { pathname: '/charts/base-fee', search: '', hash: '' },
-      { range: '7d', network: 'sepolia' }
-    );
-    expect(url).toBe('/charts/base-fee?range=7d&network=sepolia');
-  });
-
-  it('overrides a stale range param with the in-memory range', () => {
-    // The current search string can predate an uncommitted router.replace;
-    // the state value wins.
-    const url = buildNetworkChangeUrl(
-      { pathname: '/charts/base-fee', search: '?range=1h', hash: '' },
-      { range: '7d', network: 'sepolia' }
-    );
-    expect(url).toBe('/charts/base-fee?range=7d&network=sepolia');
-  });
-
-  it('preserves the hash on the dashboard', () => {
-    const url = buildNetworkChangeUrl(
-      { pathname: '/', search: '', hash: '#data-trends' },
-      { range: '24h', network: 'sepolia' }
-    );
-    expect(url).toBe('/?range=24h&network=sepolia#data-trends');
-  });
-
-  it('updates only the stale params present off the chart views', () => {
-    expect(
-      buildNetworkChangeUrl(
-        { pathname: '/blocks', search: '?network=hoodi', hash: '' },
-        { range: '7d', network: 'sepolia' }
-      )
-    ).toBe('/blocks?network=sepolia');
-    expect(
-      buildNetworkChangeUrl(
-        { pathname: '/blocks', search: '?range=1h', hash: '' },
-        { range: '7d', network: 'sepolia' }
-      )
-    ).toBe('/blocks?range=7d');
-  });
-
-  it('returns null when the URL needs no change', () => {
-    expect(
-      buildNetworkChangeUrl(
-        { pathname: '/blocks', search: '', hash: '' },
-        { range: '7d', network: 'sepolia' }
-      )
-    ).toBeNull();
+    expect(buildChartViewUrl('/', '', '7d', '#data-trends')).toBe('/?range=7d#data-trends');
   });
 });
 
 describe('buildChartViewHref', () => {
-  it('writes the resolved view onto an internal href', () => {
-    expect(buildChartViewHref('/charts/blob-usage', { range: '7d', network: 'sepolia' })).toBe(
-      '/charts/blob-usage?range=7d&network=sepolia'
-    );
+  it('writes the resolved range onto an internal href', () => {
+    expect(buildChartViewHref('/charts/blob-usage', '7d')).toBe('/charts/blob-usage?range=7d');
   });
 
   it('keeps hash fragments after the query', () => {
-    expect(buildChartViewHref('/#data-trends', { range: '24h', network: 'mainnet' })).toBe(
-      '/?range=24h&network=mainnet#data-trends'
-    );
+    expect(buildChartViewHref('/#data-trends', '24h')).toBe('/?range=24h#data-trends');
   });
 
-  it('overrides params already present in the href', () => {
-    expect(
-      buildChartViewHref('/charts/blob-usage?range=1h&foo=bar', {
-        range: '7d',
-        network: 'sepolia',
-      })
-    ).toBe('/charts/blob-usage?range=7d&foo=bar&network=sepolia');
+  it('overrides a range already present in the href', () => {
+    expect(buildChartViewHref('/charts/blob-usage?range=1h&foo=bar', '7d')).toBe(
+      '/charts/blob-usage?range=7d&foo=bar'
+    );
   });
 });

@@ -1,8 +1,8 @@
 "use client";
 
 import React from 'react';
-import { Maximize2 } from 'lucide-react';
 import ChartViewLink from './ChartViewLink';
+import { Maximize2 } from 'lucide-react';
 import { useChartData } from '../hooks/useChartData';
 import DataStateWrapper from './DataStateWrapper';
 import { CHART_VIEWS } from './charts/chartViews';
@@ -17,8 +17,8 @@ export default function MetricsCharts() {
 
   const loadingComponent = (
     <div className="flex flex-col space-y-6">
-      {[...Array(4)].map((_, i) => (
-        <div key={i} className="bg-[#14161a] rounded-lg p-3 border border-divider">
+      {DATA_TRENDS_VIEWS.map((view) => (
+        <div key={view.id} className="bg-[#14161a] rounded-lg p-3 border border-divider">
           <div className="h-5 bg-[#26282e] rounded w-1/2 mb-3 animate-pulse" />
           <div className="h-56 bg-[#26282e] rounded animate-pulse" />
         </div>
