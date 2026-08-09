@@ -77,6 +77,15 @@ export function mempoolMetadata(network?: string): Metadata {
   };
 }
 
+export function recordsMetadata(network?: string): Metadata {
+  return {
+    title: `Blob Market Records${titleSuffix(network)}`,
+    description:
+      'Records and milestones from the Ethereum EIP-4844 blob market: live full-block streaks, peak windowed base fees, busiest windows, biggest spenders, and per-rollup blob milestones.',
+    alternates: canonical('/records', network),
+  };
+}
+
 export function flippeningMetadata(network?: string): Metadata {
   return {
     title: `Flippening Watch${titleSuffix(network)}`,
