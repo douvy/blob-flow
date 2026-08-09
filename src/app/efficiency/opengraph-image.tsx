@@ -288,41 +288,28 @@ export default async function Image() {
         </div>
 
         {bestEntries.length > 0 ? (
-          <>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: 40,
-                marginTop: 28,
-              }}
-            >
-              <Column
-                heading="Top of the class"
-                entries={bestEntries}
-                accent={COLORS.green}
-                windsorFont={windsorFont}
-              />
-              <Column
-                heading="Sent to detention"
-                entries={worstEntries}
-                accent={COLORS.red}
-                windsorFont={windsorFont}
-              />
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                marginTop: 'auto',
-                color: COLORS.secondary,
-                fontSize: 22,
-              }}
-            >
-              Graded on blob fill, tip discipline, and fee cap overbidding over the last{' '}
-              {report.sampleSize.toLocaleString()} blobs
-            </div>
-          </>
+          <div
+            style={{
+              display: 'flex',
+              flexGrow: 1,
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 40,
+            }}
+          >
+            <Column
+              heading="Top of the class"
+              entries={bestEntries}
+              accent={COLORS.green}
+              windsorFont={windsorFont}
+            />
+            <Column
+              heading="Sent to detention"
+              entries={worstEntries}
+              accent={COLORS.red}
+              windsorFont={windsorFont}
+            />
+          </div>
         ) : (
           <div
             style={{
@@ -338,6 +325,19 @@ export default async function Image() {
             Letter grades for how well each rollup fills its blobs and prices its bids.
           </div>
         )}
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            color: COLORS.secondary,
+            fontSize: 22,
+          }}
+        >
+          {bestEntries.length > 0
+            ? `Graded on blob fill, tip discipline, and fee cap overbidding over the last ${report.sampleSize.toLocaleString()} blobs`
+            : 'Blob fill, tip discipline, and fee cap overbidding, graded per rollup'}
+        </div>
       </div>
     ),
     { ...size, fonts: fonts.length > 0 ? fonts : undefined },
