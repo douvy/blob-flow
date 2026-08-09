@@ -181,16 +181,18 @@ export function blocksMetadata(network?: string): Metadata {
 }
 
 export function mempoolMetadata(network?: string): Metadata {
-  const suffix = titleSuffix(network);
-  const title = suffix ? `Pending Blob Transactions${suffix}` : SITE_TITLE;
+  const title = `Pending Blob Transactions${titleSuffix(network)}`;
+  const description =
+    'Watch pending EIP-4844 blob transactions in the Ethereum mempool: which rollups ' +
+    'are queuing data, their fee bids, and blobspace pressure before the next block.';
   return {
-    // The bare mempool page has never set a title; only the scoped copies need
-    // one, to say which network's pending transactions they list.
-    ...(suffix ? { title: `Pending Blob Transactions${suffix}` } : {}),
+    title,
+    description,
     alternates: canonical('/mempool', network),
     ...statCard('/api/og/home', `Live Ethereum blob analytics on ${SITE_NAME}`, {
       network,
       title,
+      description,
     }),
   };
 }
@@ -239,14 +241,19 @@ export function blockMetadata(blockNumber: string, network?: string): Metadata {
   // canonical (leading zeros, non-numeric) gets no card rather than a 404 one.
   const cardBlockNumber = /^(0|[1-9]\d*)$/.test(blockNumber) ? blockNumber : null;
 
+  const description =
+    `Blob activity in Ethereum block ${blockNumber}: blob count, blob base fee, ` +
+    'and per-blob size, sender, and cost.';
+
   return {
     title,
+    description,
     alternates: canonical(`/block/${blockNumber}`, network),
     ...(cardBlockNumber
       ? statCard(
           `/api/og/block/${cardBlockNumber}`,
           `Blob details for block ${blockNumber} on ${cardNetwork}, from ${SITE_NAME}`,
-          { network, title }
+          { network, title, description }
         )
       : {}),
   };
@@ -259,14 +266,19 @@ export function userMetadata(address: string, network?: string): Metadata {
   // spelling, so every casing of an address points at a single image.
   const cardAddress = /^0x[0-9a-f]{40}$/i.test(address) ? address.toLowerCase() : null;
 
+  const description =
+    `Blob transaction history for ${shortAddress(address)}: blobs posted, ` +
+    'ETH spent on blob fees, and recent EIP-4844 activity on Ethereum.';
+
   return {
     title,
+    description,
     alternates: canonical(`/user/${address}`, network),
     ...(cardAddress
       ? statCard(
           `/api/og/user/${cardAddress}`,
           `Blob activity for ${shortAddress(address)} on ${cardNetwork}, from ${SITE_NAME}`,
-          { network, title }
+          { network, title, description }
         )
       : {}),
   };
@@ -277,14 +289,18 @@ export function transactionMetadata(hash: string, network?: string): Metadata {
   // lowercase spelling and every casing of one hash points at a single page.
   const canonicalHash = /^0x[0-9a-f]{64}$/i.test(hash) ? hash.toLowerCase() : hash;
   const title = `Blob Transaction · ${shortTxHash(canonicalHash)}${titleSuffix(network)}`;
+  const description =
+    `Details for Ethereum blob transaction ${shortTxHash(canonicalHash)}: blobs ` +
+    'carried, blob fees paid, and the block that included it.';
   return {
     title,
+    description,
     alternates: canonical(`/tx/${canonicalHash}`, network),
     // No card of its own, so it shares the dashboard's, scoped to this network.
     ...statCard(
       '/api/og/home',
       `Live Ethereum blob analytics on ${cardNetworkName(network)}, from ${SITE_NAME}`,
-      { network, title }
+      { network, title, description }
     ),
   };
 }
