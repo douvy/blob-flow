@@ -6,11 +6,7 @@ import React, { useCallback, useMemo } from 'react';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import RecordCard, { type RecordAccent } from '@/components/RecordCard';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import TapTooltip from '@/components/TapTooltip';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
@@ -558,28 +554,29 @@ export default function RecordsPage() {
         <h1 className="font-windsor-bold text-3xl text-white sm:text-4xl">
           Blob Market Records
         </h1>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              aria-label="About these leaderboards"
-              className="text-[#8a93a5] transition-colors hover:text-blue focus:outline-none focus-visible:text-blue"
-            >
-              <Info className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent
-            side="bottom"
-            align="start"
-            className="w-80 max-w-[calc(100vw-2rem)] px-3 py-2.5"
-          >
+        {/* The only place the page states what the spend ranking leaves out,
+            so it uses TapTooltip: a hover-only tooltip would keep the caveat
+            from touch users entirely. */}
+        <TapTooltip
+          side="bottom"
+          align="start"
+          contentClassName="w-80 max-w-[calc(100vw-2rem)] px-3 py-2.5"
+          content={
             <p className="text-[11px] leading-relaxed text-[#a9adb6]">
               Leaderboards cover the indexer&apos;s full indexed history. The
               spend ranking and milestones count attributed entities only, so
               unattributed senders are not represented there.
             </p>
-          </TooltipContent>
-        </Tooltip>
+          }
+        >
+          <button
+            type="button"
+            aria-label="About these leaderboards"
+            className="text-[#8a93a5] transition-colors hover:text-blue focus:outline-none focus-visible:text-blue"
+          >
+            <Info className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </TapTooltip>
       </div>
       <p className="mb-8 max-w-3xl text-sm text-bodyText">
         All-time streaks, peaks, and milestones from the {selectedNetwork.name}{' '}
