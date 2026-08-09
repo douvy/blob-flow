@@ -82,6 +82,14 @@ export function parseTimeRange(
 }
 
 export const HOMEPAGE_BLOCK_ROWS = 5;
+/**
+ * Blobs aggregated for the efficiency report cards. The blob feed is paged
+ * 100 rows at a time, so this costs three requests and covers roughly the
+ * last 10 to 15 minutes of mainnet activity: recent enough that the tip
+ * median reflects current market conditions, large enough that per-entity
+ * averages are not single-blob noise.
+ */
+export const EFFICIENCY_SAMPLE_SIZE = 300;
 export const BLOCKS_PAGE_LIMIT = 100;
 export const BLOCKS_PAGE_SIZE = 20;
 
