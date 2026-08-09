@@ -3,6 +3,8 @@ import {
   attributionColorKey,
   beaconSlotForBlob,
   blobCountToBytes,
+  buildTweetIntentUrl,
+  chartImageFileName,
   computeBlobBytesPerSecond,
   computeCostPerMibWei,
   computeSecondsPerBlob,
@@ -47,7 +49,7 @@ import {
   truncateAddress,
   truncateTxHash,
 } from './index';
-import { NETWORKS } from '@/constants';
+import { isTimeRange, NETWORKS, parseTimeRange, TIME_RANGES } from '@/constants';
 import type { BackendAttributionUsageShare } from '@/types';
 import { DATA_COMPARISONS } from '@/constants/dataComparisons';
 
@@ -497,6 +499,91 @@ describe('beaconSlotForBlob', () => {
     expect(
       beaconSlotForBlob({ timestamp: 'not-a-date', network_name: 'holesky' })
     ).toBeNull();
+  });
+});
+
+describe('buildTweetIntentUrl', () => {
+  it('prefills the tweet with title, stat, and deep link', () => {
+    const url = buildTweetIntentUrl({
+      title: 'Blob Usage over 1h view',
+      stat: '1,234 blobs posted on Mainnet',
+      url: 'https://blobflow.example/charts/blob-usage',
+    });
+
+    const parsed = new URL(url);
+    expect(parsed.origin + parsed.pathname).toBe('https://twitter.com/intent/tweet');
+    expect(parsed.searchParams.get('text')).toBe(
+      'Blob Usage over 1h view: 1,234 blobs posted on Mainnet'
+    );
+    expect(parsed.searchParams.get('url')).toBe(
+      'https://blobflow.example/charts/blob-usage'
+    );
+  });
+
+  it('omits the stat clause when no headline stat is available', () => {
+    const url = buildTweetIntentUrl({
+      title: 'Rolling Market Stats',
+      stat: null,
+      url: 'https://blobflow.example/charts/rolling-market-stats',
+    });
+
+    expect(new URL(url).searchParams.get('text')).toBe('Rolling Market Stats');
+  });
+});
+
+describe('chartImageFileName', () => {
+  const capturedAt = new Date(2026, 7, 2, 9, 5);
+
+  it('slugs the title and appends a sortable local timestamp', () => {
+    expect(chartImageFileName('Blob vs Calldata Cost (1h view)', capturedAt)).toBe(
+      'blob-flow-blob-vs-calldata-cost-1h-view-20260802-0905.png'
+    );
+  });
+
+  it('falls back to a generic slug when the title has no usable characters', () => {
+    expect(chartImageFileName('***', capturedAt)).toBe(
+      'blob-flow-chart-20260802-0905.png'
+    );
+  });
+});
+
+describe('parseTimeRange', () => {
+  it('accepts every range the header offers', () => {
+    expect(TIME_RANGES.map((range) => parseTimeRange(range))).toEqual([...TIME_RANGES]);
+  });
+
+  it('falls back rather than passing an untrusted value through', () => {
+    expect(parseTimeRange('7 days')).toBe('1h');
+    expect(parseTimeRange(null)).toBe('1h');
+    expect(parseTimeRange(undefined, '24h')).toBe('24h');
+    expect(parseTimeRange('nonsense', '24h')).toBe('24h');
+  });
+
+  it('narrows the type for valid ranges only', () => {
+    expect(isTimeRange('30d')).toBe(true);
+    expect(isTimeRange('30D')).toBe(false);
+    expect(isTimeRange(30)).toBe(false);
+  });
+});
+
+describe('runaway gwei values', () => {
+  // A congested testnet drives the blob base fee into exponent range, where
+  // Number.toString() switches notation. Charts hand these in as numbers.
+  it('formats numeric runaway fees in scientific notation instead of throwing', () => {
+    expect(formatGwei(2.838e22, 4)).toBe('2.84e22 Gwei');
+    expect(formatGwei(1e21, 4)).toBe('1e21 Gwei');
+    expect(formatGwei(1e9, 4)).toBe('1e9 Gwei');
+  });
+
+  it('leaves ordinary numeric fees in positional form', () => {
+    expect(formatGwei(12.34, 4)).toBe('12.34 Gwei');
+    expect(formatGwei(0.000001234, 6)).toBe('0.000001 Gwei');
+  });
+
+  it('still rejects values that are not decimals', () => {
+    expect(() => formatGwei(Number.NaN)).toThrow('Invalid decimal value');
+    expect(() => formatGwei(Number.POSITIVE_INFINITY)).toThrow('Invalid decimal value');
+    expect(() => formatGwei(-5)).toThrow('Invalid decimal value');
   });
 });
 

@@ -10,7 +10,7 @@ import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
 import { useNetwork } from '../hooks/useNetwork';
 import { buildChartViewUrl, isChartViewPath } from '../lib/chartViewUrl';
-import { DEFAULT_NETWORK } from '../constants';
+import { DEFAULT_NETWORK, TIME_RANGES } from '../constants';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import { useBlobWebSocket } from '../contexts/LiveDataContext';
 import { BlobWebSocketConnectionState, type Network } from '../types';
@@ -134,7 +134,6 @@ export default function Header() {
   // Lock scrolling when the mobile menu is open
   useScrollLock(isMobileMenuOpen);
 
-  const timeRangeOptions: TimeRange[] = ['1h', '24h', '7d', '30d'];
 
   const handleNetworkChange = (network: typeof DEFAULT_NETWORK) => {
     setSelectedNetwork(network);
@@ -150,10 +149,11 @@ export default function Header() {
   const handleTimeRangeChange = (range: TimeRange) => {
     setSelectedTimeRange(range);
 
-    // Reflect the range in the URL so the address is shareable; replace
-    // instead of push to avoid history spam. The route match uses the
-    // network-stripped path, but the target keeps rawPathname so the network
-    // segment survives the rewrite.
+    // Reflect the range in the URL so the address bar states the view on
+    // screen and can be copied as is; replace rather than push, since a
+    // filter change is not a navigation worth a history entry. The route
+    // test uses the network-stripped path, but the target keeps rawPathname
+    // so the network segment survives the rewrite.
     if (isChartViewPath(pathname)) {
       router.replace(
         buildChartViewUrl(rawPathname, window.location.search, range, window.location.hash),
@@ -286,7 +286,7 @@ export default function Header() {
             {/* Time Period Selector - only on routes that use the time range */}
             {showTimeFilters && (
               <div className="hidden md:flex items-center space-x-1 bg-background/30 rounded-md p-0.5 ml-4">
-                {timeRangeOptions.map((range) => (
+                {TIME_RANGES.map((range) => (
                   <button
                     key={range}
                     onClick={() => handleTimeRangeChange(range)}
@@ -517,7 +517,7 @@ export default function Header() {
                     <span className="text-bodyText">Time Period</span>
                   </div>
                   <div className="flex items-center space-x-1 bg-background/30 border border-divider rounded-md p-0.5">
-                    {timeRangeOptions.map((range) => (
+                    {TIME_RANGES.map((range) => (
                       <button
                         key={range}
                         onClick={() => handleTimeRangeChange(range)}
