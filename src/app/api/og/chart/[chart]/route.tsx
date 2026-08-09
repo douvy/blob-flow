@@ -4,6 +4,8 @@ import { ImageResponse } from 'next/og';
 import { CHART_PAGES, SITE_NAME, SITE_URL, parseNetwork, parseTimeRange } from '@/constants';
 import { fetchOgChartSeries, OG_CARD_DEFAULT_RANGE } from '@/lib/ogChartSeries';
 import { buildSparkDataUrl } from '@/lib/ogChartSpark';
+import { OG_CARD_CACHE_CONTROL } from '@/lib/og/card';
+import { cardNotFound, hasCanonicalQuery } from '@/lib/og/request';
 
 /**
  * Branded social share card for chart deep links (og:image, and X's
@@ -20,9 +22,12 @@ import { buildSparkDataUrl } from '@/lib/ogChartSpark';
  *   range    one of the header's time ranges
  *   network  one of the known networks; both fall back to the app defaults
  *
- * Unknown slugs 404 rather than rendering a generic card: every distinct URL
- * is its own rasterization and its own CDN cache key, so answering for
- * arbitrary paths turns this into unbounded work for anyone who asks.
+ * Unknown slugs 404 rather than rendering a generic card, and so does a query
+ * naming anything beyond the two params above, or naming one of them twice:
+ * every distinct URL is its own rasterization and its own CDN cache key, so
+ * answering for arbitrary URLs turns this into unbounded work for anyone who
+ * asks. A junk param is refused rather than ignored, since ignoring it still
+ * mints a cache entry per spelling.
  *
  * Fonts are the site's woff (v1) files; satori does not accept woff2.
  */
@@ -33,26 +38,19 @@ const SITE_HOST = SITE_URL.replace(/^https?:\/\//, '');
 const SPARK_WIDTH = 1072;
 const SPARK_HEIGHT = 190;
 
-// Crawlers refetch cards often, so serve them from cache for five minutes
-// instead of turning every unfurl into a backend request.
-const CACHE_CONTROL = 'public, max-age=300, s-maxage=300, stale-while-revalidate=86400';
-
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ chart: string }> }
 ) {
   const { chart } = await params;
   const query = new URL(request.url).searchParams;
+  if (!hasCanonicalQuery(query)) return cardNotFound();
+
   const range = parseTimeRange(query.get('range'), OG_CARD_DEFAULT_RANGE);
   const network = parseNetwork(query.get('network'));
 
   const page = CHART_PAGES.find((chartPage) => chartPage.slug === chart);
-  if (!page) {
-    return new Response('Not found', {
-      status: 404,
-      headers: { 'Cache-Control': CACHE_CONTROL },
-    });
-  }
+  if (!page) return cardNotFound();
   const { title, description } = page;
 
   const [windsorBold, gtFlexa, logo, series] = await Promise.all([
@@ -188,7 +186,7 @@ export async function GET(
     ),
     {
       ...size,
-      headers: { 'Cache-Control': CACHE_CONTROL },
+      headers: { 'Cache-Control': OG_CARD_CACHE_CONTROL },
       fonts: [
         { name: 'Windsor Bold', data: windsorBold, style: 'normal' },
         { name: 'GT Flexa', data: gtFlexa, style: 'normal' },
