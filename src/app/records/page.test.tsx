@@ -1,5 +1,7 @@
 import React from 'react';
-import { render, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { DEFAULT_NETWORK } from '@/constants';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
@@ -148,6 +150,14 @@ function mockRecords(records: BlobRecords) {
   });
 }
 
+function renderPage() {
+  return render(
+    <TooltipProvider delayDuration={0}>
+      <RecordsPage />
+    </TooltipProvider>
+  );
+}
+
 describe('RecordsPage', () => {
   beforeEach(() => {
     vi.mocked(useNetwork).mockReturnValue({
@@ -159,7 +169,7 @@ describe('RecordsPage', () => {
 
   it('renders the historical leaderboards', () => {
     mockRecords(makeRecords());
-    render(<RecordsPage />);
+    renderPage();
 
     const streakCard = document.getElementById('full-block-streak')!;
     expect(
@@ -218,6 +228,24 @@ describe('RecordsPage', () => {
     expect(document.getElementById('below-target-streak')).toBeNull();
   });
 
+  it('keeps the attribution caveat in a tooltip on the heading', async () => {
+    mockRecords(makeRecords());
+    renderPage();
+
+    const user = userEvent.setup();
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    await user.hover(
+      screen.getByRole('button', { name: 'About these leaderboards' })
+    );
+
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip).toHaveTextContent(
+      /Leaderboards cover the indexer's full indexed history/
+    );
+    expect(tooltip).toHaveTextContent(/unattributed senders are not represented/);
+  });
+
   it('omits cards whose sections are empty', () => {
     mockRecords(
       makeRecords({
@@ -232,7 +260,7 @@ describe('RecordsPage', () => {
         utilizationDays: [],
       })
     );
-    render(<RecordsPage />);
+    renderPage();
 
     for (const id of [
       'full-block-streak',
@@ -256,7 +284,7 @@ describe('RecordsPage', () => {
 
   it('ranks top spenders with the record holder first', () => {
     mockRecords(makeRecords());
-    render(<RecordsPage />);
+    renderPage();
 
     const spendersCard = document.getElementById('top-spenders')!;
     const rows = within(spendersCard).getAllByRole('listitem');
