@@ -34,6 +34,38 @@ An Ethereum EIP-4844 blob data analytics dashboard for visualizing and analyzing
 
 4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
+## Analytics
+
+Optional, off by default, and served by a self-hosted [Umami](https://umami.is) instance you run yourself. Nothing is collected and no tracker script is rendered unless both variables below are set.
+
+Umami is cookieless and stores no personal data, so no consent banner is needed. Visitors sending Do Not Track are excluded.
+
+| Variable | Scope | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | build **and** run time | The website id from your Umami dashboard. Next inlines `NEXT_PUBLIC_` values into the client bundle, so this must be present when the image is built; setting it only at run time ships a bundle that never loads the tracker. |
+| `UMAMI_URL` | run time, server only | Base URL of the Umami instance, e.g. `http://umami:3000`. Never reaches the browser. |
+
+To enable it:
+
+```bash
+docker build --build-arg NEXT_PUBLIC_UMAMI_WEBSITE_ID=<website-id> -t blob-flow-web .
+```
+
+Then run the container with `UMAMI_URL` pointing at your instance. For published images, set the `UMAMI_WEBSITE_ID` repository variable and the release workflow bakes it in.
+
+The tracker script and the endpoint it reports to are both served from this app's origin (`/api/stats/script.js` and `/api/stats/api/send`), proxied by `src/app/api/stats/[...path]/route.ts`. That means:
+
+- The Umami instance needs no CORS configuration and does not need to be reachable from the public internet. A private address or container hostname is fine.
+- No analytics hostname appears in the page, so filter lists that key on third-party analytics domains do not block collection.
+- Only those two upstream paths are relayed; everything else 404s.
+
+Two caveats when self-hosting:
+
+- If the deployment does not sit behind a reverse proxy that sets `X-Forwarded-For`, set `CLIENT_IP_HEADER` on the Umami side, or every visitor resolves to the app container's address.
+- Pageviews are collected automatically. Custom events live in `src/lib/analytics.ts`; add new ones to the typed event map there rather than calling `window.umami` directly.
+
+Changing the time range does not count as a pageview, even though it rewrites the URL. It is recorded as a `time-range-change` event carrying both the old and new range, so the busiest pages keep an honest pageview count.
+
 ## Testing
 
 This project uses Vitest with a CI-enforced 90% line coverage minimum for core logic.

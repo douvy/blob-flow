@@ -54,7 +54,13 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # The Umami website id has to be baked in: Next inlines
+          # NEXT_PUBLIC_ values at build time, so setting it on the container
+          # at run time would ship a bundle that never loads the tracker. Set
+          # the UMAMI_WEBSITE_ID repository variable to enable analytics in
+          # published images; unset leaves the tracker out entirely.
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
+            NEXT_PUBLIC_UMAMI_WEBSITE_ID=${{ vars.UMAMI_WEBSITE_ID }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

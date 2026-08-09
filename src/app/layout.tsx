@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import Analytics from '@/components/Analytics';
 import AppProviders from '@/components/AppProviders';
 import AppChrome from '@/components/AppChrome';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from '@/constants';
@@ -81,6 +82,7 @@ export default function RootLayout({
             __html: JSON.stringify(structuredData).replace(/</g, '\\u003c'),
           }}
         />
+        <Analytics />
         <AppProviders>
           <AppChrome>{children}</AppChrome>
         </AppProviders>

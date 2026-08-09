@@ -274,6 +274,36 @@ describe('useNetwork', () => {
       expect(assignSpy).toHaveBeenCalledWith('/block/123');
     });
 
+    it('reports the switch to analytics before navigating away', async () => {
+      const track = vi.fn();
+      window.umami = { track };
+      onPath('/block/123');
+      const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+      await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+
+      act(() => {
+        result.current.setSelectedNetwork({ name: 'Hoodi', apiParam: 'hoodi' });
+      });
+
+      expect(track).toHaveBeenCalledWith('network-switch', { from: 'mainnet', to: 'hoodi' });
+      delete window.umami;
+    });
+
+    it('does not report re-selecting the network already shown', async () => {
+      const track = vi.fn();
+      window.umami = { track };
+      onPath('/hoodi/block/123', 'hoodi');
+      const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
+      await waitFor(() => expect(result.current.networkOptions).toHaveLength(3));
+
+      act(() => {
+        result.current.setSelectedNetwork({ name: 'Hoodi', apiParam: 'hoodi' });
+      });
+
+      expect(track).not.toHaveBeenCalled();
+      delete window.umami;
+    });
+
     it('switches the dashboard without leaving a trailing slash', async () => {
       onPath('/');
       const { result } = renderHook(() => useNetwork(), { wrapper: createQueryWrapper() });
