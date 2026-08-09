@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo } from 'react';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight, ArrowUp } from 'lucide-react';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { useTimeRange, type TimeRange } from '@/contexts/TimeRangeContext';
@@ -13,6 +13,7 @@ import {
   analyzeFlippening,
   type FlippeningEvent,
   type FlippeningGap,
+  type FlippeningStanding,
 } from '@/lib/flippening';
 import type { BackendAttributionUsageChartResponse, BackendChartRange } from '@/types';
 
@@ -108,6 +109,77 @@ function GapIndicator({ gap, rangeLabel }: { gap: FlippeningGap; rangeLabel: str
   );
 }
 
+/**
+ * Current ranking of every tracked rollup, so the page shows who has already
+ * changed places rather than only the pair about to. Rows that won or lost a
+ * flip inside the fetched history are called out.
+ */
+function Standings({
+  standings,
+  windowLabel,
+  closestPairKeys,
+}: {
+  standings: FlippeningStanding[];
+  windowLabel: string;
+  closestPairKeys: ReadonlySet<string>;
+}) {
+  const topShare = standings[0]?.sharePercent ?? 0;
+
+  return (
+    <div className="rounded-lg border border-divider bg-[#17181b]">
+      <div className="border-b border-divider px-4 py-3 text-[10px] uppercase tracking-wider text-[#6e7787]">
+        Standings in {windowLabel} blob share
+      </div>
+      <ul className="divide-y divide-divider px-4">
+        {standings.map((standing) => {
+          const barWidth = topShare > 0 ? Math.max(2, (standing.sharePercent / topShare) * 100) : 0;
+          const inClosestPair = closestPairKeys.has(standing.entity.key);
+          return (
+            <li key={standing.entity.key} className="flex items-center gap-3 py-2.5">
+              <span className="w-4 text-right text-xs text-[#6e7787] tabular-nums">
+                {standing.rank}
+              </span>
+              <AttributionBadge user={standing.entity.name} sizeClass="h-5 w-5" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm text-white">{standing.entity.name}</span>
+                  {standing.lastFlipWon && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-green/10 px-1.5 py-0.5 text-[10px] text-green">
+                      <ArrowUp className="h-3 w-3" aria-hidden="true" />
+                      passed {standing.lastFlipWon.loser.name}
+                    </span>
+                  )}
+                  {inClosestPair && (
+                    <span className="shrink-0 rounded-sm bg-blue/10 px-1.5 py-0.5 text-[10px] text-blue">
+                      closest race
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 h-1.5 rounded-full bg-[#26282e] overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${standing.rank === 1 ? 'bg-blue' : 'bg-[#6e7787]'}`}
+                    style={{ width: `${barWidth}%` }}
+                  />
+                </div>
+              </div>
+              <div className="w-20 text-right">
+                <div className="text-sm text-white tabular-nums">
+                  {formatPoints(standing.sharePercent)}%
+                </div>
+                {standing.gapToAbovePoints !== null && (
+                  <div className="text-[10px] text-[#6e7787] tabular-nums">
+                    {formatPoints(standing.gapToAbovePoints)} pts behind
+                  </div>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function EventRow({
   event,
   includeDate,
@@ -171,6 +243,16 @@ export default function FlippeningWatch() {
   // read unambiguously as time-of-day.
   const includeDate = historyRange !== '24h';
 
+  const closestPairKeys = useMemo(
+    () =>
+      new Set(
+        analysis?.closestGap
+          ? [analysis.closestGap.leader.key, analysis.closestGap.trailer.key]
+          : []
+      ),
+    [analysis]
+  );
+
   return (
     <DataStateWrapper
       isLoading={isLoading && !data}
@@ -187,6 +269,14 @@ export default function FlippeningWatch() {
             <div className="rounded-lg border border-divider bg-[#17181b] p-4 text-sm text-[#8a93a5]">
               Not enough rollups with blob activity in this window to compare.
             </div>
+          )}
+
+          {analysis.standings.length > 0 && (
+            <Standings
+              standings={analysis.standings}
+              windowLabel={timeRange}
+              closestPairKeys={closestPairKeys}
+            />
           )}
 
           <div className="rounded-lg border border-divider bg-[#17181b]">

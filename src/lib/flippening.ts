@@ -68,11 +68,27 @@ export interface FlippeningGap {
   gapPoints: number;
 }
 
+/** One row of the current standings, ranked by the latest window's share. */
+export interface FlippeningStanding {
+  /** 1-based position in the current ranking. */
+  rank: number;
+  entity: FlippeningEntity;
+  sharePercent: number;
+  /** Points behind the rollup one place above, null for the leader. */
+  gapToAbovePoints: number | null;
+  /** Most recent flip this rollup won, if any. */
+  lastFlipWon: FlippeningEvent | null;
+  /** Most recent flip this rollup lost, if any. */
+  lastFlipLost: FlippeningEvent | null;
+}
+
 export interface FlippeningAnalysis {
   /** Top entities by blob count over the latest window, highest first. */
   entities: FlippeningEntity[];
   /** Confirmed crossover events, oldest first. */
   events: FlippeningEvent[];
+  /** Current ranking of every tracked entity, highest share first. */
+  standings: FlippeningStanding[];
   /** Smallest current share gap between adjacently ranked entities. */
   closestGap: FlippeningGap | null;
 }
@@ -89,7 +105,7 @@ export interface FlippeningOptions {
   windowSeconds?: number;
 }
 
-export const DEFAULT_FLIPPENING_TOP_N = 6;
+export const DEFAULT_FLIPPENING_TOP_N = 10;
 export const DEFAULT_FLIPPENING_EPSILON_POINTS = 0.5;
 
 interface EntityMeta {
@@ -317,6 +333,42 @@ export function detectCrossoverEvents(
 }
 
 /**
+ * Current standings: every tracked entity ranked by its share at the latest
+ * evaluated window, annotated with the gap to the place above and the most
+ * recent flip it won or lost. Events must be ordered oldest first, as
+ * detectCrossoverEvents returns them.
+ */
+export function computeStandings(
+  buckets: FlippeningBucketShares[],
+  entities: FlippeningEntity[],
+  events: FlippeningEvent[]
+): FlippeningStanding[] {
+  const latest = buckets[buckets.length - 1];
+  if (latest === undefined) return [];
+
+  const lastWonByKey = new Map<string, FlippeningEvent>();
+  const lastLostByKey = new Map<string, FlippeningEvent>();
+  for (const event of events) {
+    lastWonByKey.set(event.winner.key, event);
+    lastLostByKey.set(event.loser.key, event);
+  }
+
+  return entities
+    .map((entity) => ({ entity, share: latest.sharePercentByKey[entity.key] ?? 0 }))
+    .sort((a, b) =>
+      b.share !== a.share ? b.share - a.share : a.entity.key.localeCompare(b.entity.key)
+    )
+    .map((row, index, ranked) => ({
+      rank: index + 1,
+      entity: row.entity,
+      sharePercent: row.share,
+      gapToAbovePoints: index === 0 ? null : ranked[index - 1].share - row.share,
+      lastFlipWon: lastWonByKey.get(row.entity.key) ?? null,
+      lastFlipLost: lastLostByKey.get(row.entity.key) ?? null,
+    }));
+}
+
+/**
  * The closest currently-unflipped pair: among the tracked entities ranked
  * by their share at the latest evaluated window, the adjacent pair with the
  * smallest lead. Uses the same rolling share as event detection, so the gap
@@ -326,26 +378,20 @@ export function findClosestGap(
   buckets: FlippeningBucketShares[],
   entities: FlippeningEntity[]
 ): FlippeningGap | null {
-  const latest = buckets[buckets.length - 1];
-  if (latest === undefined || entities.length < 2) return null;
-
-  const ranked = entities
-    .map((entity) => ({ entity, share: latest.sharePercentByKey[entity.key] ?? 0 }))
-    .sort((a, b) =>
-      b.share !== a.share ? b.share - a.share : a.entity.key.localeCompare(b.entity.key)
-    );
+  if (entities.length < 2) return null;
+  const standings = computeStandings(buckets, entities, []);
 
   let closest: FlippeningGap | null = null;
-  for (let i = 0; i + 1 < ranked.length; i += 1) {
-    const leader = ranked[i];
-    const trailer = ranked[i + 1];
-    const gapPoints = leader.share - trailer.share;
+  for (let i = 0; i + 1 < standings.length; i += 1) {
+    const leader = standings[i];
+    const trailer = standings[i + 1];
+    const gapPoints = leader.sharePercent - trailer.sharePercent;
     if (closest === null || gapPoints < closest.gapPoints) {
       closest = {
         leader: leader.entity,
         trailer: trailer.entity,
-        leaderSharePercent: leader.share,
-        trailerSharePercent: trailer.share,
+        leaderSharePercent: leader.sharePercent,
+        trailerSharePercent: trailer.sharePercent,
         gapPoints,
       };
     }
@@ -367,7 +413,8 @@ export function analyzeFlippening(
   const entities = selectTopEntities(response, topN, windowBuckets);
   const buckets = computeRollingShares(response.points, bucketSeconds, windowSeconds);
   const events = detectCrossoverEvents(buckets, entities, epsilonPoints);
+  const standings = computeStandings(buckets, entities, events);
   const closestGap = findClosestGap(buckets, entities);
 
-  return { entities, events, closestGap };
+  return { entities, events, standings, closestGap };
 }

@@ -3,6 +3,7 @@ import {
   analyzeFlippening,
   computeBucketShares,
   computeRollingShares,
+  computeStandings,
   detectCrossoverEvents,
   findClosestGap,
   selectTopEntities,
@@ -305,6 +306,53 @@ describe('computeRollingShares', () => {
   });
 });
 
+describe('computeStandings', () => {
+  const entities = [
+    { key: 'base', name: 'Base' },
+    { key: 'arbitrum', name: 'Arbitrum' },
+    { key: 'optimism', name: 'Optimism' },
+  ];
+
+  it('ranks every tracked entity by its latest share with the gap above', () => {
+    const buckets = computeBucketShares([makePoint(0, { base: 50, arbitrum: 30, optimism: 20 })]);
+    const standings = computeStandings(buckets, entities, []);
+    expect(standings.map((row) => [row.rank, row.entity.key])).toEqual([
+      [1, 'base'],
+      [2, 'arbitrum'],
+      [3, 'optimism'],
+    ]);
+    expect(standings[0].gapToAbovePoints).toBeNull();
+    expect(standings[1].gapToAbovePoints).toBeCloseTo(20);
+    expect(standings[2].gapToAbovePoints).toBeCloseTo(10);
+  });
+
+  it('attaches the most recent flip each entity won and lost', () => {
+    const buckets = computeBucketShares([
+      makePoint(0, { base: 20, arbitrum: 50, optimism: 30 }),
+      makePoint(1, { base: 50, arbitrum: 30, optimism: 20 }),
+    ]);
+    const events = detectCrossoverEvents(buckets, entities, 0.5);
+    const standings = computeStandings(buckets, entities, events);
+    const base = standings.find((row) => row.entity.key === 'base');
+    const arbitrum = standings.find((row) => row.entity.key === 'arbitrum');
+    expect(base?.lastFlipWon?.loser.key).toBe('optimism');
+    expect(base?.lastFlipLost).toBeNull();
+    expect(arbitrum?.lastFlipLost?.winner.key).toBe('base');
+  });
+
+  it('gives entities absent from the latest window a zero share', () => {
+    const buckets = computeBucketShares([makePoint(0, { base: 10 })]);
+    const standings = computeStandings(buckets, entities, []);
+    expect(standings[0].entity.key).toBe('base');
+    expect(standings[1].sharePercent).toBe(0);
+    expect(standings[2].sharePercent).toBe(0);
+  });
+
+  it('returns nothing when there are no evaluated windows', () => {
+    expect(computeStandings([], entities, [])).toEqual([]);
+  });
+});
+
 describe('findClosestGap', () => {
   const entities = [
     { key: 'base', name: 'Base' },
@@ -385,10 +433,22 @@ describe('analyzeFlippening', () => {
     expect(analysis.entities.map((entity) => entity.key)).toEqual(['arbitrum']);
   });
 
+  it('includes standings covering every tracked rollup', () => {
+    const response = makeResponse([{ base: 50, arbitrum: 30, optimism: 20 }]);
+    const analysis = analyzeFlippening(response);
+    expect(analysis.standings.map((row) => row.entity.key)).toEqual([
+      'base',
+      'arbitrum',
+      'optimism',
+    ]);
+    expect(analysis.standings[0].sharePercent).toBeCloseTo(50);
+  });
+
   it('handles an empty response', () => {
     const analysis = analyzeFlippening(makeResponse([]));
     expect(analysis.entities).toEqual([]);
     expect(analysis.events).toEqual([]);
+    expect(analysis.standings).toEqual([]);
     expect(analysis.closestGap).toBeNull();
   });
 });
