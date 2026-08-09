@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from '@/components/NetworkLink';
 import ChartViewLink from '@/components/ChartViewLink';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeftRight, Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, Trophy, Tv, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, Trophy, Tv, Users, type LucideIcon } from 'lucide-react';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
@@ -38,6 +38,7 @@ const NAV_LINKS: NavLink[] = [
   { href: '/', label: 'Home', icon: Home, activePrefixes: [] },
   { href: '/blocks', label: 'Blocks', icon: Blocks, activePrefixes: ['/blocks', '/block'] },
   { href: '/mempool', label: 'Mempool', icon: Hourglass, activePrefixes: ['/mempool'] },
+  { href: '/users', label: 'Users', icon: Users, activePrefixes: ['/users', '/user'] },
   { href: '/records', label: 'Records', icon: Trophy, activePrefixes: ['/records'] },
   { href: '/flippening', label: 'Flippening', icon: ArrowLeftRight, activePrefixes: ['/flippening'] },
 ];

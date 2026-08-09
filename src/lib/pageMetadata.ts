@@ -197,6 +197,24 @@ export function mempoolMetadata(network?: string): Metadata {
   };
 }
 
+export function usersMetadata(network?: string): Metadata {
+  const title = `Top Blob Users${networkTitleSuffix(network)}`;
+  const description =
+    'Leaderboard of Ethereum blob users: rollups and other senders ranked by blobs posted, ' +
+    'share of blobspace, and total spend, from the last hour to all time.';
+  return {
+    title,
+    description,
+    alternates: canonical('/users', network),
+    // No card of its own, so it shares the dashboard's, scoped to this network.
+    ...statCard('/api/og/home', `Live Ethereum blob analytics on ${SITE_NAME}`, {
+      network,
+      title,
+      description,
+    }),
+  };
+}
+
 export function recordsMetadata(network?: string): Metadata {
   return {
     title: `Blob Market Records${networkTitleSuffix(network)}`,
