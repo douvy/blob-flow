@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { DEFAULT_NETWORK } from '@/constants';
@@ -244,6 +244,29 @@ describe('RecordsPage', () => {
       /Leaderboards cover the indexer's full indexed history/
     );
     expect(tooltip).toHaveTextContent(/unattributed senders are not represented/);
+  });
+
+  it('opens the attribution caveat on tap, so touch users can read it', async () => {
+    mockRecords(makeRecords());
+    renderPage();
+
+    const user = userEvent.setup();
+    const trigger = screen.getByRole('button', {
+      name: 'About these leaderboards',
+    });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    await user.pointer({ target: trigger, keys: '[TouchA]' });
+
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip).toHaveTextContent(
+      /unattributed senders are not represented/
+    );
+
+    // A second tap dismisses it, the only way off the tooltip on a touch
+    // screen: there is no pointer to move away.
+    await user.pointer({ target: trigger, keys: '[TouchA]' });
+    await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
   });
 
   it('omits cards whose sections are empty', () => {
