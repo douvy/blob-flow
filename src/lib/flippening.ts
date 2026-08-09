@@ -33,6 +33,12 @@ import type {
 export interface FlippeningEntity {
   key: string;
   name: string;
+  /**
+   * Sender address, set only for a tracked entity the registry does not name
+   * (see resolveTrackedEntity). Those have no head-to-head page to link to,
+   * but they do have an address page.
+   */
+  address?: string;
 }
 
 /** Rolling-window blob share evaluated at one chart bucket. */
@@ -156,7 +162,9 @@ function resolveTrackedEntity(key: string, meta: EntityMeta | undefined): Flippe
   if (meta === undefined) return { key, name: key };
   if (meta.category === 'other') return null;
   if (meta.category === 'unknown') {
-    return meta.address ? { key, name: truncateAddress(meta.address) } : null;
+    return meta.address
+      ? { key, name: truncateAddress(meta.address), address: meta.address }
+      : null;
   }
   return { key, name: meta.name };
 }
