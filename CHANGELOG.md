@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.8.0](https://github.com/douvy/blob-flow/compare/v1.7.2...v1.8.0) (2026-08-05)
+
+
+### Features
+
+* add a blob share chart showing each network's percentage of blobspace ([#242](https://github.com/douvy/blob-flow/issues/242)) ([541962b](https://github.com/douvy/blob-flow/commit/541962b6c990685776834005713193d1c7e17b50))
+* add a status page link to the footer ([#255](https://github.com/douvy/blob-flow/issues/255)) ([f9b4b9c](https://github.com/douvy/blob-flow/commit/f9b4b9cb934017c7e951dcb4cfe9e9ef5a697cb7))
+* translate blob metrics into relatable units on the dashboard ([#235](https://github.com/douvy/blob-flow/issues/235)) ([83012fc](https://github.com/douvy/blob-flow/commit/83012fc87979ba46bf23f42adfdf626682aaf9e1))
+
+
+### Bug Fixes
+
+* align the % of Total bars in the top users table ([#234](https://github.com/douvy/blob-flow/issues/234)) ([7a487cc](https://github.com/douvy/blob-flow/commit/7a487ccb541906ad6b232209c6a03b1171f44a41))
+* point the default API base URL at api.blobflow.com ([#254](https://github.com/douvy/blob-flow/issues/254)) ([87bbea8](https://github.com/douvy/blob-flow/commit/87bbea82ba549573df19d4ec97bb0ae648d11088))
+
+
+### Dependencies
+
+* **deps-dev:** bump @testing-library/jest-dom from 6.9.1 to 7.0.0 ([#247](https://github.com/douvy/blob-flow/issues/247)) ([2792981](https://github.com/douvy/blob-flow/commit/279298182cba3b123cc99f7b641c06469b9baa35))
+* **deps-dev:** bump postcss from 8.5.23 to 8.5.25 ([#249](https://github.com/douvy/blob-flow/issues/249)) ([78dd2ab](https://github.com/douvy/blob-flow/commit/78dd2ab4632be62d9faa6908bb267c3d5fb13d2d))
+* **deps:** bump @tanstack/react-query from 5.101.2 to 5.101.4 ([#246](https://github.com/douvy/blob-flow/issues/246)) ([be8040a](https://github.com/douvy/blob-flow/commit/be8040a212896dcd0573e1280ea3b6f8de20599d))
+* **deps:** bump @types/node from 26.1.1 to 26.1.2 ([#250](https://github.com/douvy/blob-flow/issues/250)) ([cecf956](https://github.com/douvy/blob-flow/commit/cecf95680853220042dd9d6f32dfdc2fc7f30c49))
+* **deps:** bump lucide-react from 1.27.0 to 1.28.0 ([#251](https://github.com/douvy/blob-flow/issues/251)) ([6e53f25](https://github.com/douvy/blob-flow/commit/6e53f257cab54615d67be3353c4a50dcb0289e57))
+* **deps:** bump react-dom and @types/react-dom ([#253](https://github.com/douvy/blob-flow/issues/253)) ([4ffe4dd](https://github.com/douvy/blob-flow/commit/4ffe4dd2691cb750356d8db9f37f24c5b0ab0b1a))
+
 ## [1.7.2](https://github.com/douvy/blob-flow/compare/v1.7.1...v1.7.2) (2026-08-02)
 
 

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from 'next/link';
+import Link from '@/components/NetworkLink';
 import { ArrowLeft, Info } from 'lucide-react';
 import FlippeningWatch from '@/components/FlippeningWatch';
 import { DEFAULT_FLIPPENING_TOP_N } from '@/lib/flippening';

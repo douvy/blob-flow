@@ -1,13 +1,7 @@
 import type { Metadata } from 'next';
+import { flippeningMetadata } from '@/lib/pageMetadata';
 
-export const metadata: Metadata = {
-  title: 'Flippening Watch',
-  description:
-    'Track when one rollup overtakes another in Ethereum blob share: recent crossover events and the pair closest to flipping.',
-  alternates: {
-    canonical: '/flippening',
-  },
-};
+export const metadata: Metadata = flippeningMetadata();
 
 export default function FlippeningLayout({ children }: { children: React.ReactNode }) {
   return children;

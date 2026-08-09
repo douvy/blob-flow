@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/NetworkLink';
 import { useRouter } from 'next/navigation';
 import { TrendingDown, TrendingUp, MoveRight, Maximize2 } from 'lucide-react';
 import {
@@ -83,7 +83,7 @@ import {
   CHART_TOOLTIP_STYLE,
   COLORS,
 } from '@/constants/chartTheme';
-import { formatGwei, formatPercent } from '@/utils';
+import { formatGwei, formatPercent, networkPath } from '@/utils';
 
 const PRICING_FALLBACK_REFRESH_MS = 30000;
 
@@ -230,16 +230,17 @@ const HeroFeeChart = React.memo(function HeroFeeChart({
   referenceLabel?: string;
 }) {
   const router = useRouter();
+  const { selectedNetwork } = useNetwork();
 
   const handleClick = useCallback(
     (state: MouseHandlerDataParam) => {
       const index = Number(state.activeIndex);
       const point = Number.isInteger(index) ? points[index] : undefined;
       if (point?.blockNumber !== undefined) {
-        router.push(`/block/${point.blockNumber}`);
+        router.push(networkPath(`/block/${point.blockNumber}`, selectedNetwork.apiParam));
       }
     },
-    [router, points]
+    [router, points, selectedNetwork.apiParam]
   );
 
   const hasBlockLinks = points.some((point) => point.blockNumber !== undefined);
