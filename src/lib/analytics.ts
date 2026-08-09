@@ -49,6 +49,8 @@ interface AnalyticsEvents {
   'chart-image': { chart: string; outcome: 'copied' | 'downloaded' | 'error' };
   /** A visitor opened the X intent for a chart. */
   'chart-share-x': { chart: string; network: string; range: string };
+  /** A visitor opened the Farcaster composer for a chart. */
+  'chart-share-farcaster': { chart: string; network: string; range: string };
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

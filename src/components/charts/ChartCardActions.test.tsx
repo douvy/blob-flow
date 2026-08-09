@@ -32,6 +32,13 @@ function renderActions(timeRange: TimeRange = '1h') {
   );
 }
 
+/** Renders, opens the share menu, and returns the item named. */
+async function openMenuItem(name: string, timeRange: TimeRange = '1h') {
+  renderActions(timeRange);
+  await userEvent.click(screen.getByRole('button', { name: 'Share chart' }));
+  return screen.getByRole('menuitem', { name });
+}
+
 describe('ChartCardActions', () => {
   beforeEach(() => {
     vi.mocked(copyOrDownloadChartImage).mockReset();
@@ -39,6 +46,66 @@ describe('ChartCardActions', () => {
       selectedNetwork: NETWORKS.MAINNET,
       setSelectedNetwork: vi.fn(),
       networkOptions: Object.values(NETWORKS),
+    });
+  });
+
+  describe('the menu', () => {
+    it('keeps the actions behind one trigger until it is opened', async () => {
+      renderActions();
+
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Share chart' }));
+
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      expect(screen.getAllByRole('menuitem')).toHaveLength(3);
+    });
+
+    it('moves focus into the menu on open, so the keyboard path is not a tab hunt', async () => {
+      renderActions();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Share chart' }));
+
+      expect(screen.getByRole('menuitem', { name: 'Copy as image' })).toHaveFocus();
+    });
+
+    it('cycles the items with the arrow keys', async () => {
+      renderActions();
+      await userEvent.click(screen.getByRole('button', { name: 'Share chart' }));
+
+      await userEvent.keyboard('{ArrowDown}');
+      expect(screen.getByRole('menuitem', { name: 'Share on X' })).toHaveFocus();
+
+      // Wraps rather than dead-ending at either edge.
+      await userEvent.keyboard('{ArrowUp}{ArrowUp}');
+      expect(screen.getByRole('menuitem', { name: 'Share on Farcaster' })).toHaveFocus();
+    });
+
+    it('closes on Escape and hands focus back to the trigger', async () => {
+      renderActions();
+      await userEvent.click(screen.getByRole('button', { name: 'Share chart' }));
+
+      await userEvent.keyboard('{Escape}');
+
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Share chart' })).toHaveFocus();
+    });
+
+    it('closes on a click outside', async () => {
+      renderActions();
+      await userEvent.click(screen.getByRole('button', { name: 'Share chart' }));
+
+      await userEvent.click(document.body);
+
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('closes once an item is chosen', async () => {
+      const item = await openMenuItem('Share on X');
+
+      await userEvent.click(item);
+
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
   });
 
@@ -56,9 +123,8 @@ describe('ChartCardActions', () => {
 
     it('reports the export outcome, telling a download from a copy', async () => {
       vi.mocked(copyOrDownloadChartImage).mockResolvedValue('downloaded');
-      renderActions();
 
-      await userEvent.click(screen.getByRole('button', { name: 'Copy chart as image' }));
+      await userEvent.click(await openMenuItem('Copy as image'));
 
       await waitFor(() =>
         expect(track).toHaveBeenCalledWith('chart-image', {
@@ -70,9 +136,8 @@ describe('ChartCardActions', () => {
 
     it('reports a failed export', async () => {
       vi.mocked(copyOrDownloadChartImage).mockRejectedValue(new Error('no canvas'));
-      renderActions();
 
-      await userEvent.click(screen.getByRole('button', { name: 'Copy chart as image' }));
+      await userEvent.click(await openMenuItem('Copy as image'));
 
       await waitFor(() =>
         expect(track).toHaveBeenCalledWith('chart-image', {
@@ -83,11 +148,7 @@ describe('ChartCardActions', () => {
     });
 
     it('reports the share with the network and range it was shared from', async () => {
-      renderActions('7d');
-
-      await userEvent.click(
-        screen.getByRole('link', { name: 'Share Blob Usage over 1h view on X' })
-      );
+      await userEvent.click(await openMenuItem('Share on X', '7d'));
 
       expect(track).toHaveBeenCalledWith('chart-share-x', {
         chart: 'blob-usage',
@@ -95,70 +156,77 @@ describe('ChartCardActions', () => {
         range: '7d',
       });
     });
-  });
 
-  it('copies the chart image and shows transient success feedback', async () => {
-    vi.mocked(copyOrDownloadChartImage).mockResolvedValue('copied');
-    renderActions();
+    it('reports a Farcaster share separately from an X share', async () => {
+      await userEvent.click(await openMenuItem('Share on Farcaster', '7d'));
 
-    await userEvent.click(screen.getByRole('button', { name: 'Copy chart as image' }));
-
-    expect(copyOrDownloadChartImage).toHaveBeenCalledTimes(1);
-    const [node, meta, fileName] = vi.mocked(copyOrDownloadChartImage).mock.calls[0];
-    expect(node).toBe(captureNode);
-    expect(meta.title).toBe('Blob Usage over 1h view');
-    expect(meta.networkName).toBe(NETWORKS.MAINNET.name);
-    expect(meta.rangeLabel).toBe('1h view');
-    expect(fileName).toMatch(/^blob-flow-blob-usage-over-1h-view-\d{8}-\d{4}\.png$/);
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Chart image copied to clipboard' })
-      ).toBeInTheDocument()
-    );
-
-    // Feedback resets back to the idle affordance after the timeout elapses.
-    await waitFor(
-      () =>
-        expect(
-          screen.getByRole('button', { name: 'Copy chart as image' })
-        ).toBeInTheDocument(),
-      { timeout: 3000 }
-    );
-  });
-
-  it('reports the download fallback distinctly from a clipboard copy', async () => {
-    vi.mocked(copyOrDownloadChartImage).mockResolvedValue('downloaded');
-    renderActions();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Copy chart as image' }));
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Chart image downloaded' })
-      ).toBeInTheDocument()
-    );
-  });
-
-  it('shows failure feedback when the capture rejects', async () => {
-    vi.mocked(copyOrDownloadChartImage).mockRejectedValue(new Error('boom'));
-    renderActions();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Copy chart as image' }));
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Copying chart image failed' })
-      ).toBeInTheDocument()
-    );
-  });
-
-  it('links the X intent with title, stat, network, and chart deep link', () => {
-    renderActions();
-
-    const link = screen.getByRole('link', {
-      name: 'Share Blob Usage over 1h view on X',
+      expect(track).toHaveBeenCalledWith('chart-share-farcaster', {
+        chart: 'blob-usage',
+        network: NETWORKS.MAINNET.apiParam,
+        range: '7d',
+      });
+      expect(track).not.toHaveBeenCalledWith('chart-share-x', expect.anything());
     });
+  });
+
+  describe('copying the chart image', () => {
+    it('copies and reports the outcome on the trigger, which outlives the menu', async () => {
+      vi.mocked(copyOrDownloadChartImage).mockResolvedValue('copied');
+
+      await userEvent.click(await openMenuItem('Copy as image'));
+
+      expect(copyOrDownloadChartImage).toHaveBeenCalledTimes(1);
+      const [node, meta, fileName] = vi.mocked(copyOrDownloadChartImage).mock.calls[0];
+      expect(node).toBe(captureNode);
+      expect(meta.title).toBe('Blob Usage over 1h view');
+      expect(meta.networkName).toBe(NETWORKS.MAINNET.name);
+      expect(meta.rangeLabel).toBe('1h view');
+      expect(fileName).toMatch(/^blob-flow-blob-usage-over-1h-view-\d{8}-\d{4}\.png$/);
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: 'Chart image copied to clipboard' })
+        ).toBeInTheDocument()
+      );
+
+      // Feedback resets back to the idle affordance after the timeout elapses.
+      await waitFor(
+        () =>
+          expect(
+            screen.getByRole('button', { name: 'Share chart' })
+          ).toBeInTheDocument(),
+        { timeout: 3000 }
+      );
+    });
+
+    it('reports the download fallback distinctly from a clipboard copy', async () => {
+      vi.mocked(copyOrDownloadChartImage).mockResolvedValue('downloaded');
+
+      await userEvent.click(await openMenuItem('Copy as image'));
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: 'Chart image downloaded' })
+        ).toBeInTheDocument()
+      );
+    });
+
+    it('shows failure feedback when the capture rejects', async () => {
+      vi.mocked(copyOrDownloadChartImage).mockRejectedValue(new Error('boom'));
+
+      await userEvent.click(await openMenuItem('Copy as image'));
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: 'Copying chart image failed' })
+        ).toBeInTheDocument()
+      );
+    });
+  });
+
+  it('links the X intent with title, stat, and chart deep link', async () => {
+    const link = await openMenuItem('Share on X');
+
     const href = new URL(link.getAttribute('href') ?? '');
     expect(href.origin + href.pathname).toBe('https://twitter.com/intent/tweet');
     expect(href.searchParams.get('text')).toBe(
@@ -169,7 +237,22 @@ describe('ChartCardActions', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('carries the selected network so the card cannot contradict the tweet', () => {
+  it('links the Farcaster composer with the same copy and an embedded deep link', async () => {
+    const link = await openMenuItem('Share on Farcaster');
+
+    const href = new URL(link.getAttribute('href') ?? '');
+    expect(href.origin + href.pathname).toBe('https://farcaster.xyz/~/compose');
+    expect(href.searchParams.get('text')).toBe(
+      'Blob Usage over 1h view: 1,234 blobs posted on Mainnet'
+    );
+    expect(href.searchParams.get('embeds[]')).toBe(
+      `${SITE_URL}/charts/blob-usage?range=1h`
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('carries the selected network into both share links', async () => {
     vi.mocked(useNetwork).mockReturnValue({
       selectedNetwork: NETWORKS.SEPOLIA,
       setSelectedNetwork: vi.fn(),
@@ -177,24 +260,29 @@ describe('ChartCardActions', () => {
     });
     renderActions('7d');
 
-    const link = screen.getByRole('link', {
-      name: 'Share Blob Usage over 1h view on X',
-    });
-    const href = new URL(link.getAttribute('href') ?? '');
-    const shared = new URL(href.searchParams.get('url') ?? '');
+    await userEvent.click(screen.getByRole('button', { name: 'Share chart' }));
+    const tweet = new URL(
+      screen.getByRole('menuitem', { name: 'Share on X' }).getAttribute('href') ?? ''
+    );
+    const cast = new URL(
+      screen.getByRole('menuitem', { name: 'Share on Farcaster' }).getAttribute('href') ??
+        ''
+    );
 
     // Network travels in the path, matching every other in-app link.
-    expect(shared.pathname).toBe('/sepolia/charts/blob-usage');
-    expect(shared.searchParams.get('range')).toBe('7d');
-    expect(href.searchParams.get('text')).toContain('on Sepolia');
+    for (const shared of [
+      new URL(tweet.searchParams.get('url') ?? ''),
+      new URL(cast.searchParams.get('embeds[]') ?? ''),
+    ]) {
+      expect(shared.pathname).toBe('/sepolia/charts/blob-usage');
+      expect(shared.searchParams.get('range')).toBe('7d');
+    }
+    expect(tweet.searchParams.get('text')).toContain('on Sepolia');
+    expect(cast.searchParams.get('text')).toContain('on Sepolia');
   });
 
-  it('leaves the default network out of the link', () => {
-    renderActions('24h');
-
-    const link = screen.getByRole('link', {
-      name: 'Share Blob Usage over 1h view on X',
-    });
+  it('leaves the default network out of the link', async () => {
+    const link = await openMenuItem('Share on X', '24h');
     const shared = new URL(
       new URL(link.getAttribute('href') ?? '').searchParams.get('url') ?? ''
     );
@@ -202,16 +290,13 @@ describe('ChartCardActions', () => {
     expect(shared.pathname).toBe('/charts/blob-usage');
   });
 
-  it('shares the range currently selected, not the default', () => {
-    renderActions('30d');
-
-    const link = screen.getByRole('link', {
-      name: 'Share Blob Usage over 1h view on X',
-    });
-    const href = new URL(link.getAttribute('href') ?? '');
+  it('shares the range currently selected, not the default', async () => {
+    const link = await openMenuItem('Share on X', '30d');
 
     // The range rides along so the link opens on the shared view and its
     // unfurled card plots that range.
-    expect(href.searchParams.get('url')).toBe(`${SITE_URL}/charts/blob-usage?range=30d`);
+    expect(new URL(link.getAttribute('href') ?? '').searchParams.get('url')).toBe(
+      `${SITE_URL}/charts/blob-usage?range=30d`
+    );
   });
 });
