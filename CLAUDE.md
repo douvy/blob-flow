@@ -77,7 +77,7 @@ PR titles must use Conventional Commit format: `type: subject` or `type(scope): 
 
 - `NEXT_PUBLIC_API_URL`: API base URL (default: `https://api.blobflow.com/api/v1`)
 - `NEXT_PUBLIC_USE_MOCK_DATA`: Toggle mock data (default: `false`)
-- `NEXT_PUBLIC_SITE_URL`: Canonical site origin for SEO metadata, sitemap, and robots (falls back to `VERCEL_URL`, then `http://localhost:3000`)
+- `NEXT_PUBLIC_SITE_URL`: Canonical site origin for SEO metadata, Open Graph image URLs, sitemap, and robots (falls back to `VERCEL_URL`, then `http://localhost:3000`). Must be set for **both** the build and the runtime: Next inlines it into the client bundle at build time but leaves it as a runtime `process.env` lookup in the server bundle, so a value supplied only at run time still ships a stale client bundle, and one supplied only at build time still renders `localhost` meta tags. The Dockerfile wires it through both stages via the `NEXT_PUBLIC_SITE_URL` build arg (default `https://blobflow.com`). Leaving it unset makes every `og:image`, canonical link, and sitemap entry point at `http://localhost:3000`, so link previews fail everywhere.
 - `BLOB_ARCHIVE_URL`: Server-only base URL of a BlobArchive (bloar) follower's read API including the head prefix (e.g. `http://127.0.0.1:8550/live`). Enables the raw blob viewer; unset disables it (the proxy route returns 501)
 - `BLOB_ARCHIVE_NETWORK`: Network the follower archives, matched against the viewer's network param (default: `mainnet`)
 - `BLOB_ARCHIVE_TOKEN`: Optional bearer token sent by the proxy, for deployments that front the follower with an authenticating proxy
