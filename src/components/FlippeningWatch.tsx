@@ -5,6 +5,7 @@ import { ArrowLeftRight, ArrowUp } from 'lucide-react';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { RelativeTime } from '@/components/RelativeTime';
+import TapTooltip from '@/components/TapTooltip';
 import { useFlippening } from '@/hooks/useFlippening';
 import {
   DEFAULT_FLIPPENING_TOP_N,
@@ -15,22 +16,62 @@ import {
 
 const FEED_LIMIT = 20;
 
-/** Bucket timestamps within a day are unambiguous as time-of-day; longer
- * ranges use daily-or-coarser buckets, where the date is the signal. */
-function formatEventTime(iso: string, includeDate: boolean): string {
+const ABSOLUTE_TIME_FORMAT: Intl.DateTimeFormatOptions = {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+};
+
+/**
+ * Exact time in both zones, for the hover behind a relative timestamp. UTC
+ * is what the chain and the rest of this app speak; the viewer's own zone is
+ * what they can place against their day. Rendered client-side only (the feed
+ * has no data until the query resolves), so the local reading cannot differ
+ * between server and client.
+ */
+function AbsoluteTimes({ iso }: { iso: string }) {
   const date = new Date(iso);
-  const time = date.toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  });
-  if (!includeDate) return `${time} UTC`;
-  const day = date.toLocaleDateString('en-GB', {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
-  return `${day}, ${time} UTC`;
+  // Both lines are labelled: near midnight the two zones land on different
+  // calendar days, and an unlabelled pair of dates invites a misread.
+  return (
+    <span className="block whitespace-nowrap">
+      <span className="block">
+        <span className="text-[#6e7787]">UTC</span>{' '}
+        <span className="tabular-nums">
+          {date.toLocaleString('en-GB', { ...ABSOLUTE_TIME_FORMAT, timeZone: 'UTC' })}
+        </span>
+      </span>
+      <span className="block">
+        <span className="text-[#6e7787]">Local</span>{' '}
+        <span className="tabular-nums">
+          {date.toLocaleString('en-GB', { ...ABSOLUTE_TIME_FORMAT, timeZoneName: 'short' })}
+        </span>
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Relative timestamp, with the exact UTC and local times on hover or tap.
+ * "3 hours ago" is what a reader actually wants from a feed; the precise
+ * moment only matters when they go looking for it.
+ */
+function EventTime({ iso }: { iso: string }) {
+  return (
+    <TapTooltip
+      contentClassName="px-2.5 py-2 text-[11px] leading-relaxed"
+      content={<AbsoluteTimes iso={iso} />}
+    >
+      <button
+        type="button"
+        className="cursor-help rounded-sm underline decoration-dotted decoration-[#4a5261] underline-offset-2 transition-colors hover:decoration-[#8a93a5] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue"
+      >
+        <RelativeTime timestamp={iso} />
+      </button>
+    </TapTooltip>
+  );
 }
 
 function formatPoints(value: number): string {
@@ -123,7 +164,7 @@ function Standings({
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-green/10 px-1.5 py-0.5 text-[10px] text-green">
                       <ArrowUp className="h-3 w-3" aria-hidden="true" />
                       passed {standing.lastFlipWon.loser.name}{' '}
-                      <RelativeTime timestamp={standing.lastFlipWon.timestamp} />
+                      <EventTime iso={standing.lastFlipWon.timestamp} />
                     </span>
                   )}
                   {inClosestPair && (
@@ -157,15 +198,7 @@ function Standings({
   );
 }
 
-function EventRow({
-  event,
-  includeDate,
-  windowLabel,
-}: {
-  event: FlippeningEvent;
-  includeDate: boolean;
-  windowLabel: string;
-}) {
+function EventRow({ event, windowLabel }: { event: FlippeningEvent; windowLabel: string }) {
   return (
     <li className="flex items-start gap-3 py-3">
       <span className="mt-0.5 flex items-center">
@@ -176,8 +209,8 @@ function EventRow({
       <div className="min-w-0">
         <p className="text-sm text-white">
           <span className="font-medium">{event.winner.name}</span> flipped{' '}
-          <span className="font-medium">{event.loser.name}</span> in {windowLabel} blob share at{' '}
-          <span className="tabular-nums">{formatEventTime(event.timestamp, includeDate)}</span>
+          <span className="font-medium">{event.loser.name}</span> in {windowLabel} blob share{' '}
+          <EventTime iso={event.timestamp} />
         </p>
         <p className="text-xs text-[#8a93a5] tabular-nums">
           {formatPoints(event.winnerSharePercent)}% vs {formatPoints(event.loserSharePercent)}% of
@@ -189,17 +222,13 @@ function EventRow({
 }
 
 export default function FlippeningWatch() {
-  const { analysis, timeRange, historyRange, isLoading, error } = useFlippening();
+  const { analysis, timeRange, isLoading, error } = useFlippening();
 
   // Feed reads newest first; detection returns oldest first.
   const feedEvents = useMemo(
     () => (analysis ? [...analysis.events].reverse().slice(0, FEED_LIMIT) : []),
     [analysis]
   );
-
-  // Events can be as old as the fetched history; only same-day histories
-  // read unambiguously as time-of-day.
-  const includeDate = historyRange !== '24h';
 
   const closestPairKeys = useMemo(
     () =>
@@ -247,7 +276,6 @@ export default function FlippeningWatch() {
                   <EventRow
                     key={`${event.bucketIndex}-${event.winner.key}-${event.loser.key}`}
                     event={event}
-                    includeDate={includeDate}
                     windowLabel={timeRange}
                   />
                 ))}
