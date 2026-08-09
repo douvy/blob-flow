@@ -18,7 +18,8 @@ export interface ApiResponse<T> {
 export interface BlobResponse {
   network_id: number;
   network_name: string;
-  block_number: number;
+  /** Including block; null while the transaction is pending. */
+  block_number: number | null;
   blob_index: number;
   tx_hash: string;
   transaction_url?: string;
@@ -48,6 +49,28 @@ export interface BlobResponse {
   versioned_hash?: string;
   /** All versioned hashes carried by this blob's transaction. Omitted for rows indexed before versioned hashes were stored. */
   versioned_hashes?: string[];
+}
+
+/**
+ * One blob transaction, assembled for the transaction detail page: every blob
+ * row the indexer holds for a tx hash, plus the row that carries the fields
+ * they all share (sender, fees, including block, timestamp).
+ */
+export interface BlobTransaction {
+  txHash: string;
+  /** Blob rows for this transaction, ordered by blob index. Never empty. */
+  blobs: BlobResponse[];
+  /** Row the transaction-level fields are read from. */
+  primary: BlobResponse;
+  /** Including block, or null while the transaction is still pending. */
+  blockNumber: number | null;
+  confirmed: boolean;
+  /**
+   * Whether `blobs` holds every blob the transaction carries. False when only
+   * part of the transaction could be assembled (pending rows, or a block
+   * lookup that failed), so totals derived from `blobs` are lower bounds.
+   */
+  blobsComplete: boolean;
 }
 
 // ---- WebSocket Live Data Types ----

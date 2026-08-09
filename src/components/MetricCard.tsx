@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
+import Link from '@/components/NetworkLink';
 import { ArrowDownRight, ArrowUpRight, type LucideIcon } from 'lucide-react';
 
 interface MetricCardProps {

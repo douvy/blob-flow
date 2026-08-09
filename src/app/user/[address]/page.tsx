@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
+import Link from '@/components/NetworkLink';
 import { ArrowLeft, ChevronDown, ExternalLink } from 'lucide-react';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { useApiData } from '@/hooks/useApiData';
@@ -21,17 +21,13 @@ import {
   getBlobCount,
   safeExplorerUrl,
   truncateAddress,
+  truncateTxHash,
 } from '@/utils';
 import { RelativeTime } from '@/components/RelativeTime';
 import AttributionBadge from '@/components/AttributionBadge';
 import { ATTRIBUTION_CONTRIBUTING_URL, FEE_HEADROOM_TOOLTIP } from '@/constants';
 
 const USER_BLOB_LIMIT = 20;
-
-function truncateTxHash(hash: string): string {
-  if (hash.length <= 14) return hash;
-  return `${hash.substring(0, 10)}...${hash.substring(hash.length - 4)}`;
-}
 
 function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boolean }) {
   const txWidth = showBlock ? 'w-[24%]' : 'w-[28%]';
@@ -78,18 +74,14 @@ function BlobTable({ blobs, showBlock }: { blobs: BlobResponse[]; showBlock: boo
             return (
               <tr key={`${blob.tx_hash}-${blob.blob_index}`} className="bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 transition-colors">
                 <td className="py-3 px-3 sm:px-4 text-sm font-mono text-white">
-                  {blob.transaction_url ? (
-                    <a
-                      href={blob.transaction_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue hover:underline"
-                    >
-                      {truncateTxHash(blob.tx_hash)}
-                    </a>
-                  ) : (
-                    <span>{truncateTxHash(blob.tx_hash)}</span>
-                  )}
+                  <Link
+                    href={`/tx/${blob.tx_hash}`}
+                    className="text-blue hover:underline"
+                    title={blob.tx_hash}
+                    aria-label={`Blob transaction ${blob.tx_hash}`}
+                  >
+                    {truncateTxHash(blob.tx_hash)}
+                  </Link>
                   <div className="text-xs text-[#8a93a5] mt-1 font-sans whitespace-nowrap">blob #{blob.blob_index}</div>
                   {showBlock && (
                     <div className="text-xs text-[#8a93a5] mt-1 font-sans sm:hidden">
