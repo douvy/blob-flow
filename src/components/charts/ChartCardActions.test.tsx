@@ -42,6 +42,61 @@ describe('ChartCardActions', () => {
     });
   });
 
+  describe('analytics', () => {
+    const track = vi.fn();
+
+    beforeEach(() => {
+      track.mockReset();
+      window.umami = { track };
+    });
+
+    afterEach(() => {
+      delete window.umami;
+    });
+
+    it('reports the export outcome, telling a download from a copy', async () => {
+      vi.mocked(copyOrDownloadChartImage).mockResolvedValue('downloaded');
+      renderActions();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Copy chart as image' }));
+
+      await waitFor(() =>
+        expect(track).toHaveBeenCalledWith('chart-image', {
+          chart: 'blob-usage',
+          outcome: 'downloaded',
+        })
+      );
+    });
+
+    it('reports a failed export', async () => {
+      vi.mocked(copyOrDownloadChartImage).mockRejectedValue(new Error('no canvas'));
+      renderActions();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Copy chart as image' }));
+
+      await waitFor(() =>
+        expect(track).toHaveBeenCalledWith('chart-image', {
+          chart: 'blob-usage',
+          outcome: 'error',
+        })
+      );
+    });
+
+    it('reports the share with the network and range it was shared from', async () => {
+      renderActions('7d');
+
+      await userEvent.click(
+        screen.getByRole('link', { name: 'Share Blob Usage over 1h view on X' })
+      );
+
+      expect(track).toHaveBeenCalledWith('chart-share-x', {
+        chart: 'blob-usage',
+        network: NETWORKS.MAINNET.apiParam,
+        range: '7d',
+      });
+    });
+  });
+
   it('copies the chart image and shows transient success feedback', async () => {
     vi.mocked(copyOrDownloadChartImage).mockResolvedValue('copied');
     renderActions();

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { DEFAULT_TIME_RANGE, type TimeRange } from '@/constants';
+import { trackEvent } from '@/lib/analytics';
 
 export type { TimeRange };
 
@@ -22,9 +23,19 @@ export function TimeRangeProvider({
   children: ReactNode;
   initialRange?: TimeRange;
 }) {
-  const [timeRange, setTimeRange] = useState<TimeRange>(initialRange);
+  const [range, setRange] = useState<TimeRange>(initialRange);
+
+  // Reported from the render-scoped value rather than inside the state
+  // updater, which Strict Mode invokes twice and would double count.
+  const setTimeRange = (next: TimeRange) => {
+    if (next !== range) {
+      trackEvent('time-range-change', { range: next, previous: range });
+    }
+    setRange(next);
+  };
+
   return (
-    <TimeRangeContext.Provider value={{ timeRange, setTimeRange }}>
+    <TimeRangeContext.Provider value={{ timeRange: range, setTimeRange }}>
       {children}
     </TimeRangeContext.Provider>
   );

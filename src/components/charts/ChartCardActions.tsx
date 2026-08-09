@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Camera, Check, Download, Loader2 } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 import { copyOrDownloadChartImage } from '@/lib/chartExport';
 import { SITE_URL } from '@/constants';
 import { buildTweetIntentUrl, chartImageFileName, networkPath } from '@/utils';
@@ -96,8 +97,17 @@ export default function ChartCardActions({
       capturedAt,
     };
     copyOrDownloadChartImage(node, meta, chartImageFileName(chartTitle, capturedAt))
-      .then((outcome) => setCopyState(outcome))
-      .catch(() => setCopyState('error'));
+      .then((outcome) => {
+        setCopyState(outcome);
+        // The clipboard and download paths are worth telling apart: a chart
+        // that mostly downloads is being shared by people whose browser has
+        // no image clipboard.
+        trackEvent('chart-image', { chart: chartId, outcome });
+      })
+      .catch(() => {
+        setCopyState('error');
+        trackEvent('chart-image', { chart: chartId, outcome: 'error' });
+      });
   };
 
   // Range and network ride along so the link opens on the view the sharer
@@ -130,6 +140,13 @@ export default function ChartCardActions({
         href={tweetUrl}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() =>
+          trackEvent('chart-share-x', {
+            chart: chartId,
+            network: selectedNetwork.apiParam,
+            range: timeRange,
+          })
+        }
         className={buttonClass}
         aria-label={`Share ${chartTitle} on X`}
         title="Share on X"

@@ -21,6 +21,18 @@ const rawSiteUrl =
   'http://localhost:3000';
 export const SITE_URL = rawSiteUrl.replace(/\/+$/, '');
 
+// Umami website id. Empty (the default) leaves the tracker script out of the
+// page entirely, so development, tests, and unconfigured deployments collect
+// nothing. This is a NEXT_PUBLIC_ variable because the id has to reach the
+// browser in the rendered script tag, which means Next inlines it at build
+// time: supplying it only at run time ships a bundle that never loads the
+// tracker. The Dockerfile wires it through both stages, as it does for
+// NEXT_PUBLIC_SITE_URL. The id is not a secret; it identifies a site in the
+// Umami dashboard and is visible in the page source of any Umami-tracked
+// site. The instance's own location is separate and server-only
+// (UMAMI_URL, read by the /api/stats proxy).
+export const ANALYTICS_WEBSITE_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
+
 // Shared with per-page Open Graph metadata, which must restate them: Next
 // replaces the whole openGraph object per segment rather than deep-merging it.
 export const SITE_TITLE = 'BlobFlow: Real-Time Ethereum Blob Analytics';

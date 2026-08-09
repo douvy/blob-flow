@@ -81,3 +81,17 @@ PR titles must use Conventional Commit format: `type: subject` or `type(scope): 
 - `BLOB_ARCHIVE_URL`: Server-only base URL of a BlobArchive (bloar) follower's read API including the head prefix (e.g. `http://127.0.0.1:8550/live`). Enables the raw blob viewer; unset disables it (the proxy route returns 501)
 - `BLOB_ARCHIVE_NETWORK`: Network the follower archives, matched against the viewer's network param (default: `mainnet`)
 - `BLOB_ARCHIVE_TOKEN`: Optional bearer token sent by the proxy, for deployments that front the follower with an authenticating proxy
+- `NEXT_PUBLIC_UMAMI_WEBSITE_ID`: Umami website id. Unset (the default) renders no tracker script, so development, tests, and unconfigured deployments collect nothing. Must be present at **build** time: Next inlines `NEXT_PUBLIC_` values into the client bundle, so a value supplied only at run time ships a bundle that never loads the tracker. The Dockerfile takes it as a build arg and the publish workflow passes the `UMAMI_WEBSITE_ID` repository variable
+- `UMAMI_URL`: Server-only base URL of the Umami instance (e.g. `http://umami:3000`). Read per request by the `/api/stats` proxy, so run-time only is fine here. Both this and the website id must be set for analytics to work; unset makes `/api/stats/script.js` 404 and leaves `window.umami` absent, which turns every `trackEvent` call into a no-op
+
+## Analytics
+
+Self-hosted [Umami](https://umami.is), proxied through this app's own origin so no third-party analytics hostname appears in the page:
+
+- `src/app/api/stats/[...path]/route.ts` relays exactly two upstream paths, `script.js` (GET) and `api/send` (POST). Anything else 404s: the upstream base is operator-set, but an open path would make the route a proxy into the deployment's network. Cookies are never forwarded; `user-agent`, `accept-language`, and the forwarded-for chain are, since Umami derives device, language, and location from them
+- `src/components/Analytics.tsx` renders the tracker, gated on the website id. Pageviews are automatic (the tracker hooks `history.pushState`, so App Router navigations are counted with no per-page wiring)
+- `src/lib/analytics.ts` holds `trackEvent`, typed by an event-name to properties map. Add new events there rather than calling `window.umami` directly. Every call is a no-op when the tracker is absent, and a tracker error is swallowed: a UI handler must never break because a beacon failed
+- The same module's `beforeSend` (wired up as the tracker's `data-before-send`) drops the pageview a time range toggle would otherwise produce. The range lives in the query string, and the tracker reports on any URL change, so without it the most common interaction in the app would inflate pageviews on the busiest pages. The switch is still recorded as a `time-range-change` event. Nothing else is suppressed: campaign parameters, which Umami reads off the URL, pass through
+- Umami stores no cookies and no personal data, so no consent banner is required. `data-do-not-track` is on, so DNT visitors are not counted
+
+If the deployment does not sit behind a reverse proxy that sets `X-Forwarded-For`, set `CLIENT_IP_HEADER` on the Umami side or every visitor resolves to the app container's address.

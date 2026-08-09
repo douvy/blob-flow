@@ -5,6 +5,7 @@ import { useParams, usePathname } from 'next/navigation';
 import { DEFAULT_NETWORK, NETWORK_SLUG_PATTERN, NETWORKS } from '../constants';
 import type { BackendNetwork, Network } from '../types';
 import { api } from '@/lib/api';
+import { trackEvent } from '@/lib/analytics';
 import { networkPath, stripNetworkPath } from '@/utils';
 import { useApiData } from './useApiData';
 
@@ -111,6 +112,14 @@ export function useNetwork() {
         const currentPath = pathname || '/';
         const basePath = pathNetwork ? stripNetworkPath(currentPath, [pathNetwork]) : currentPath;
         const { search, hash } = window.location;
+        // Reported before the navigation tears the page down. The tracker
+        // sends with keepalive, so a beacon already in flight still lands.
+        if (network.apiParam !== selectedNetwork.apiParam) {
+            trackEvent('network-switch', {
+                from: selectedNetwork.apiParam,
+                to: network.apiParam,
+            });
+        }
         window.location.assign(`${networkPath(basePath, network.apiParam)}${search}${hash}`);
     };
 
