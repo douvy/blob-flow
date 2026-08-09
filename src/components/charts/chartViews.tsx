@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { ChartDataset } from '../../types';
+import { formatGwei, formatNumber } from '../../utils';
 import BaseFeeChart from './BaseFeeChart';
 import CostComparisonChart from './CostComparisonChart';
 import GasUtilizationChart from './GasUtilizationChart';
@@ -12,6 +13,7 @@ export const CHART_VIEW_IDS = [
   'base-fee',
   'gas-utilization',
   'blob-usage',
+  'blob-share',
   'cost-comparison',
   'rolling-market-stats',
 ] as const;
@@ -26,10 +28,18 @@ export interface ChartView {
   dashboardFrameClassName: string;
   detailFrameClassName: string;
   getTitle: (chartData: ChartDataset) => string;
+  /** Headline stat for share copy; null when the rolling window is absent. */
+  getHeadlineStat: (chartData: ChartDataset) => string | null;
   /** Coverage caption matching the data this view plots (see getPointCount). */
   getCoverageLabel: (chartData: ChartDataset) => string;
   getPointCount: (chartData: ChartDataset) => number;
   render: (chartData: ChartDataset) => React.ReactNode;
+}
+
+/** Matches the precision RollingWindowStats uses for windowed ETH totals. */
+function formatEthStat(value: number): string {
+  if (value < 0.001) return value.toFixed(6);
+  return value.toFixed(4);
 }
 
 export const CHART_VIEWS: readonly ChartView[] = [
@@ -41,6 +51,10 @@ export const CHART_VIEWS: readonly ChartView[] = [
     dashboardFrameClassName: 'h-56 relative',
     detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
     getTitle: (chartData) => `Base Fee over ${chartData.chartRangeLabel} (Gwei)`,
+    getHeadlineStat: (chartData) =>
+      chartData.selectedWindow
+        ? `avg base fee ${formatGwei(chartData.selectedWindow.averageBaseFeeGwei, 4)}`
+        : null,
     getCoverageLabel: (chartData) => chartData.blockCoverageLabel,
     getPointCount: (chartData) => chartData.baseFee.length,
     render: (chartData) => (
@@ -58,6 +72,10 @@ export const CHART_VIEWS: readonly ChartView[] = [
     dashboardFrameClassName: 'h-56 relative',
     detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
     getTitle: (chartData) => `Blob Gas Utilization over ${chartData.chartRangeLabel}`,
+    getHeadlineStat: (chartData) =>
+      chartData.selectedWindow
+        ? `avg utilization ${chartData.selectedWindow.averageUtilizationPct.toFixed(1)}%`
+        : null,
     getCoverageLabel: (chartData) => chartData.blockCoverageLabel,
     getPointCount: (chartData) => chartData.gasUtilization.length,
     render: (chartData) => (
@@ -75,12 +93,38 @@ export const CHART_VIEWS: readonly ChartView[] = [
     dashboardFrameClassName: 'h-56 relative',
     detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
     getTitle: (chartData) => `Blob Usage over ${chartData.chartRangeLabel}`,
+    getHeadlineStat: (chartData) =>
+      chartData.selectedWindow
+        ? `${formatNumber(chartData.selectedWindow.totalBlobs)} blobs posted`
+        : null,
     getCoverageLabel: (chartData) => chartData.blobUsageCoverageLabel,
     getPointCount: (chartData) => chartData.blobUsage.length,
     render: (chartData) => (
       <BlobUsageChart
         data={chartData.blobUsage}
         series={chartData.blobUsageSeries}
+      />
+    ),
+  },
+  {
+    id: 'blob-share',
+    title: 'Blob Share by Attribution',
+    shortTitle: 'Blob Share',
+    description: 'Each rollup or sender as a percentage of the blobs in every bucket.',
+    dashboardFrameClassName: 'h-56 relative',
+    detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
+    getTitle: (chartData) => `Blob Share over ${chartData.chartRangeLabel}`,
+    getHeadlineStat: (chartData) =>
+      chartData.selectedWindow
+        ? `${formatNumber(chartData.selectedWindow.totalBlobs)} blobs across ${formatNumber(chartData.selectedWindow.uniqueSenders)} senders`
+        : null,
+    getCoverageLabel: (chartData) => chartData.blobUsageCoverageLabel,
+    getPointCount: (chartData) => chartData.blobUsage.length,
+    render: (chartData) => (
+      <BlobUsageChart
+        data={chartData.blobUsage}
+        series={chartData.blobUsageSeries}
+        variant="share"
       />
     ),
   },
@@ -92,6 +136,10 @@ export const CHART_VIEWS: readonly ChartView[] = [
     dashboardFrameClassName: 'h-56 relative',
     detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
     getTitle: (chartData) => `Blob vs Calldata Cost over ${chartData.chartRangeLabel}`,
+    getHeadlineStat: (chartData) =>
+      chartData.selectedWindow
+        ? `${formatEthStat(chartData.selectedWindow.totalCostEth)} ETH spent on blobs`
+        : null,
     getCoverageLabel: (chartData) => chartData.costComparisonCoverageLabel,
     getPointCount: (chartData) => chartData.costComparison.length,
     render: (chartData) => (
@@ -106,6 +154,10 @@ export const CHART_VIEWS: readonly ChartView[] = [
     dashboardFrameClassName: 'relative',
     detailFrameClassName: 'relative',
     getTitle: () => 'Rolling Market Stats',
+    getHeadlineStat: (chartData) =>
+      chartData.selectedWindow
+        ? `${formatNumber(chartData.selectedWindow.totalBlobs)} blobs from ${formatNumber(chartData.selectedWindow.uniqueSenders)} senders`
+        : null,
     getCoverageLabel: (chartData) => chartData.rollingCoverageLabel,
     getPointCount: (chartData) => chartData.rollingWindows.length,
     render: (chartData) => (
