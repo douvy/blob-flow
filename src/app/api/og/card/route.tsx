@@ -3,6 +3,8 @@ import { extname, join, sep } from 'node:path';
 import { ImageResponse } from 'next/og';
 import { parseNetwork, SITE_NAME, SITE_URL } from '@/constants';
 import { api } from '@/lib/api';
+import { OG_CARD_CACHE_CONTROL } from '@/lib/og/card';
+import { cardNotFound, hasCanonicalQuery, STAT_CARD_PARAMS } from '@/lib/og/request';
 import {
   CARD_RANGE_LABELS,
   cardDataNeeds,
@@ -28,6 +30,11 @@ import type {
  * because that convention only receives route params, and the whole card lives
  * in the query string.
  *
+ * Because the query string is the whole card, a query naming a key this route
+ * does not understand, or naming one twice, is refused rather than ignored:
+ * every distinct URL is its own rasterization and its own CDN entry, so
+ * ignoring junk would let one card be addressed unboundedly many ways.
+ *
  * The layout mirrors src/components/card/StatCard.tsx at its native 1200x630;
  * satori has no Tailwind, so the styles here are inline and a design change
  * belongs in both files.
@@ -39,10 +46,6 @@ export const size = { width: 1200, height: 630 };
 
 const SITE_HOST = SITE_URL.replace(/^https?:\/\//, '');
 const PUBLIC_DIR = join(process.cwd(), 'public');
-
-// Crawlers refetch cards often, so serve them from cache for five minutes
-// instead of turning every unfurl into a backend request.
-const CACHE_CONTROL = 'public, max-age=300, s-maxage=300, stale-while-revalidate=86400';
 
 const ICON_MIME_TYPES: Record<string, string> = {
   '.png': 'image/png',
@@ -168,6 +171,8 @@ function StatRow({ stat }: { stat: CardStat }) {
 
 export async function GET(request: Request) {
   const query = new URL(request.url).searchParams;
+  if (!hasCanonicalQuery(query, STAT_CARD_PARAMS)) return cardNotFound();
+
   const params = parseCardParams(query);
   const networkName = parseNetwork(params.network).name;
 
@@ -258,7 +263,7 @@ export async function GET(request: Request) {
     ),
     {
       ...size,
-      headers: { 'Cache-Control': CACHE_CONTROL },
+      headers: { 'Cache-Control': OG_CARD_CACHE_CONTROL },
       fonts: [
         { name: 'Windsor Bold', data: windsorBold, style: 'normal' },
         { name: 'GT Flexa', data: gtFlexa, style: 'normal' },

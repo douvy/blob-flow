@@ -2,6 +2,8 @@ import { OG_CARD_CACHE_CONTROL } from '@/lib/og/card';
 import { GET as blockCard } from './block/[number]/route';
 import { GET as userCard } from './user/[address]/route';
 import { GET as homeCard } from './home/route';
+import { GET as chartCard } from './chart/[chart]/route';
+import { GET as statCard } from './card/route';
 
 const ADDRESS = '0x1234567890abcdef1234567890abcdef12345678';
 const originalFetch = global.fetch;
@@ -130,5 +132,88 @@ describe('stat card routes', () => {
         const home = await homeCard(request('/api/og/home'));
 
         expect(home.status).toBe(200);
+    });
+});
+
+// The chart and stat cards each rasterize and fetch on a cache miss, so a
+// query that differs only in noise must not reach that work.
+describe('chart card route', () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        mockBackend({ points: [] });
+    });
+
+    afterEach(() => {
+        global.fetch = originalFetch;
+    });
+
+    function chart(search: string) {
+        return chartCard(request(`/api/og/chart/base-fee${search}`), {
+            params: Promise.resolve({ chart: 'base-fee' }),
+        });
+    }
+
+    it('renders a card for the canonical query', async () => {
+        const response = await chart('?range=7d&network=mainnet');
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get('Cache-Control')).toBe(OG_CARD_CACHE_CONTROL);
+    });
+
+    it('refuses query keys it does not understand', async () => {
+        const response = await chart('?range=7d&junk=nonce');
+
+        expect(response.status).toBe(404);
+        expect(response.headers.get('Cache-Control')).toBe(OG_CARD_CACHE_CONTROL);
+    });
+
+    it('refuses a repeated key, which would be two spellings of one card', async () => {
+        const response = await chart('?range=1h&range=7d');
+
+        expect(response.status).toBe(404);
+    });
+
+    it('refuses a chart slug it does not have a page for', async () => {
+        const response = await chartCard(request('/api/og/chart/nope'), {
+            params: Promise.resolve({ chart: 'nope' }),
+        });
+
+        expect(response.status).toBe(404);
+        expect(response.headers.get('Cache-Control')).toBe(OG_CARD_CACHE_CONTROL);
+    });
+});
+
+describe('stat card route', () => {
+    // The whole card lives in the query string, so this route understands two
+    // keys beyond the shared network and range.
+    const CANONICAL = '?entity=base&range=30d&metrics=blob-share,eth-spent&network=mainnet';
+
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        mockBackend({ points: [], current_base_fee_gwei: '1.5' });
+    });
+
+    afterEach(() => {
+        global.fetch = originalFetch;
+    });
+
+    it('renders a card for the canonical query', async () => {
+        const response = await statCard(request(`/api/og/card${CANONICAL}`));
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get('Cache-Control')).toBe(OG_CARD_CACHE_CONTROL);
+    });
+
+    it('refuses query keys it does not understand', async () => {
+        const response = await statCard(request(`/api/og/card${CANONICAL}&junk=nonce`));
+
+        expect(response.status).toBe(404);
+        expect(response.headers.get('Cache-Control')).toBe(OG_CARD_CACHE_CONTROL);
+    });
+
+    it('refuses a repeated key, which would be two spellings of one card', async () => {
+        const response = await statCard(request('/api/og/card?entity=base&entity=optimism'));
+
+        expect(response.status).toBe(404);
     });
 });

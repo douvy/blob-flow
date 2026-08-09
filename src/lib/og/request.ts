@@ -15,8 +15,23 @@ import type { OgScope } from './data';
  * cache entry per spelling, which is the cost worth avoiding.
  */
 
-/** Query keys a card route understands. Anything else is not a card URL. */
-const ALLOWED_PARAMS = new Set(['network', 'range']);
+/**
+ * Query keys a card route understands. Anything else is not a card URL. Cards
+ * whose subject rides in the path need nothing beyond the scope, so this is
+ * also the default set.
+ */
+const ALLOWED_PARAMS: ReadonlySet<string> = new Set(['network', 'range']);
+
+/**
+ * Keys the composed stat card understands. That card has no path of its own:
+ * its subject and metrics live in the query string, so it accepts the scope
+ * keys plus the two that describe the card (see parseCardParams).
+ */
+export const STAT_CARD_PARAMS: ReadonlySet<string> = new Set([
+    ...ALLOWED_PARAMS,
+    'entity',
+    'metrics',
+]);
 
 export function cardNotFound(): Response {
     return new Response('Not found', {
@@ -26,11 +41,14 @@ export function cardNotFound(): Response {
 }
 
 /** Whether the query names only keys this route understands, each once. */
-export function hasCanonicalQuery(params: URLSearchParams): boolean {
+export function hasCanonicalQuery(
+    params: URLSearchParams,
+    allowed: ReadonlySet<string> = ALLOWED_PARAMS
+): boolean {
     const seen = new Set<string>();
 
     for (const key of params.keys()) {
-        if (!ALLOWED_PARAMS.has(key) || seen.has(key)) return false;
+        if (!allowed.has(key) || seen.has(key)) return false;
         seen.add(key);
     }
 
