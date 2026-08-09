@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Crown } from 'lucide-react';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
+import NetworkLink from '@/components/NetworkLink';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
@@ -35,6 +35,7 @@ import {
   formatNumber,
   formatPercent,
   formatWeiToEth,
+  networkPath,
 } from '@/utils';
 
 interface VersusBattleCardProps {
@@ -81,7 +82,7 @@ function RangeSwitcher({
       {VS_RANGES.map((option) => {
         const isActive = option === range;
         return (
-          <Link
+          <NetworkLink
             key={option}
             href={buildVsHref(aSlug, bSlug, option)}
             scroll={false}
@@ -93,7 +94,7 @@ function RangeSwitcher({
             title={VS_RANGE_LABELS[option]}
           >
             {option}
-          </Link>
+          </NetworkLink>
         );
       })}
     </nav>
@@ -294,9 +295,11 @@ export default function VersusBattleCard({ aSlug, bSlug, range }: VersusBattleCa
     (side: 'a' | 'b', slug: string) => {
       const nextA = side === 'a' ? slug : normalizeEntitySlug(aSlug);
       const nextB = side === 'b' ? slug : normalizeEntitySlug(bSlug);
-      router.push(buildVsHref(nextA, nextB, range), { scroll: false });
+      // Changing contender keeps the network the page is showing, the same
+      // way the range switcher's links do.
+      router.push(networkPath(buildVsHref(nextA, nextB, range), network), { scroll: false });
     },
-    [router, aSlug, bSlug, range]
+    [router, aSlug, bSlug, range, network]
   );
 
   const loadingComponent = (
@@ -315,13 +318,13 @@ export default function VersusBattleCard({ aSlug, bSlug, range }: VersusBattleCa
 
   return (
     <div className="container mx-auto max-w-[900px] px-4 py-8">
-      <Link
+      <NetworkLink
         href="/"
         className="mb-6 inline-flex items-center gap-2 text-sm text-blue hover:underline"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to dashboard
-      </Link>
+      </NetworkLink>
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>

@@ -36,7 +36,7 @@ function networkLabel(network?: string): string | null {
 }
 
 /** Suffix that names the network in a title, empty for the default network. */
-function titleSuffix(network?: string): string {
+export function networkTitleSuffix(network?: string): string {
   if (!network || network.toLowerCase() === DEFAULT_NETWORK.apiParam) return '';
 
   const label = networkLabel(network);
@@ -145,7 +145,7 @@ export function unknownNetworkMetadata(): Metadata {
 }
 
 export function homeMetadata(network?: string, range?: string): Metadata {
-  const suffix = titleSuffix(network);
+  const suffix = networkTitleSuffix(network);
   const title = suffix ? `Real-Time Ethereum Blob Analytics${suffix}` : SITE_TITLE;
   const cardNetwork = cardNetworkName(network);
 
@@ -164,7 +164,7 @@ export function homeMetadata(network?: string, range?: string): Metadata {
 }
 
 export function blocksMetadata(network?: string): Metadata {
-  const title = `Latest Blocks & Blob Fees${titleSuffix(network)}`;
+  const title = `Latest Blocks & Blob Fees${networkTitleSuffix(network)}`;
   const description =
     'Browse recent Ethereum blocks in real time with live blob counts, blob base fees, and per-blob details.';
   return {
@@ -181,7 +181,7 @@ export function blocksMetadata(network?: string): Metadata {
 }
 
 export function mempoolMetadata(network?: string): Metadata {
-  const title = `Pending Blob Transactions${titleSuffix(network)}`;
+  const title = `Pending Blob Transactions${networkTitleSuffix(network)}`;
   const description =
     'Watch pending EIP-4844 blob transactions in the Ethereum mempool: which rollups ' +
     'are queuing data, their fee bids, and blobspace pressure before the next block.';
@@ -199,7 +199,7 @@ export function mempoolMetadata(network?: string): Metadata {
 
 export function recordsMetadata(network?: string): Metadata {
   return {
-    title: `Blob Market Records${titleSuffix(network)}`,
+    title: `Blob Market Records${networkTitleSuffix(network)}`,
     description:
       'Records and milestones from the Ethereum EIP-4844 blob market: live full-block streaks, peak windowed base fees, busiest windows, biggest spenders, and per-rollup blob milestones.',
     alternates: canonical('/records', network),
@@ -208,7 +208,7 @@ export function recordsMetadata(network?: string): Metadata {
 
 export function flippeningMetadata(network?: string): Metadata {
   return {
-    title: `Flippening Watch${titleSuffix(network)}`,
+    title: `Flippening Watch${networkTitleSuffix(network)}`,
     description:
       'Track when one rollup overtakes another in Ethereum blob share: recent crossover events and the pair closest to flipping.',
     alternates: canonical('/flippening', network),
@@ -216,7 +216,7 @@ export function flippeningMetadata(network?: string): Metadata {
 }
 
 export function liveMetadata(network?: string): Metadata {
-  const title = `TV Mode: Live Blob Market${titleSuffix(network)}`;
+  const title = `TV Mode: Live Blob Market${networkTitleSuffix(network)}`;
   const description =
     'Full-screen live view of the Ethereum blob market: current blob base fee, next-block ' +
     'prediction, blobspace fullness, and the rollups filling recent blocks. Built for ' +
@@ -235,7 +235,7 @@ export function liveMetadata(network?: string): Metadata {
 }
 
 export function blockMetadata(blockNumber: string, network?: string): Metadata {
-  const title = `Block ${blockNumber} Blob Details${titleSuffix(network)}`;
+  const title = `Block ${blockNumber} Blob Details${networkTitleSuffix(network)}`;
   const cardNetwork = cardNetworkName(network);
   // The card route serves one URL per card, so a number that is not already
   // canonical (leading zeros, non-numeric) gets no card rather than a 404 one.
@@ -260,7 +260,7 @@ export function blockMetadata(blockNumber: string, network?: string): Metadata {
 }
 
 export function userMetadata(address: string, network?: string): Metadata {
-  const title = `Blob Activity · ${shortAddress(address)}${titleSuffix(network)}`;
+  const title = `Blob Activity · ${shortAddress(address)}${networkTitleSuffix(network)}`;
   const cardNetwork = cardNetworkName(network);
   // Same one-URL-per-card rule: the card route only answers for the lowercase
   // spelling, so every casing of an address points at a single image.
@@ -288,7 +288,7 @@ export function transactionMetadata(hash: string, network?: string): Metadata {
   // The page reads hashes case-insensitively, so the canonical URL uses the
   // lowercase spelling and every casing of one hash points at a single page.
   const canonicalHash = /^0x[0-9a-f]{64}$/i.test(hash) ? hash.toLowerCase() : hash;
-  const title = `Blob Transaction · ${shortTxHash(canonicalHash)}${titleSuffix(network)}`;
+  const title = `Blob Transaction · ${shortTxHash(canonicalHash)}${networkTitleSuffix(network)}`;
   const description =
     `Details for Ethereum blob transaction ${shortTxHash(canonicalHash)}: blobs ` +
     'carried, blob fees paid, and the block that included it.';
@@ -320,7 +320,7 @@ export function cardMetadata(
     params.entity === NETWORK_WIDE_ENTITY ? NETWORK_WIDE_NAME : titleCaseSlug(params.entity);
   // The name comes from the slug rather than a lookup: metadata must not
   // depend on the indexer being reachable, and the image carries the real one.
-  const title = `${cardHeadline(params, entityName)}${titleSuffix(network)}`;
+  const title = `${cardHeadline(params, entityName)}${networkTitleSuffix(network)}`;
   const description = `${entityName} blob activity, ${CARD_RANGE_LABELS[
     params.range
   ].toLowerCase()}, as a shareable ${SITE_NAME} stat card.`;
@@ -359,7 +359,7 @@ export function chartMetadata(
   range?: string
 ): Metadata {
   const page = CHART_PAGES.find((chartPage) => chartPage.slug === chart);
-  const title = `${page?.title ?? 'Charts'}${titleSuffix(network)}`;
+  const title = `${page?.title ?? 'Charts'}${networkTitleSuffix(network)}`;
 
   // An unserved chart renders a "not found" view, so it advertises no
   // description and no card of its own.
