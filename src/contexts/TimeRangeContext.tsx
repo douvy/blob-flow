@@ -1,8 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { DEFAULT_TIME_RANGE, type TimeRange } from '@/constants';
 
-export type TimeRange = '1h' | '24h' | '7d' | '30d';
+export type { TimeRange };
 
 interface TimeRangeContextValue {
   timeRange: TimeRange;
@@ -10,12 +11,18 @@ interface TimeRangeContextValue {
 }
 
 const TimeRangeContext = createContext<TimeRangeContextValue>({
-  timeRange: '1h',
+  timeRange: DEFAULT_TIME_RANGE,
   setTimeRange: () => {},
 });
 
-export function TimeRangeProvider({ children }: { children: ReactNode }) {
-  const [timeRange, setTimeRange] = useState<TimeRange>('1h');
+export function TimeRangeProvider({
+  children,
+  initialRange = DEFAULT_TIME_RANGE,
+}: {
+  children: ReactNode;
+  initialRange?: TimeRange;
+}) {
+  const [timeRange, setTimeRange] = useState<TimeRange>(initialRange);
   return (
     <TimeRangeContext.Provider value={{ timeRange, setTimeRange }}>
       {children}

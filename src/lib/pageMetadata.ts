@@ -1,6 +1,13 @@
 import type { Metadata } from 'next';
-import { CHART_PAGES, DEFAULT_NETWORK } from '@/constants';
+import {
+  CHART_PAGES,
+  DEFAULT_NETWORK,
+  SITE_NAME,
+  parseNetwork,
+  parseTimeRange,
+} from '@/constants';
 import { networkPath } from '@/utils';
+import { OG_CARD_DEFAULT_RANGE } from '@/lib/ogChartSeries';
 
 /**
  * Page metadata shared by the bare routes (default network) and the
@@ -101,10 +108,48 @@ export function transactionMetadata(hash: string, network?: string): Metadata {
   };
 }
 
-export function chartMetadata(chart: string, network?: string): Metadata {
+/**
+ * Chart metadata, including the social share card. The card is generated per
+ * chart, range, and network so a shared link unfurls the view the sharer was
+ * looking at; `range` comes from the URL's query string, which is why this is
+ * called from the pages rather than a layout (layouts never see searchParams).
+ */
+export function chartMetadata(
+  chart: string,
+  network?: string,
+  range?: string
+): Metadata {
   const page = CHART_PAGES.find((chartPage) => chartPage.slug === chart);
+  const title = `${page?.title ?? 'Charts'}${titleSuffix(network)}`;
+
+  // An unserved chart renders a "not found" view, so it advertises no
+  // description and no card of its own.
+  if (!page) {
+    return { title, alternates: canonical(`/charts/${chart}`, network) };
+  }
+
+  const cardRange = parseTimeRange(range, OG_CARD_DEFAULT_RANGE);
+  const cardNetwork = parseNetwork(network);
+  const cardUrl = `/api/og/chart/${chart}?range=${cardRange}&network=${cardNetwork.apiParam}`;
+  const cardAlt = `${page.title}: ${cardNetwork.name} over the last ${cardRange} on ${SITE_NAME}`;
+
   return {
-    title: `${page?.title ?? 'Charts'}${titleSuffix(network)}`,
+    title,
+    description: page.description,
     alternates: canonical(`/charts/${chart}`, network),
+    openGraph: {
+      type: 'website',
+      siteName: SITE_NAME,
+      title,
+      description: page.description,
+      url: networkPath(`/charts/${chart}`, network),
+      images: [{ url: cardUrl, width: 1200, height: 630, alt: cardAlt }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: page.description,
+      images: [{ url: cardUrl, alt: cardAlt }],
+    },
   };
 }
