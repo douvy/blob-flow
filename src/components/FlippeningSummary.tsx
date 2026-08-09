@@ -12,12 +12,23 @@ function formatPoints(value: number): string {
   return value.toFixed(1);
 }
 
-/** A rollup's logo and name, kept together so neither wraps away from the other. */
+/**
+ * A rollup's logo and name, kept together so neither wraps away from the
+ * other. The name stays ordinary inline text rather than a flex item, so it
+ * sits on the same baseline as the words around it; only the logo is nudged,
+ * to centre a 16px mark against 14px text.
+ */
 function Rollup({ entity }: { entity: FlippeningEntity }) {
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap align-middle">
-      <AttributionBadge user={entity.name} sizeClass="h-4 w-4" px={16} showTestnetLabel={false} />
-      <span className="text-white">{entity.name}</span>
+    <span className="whitespace-nowrap text-white">
+      <AttributionBadge
+        user={entity.name}
+        sizeClass="h-4 w-4"
+        px={16}
+        showTestnetLabel={false}
+        className="mr-1.5 align-[-0.23em]"
+      />
+      {entity.name}
     </span>
   );
 }
