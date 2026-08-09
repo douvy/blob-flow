@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.9.0](https://github.com/douvy/blob-flow/compare/v1.8.0...v1.9.0) (2026-08-09)
+
+
+### Features
+
+* add a shareable stat card composer at /card ([#262](https://github.com/douvy/blob-flow/issues/262)) ([8830952](https://github.com/douvy/blob-flow/commit/8830952795e6b68c95a41e82c20aa5273b29c028))
+* add blob market records page ([#237](https://github.com/douvy/blob-flow/issues/237)) ([2d07401](https://github.com/douvy/blob-flow/commit/2d0740176e7bb03df3eb93235f7099284ea4efc8))
+* add blob transaction pages and put the network in the URL ([#244](https://github.com/douvy/blob-flow/issues/244)) ([ecc3875](https://github.com/douvy/blob-flow/commit/ecc3875bf01cce3d580e90e757c15cb43b23da29))
+* add flippening watch tracking blob share crossovers between rollups ([#260](https://github.com/douvy/blob-flow/issues/260)) ([d9933a6](https://github.com/douvy/blob-flow/commit/d9933a65b6d4be76d2c436abb102d1fa93751c56))
+* add full-screen TV mode at /live ([#243](https://github.com/douvy/blob-flow/issues/243)) ([7e17a9e](https://github.com/douvy/blob-flow/commit/7e17a9e6beb78ff0930dd394a23bd2f65759f97f))
+* add rollup head-to-head battle page at /vs/[a]/[b] ([#259](https://github.com/douvy/blob-flow/issues/259)) ([525ac35](https://github.com/douvy/blob-flow/commit/525ac35068a6148a3cf528ab89aa7de2e2955a54))
+* copy charts as images and share them on X ([#258](https://github.com/douvy/blob-flow/issues/258)) ([af7abff](https://github.com/douvy/blob-flow/commit/af7abffa32c2fb3294bd1e43269cf2edc3277ca3))
+* dynamic Open Graph images with live blob stats ([#236](https://github.com/douvy/blob-flow/issues/236)) ([e9a7692](https://github.com/douvy/blob-flow/commit/e9a769269335913e39b4ba01aa82054da2cefc8c))
+* strengthen SEO metadata, default share card, and sitemap coverage ([#264](https://github.com/douvy/blob-flow/issues/264)) ([0e6e82b](https://github.com/douvy/blob-flow/commit/0e6e82b12fdc684d7317854d9fa2b3d05ce71d57))
+* sync chart time range to a shareable URL query param ([#240](https://github.com/douvy/blob-flow/issues/240)) ([5ed2269](https://github.com/douvy/blob-flow/commit/5ed2269faacc19f439a6b74e65d5676171a51cbd))
+
+
+### Bug Fixes
+
+* address pre-release review findings across share cards and time range ([#269](https://github.com/douvy/blob-flow/issues/269)) ([456f756](https://github.com/douvy/blob-flow/commit/456f756fc51cb0d703859239bba613a634f6af40))
+* keep dark entity logos legible on the dark theme ([#263](https://github.com/douvy/blob-flow/issues/263)) ([6f45acf](https://github.com/douvy/blob-flow/commit/6f45acf8881d2563ade76ac8896dbd6c8850a26c))
+* let touch users read the records leaderboard caveat ([#266](https://github.com/douvy/blob-flow/issues/266)) ([51bab71](https://github.com/douvy/blob-flow/commit/51bab71859cddd73fbf4b6600badc474cd44cfd9))
+* **mempool:** show a pending transaction's real blob count ([#265](https://github.com/douvy/blob-flow/issues/265)) ([f9cb3ac](https://github.com/douvy/blob-flow/commit/f9cb3ac25567c7866e14955d77500d4d72bd952a))
+* refuse junk query params on the chart and stat card OG routes ([#267](https://github.com/douvy/blob-flow/issues/267)) ([cac9604](https://github.com/douvy/blob-flow/commit/cac9604b321c8394e974c6beea5f394e4400c521))
+* serve the vs battle pages under /[network] ([#268](https://github.com/douvy/blob-flow/issues/268)) ([ecb9ce3](https://github.com/douvy/blob-flow/commit/ecb9ce3a20d1a89a93e2fed3db5444a9efcf1bbf))
+
+
+### Dependencies
+
+* **deps:** bump next from 16.2.10 to 16.2.12 ([#245](https://github.com/douvy/blob-flow/issues/245)) ([a85a0a9](https://github.com/douvy/blob-flow/commit/a85a0a97733ce3b3a92612a2374aab1a7f400567))
+* **deps:** bump recharts from 3.9.2 to 3.10.1 ([#248](https://github.com/douvy/blob-flow/issues/248)) ([abe2a59](https://github.com/douvy/blob-flow/commit/abe2a590c2f019e18338e8a23fd53a535872c017))
+
 ## [1.8.0](https://github.com/douvy/blob-flow/compare/v1.7.2...v1.8.0) (2026-08-05)
 
 
