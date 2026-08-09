@@ -2,7 +2,6 @@
 
 import Link from '@/components/NetworkLink';
 import React from 'react';
-import { MempoolTransaction } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import {
@@ -11,14 +10,20 @@ import {
 } from '../utils';
 import { useMempoolLiveList } from '../hooks/useMempoolLiveList';
 import { useFlipRows } from '../hooks/useFlipRows';
-import MempoolBlobDetailsModal from './MempoolBlobDetailsModal';
+import {
+  groupMempoolByTransaction,
+  isPartiallySampled,
+  withLowerBound,
+  type PendingMempoolTransaction,
+} from '../lib/mempoolTransactions';
+import MempoolTransactionDetailsModal from './MempoolTransactionDetailsModal';
 import AttributionBadge from './AttributionBadge';
 import { RelativeTime } from './RelativeTime';
 import { FEE_HEADROOM_TOOLTIP } from '../constants';
 
 export default function MempoolTable({ limit = 10 }: { limit?: number }) {
   const { selectedNetwork } = useNetwork();
-  const [selectedTransaction, setSelectedTransaction] = React.useState<MempoolTransaction | null>(null);
+  const [selected, setSelected] = React.useState<PendingMempoolTransaction | null>(null);
   const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
   useFlipRows(tbodyRef, selectedNetwork.apiParam);
 
@@ -26,6 +31,21 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
     limit,
     selectedNetwork.apiParam
   );
+
+  // The feed is one entry per blob, so a multi-blob transaction arrives as
+  // several entries sharing a hash. Rolling them up is what lets this table
+  // show one row per transaction carrying its real blob count and total cost,
+  // rather than a run of near-identical rows each claiming a single blob.
+  const pendingTransactions = React.useMemo(
+    () => (transactions ? groupMempoolByTransaction(transactions) : null),
+    [transactions]
+  );
+  // An open modal tracks its transaction in the live list so a blob arriving
+  // for it updates the totals on screen, and keeps the last known figures if
+  // the transaction gets mined rather than closing itself mid-read.
+  const selectedTransaction = selected
+    ? (pendingTransactions?.find((tx) => tx.txHash === selected.txHash) ?? selected)
+    : null;
 
   // Fee Cap and Time collapse into sublines below sm/md. (The lg-to-xl
   // collapse from the old homepage placement is gone: this table now renders
@@ -95,21 +115,28 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
         error={transactions ? null : error}
         loadingComponent={loadingComponent}
       >
-        {transactions && (
+        {pendingTransactions && (
           <div className="overflow-x-auto border border-divider rounded-lg">
             <table className="w-full overflow-hidden table-fixed">
               {tableHeader}
               <tbody ref={tbodyRef} className="divide-y divide-divider">
-                {transactions.length === 0 && (
+                {pendingTransactions.length === 0 && (
                   <tr className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
                     <td colSpan={6} className="py-6 px-4 text-center text-sm text-[#8a93a5]">
                       No pending blob transactions right now.
                     </td>
                   </tr>
                 )}
-                {transactions.map((tx: MempoolTransaction) => {
+                {pendingTransactions.map((tx: PendingMempoolTransaction) => {
                   const user = tx.user || 'Unknown';
-                  const rowKey = `${tx.txHash}-${tx.rawBlob.blob_index}`;
+                  const rowKey = tx.txHash;
+                  // Totals cover the blobs in the sample, so a transaction the
+                  // sample limit split is marked as a lower bound instead of
+                  // passing a partial sum off as the transaction's.
+                  const partialSample = isPartiallySampled(tx);
+                  const partialTitle = partialSample
+                    ? `This sample holds ${tx.sampledBlobCount} of the transaction's ${tx.blobCount} blobs, so size and cost are lower bounds.`
+                    : undefined;
 
                   return (
                     <tr
@@ -120,10 +147,10 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
                       <td className="py-3 px-2 text-xs sm:text-sm font-mono text-white">
                         <button
                           type="button"
-                          onClick={() => setSelectedTransaction(tx)}
+                          onClick={() => setSelected(tx)}
                           className="max-w-full truncate cursor-pointer rounded text-left text-white underline decoration-[#3B55E6]/50 underline-offset-4 transition-colors hover:text-[#9ac4fd] focus:outline-none focus:ring-2 focus:ring-[#3B55E6] focus:ring-offset-2 focus:ring-offset-[#17181b]"
                           title={tx.txHash}
-                          aria-label={`View pending blob details for transaction ${tx.txHash}`}
+                          aria-label={`View pending transaction details for ${tx.txHash}`}
                         >
                           {truncateTxHash(tx.txHash)}
                         </button>
@@ -154,15 +181,17 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
                       </td>
                       <td className="py-3 px-2 text-xs sm:text-sm text-white">
                         <div className="truncate">{formatBlobCount(tx.blobCount)}</div>
-                        <div className="text-xs text-[#8a93a5] mt-1 truncate">{formatBlobSize(tx.blobSizeBytes)}</div>
+                        <div className="text-xs text-[#8a93a5] mt-1 truncate" title={partialTitle}>
+                          {withLowerBound(formatBlobSize(tx.blobSizeBytes), partialSample)}
+                        </div>
                       </td>
                       <td className="hidden sm:table-cell py-3 px-2 text-xs sm:text-sm text-white">
                         <div className="truncate" title={tx.maxFeeGwei}>{tx.maxFeeGwei}</div>
                         <div className="text-xs text-[#8a93a5] mt-1 truncate" title={FEE_HEADROOM_TOOLTIP}>{tx.feeHeadroom} room</div>
                       </td>
                       <td className="py-3 px-2 text-xs sm:text-sm text-white">
-                        <div className="truncate" title={tx.realizedCost}>{tx.realizedCost}</div>
-                        <div className="text-xs text-[#8a93a5] mt-1 truncate" title={`max ${tx.maxCost}`}>max {tx.maxCost}</div>
+                        <div className="truncate" title={partialTitle ?? tx.realizedCost}>{withLowerBound(tx.realizedCost, partialSample)}</div>
+                        <div className="text-xs text-[#8a93a5] mt-1 truncate" title={partialTitle ?? `max ${tx.maxCost}`}>max {withLowerBound(tx.maxCost, partialSample)}</div>
                         <div className="text-xs text-[#8a93a5] mt-1 truncate sm:hidden" title={FEE_HEADROOM_TOOLTIP}>{tx.feeHeadroom} room</div>
                       </td>
                       <td className="hidden md:table-cell py-3 px-2 text-xs sm:text-sm text-white truncate"><RelativeTime timestamp={tx.timeInMempool} /></td>
@@ -174,9 +203,9 @@ export default function MempoolTable({ limit = 10 }: { limit?: number }) {
           </div>
         )}
       </DataStateWrapper>
-      <MempoolBlobDetailsModal
+      <MempoolTransactionDetailsModal
         transaction={selectedTransaction}
-        onClose={() => setSelectedTransaction(null)}
+        onClose={() => setSelected(null)}
       />
     </section>
   );
