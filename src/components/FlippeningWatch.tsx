@@ -1,43 +1,18 @@
 "use client";
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { ArrowLeftRight, ArrowUp } from 'lucide-react';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
-import { useTimeRange, type TimeRange } from '@/contexts/TimeRangeContext';
-import { useApiData } from '@/hooks/useApiData';
-import { useNetwork } from '@/hooks/useNetwork';
-import { api } from '@/lib/api';
+import { useFlippening } from '@/hooks/useFlippening';
 import {
   DEFAULT_FLIPPENING_TOP_N,
-  analyzeFlippening,
   type FlippeningEvent,
   type FlippeningGap,
   type FlippeningStanding,
 } from '@/lib/flippening';
-import type { BackendAttributionUsageChartResponse, BackendChartRange } from '@/types';
 
 const FEED_LIMIT = 20;
-const REFRESH_INTERVAL_MS = 60_000;
-
-/** The rolling share window is the header's time filter. */
-const WINDOW_SECONDS: Record<TimeRange, number> = {
-  '1h': 3_600,
-  '24h': 86_400,
-  '7d': 604_800,
-  '30d': 2_592_000,
-};
-
-/**
- * History fetched for each window: one step longer than the filter, so the
- * rolling share has room to move and crossings show up in the feed.
- */
-const HISTORY_RANGE: Record<TimeRange, BackendChartRange> = {
-  '1h': '24h',
-  '24h': '7d',
-  '7d': '30d',
-  '30d': 'all',
-};
 
 /** Bucket timestamps within a day are unambiguous as time-of-day; longer
  * ranges use daily-or-coarser buckets, where the date is the signal. */
@@ -212,26 +187,7 @@ function EventRow({
 }
 
 export default function FlippeningWatch() {
-  const { timeRange } = useTimeRange();
-  const { selectedNetwork } = useNetwork();
-  const network = selectedNetwork.apiParam;
-  const historyRange = HISTORY_RANGE[timeRange];
-
-  const fetchAttribution = useCallback(
-    () => api.getAttributionUsageChart(historyRange, network),
-    [historyRange, network]
-  );
-
-  const { data, isLoading, error } = useApiData<BackendAttributionUsageChartResponse>(
-    fetchAttribution,
-    ['flippening-attribution', network, historyRange],
-    { refetchInterval: REFRESH_INTERVAL_MS }
-  );
-
-  const analysis = useMemo(
-    () => (data ? analyzeFlippening(data, { windowSeconds: WINDOW_SECONDS[timeRange] }) : null),
-    [data, timeRange]
-  );
+  const { analysis, timeRange, historyRange, isLoading, error } = useFlippening();
 
   // Feed reads newest first; detection returns oldest first.
   const feedEvents = useMemo(
@@ -255,8 +211,8 @@ export default function FlippeningWatch() {
 
   return (
     <DataStateWrapper
-      isLoading={isLoading && !data}
-      error={data ? null : error}
+      isLoading={isLoading}
+      error={analysis ? null : error}
       loadingComponent={
         <div className="h-64 animate-pulse rounded-lg border border-divider bg-[#14161a]" />
       }
