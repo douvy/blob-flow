@@ -2,15 +2,10 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import AppProviders from '@/components/AppProviders';
 import AppChrome from '@/components/AppChrome';
-import { SITE_NAME, SITE_URL } from '@/constants';
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from '@/constants';
+import { defaultOgMetadata } from '@/lib/pageMetadata';
 
 // Removed Inter font
-
-const SITE_TITLE = 'BlobFlow: Real-Time Ethereum Blob Analytics';
-const SITE_DESCRIPTION =
-  'Track the Ethereum EIP-4844 blob market in real time: live blob base fees, ' +
-  'next-block fee predictions, mempool pressure, and L2 rollup usage across ' +
-  'Arbitrum, Optimism, Base, and zkSync, streamed block by block.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -34,20 +29,10 @@ export const metadata: Metadata = {
     'Base',
     'zkSync',
   ],
-  openGraph: {
-    type: 'website',
-    siteName: SITE_NAME,
-    title: SITE_TITLE,
-    description: SITE_DESCRIPTION,
-    // The image comes from src/app/opengraph-image.tsx via the file
-    // convention; routes with their own cards (charts, vs) override it.
-  },
-  twitter: {
-    // Platforms fall back to og:image, so the card art is defined once.
-    card: 'summary_large_image',
-    title: SITE_TITLE,
-    description: SITE_DESCRIPTION,
-  },
+  // Default card for routes without one of their own: the dynamic home card.
+  // Pages that describe something more specific (a network, a block, an
+  // address, a chart) replace it in pageMetadata.
+  ...defaultOgMetadata(),
   icons: {
     icon: '/images/favicon.png',
     apple: '/images/favicon.png',

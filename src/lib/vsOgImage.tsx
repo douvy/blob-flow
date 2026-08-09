@@ -19,6 +19,7 @@ import type {
   VsWinner,
 } from '@/types';
 import {
+  attributionNeedsLightBackdrop,
   formatCostEthOrWei,
   formatNumber,
   formatPercent,
@@ -146,6 +147,18 @@ function formatOgDetail(row: VsComparisonRow, side: 'a' | 'b'): string | null {
   return `${formatMetric(raw, row.detail.format)} ${row.detail.label}`;
 }
 
+/** Icon size on the card, and the inset a backdropped glyph is drawn at. */
+const OG_ICON_SIZE = 88;
+const OG_BACKDROP_PADDING = 4;
+
+/**
+ * The card sits on the same dark background as the site, so it needs the same
+ * two-part treatment as AttributionBadge: an outline on every logo, and a
+ * light disc under the dark ones that leave their circle see-through. Scaled
+ * up from the badge's hairline, since the card icon is several times larger.
+ */
+const OG_ICON_OUTLINE = 'inset 0 0 0 2px rgba(255,255,255,0.12)';
+
 function Contender({
   name,
   iconDataUri,
@@ -155,6 +168,10 @@ function Contender({
   iconDataUri: string | null;
   isWinner: boolean;
 }) {
+  const needsBackdrop = attributionNeedsLightBackdrop(name);
+  const glyph = needsBackdrop ? OG_ICON_SIZE - OG_BACKDROP_PADDING * 2 : OG_ICON_SIZE;
+  const inset = (OG_ICON_SIZE - glyph) / 2;
+
   return (
     <div
       style={{
@@ -170,12 +187,17 @@ function Contender({
           <div
             style={{
               display: 'flex',
-              width: 88,
-              height: 88,
+              width: OG_ICON_SIZE,
+              height: OG_ICON_SIZE,
               borderRadius: 9999,
+              backgroundColor: needsBackdrop ? 'rgba(255,255,255,0.9)' : 'transparent',
               backgroundImage: `url("${iconDataUri}")`,
-              backgroundSize: '88px 88px',
+              backgroundSize: `${glyph}px ${glyph}px`,
+              // Satori ignores the `center` keyword for URL backgrounds and
+              // paints at the top left, so center the inset glyph by hand.
+              backgroundPosition: `${inset}px ${inset}px`,
               backgroundRepeat: 'no-repeat',
+              boxShadow: OG_ICON_OUTLINE,
             }}
           />
         ) : (
@@ -184,8 +206,8 @@ function Contender({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 88,
-              height: 88,
+              width: OG_ICON_SIZE,
+              height: OG_ICON_SIZE,
               borderRadius: 9999,
               backgroundColor: '#6b7280',
               color: 'white',
@@ -202,7 +224,7 @@ function Contender({
               position: 'absolute',
               top: -26,
               left: 0,
-              width: 88,
+              width: OG_ICON_SIZE,
               justifyContent: 'center',
               fontSize: 24,
             }}

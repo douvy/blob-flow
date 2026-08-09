@@ -29,13 +29,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
     const url = (pagePath: string) =>
       `${SITE_URL}${networkPath(pagePath, network.apiParam)}`;
     const weight = (priority: number) =>
-      isDefault ? priority : Math.round((priority - 0.5) * 10) / 10;
+      isDefault ? priority : Math.max(0.1, Math.round((priority - 0.5) * 10) / 10);
 
     entries.push(
       { url: url('/'), changeFrequency: 'always', priority: weight(1) },
       { url: url('/blocks'), changeFrequency: 'always', priority: weight(0.8) },
       { url: url('/live'), changeFrequency: 'always', priority: weight(0.7) },
       { url: url('/mempool'), changeFrequency: 'always', priority: weight(0.7) },
+      { url: url('/records'), changeFrequency: 'hourly', priority: weight(0.7) },
+      { url: url('/flippening'), changeFrequency: 'hourly', priority: weight(0.6) },
+      { url: url('/card'), changeFrequency: 'weekly', priority: weight(0.5) },
       ...CHART_PAGES.map((chartPage) => ({
         url: url(`/charts/${chartPage.slug}`),
         changeFrequency: 'hourly' as const,
@@ -44,13 +47,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     );
   }
 
-  // Routes that exist only on the default network.
+  // The battle pages exist only at the bare paths.
   entries.push(
-    {
-      url: `${SITE_URL}/records`,
-      changeFrequency: 'hourly',
-      priority: 0.7,
-    },
     ...VS_MATCHUPS.map(([a, b]) => ({
       url: `${SITE_URL}/vs/${a}/${b}`,
       changeFrequency: 'hourly' as const,

@@ -128,6 +128,19 @@ export function getAttributionImageSrc(name: string): string | null {
 }
 
 /**
+ * Should this entity's badge get a light disc behind the artwork?
+ *
+ * Only dark logos drawn on a transparent field qualify: there the backdrop
+ * shows through and makes the glyph readable (Linea, ADI Chain). A logo that
+ * is dark but opaque, such as Shape's solid black disc, would cover any
+ * backdrop, so those are separated from the page by the badge outline
+ * instead. Measured at icon sync time; see scripts/iconLegibility.mjs.
+ */
+export function attributionNeedsLightBackdrop(name: string): boolean {
+  return lookupEntityIcon(name)?.needsLightBackdrop ?? false;
+}
+
+/**
  * Testnet label implied by the network the data was fetched from. Unknown
  * senders carry no settlement of their own, but everything shown under a
  * testnet network is testnet activity, so their placeholder badges take the

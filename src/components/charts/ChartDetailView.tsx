@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
-import Link from '@/components/NetworkLink';
-import { useSearchParams } from 'next/navigation';
+import React, { useRef } from 'react';
+import ChartViewLink from '@/components/ChartViewLink';
 import { ArrowLeft, Minimize2 } from 'lucide-react';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import ChartCardActions from '@/components/charts/ChartCardActions';
 import { useChartData } from '@/hooks/useChartData';
-import { useTimeRange } from '@/contexts/TimeRangeContext';
-import { isTimeRange } from '@/constants';
+import { useDeepLinkedTimeRange } from '@/hooks/useDeepLinkedTimeRange';
 import { CHART_CARD_CLASS } from '@/constants/chartTheme';
 import {
   CHART_VIEWS,
@@ -23,7 +21,7 @@ function ChartTabs({ activeId }: { activeId?: string }) {
         const isActive = chartView.id === activeId;
 
         return (
-          <Link
+          <ChartViewLink
             key={chartView.id}
             href={`/charts/${chartView.id}`}
             className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${isActive
@@ -33,7 +31,7 @@ function ChartTabs({ activeId }: { activeId?: string }) {
             aria-current={isActive ? 'page' : undefined}
           >
             {chartView.shortTitle}
-          </Link>
+          </ChartViewLink>
         );
       })}
     </nav>
@@ -89,13 +87,13 @@ function ChartDetail({ view }: { view: ChartView }) {
                 rangeLabel={chartData.chartRangeLabel}
                 captureRef={captureRef}
               />
-              <Link
+              <ChartViewLink
                 href="/#data-trends"
                 className="inline-flex h-8 items-center justify-center gap-2 rounded-md border border-divider bg-[#1d1f23] px-3 text-sm text-bodyText transition-colors hover:bg-[#252936] hover:text-white focus:outline-none focus:ring-2 focus:ring-blue/60"
               >
                 <Minimize2 className="h-4 w-4" aria-hidden="true" />
                 Dashboard
-              </Link>
+              </ChartViewLink>
             </div>
           </div>
           <div ref={captureRef} className={view.detailFrameClassName}>
@@ -119,43 +117,19 @@ function UnknownChart({ chartId }: { chartId: string | undefined }) {
   );
 }
 
-/**
- * Applies a ?range= deep link to the shared time range. Shared chart links
- * carry the range they were captured at, so the page has to open on that
- * range instead of the header default.
- *
- * Keyed on the parameter's value rather than a once-per-mount flag: browser
- * history and in-app navigation swap the range without remounting, and a
- * one-shot guard would leave the chart on the previous range while the URL
- * and the page metadata said otherwise. Header changes still win, since the
- * effect only re-runs when the URL itself changes.
- */
-function useDeepLinkedTimeRange() {
-  const searchParams = useSearchParams();
-  const { setTimeRange } = useTimeRange();
-  const rangeParam = searchParams.get('range');
-  const applied = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (applied.current === rangeParam || !isTimeRange(rangeParam)) return;
-    applied.current = rangeParam;
-    setTimeRange(rangeParam);
-  }, [rangeParam, setTimeRange]);
-}
-
 export default function ChartDetailView({ chartId }: { chartId: string }) {
   const view = getChartView(chartId);
   useDeepLinkedTimeRange();
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-[1600px]">
-        <Link
+        <ChartViewLink
           href="/#data-trends"
           className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to Dashboard
-        </Link>
+        </ChartViewLink>
 
         {view ? (
           <section>

@@ -3,12 +3,13 @@
 import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from '@/components/NetworkLink';
-import { usePathname } from 'next/navigation';
-import { Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, Trophy, Tv, type LucideIcon } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { ArrowLeftRight, Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, Trophy, Tv, type LucideIcon } from 'lucide-react';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
 import { useNetwork } from '../hooks/useNetwork';
+import { buildChartViewUrl, isChartViewPath } from '../lib/chartViewUrl';
 import { DEFAULT_NETWORK, TIME_RANGES } from '../constants';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import { useBlobWebSocket } from '../contexts/LiveDataContext';
@@ -37,6 +38,7 @@ const NAV_LINKS: NavLink[] = [
   { href: '/blocks', label: 'Blocks', icon: Blocks, activePrefixes: ['/blocks', '/block'] },
   { href: '/mempool', label: 'Mempool', icon: Hourglass, activePrefixes: ['/mempool'] },
   { href: '/records', label: 'Records', icon: Trophy, activePrefixes: ['/records'] },
+  { href: '/flippening', label: 'Flippening', icon: ArrowLeftRight, activePrefixes: ['/flippening'] },
 ];
 
 const LIVE_STATUS_STYLES: Record<BlobWebSocketConnectionState, { label: string; color: string }> = {
@@ -115,6 +117,7 @@ function LiveStatusIndicator({
 
 export default function Header() {
   const rawPathname = usePathname();
+  const router = useRouter();
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
   // Which page is showing is a property of the route, not of the network it is
   // scoped to, so nav highlighting compares against the unscoped path.
@@ -124,7 +127,7 @@ export default function Header() {
   );
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
   // Chart detail pages read the time range via useChartData, so they keep the filter too
-  const showTimeFilters = pathname === '/' || pathname.startsWith('/charts/');
+  const showTimeFilters = isChartViewPath(pathname);
   const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -146,6 +149,18 @@ export default function Header() {
 
   const handleTimeRangeChange = (range: TimeRange) => {
     setSelectedTimeRange(range);
+
+    // Reflect the range in the URL so the address bar states the view on
+    // screen and can be copied as is; replace rather than push, since a
+    // filter change is not a navigation worth a history entry. The route
+    // test uses the network-stripped path, but the target keeps rawPathname
+    // so the network segment survives the rewrite.
+    if (isChartViewPath(pathname)) {
+      router.replace(
+        buildChartViewUrl(rawPathname, window.location.search, range, window.location.hash),
+        { scroll: false }
+      );
+    }
   };
 
   const isNavLinkActive = (link: NavLink) => {

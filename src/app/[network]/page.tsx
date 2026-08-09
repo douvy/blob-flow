@@ -6,11 +6,15 @@ export { default } from '../page';
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ network: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }): Promise<Metadata> {
-  const { network } = await params;
+  const [{ network }, query] = await Promise.all([params, searchParams]);
   if (!(await isServedNetwork(network))) return unknownNetworkMetadata();
 
-  return homeMetadata(network);
+  const range = Array.isArray(query.range) ? query.range[0] : query.range;
+
+  return homeMetadata(network, range);
 }

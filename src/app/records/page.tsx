@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, Info } from 'lucide-react';
-import Link from 'next/link';
+import Link from '@/components/NetworkLink';
 import React, { useCallback, useMemo } from 'react';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';

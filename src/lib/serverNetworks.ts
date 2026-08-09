@@ -1,5 +1,5 @@
-import { API_BASE_URL, NETWORKS } from '@/constants';
-import type { ApiResponse, BackendNetwork } from '@/types';
+import { API_BASE_URL, DEFAULT_NETWORK, NETWORKS } from '@/constants';
+import type { ApiResponse, BackendNetwork, Network } from '@/types';
 
 /** How long a fetched network list is reused before being refetched. */
 const NETWORK_LIST_TTL_SECONDS = 300;
@@ -47,4 +47,43 @@ export async function isServedNetwork(segment: string): Promise<boolean> {
 
   const slugs = await fetchNetworkSlugs();
   return slugs === null || slugs.includes(slug);
+}
+
+/** Backend names are lowercase identifiers; present them title-cased. */
+function toDisplayName(slug: string): string {
+  return slug.charAt(0).toUpperCase() + slug.slice(1);
+}
+
+/**
+ * The network a share card should report on, or null when the segment names
+ * nothing this deployment serves.
+ *
+ * parseNetwork only knows the bootstrap constants, so on its own it answers
+ * "mainnet" for any other network the indexer advertises: a card for such a
+ * network would then show mainnet's numbers under that network's page. This
+ * resolves against the served list instead, and still refuses to forward an
+ * arbitrary string to the backend.
+ *
+ * Unlike isServedNetwork, an unverifiable list does not admit unknown slugs:
+ * a card is cached and reshared, so mislabeling one is worse than declining
+ * to render it while the list is unavailable.
+ */
+export async function resolveServedNetwork(segment: string): Promise<Network | null> {
+  const slug = segment.toLowerCase();
+  if (!NETWORK_SLUG_PATTERN.test(slug)) return null;
+
+  const known = Object.values(NETWORKS).find((network) => network.apiParam === slug);
+  if (known) return known;
+
+  const slugs = await fetchNetworkSlugs();
+  if (slugs === null || !slugs.includes(slug)) return null;
+
+  return { name: toDisplayName(slug), apiParam: slug };
+}
+
+/** As resolveServedNetwork, falling back to the default network. */
+export async function resolveCardNetwork(segment?: string | null): Promise<Network> {
+  if (!segment) return DEFAULT_NETWORK;
+
+  return (await resolveServedNetwork(segment)) ?? DEFAULT_NETWORK;
 }

@@ -34,6 +34,7 @@ import {
   formatWeiToGwei,
   formatWeiToEth,
   formatWeiToReadable,
+  attributionNeedsLightBackdrop,
   getAttributionImageSrc,
   getAttributionInitial,
   getAttributionSuggestionUrl,
@@ -195,6 +196,18 @@ describe('utils', () => {
     expect(getAttributionImageSrc('Arbitrum')).toBe('/images/entities/arbitrum.svg');
     expect(getAttributionImageSrc('Optimism')).toBe('/images/entities/optimism.svg');
     expect(getAttributionImageSrc('zkSync')).toBe('/images/entities/zksync-era.svg');
+  });
+
+  it('asks for a light backdrop only where a dark logo is see-through', () => {
+    // Dark artwork on a transparent field: a backdrop shows through it.
+    expect(attributionNeedsLightBackdrop('Linea')).toBe(true);
+    expect(attributionNeedsLightBackdrop('ADI Chain')).toBe(true);
+    // Dark but opaque, so a backdrop would be hidden behind the artwork.
+    expect(attributionNeedsLightBackdrop('Shape')).toBe(false);
+    expect(attributionNeedsLightBackdrop('X Layer')).toBe(false);
+    // See-through but legible on its own.
+    expect(attributionNeedsLightBackdrop('Taiko')).toBe(false);
+    expect(attributionNeedsLightBackdrop('An Unknown Rollup')).toBe(false);
   });
 
   it('labels testnet entities and leaves mainnet entities unlabeled', () => {

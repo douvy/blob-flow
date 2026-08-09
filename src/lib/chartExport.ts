@@ -253,32 +253,43 @@ export function capturePixelRatio(
   return Math.max(1, Math.min(wanted, affordable));
 }
 
+/**
+ * Encodes a node as a PNG blob with the site's fonts inlined. Callers that
+ * already render their own branded frame (the stat card) pass their node
+ * straight in; charts go through captureChartImage, which wraps them first.
+ */
+export async function captureNodeImage(
+  node: HTMLElement,
+  backgroundColor: string = FRAME_BACKGROUND
+): Promise<Blob> {
+  const fontEmbedCss = await getFontEmbedCss().catch(() => '');
+
+  const blob = await toBlob(node, {
+    pixelRatio: capturePixelRatio(
+      node.offsetWidth,
+      node.offsetHeight,
+      window.devicePixelRatio || 1
+    ),
+    backgroundColor,
+    // With an explicit value html-to-image skips its own stylesheet scan;
+    // an empty string (font fetch failed) lets it try that scan instead.
+    fontEmbedCSS: fontEmbedCss || undefined,
+  });
+  if (!blob) throw new Error('Image encoding produced no data');
+  return blob;
+}
+
 /** Renders the chart node inside the branded frame and encodes it as a PNG blob. */
 export async function captureChartImage(
   node: HTMLElement,
   meta: ChartCaptureMeta
 ): Promise<Blob> {
-  const [fontEmbedCss, logoDataUrl] = await Promise.all([
-    getFontEmbedCss().catch(() => ''),
-    fetchAsDataUrl(LOGO_URL).catch(() => null),
-  ]);
+  const logoDataUrl = await fetchAsDataUrl(LOGO_URL).catch(() => null);
 
   const { mount, frame } = buildCaptureFrame(node, meta, logoDataUrl);
   document.body.appendChild(mount);
   try {
-    const blob = await toBlob(frame, {
-      pixelRatio: capturePixelRatio(
-        frame.offsetWidth,
-        frame.offsetHeight,
-        window.devicePixelRatio || 1
-      ),
-      backgroundColor: FRAME_BACKGROUND,
-      // With an explicit value html-to-image skips its own stylesheet scan;
-      // an empty string (font fetch failed) lets it try that scan instead.
-      fontEmbedCSS: fontEmbedCss || undefined,
-    });
-    if (!blob) throw new Error('Chart image encoding produced no data');
-    return blob;
+    return await captureNodeImage(frame);
   } finally {
     mount.remove();
   }
@@ -303,18 +314,25 @@ function downloadBlob(blob: Blob, fileName: string): void {
   URL.revokeObjectURL(url);
 }
 
-/**
- * Copies the rendered PNG to the clipboard, downloading it instead where the
- * async Clipboard API is unavailable (Firefox before 127, older Safari). The
- * ClipboardItem is handed the pending blob promise synchronously so Safari
- * keeps the user-activation window open while the capture renders.
- */
 export async function copyOrDownloadChartImage(
   node: HTMLElement,
   meta: ChartCaptureMeta,
   fileName: string
 ): Promise<ChartExportOutcome> {
-  const blobPromise = captureChartImage(node, meta);
+  return copyOrDownloadImage(captureChartImage(node, meta), fileName);
+}
+
+/**
+ * Copies the rendered PNG to the clipboard, downloading it instead where the
+ * async Clipboard API is unavailable (Firefox before 127, older Safari). The
+ * ClipboardItem is handed the pending blob promise synchronously so Safari
+ * keeps the user-activation window open while the capture renders, which is
+ * why this takes the promise rather than the blob.
+ */
+export async function copyOrDownloadImage(
+  blobPromise: Promise<Blob>,
+  fileName: string
+): Promise<ChartExportOutcome> {
   if (canCopyImages()) {
     try {
       await navigator.clipboard.write([
