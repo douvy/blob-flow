@@ -50,6 +50,7 @@
     "@vitest/coverage-v8": "^4.1.8",
     "jsdom": "^30.0.1",
     "postcss": "^8.5.25",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.3.2",
     "vitest": "^4.1.10"
   }
