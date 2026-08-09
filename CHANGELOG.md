@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/douvy/blob-flow/compare/v1.9.0...v1.9.1) (2026-08-09)
+
+
+### Bug Fixes
+
+* set NEXT_PUBLIC_SITE_URL in the Docker build and runtime ([#270](https://github.com/douvy/blob-flow/issues/270)) ([4947f8e](https://github.com/douvy/blob-flow/commit/4947f8edafe6dae1d34c11aec890f983b5223790))
+
 ## [1.9.0](https://github.com/douvy/blob-flow/compare/v1.8.0...v1.9.0) (2026-08-09)
 
 
