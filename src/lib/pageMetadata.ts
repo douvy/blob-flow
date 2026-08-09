@@ -75,11 +75,11 @@ export function blocksMetadata(network?: string): Metadata {
 }
 
 export function mempoolMetadata(network?: string): Metadata {
-  const suffix = titleSuffix(network);
   return {
-    // The bare mempool page has never set a title; only the scoped copies need
-    // one, to say which network's pending transactions they list.
-    ...(suffix ? { title: `Pending Blob Transactions${suffix}` } : {}),
+    title: `Pending Blob Transactions${titleSuffix(network)}`,
+    description:
+      'Watch pending EIP-4844 blob transactions in the Ethereum mempool: which rollups ' +
+      'are queuing data, their fee bids, and blobspace pressure before the next block.',
     alternates: canonical('/mempool', network),
   };
 }
@@ -98,6 +98,9 @@ export function liveMetadata(network?: string): Metadata {
 export function blockMetadata(blockNumber: string, network?: string): Metadata {
   return {
     title: `Block ${blockNumber} Blob Details${titleSuffix(network)}`,
+    description:
+      `Blob activity in Ethereum block ${blockNumber}: blob count, blob base fee, ` +
+      'and per-blob size, sender, and cost.',
     alternates: canonical(`/block/${blockNumber}`, network),
   };
 }
@@ -105,6 +108,9 @@ export function blockMetadata(blockNumber: string, network?: string): Metadata {
 export function userMetadata(address: string, network?: string): Metadata {
   return {
     title: `Blob Activity · ${shortAddress(address)}${titleSuffix(network)}`,
+    description:
+      `Blob transaction history for ${shortAddress(address)}: blobs posted, ` +
+      'ETH spent on blob fees, and recent EIP-4844 activity on Ethereum.',
     alternates: canonical(`/user/${address}`, network),
   };
 }
@@ -115,6 +121,9 @@ export function transactionMetadata(hash: string, network?: string): Metadata {
   const canonicalHash = /^0x[0-9a-f]{64}$/i.test(hash) ? hash.toLowerCase() : hash;
   return {
     title: `Blob Transaction · ${shortTxHash(canonicalHash)}${titleSuffix(network)}`,
+    description:
+      `Details for Ethereum blob transaction ${shortTxHash(canonicalHash)}: blobs ` +
+      'carried, blob fees paid, and the block that included it.',
     alternates: canonical(`/tx/${canonicalHash}`, network),
   };
 }

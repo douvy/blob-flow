@@ -1,5 +1,5 @@
 import './globals.css';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import AppProviders from '@/components/AppProviders';
 import AppChrome from '@/components/AppChrome';
 import { SITE_NAME, SITE_URL } from '@/constants';
@@ -39,30 +39,47 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: [{ url: '/images/logo.png', alt: 'BlobFlow logo' }],
+    // The image comes from src/app/opengraph-image.tsx via the file
+    // convention; routes with their own cards (charts, vs) override it.
   },
   twitter: {
-    card: 'summary',
+    // Platforms fall back to og:image, so the card art is defined once.
+    card: 'summary_large_image',
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: ['/images/logo.png'],
   },
   icons: {
     icon: '/images/favicon.png',
+    apple: '/images/favicon.png',
   },
 };
 
-// Structured data so search engines surface BlobFlow as a live analytics app.
-const structuredData = {
-  '@context': 'https://schema.org',
-  '@type': 'WebApplication',
-  name: SITE_NAME,
-  url: SITE_URL,
-  description: SITE_DESCRIPTION,
-  applicationCategory: 'FinanceApplication',
-  operatingSystem: 'Web',
-  isAccessibleForFree: true,
+export const viewport: Viewport = {
+  // Matches --color-background in globals.css so mobile browser chrome
+  // blends with the app.
+  themeColor: '#121316',
 };
+
+// Structured data so search engines recognize the site entity and surface
+// BlobFlow as a live analytics app.
+const structuredData = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: SITE_URL,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: SITE_NAME,
+    url: SITE_URL,
+    description: SITE_DESCRIPTION,
+    applicationCategory: 'FinanceApplication',
+    operatingSystem: 'Web',
+    isAccessibleForFree: true,
+  },
+];
 
 export default function RootLayout({
   children,
