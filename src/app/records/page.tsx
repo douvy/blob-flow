@@ -6,6 +6,11 @@ import React, { useCallback, useMemo } from 'react';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import RecordCard, { type RecordAccent } from '@/components/RecordCard';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
@@ -549,21 +554,37 @@ export default function RecordsPage() {
         Back to Dashboard
       </Link>
 
-      <h1 className="mb-2 font-windsor-bold text-3xl text-white sm:text-4xl">
-        Blob Market Records
-      </h1>
-      <p className="mb-4 max-w-3xl text-sm text-bodyText">
+      <div className="mb-2 flex items-center gap-2">
+        <h1 className="font-windsor-bold text-3xl text-white sm:text-4xl">
+          Blob Market Records
+        </h1>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="About these leaderboards"
+              className="text-[#8a93a5] transition-colors hover:text-blue focus:outline-none focus-visible:text-blue"
+            >
+              <Info className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent
+            side="bottom"
+            align="start"
+            className="w-80 max-w-[calc(100vw-2rem)] px-3 py-2.5"
+          >
+            <p className="text-[11px] leading-relaxed text-[#a9adb6]">
+              Leaderboards cover the indexer&apos;s full indexed history. The
+              spend ranking and milestones count attributed entities only, so
+              unattributed senders are not represented there.
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+      <p className="mb-8 max-w-3xl text-sm text-bodyText">
         All-time streaks, peaks, and milestones from the {selectedNetwork.name}{' '}
         blob market, refreshed every {RECORDS_REFRESH_MS / 1000} seconds.
       </p>
-      <div className="mb-8 flex max-w-3xl items-start gap-2.5 rounded-md border border-[#292e35] bg-[#17181b] px-3.5 py-3 text-sm text-[#a9adb6]">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue" aria-hidden="true" />
-        <p>
-          Leaderboards cover the indexer&apos;s full indexed history. The spend
-          ranking and milestones count attributed entities only, so unattributed
-          senders are not represented there.
-        </p>
-      </div>
 
       <DataStateWrapper
         isLoading={isLoading && !records}
