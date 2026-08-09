@@ -7,6 +7,10 @@ describe('isChartViewPath', () => {
     expect(isChartViewPath('/charts/rolling-market-stats')).toBe(true);
   });
 
+  it('matches the flippening watch, whose window is the selected range', () => {
+    expect(isChartViewPath('/flippening')).toBe(true);
+  });
+
   it('rejects everything else', () => {
     expect(isChartViewPath('/blocks')).toBe(false);
     expect(isChartViewPath('/records')).toBe(false);

@@ -84,6 +84,24 @@ export function mempoolMetadata(network?: string): Metadata {
   };
 }
 
+export function recordsMetadata(network?: string): Metadata {
+  return {
+    title: `Blob Market Records${titleSuffix(network)}`,
+    description:
+      'Records and milestones from the Ethereum EIP-4844 blob market: live full-block streaks, peak windowed base fees, busiest windows, biggest spenders, and per-rollup blob milestones.',
+    alternates: canonical('/records', network),
+  };
+}
+
+export function flippeningMetadata(network?: string): Metadata {
+  return {
+    title: `Flippening Watch${titleSuffix(network)}`,
+    description:
+      'Track when one rollup overtakes another in Ethereum blob share: recent crossover events and the pair closest to flipping.',
+    alternates: canonical('/flippening', network),
+  };
+}
+
 export function liveMetadata(network?: string): Metadata {
   return {
     title: `TV Mode: Live Blob Market${titleSuffix(network)}`,

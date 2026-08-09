@@ -14,6 +14,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
+      url: `${SITE_URL}/flippening`,
+      changeFrequency: 'hourly',
+      priority: 0.6,
+    },
+    {
       url: `${SITE_URL}/live`,
       changeFrequency: 'always',
       priority: 0.7,

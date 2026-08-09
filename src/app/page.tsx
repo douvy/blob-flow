@@ -8,6 +8,7 @@ import MetricsCharts from '@/components/MetricsCharts';
 import RecentBlocksPanel from '@/components/RecentBlocksPanel';
 import TopUsersTable from '@/components/TopUsersTable';
 import MempoolSummary from '@/components/MempoolSummary';
+import FlippeningSummary from '@/components/FlippeningSummary';
 import ExplainerSection from '@/components/ExplainerSection';
 import { homeMetadata } from '@/lib/pageMetadata';
 
@@ -35,6 +36,7 @@ export default function Home() {
           <div className="space-y-8">
             <RecentBlocksPanel />
             <MempoolSummary />
+            <FlippeningSummary />
             <TopUsersTable />
             <section>
               <h2 className="text-2xl font-windsor-bold text-white mb-4">What are blobs?</h2>

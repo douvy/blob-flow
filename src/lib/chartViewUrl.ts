@@ -9,10 +9,14 @@ import type { TimeRange } from '@/constants';
  */
 export const CHART_RANGE_PARAM = 'range';
 
-/** Routes whose view is driven by the selected time range. */
+/**
+ * Routes whose view is driven by the selected time range. The flippening
+ * watch is one: its rolling share window is the selected range, so it takes
+ * the header filter and the shareable ?range= param like the charts do.
+ */
 export function isChartViewPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
-  return pathname === '/' || pathname.startsWith('/charts/');
+  return pathname === '/' || pathname === '/flippening' || pathname.startsWith('/charts/');
 }
 
 /**
