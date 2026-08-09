@@ -47,7 +47,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     );
   }
 
-  // The battle pages exist only at the bare paths.
+  // Every network serves the battle pages, but these matchups are between
+  // mainnet rollups, so only the mainnet URLs are worth pointing crawlers at.
   entries.push(
     ...VS_MATCHUPS.map(([a, b]) => ({
       url: `${SITE_URL}/vs/${a}/${b}`,

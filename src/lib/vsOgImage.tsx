@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ImageResponse } from 'next/og';
-import { API_BASE_URL } from '@/constants';
+import { API_BASE_URL, DEFAULT_NETWORK } from '@/constants';
 import {
   VS_ENTITY_LIMIT,
   VS_RANGE_LABELS,
@@ -14,6 +14,7 @@ import type {
   BackendAttributionUsageChartResponse,
   BackendAttributionUsageShare,
   BackendChartRange,
+  Network,
   VsComparisonRow,
   VsMetricFormat,
   VsWinner,
@@ -34,13 +35,17 @@ export const VS_OG_ALT = 'Rollup blobspace head-to-head comparison on BlobFlow';
 /** Standard large-summary card dimensions. */
 export const VS_OG_SIZE = { width: 1200, height: 630 };
 
+/**
+ * For an image URL whose network segment names no served network. The page
+ * itself answers 404, and a card is cached and reshared, so labeling one with
+ * another network's numbers is worse than declining to render it.
+ */
+export function vsOgNotFound(): Response {
+  return new Response('Not found', { status: 404 });
+}
+
 /** How long fetched share data may be served from the cache, in seconds. */
 const FETCH_REVALIDATE_SECONDS = 300;
-
-// The card always shows mainnet: crawlers cannot carry the viewer's network
-// selection. The range comes from the route, so shared links unfurl with the
-// same window the page shows.
-const OG_NETWORK = 'mainnet';
 
 const COLORS = {
   background: '#121316',
@@ -52,10 +57,13 @@ const COLORS = {
   blue: '#3b55e6',
 };
 
-async function fetchShares(range: BackendChartRange): Promise<BackendAttributionUsageShare[]> {
+async function fetchShares(
+  range: BackendChartRange,
+  network: string,
+): Promise<BackendAttributionUsageShare[]> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/charts/attribution-usage?range=${range}&granularity=auto&network=${OG_NETWORK}&limit=${VS_ENTITY_LIMIT}`,
+      `${API_BASE_URL}/charts/attribution-usage?range=${range}&granularity=auto&network=${network}&limit=${VS_ENTITY_LIMIT}`,
       { next: { revalidate: FETCH_REVALIDATE_SECONDS }, signal: AbortSignal.timeout(5000) },
     );
     if (!response.ok) return [];
@@ -66,7 +74,12 @@ async function fetchShares(range: BackendChartRange): Promise<BackendAttribution
   }
 }
 
-async function resolveMatchup(aSlug: string, bSlug: string, requested: BackendChartRange) {
+async function resolveMatchup(
+  aSlug: string,
+  bSlug: string,
+  requested: BackendChartRange,
+  network: string,
+) {
   // A rollup can be quiet in a short window while still active over a month;
   // widen once before giving up on numbers entirely.
   const attempts: BackendChartRange[] = requested === '30d' ? ['30d'] : [requested, '30d'];
@@ -78,7 +91,7 @@ async function resolveMatchup(aSlug: string, bSlug: string, requested: BackendCh
   } = { range: requested, shareA: undefined, shareB: undefined };
 
   for (const range of attempts) {
-    const shares = await fetchShares(range);
+    const shares = await fetchShares(range, network);
     const shareA = findShareBySlug(shares, aSlug);
     const shareB = findShareBySlug(shares, bSlug);
     if (shareA && shareB) {
@@ -250,15 +263,21 @@ function Contender({
 
 /**
  * Render the battle-card Open Graph image for a matchup. Shared by the bare
- * route (default range) and the /[range] route so both unfurl identically.
+ * route (default range) and the /[range] route so both unfurl identically,
+ * and by the /[network] copies of both, which pass the network they show.
+ *
+ * Both the network and the range come from the route, never from a client:
+ * a crawler carries no selection of its own, so a shared link has to unfurl
+ * with the same network and window its URL names.
  */
 export async function renderVsOgImage(
   a: string | undefined,
   b: string | undefined,
   requestedRange: BackendChartRange,
+  network: Network = DEFAULT_NETWORK,
 ): Promise<ImageResponse> {
   const [{ range, shareA, shareB }, windsorFont, flexaFont] = await Promise.all([
-    resolveMatchup(a ?? '', b ?? '', requestedRange),
+    resolveMatchup(a ?? '', b ?? '', requestedRange, network.apiParam),
     loadFont('fonts/WindsorBold/WindsorBold.woff'),
     loadFont('fonts/GT Flexa/GT-Flexa-Standard-Regular.woff'),
   ]);
@@ -316,7 +335,10 @@ export async function renderVsOgImage(
           <span style={{ color: 'white', fontFamily: windsorFont ? 'Windsor Bold' : 'sans-serif', fontSize: 28 }}>
             BlobFlow
           </span>
-          <span>Blob battle · {VS_RANGE_LABELS[range]}</span>
+          <span>
+            Blob battle · {VS_RANGE_LABELS[range]}
+            {network.apiParam === DEFAULT_NETWORK.apiParam ? '' : ` · ${network.name}`}
+          </span>
         </div>
 
         <div
