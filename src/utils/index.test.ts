@@ -3,6 +3,7 @@ import {
   attributionColorKey,
   beaconSlotForBlob,
   blobCountToBytes,
+  buildFarcasterCastUrl,
   buildTweetIntentUrl,
   chartImageFileName,
   computeBlobBytesPerSecond,
@@ -535,6 +536,36 @@ describe('buildTweetIntentUrl', () => {
 
   it('omits the stat clause when no headline stat is available', () => {
     const url = buildTweetIntentUrl({
+      title: 'Rolling Market Stats',
+      stat: null,
+      url: 'https://blobflow.example/charts/rolling-market-stats',
+    });
+
+    expect(new URL(url).searchParams.get('text')).toBe('Rolling Market Stats');
+  });
+});
+
+describe('buildFarcasterCastUrl', () => {
+  it('prefills the cast with title, stat, and the deep link as an embed', () => {
+    const url = buildFarcasterCastUrl({
+      title: 'Blob Usage over 1h view',
+      stat: '1,234 blobs posted on Mainnet',
+      url: 'https://blobflow.example/charts/blob-usage?range=1h',
+    });
+
+    const parsed = new URL(url);
+    expect(parsed.origin + parsed.pathname).toBe('https://farcaster.xyz/~/compose');
+    expect(parsed.searchParams.get('text')).toBe(
+      'Blob Usage over 1h view: 1,234 blobs posted on Mainnet'
+    );
+    // The link is an embed, not body text, so clients unfurl it into a card.
+    expect(parsed.searchParams.get('embeds[]')).toBe(
+      'https://blobflow.example/charts/blob-usage?range=1h'
+    );
+  });
+
+  it('omits the stat clause when no headline stat is available', () => {
+    const url = buildFarcasterCastUrl({
       title: 'Rolling Market Stats',
       stat: null,
       url: 'https://blobflow.example/charts/rolling-market-stats',

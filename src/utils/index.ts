@@ -378,6 +378,24 @@ export function buildTweetIntentUrl(options: {
 }
 
 /**
+ * Builds a Farcaster compose URL prefilled with the same chart share copy as
+ * the tweet intent. The chart link travels as an embed rather than in the cast
+ * body, which is what makes clients unfurl it into a card; the embed parameter
+ * is repeatable (embeds[]), so it is appended by hand to keep the brackets
+ * literal the way Farcaster documents them.
+ */
+export function buildFarcasterCastUrl(options: {
+  title: string;
+  stat?: string | null;
+  url: string;
+}): string {
+  const { title, stat, url } = options;
+  const text = stat ? `${title}: ${stat}` : title;
+  const params = new URLSearchParams({ text });
+  return `https://farcaster.xyz/~/compose?${params.toString()}&embeds[]=${encodeURIComponent(url)}`;
+}
+
+/**
  * Filename for an exported chart image: slugged title plus a sortable local
  * timestamp, so repeated captures of the same chart never collide.
  */

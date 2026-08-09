@@ -95,6 +95,21 @@ describe('ChartCardActions', () => {
         range: '7d',
       });
     });
+
+    it('reports a Farcaster share separately from an X share', async () => {
+      renderActions('7d');
+
+      await userEvent.click(
+        screen.getByRole('link', { name: 'Share Blob Usage over 1h view on Farcaster' })
+      );
+
+      expect(track).toHaveBeenCalledWith('chart-share-farcaster', {
+        chart: 'blob-usage',
+        network: NETWORKS.MAINNET.apiParam,
+        range: '7d',
+      });
+      expect(track).not.toHaveBeenCalledWith('chart-share-x', expect.anything());
+    });
   });
 
   it('copies the chart image and shows transient success feedback', async () => {
@@ -167,6 +182,43 @@ describe('ChartCardActions', () => {
     expect(href.searchParams.get('url')).toBe(`${SITE_URL}/charts/blob-usage?range=1h`);
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('links the Farcaster composer with the same copy and an embedded deep link', () => {
+    renderActions();
+
+    const link = screen.getByRole('link', {
+      name: 'Share Blob Usage over 1h view on Farcaster',
+    });
+    const href = new URL(link.getAttribute('href') ?? '');
+    expect(href.origin + href.pathname).toBe('https://farcaster.xyz/~/compose');
+    expect(href.searchParams.get('text')).toBe(
+      'Blob Usage over 1h view: 1,234 blobs posted on Mainnet'
+    );
+    expect(href.searchParams.get('embeds[]')).toBe(
+      `${SITE_URL}/charts/blob-usage?range=1h`
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('carries the selected network into the Farcaster embed too', () => {
+    vi.mocked(useNetwork).mockReturnValue({
+      selectedNetwork: NETWORKS.SEPOLIA,
+      setSelectedNetwork: vi.fn(),
+      networkOptions: Object.values(NETWORKS),
+    });
+    renderActions('7d');
+
+    const link = screen.getByRole('link', {
+      name: 'Share Blob Usage over 1h view on Farcaster',
+    });
+    const href = new URL(link.getAttribute('href') ?? '');
+    const shared = new URL(href.searchParams.get('embeds[]') ?? '');
+
+    expect(shared.pathname).toBe('/sepolia/charts/blob-usage');
+    expect(shared.searchParams.get('range')).toBe('7d');
+    expect(href.searchParams.get('text')).toContain('on Sepolia');
   });
 
   it('carries the selected network so the card cannot contradict the tweet', () => {

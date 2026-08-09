@@ -5,7 +5,12 @@ import { AlertTriangle, Camera, Check, Download, Loader2 } from 'lucide-react';
 import { trackEvent } from '@/lib/analytics';
 import { copyOrDownloadChartImage } from '@/lib/chartExport';
 import { SITE_URL } from '@/constants';
-import { buildTweetIntentUrl, chartImageFileName, networkPath } from '@/utils';
+import {
+  buildFarcasterCastUrl,
+  buildTweetIntentUrl,
+  chartImageFileName,
+  networkPath,
+} from '@/utils';
 import { useNetwork } from '@/hooks/useNetwork';
 import { useTimeRange } from '@/contexts/TimeRangeContext';
 
@@ -47,6 +52,18 @@ function XLogoIcon({ className }: { className: string }) {
   );
 }
 
+function FarcasterLogoIcon({ className }: { className: string }) {
+  return (
+    // Cropped to the mark's own bounds, so it carries the same optical weight
+    // as the X logo beside it instead of sitting in its own padding.
+    <svg viewBox="120 145 760 710" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M257.778 155.556h484.444v688.888h-71.111V528.889h-.697c-7.86-87.212-81.156-155.556-170.414-155.556s-162.554 68.344-170.414 155.556h-.697v315.555h-71.111V155.556Z" />
+      <path d="M128.889 253.333l28.889 97.778h24.444v395.556c-12.273 0-22.222 9.949-22.222 22.222v26.667h-4.444c-12.273 0-22.223 9.949-22.223 22.222v26.666h248.889v-26.666c0-12.273-9.949-22.222-22.222-22.222h-4.444v-26.667c0-12.273-9.95-22.222-22.223-22.222h-26.666V253.333H128.889Z" />
+      <path d="M675.556 746.667c-12.273 0-22.223 9.949-22.223 22.222v26.667h-4.444c-12.273 0-22.222 9.949-22.222 22.222v26.666h248.889v-26.666c0-12.273-9.95-22.222-22.223-22.222h-4.444v-26.667c0-12.273-9.949-22.222-22.222-22.222V351.111h24.444l28.889-97.778H702.222v493.334h-26.666Z" />
+    </svg>
+  );
+}
+
 interface ChartCardActionsProps {
   chartId: string;
   chartTitle: string;
@@ -61,7 +78,8 @@ interface ChartCardActionsProps {
 
 /**
  * Per-card share actions: copy the chart as a branded PNG (with a download
- * fallback when the image Clipboard API is unavailable) and share on X.
+ * fallback when the image Clipboard API is unavailable) and share on X or
+ * Farcaster.
  */
 export default function ChartCardActions({
   chartId,
@@ -118,11 +136,14 @@ export default function ChartCardActions({
     `/charts/${chartId}?range=${timeRange}`,
     selectedNetwork.apiParam
   );
-  const tweetUrl = buildTweetIntentUrl({
+  const shareCopy = {
     title: chartTitle,
     stat: headlineStat ? `${headlineStat} on ${selectedNetwork.name}` : null,
     url: `${SITE_URL}${sharePath}`,
-  });
+  };
+  const tweetUrl = buildTweetIntentUrl(shareCopy);
+  const castUrl = buildFarcasterCastUrl(shareCopy);
+  const logoClass = iconClass === 'h-4 w-4' ? 'h-3.5 w-3.5' : 'h-3 w-3';
 
   return (
     <>
@@ -151,7 +172,24 @@ export default function ChartCardActions({
         aria-label={`Share ${chartTitle} on X`}
         title="Share on X"
       >
-        <XLogoIcon className={iconClass === 'h-4 w-4' ? 'h-3.5 w-3.5' : 'h-3 w-3'} />
+        <XLogoIcon className={logoClass} />
+      </a>
+      <a
+        href={castUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() =>
+          trackEvent('chart-share-farcaster', {
+            chart: chartId,
+            network: selectedNetwork.apiParam,
+            range: timeRange,
+          })
+        }
+        className={buttonClass}
+        aria-label={`Share ${chartTitle} on Farcaster`}
+        title="Share on Farcaster"
+      >
+        <FarcasterLogoIcon className={logoClass} />
       </a>
     </>
   );
