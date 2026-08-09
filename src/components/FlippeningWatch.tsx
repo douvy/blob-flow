@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { ArrowLeftRight, ArrowUp } from 'lucide-react';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
+import { RelativeTime } from '@/components/RelativeTime';
 import { useFlippening } from '@/hooks/useFlippening';
 import {
   DEFAULT_FLIPPENING_TOP_N,
@@ -121,7 +122,8 @@ function Standings({
                   {standing.lastFlipWon && (
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-green/10 px-1.5 py-0.5 text-[10px] text-green">
                       <ArrowUp className="h-3 w-3" aria-hidden="true" />
-                      passed {standing.lastFlipWon.loser.name}
+                      passed {standing.lastFlipWon.loser.name}{' '}
+                      <RelativeTime timestamp={standing.lastFlipWon.timestamp} />
                     </span>
                   )}
                   {inClosestPair && (

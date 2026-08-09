@@ -326,6 +326,55 @@ describe('computeStandings', () => {
     expect(standings[2].gapToAbovePoints).toBeCloseTo(10);
   });
 
+  it('drops a flip that the pair has since reversed', () => {
+    // Optimism passes base, then base takes the lead back. Neither row may
+    // claim it passed the other: base's win is the newest for the pair, and
+    // optimism's is stale.
+    const buckets = computeBucketShares([
+      makePoint(0, { base: 60, optimism: 40, arbitrum: 0 }),
+      makePoint(1, { base: 40, optimism: 60, arbitrum: 0 }),
+      makePoint(2, { base: 70, optimism: 20, arbitrum: 10 }),
+      makePoint(3, { base: 70, optimism: 20, arbitrum: 10 }),
+    ]);
+    const events = detectCrossoverEvents(buckets, entities, 0.5);
+    const standings = computeStandings(buckets, entities, events);
+    const optimism = standings.find((row) => row.entity.key === 'optimism');
+    expect(optimism?.lastFlipWon).toBeNull();
+  });
+
+  it('never lets both sides of a pair claim they passed each other', () => {
+    const buckets = computeBucketShares([
+      makePoint(0, { base: 60, optimism: 40 }),
+      makePoint(1, { base: 40, optimism: 60 }),
+      makePoint(2, { base: 65, optimism: 35 }),
+      makePoint(3, { base: 65, optimism: 35 }),
+    ]);
+    const events = detectCrossoverEvents(buckets, entities, 0.5);
+    const standings = computeStandings(buckets, entities, events);
+    const claims = standings.filter(
+      (row) =>
+        row.lastFlipWon?.loser.key === 'optimism' || row.lastFlipWon?.loser.key === 'base'
+    );
+    expect(claims.length).toBeLessThanOrEqual(1);
+  });
+
+  it('never credits a flip to an entity that now ranks below its target', () => {
+    const buckets = computeBucketShares([
+      makePoint(0, { base: 50, arbitrum: 30, optimism: 20 }),
+      makePoint(1, { base: 50, arbitrum: 20, optimism: 30 }),
+      makePoint(2, { base: 50, arbitrum: 35, optimism: 15 }),
+    ]);
+    const events = detectCrossoverEvents(buckets, entities, 0.5);
+    const standings = computeStandings(buckets, entities, events);
+    for (const row of standings) {
+      if (!row.lastFlipWon) continue;
+      const loserRank = standings.find(
+        (other) => other.entity.key === row.lastFlipWon?.loser.key
+      )?.rank;
+      expect(row.rank).toBeLessThan(loserRank ?? Infinity);
+    }
+  });
+
   it('attaches the most recent flip each entity won and lost', () => {
     const buckets = computeBucketShares([
       makePoint(0, { base: 20, arbitrum: 50, optimism: 30 }),
@@ -335,7 +384,9 @@ describe('computeStandings', () => {
     const standings = computeStandings(buckets, entities, events);
     const base = standings.find((row) => row.entity.key === 'base');
     const arbitrum = standings.find((row) => row.entity.key === 'arbitrum');
-    expect(base?.lastFlipWon?.loser.key).toBe('optimism');
+    // Base passes both rivals in the same bucket, so the tie breaks toward
+    // the higher-ranked one.
+    expect(base?.lastFlipWon?.loser.key).toBe('arbitrum');
     expect(base?.lastFlipLost).toBeNull();
     expect(arbitrum?.lastFlipLost?.winner.key).toBe('base');
   });

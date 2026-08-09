@@ -4,23 +4,13 @@ import Link from '@/components/NetworkLink';
 import { ArrowRight } from 'lucide-react';
 import React from 'react';
 import { useFlippening } from '../hooks/useFlippening';
-import { useNow } from '../hooks/useNow';
-import { formatRelativeTime } from '../lib/api/core';
 import AttributionBadge from './AttributionBadge';
+import { RelativeTime } from './RelativeTime';
 
 const ICON_CLUSTER_LIMIT = 4;
 
 function formatPoints(value: number): string {
   return value.toFixed(1);
-}
-
-/**
- * Age of the most recent flip, ticking once per second. Isolated in its own
- * component so the tick re-renders only this value, not the whole strip.
- */
-function FlipAge({ timestamp }: { timestamp: string }) {
-  const now = useNow();
-  return <>{formatRelativeTime(timestamp, new Date(now))}</>;
 }
 
 /**
@@ -66,7 +56,7 @@ export default function FlippeningSummary() {
             <>
               <span className="text-white">{latestFlip.winner.name}</span> flipped{' '}
               <span className="text-white">{latestFlip.loser.name}</span> in {timeRange} blob
-              share <FlipAge timestamp={latestFlip.timestamp} />
+              share <RelativeTime timestamp={latestFlip.timestamp} />
             </>
           ) : gap ? (
             <>

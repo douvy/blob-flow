@@ -76,9 +76,13 @@ export interface FlippeningStanding {
   sharePercent: number;
   /** Points behind the rollup one place above, null for the leader. */
   gapToAbovePoints: number | null;
-  /** Most recent flip this rollup won, if any. */
+  /**
+   * Most recent flip this rollup won that still stands: it is the newest
+   * event for that pair and the rollup is still ahead of the one it passed.
+   * Null once the pair has flipped back.
+   */
   lastFlipWon: FlippeningEvent | null;
-  /** Most recent flip this rollup lost, if any. */
+  /** Most recent flip this rollup lost and has not yet reversed. */
   lastFlipLost: FlippeningEvent | null;
 }
 
@@ -346,26 +350,65 @@ export function computeStandings(
   const latest = buckets[buckets.length - 1];
   if (latest === undefined) return [];
 
-  const lastWonByKey = new Map<string, FlippeningEvent>();
-  const lastLostByKey = new Map<string, FlippeningEvent>();
-  for (const event of events) {
-    lastWonByKey.set(event.winner.key, event);
-    lastLostByKey.set(event.loser.key, event);
-  }
-
-  return entities
+  const ranked = entities
     .map((entity) => ({ entity, share: latest.sharePercentByKey[entity.key] ?? 0 }))
     .sort((a, b) =>
       b.share !== a.share ? b.share - a.share : a.entity.key.localeCompare(b.entity.key)
-    )
-    .map((row, index, ranked) => ({
-      rank: index + 1,
-      entity: row.entity,
-      sharePercent: row.share,
-      gapToAbovePoints: index === 0 ? null : ranked[index - 1].share - row.share,
-      lastFlipWon: lastWonByKey.get(row.entity.key) ?? null,
-      lastFlipLost: lastLostByKey.get(row.entity.key) ?? null,
-    }));
+    );
+  const rankByKey = new Map(ranked.map((row, index) => [row.entity.key, index]));
+
+  // Only the newest event per pair can still describe that pair, and only
+  // when the winner is still ahead. A pair that flips back and forth would
+  // otherwise leave both rollups claiming they passed each other, and a
+  // rollup that was overtaken again would keep advertising a lead it has
+  // already lost.
+  const latestByPair = new Map<string, FlippeningEvent>();
+  for (const event of events) {
+    const pairKey = [event.winner.key, event.loser.key].sort().join('|');
+    latestByPair.set(pairKey, event);
+  }
+
+  // Newest flip wins. Passing several rivals in one bucket is a genuine
+  // tie, so it breaks toward the highest-ranked opponent: "passed Base"
+  // says more than "passed the rollup in tenth".
+  const beats = (
+    candidate: FlippeningEvent,
+    held: FlippeningEvent | undefined,
+    opponentOf: (event: FlippeningEvent) => string
+  ): boolean => {
+    if (held === undefined) return true;
+    if (candidate.bucketIndex !== held.bucketIndex) {
+      return candidate.bucketIndex > held.bucketIndex;
+    }
+    const candidateRank = rankByKey.get(opponentOf(candidate)) ?? Infinity;
+    const heldRank = rankByKey.get(opponentOf(held)) ?? Infinity;
+    return candidateRank < heldRank;
+  };
+
+  const standingWon = new Map<string, FlippeningEvent>();
+  const standingLost = new Map<string, FlippeningEvent>();
+  for (const event of latestByPair.values()) {
+    const winnerRank = rankByKey.get(event.winner.key);
+    const loserRank = rankByKey.get(event.loser.key);
+    if (winnerRank === undefined || loserRank === undefined) continue;
+    if (winnerRank >= loserRank) continue;
+
+    if (beats(event, standingWon.get(event.winner.key), (candidate) => candidate.loser.key)) {
+      standingWon.set(event.winner.key, event);
+    }
+    if (beats(event, standingLost.get(event.loser.key), (candidate) => candidate.winner.key)) {
+      standingLost.set(event.loser.key, event);
+    }
+  }
+
+  return ranked.map((row, index) => ({
+    rank: index + 1,
+    entity: row.entity,
+    sharePercent: row.share,
+    gapToAbovePoints: index === 0 ? null : ranked[index - 1].share - row.share,
+    lastFlipWon: standingWon.get(row.entity.key) ?? null,
+    lastFlipLost: standingLost.get(row.entity.key) ?? null,
+  }));
 }
 
 /**
