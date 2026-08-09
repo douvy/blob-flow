@@ -36,6 +36,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       { url: url('/blocks'), changeFrequency: 'always', priority: weight(0.8) },
       { url: url('/live'), changeFrequency: 'always', priority: weight(0.7) },
       { url: url('/mempool'), changeFrequency: 'always', priority: weight(0.7) },
+      { url: url('/users'), changeFrequency: 'hourly', priority: weight(0.7) },
       { url: url('/records'), changeFrequency: 'hourly', priority: weight(0.7) },
       { url: url('/flippening'), changeFrequency: 'hourly', priority: weight(0.6) },
       { url: url('/card'), changeFrequency: 'weekly', priority: weight(0.5) },

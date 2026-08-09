@@ -1,15 +1,8 @@
 "use client";
 
-import React from 'react';
-import { useRouter } from 'next/navigation';
-import Link from '@/components/NetworkLink';
-import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUp,
-  ArrowUpDown,
-  CircleHelp,
-} from 'lucide-react';
+import React, { Suspense } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ArrowDown, ArrowUp, ArrowUpDown, CircleHelp } from 'lucide-react';
 import {
   flexRender,
   getCoreRowModel,
@@ -21,16 +14,20 @@ import {
 } from '@tanstack/react-table';
 import { BackendUsersRange, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
+import { useApiData } from '../hooks/useApiData';
+import { api } from '../lib/api';
 import { useNetwork } from '../hooks/useNetwork';
-import { useTopUsers } from '../hooks/useTopUsers';
-import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
+import { trackEvent } from '../lib/analytics';
 import {
   assignSeriesColors,
   attributionColorKey,
+  formatCostEthOrWei,
+  formatNumber,
   networkPath,
   type SeriesColorInput,
 } from '../utils';
 import AttributionBadge from './AttributionBadge';
+import { RelativeTime } from './RelativeTime';
 import {
   Table,
   TableBody,
@@ -41,25 +38,78 @@ import {
 } from './ui/table';
 import { Skeleton } from './ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { useFlipRows } from '../hooks/useFlipRows';
 
-// On phones the name column takes half the row so attribution names stay
-// readable; Count and % of Total shrink to fit their compact mobile content.
+export const USERS_LEADERBOARD_LIMIT = 50;
+
+// The leaderboard gets no users_update overlay: those events carry however
+// many rows the backend broadcasts (sized for the dashboard's table), and
+// folding a shorter live list over a 50-row fetch would truncate the page.
+const REFRESH_INTERVAL_MS = 60_000;
+
+const RANGE_OPTIONS: ReadonlyArray<{ value: BackendUsersRange; label: string }> = [
+  { value: '1h', label: '1h' },
+  { value: '24h', label: '24h' },
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+  { value: 'all', label: 'All' },
+];
+
+const RANGE_DESCRIPTIONS: Record<BackendUsersRange, string> = {
+  '1h': 'the last hour',
+  '24h': 'the last 24 hours',
+  '7d': 'the last 7 days',
+  '30d': 'the last 30 days',
+  all: 'all indexed history',
+};
+
+// All time is the default: the windowed views already live on the dashboard
+// table, while this page is the only place the full history is visible.
+const DEFAULT_RANGE: BackendUsersRange = 'all';
+
+function isUsersRange(value: string | null): value is BackendUsersRange {
+  return RANGE_OPTIONS.some((option) => option.value === value);
+}
+
+// On phones only rank, user, count, and share fit; spend and last activity
+// join at md, where the row has room for six columns. The count column gets
+// the widest phone share so an eight-digit all-time count never spills into
+// its neighbor.
 const COLUMN_WIDTHS: Record<string, string> = {
-  name: 'w-1/2 sm:w-1/3',
-  dataCount: 'w-[28%] sm:w-1/3',
-  percentage: 'w-[22%] sm:w-1/3',
+  rank: 'w-[9%] md:w-[7%]',
+  name: 'w-[43%] md:w-[26%]',
+  dataCount: 'w-[27%] md:w-[13%]',
+  percentage: 'w-[21%] md:w-[26%]',
+  totalCost: 'hidden md:table-cell md:w-[15%]',
+  lastActive: 'hidden md:table-cell md:w-[13%]',
 };
 // Overrides the table primitives' px-6, which is too wide for phone columns.
-const CELL_PADDING = 'px-3 sm:px-6';
+const CELL_PADDING = 'px-2 sm:px-6';
 const EMPTY_USERS: User[] = [];
 
-const RANGE_LABELS: Record<TimeRange, string> = {
-  '1h': 'Last hour',
-  '24h': 'Last 24 hours',
-  '7d': 'Last 7 days',
-  '30d': 'Last 30 days',
-};
+const WEI_PER_ETH = BigInt('1000000000000000000');
+
+/**
+ * Total cost as wei for sorting. Prefers the exact wei string; the ETH
+ * decimal fallback is parsed to wei rather than floated so near-equal spends
+ * still order correctly.
+ */
+function totalCostWeiValue(user: User): bigint {
+  if (user.totalCostWei && /^\d+$/.test(user.totalCostWei)) {
+    return BigInt(user.totalCostWei);
+  }
+  const [whole = '', fraction = ''] = user.totalCostEth.split('.');
+  if (!/^\d*$/.test(whole) || !/^\d*$/.test(fraction)) return BigInt(0);
+  return (
+    BigInt(whole || '0') * WEI_PER_ETH +
+    BigInt(fraction.slice(0, 18).padEnd(18, '0') || '0')
+  );
+}
+
+function compareBigint(a: bigint, b: bigint): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
 
 /**
  * Unattributed users are displayed under their truncated address; give them
@@ -122,34 +172,58 @@ function UserIdentity({ user }: { user: User }) {
   );
 }
 
-export default function TopUsersTable() {
+function LeaderboardInner() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { selectedNetwork } = useNetwork();
-  const { timeRange } = useTimeRange();
-  const usersRange: BackendUsersRange = timeRange;
+
+  // The URL is the only range state: pills rewrite ?range=, so the address
+  // bar always states the view on screen, a shared link opens on the window
+  // it was captured at, and back/forward restore the range they left.
+  const rangeParam = searchParams.get('range');
+  const range: BackendUsersRange = isUsersRange(rangeParam) ? rangeParam : DEFAULT_RANGE;
+
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: 'dataCount', desc: true },
   ]);
 
-  // Shares its cache entry and live users_update fold with the Top User
-  // metric card via useTopUsers, so the two can never disagree.
-  const {
-    data: displayData,
-    isLoading,
-    error,
-    scopeKey: liveScopeKey,
-  } = useTopUsers(10, selectedNetwork.apiParam, usersRange);
+  const { data: displayData, isLoading, error } = useApiData(
+    () => api.getTopUsers(USERS_LEADERBOARD_LIMIT, selectedNetwork.apiParam, range),
+    ['top-users', selectedNetwork.apiParam, USERS_LEADERBOARD_LIMIT, range],
+    { refetchInterval: REFRESH_INTERVAL_MS }
+  );
   const tableData = displayData?.data ?? EMPTY_USERS;
-  const tbodyRef = React.useRef<HTMLTableSectionElement | null>(null);
-  useFlipRows(tbodyRef, liveScopeKey);
+
+  const handleRangeChange = (next: BackendUsersRange) => {
+    if (next === range) return;
+    trackEvent('time-range-change', { range: next, previous: range });
+    // Replace rather than push: a filter change is not a navigation worth a
+    // history entry. Unrelated query params survive the rewrite.
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('range', next);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   const userColors = React.useMemo(
     () => assignSeriesColors(tableData.map(userColorInput)),
     [tableData]
   );
 
+  // The server orders by blob count in the window, and transformUserResponses
+  // numbers rows in that order, so id is the rank and stays attached to its
+  // row through client-side re-sorts.
   const columns = React.useMemo<ColumnDef<User>[]>(
     () => [
+      {
+        id: 'rank',
+        accessorKey: 'id',
+        header: () => <span aria-label="Rank">#</span>,
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="tabular-nums text-[#8a93a5]">{row.original.id}</span>
+        ),
+      },
       {
         accessorKey: 'name',
         header: ({ column }) => (
@@ -160,31 +234,37 @@ export default function TopUsersTable() {
       {
         accessorKey: 'dataCount',
         header: ({ column }) => (
+          <SortableHeader column={column}>Blobs</SortableHeader>
+        ),
+        cell: ({ row }) => (
+          <span className="tabular-nums">{formatNumber(row.original.dataCount)}</span>
+        ),
+      },
+      {
+        accessorKey: 'percentage',
+        header: ({ column }) => (
           <div className="flex items-center gap-1">
-            <SortableHeader column={column}>Count</SortableHeader>
+            <SortableHeader column={column}>
+              <span className="sm:hidden">%</span>
+              <span className="hidden sm:inline">Share</span>
+            </SortableHeader>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
                   className="hidden rounded-sm text-[#6e7787] hover:text-bodyText focus:outline-none focus:ring-2 focus:ring-blue sm:inline-flex"
-                  aria-label="Recent indexed activity"
+                  aria-label="How share is measured"
                 >
                   <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>{RANGE_LABELS[timeRange]}</TooltipContent>
+              <TooltipContent>
+                {displayData?.hasServerShares
+                  ? `Share of all blobs posted in ${RANGE_DESCRIPTIONS[range]}`
+                  : `Share of the ${tableData.length} users listed`}
+              </TooltipContent>
             </Tooltip>
           </div>
-        ),
-        cell: ({ row }) => row.original.dataCount,
-      },
-      {
-        accessorKey: 'percentage',
-        header: ({ column }) => (
-          <SortableHeader column={column}>
-            <span className="sm:hidden">%</span>
-            <span className="hidden sm:inline">% of Total</span>
-          </SortableHeader>
         ),
         cell: ({ row }) => {
           const user = row.original;
@@ -208,8 +288,30 @@ export default function TopUsersTable() {
           );
         },
       },
+      {
+        id: 'totalCost',
+        accessorFn: (user) => user.totalCostWei ?? user.totalCostEth,
+        header: ({ column }) => (
+          <SortableHeader column={column}>Total Cost</SortableHeader>
+        ),
+        sortingFn: (a, b) =>
+          compareBigint(totalCostWeiValue(a.original), totalCostWeiValue(b.original)),
+        cell: ({ row }) => (
+          <span className="tabular-nums">
+            {formatCostEthOrWei(row.original.totalCostWei || row.original.totalCostEth)}
+          </span>
+        ),
+      },
+      {
+        id: 'lastActive',
+        accessorFn: (user) => Date.parse(user.lastTimestamp) || 0,
+        header: ({ column }) => (
+          <SortableHeader column={column}>Last Active</SortableHeader>
+        ),
+        cell: ({ row }) => <RelativeTime timestamp={row.original.lastTimestamp} />,
+      },
     ],
-    [timeRange, userColors]
+    [displayData?.hasServerShares, range, tableData.length, userColors]
   );
 
   const table = useReactTable({
@@ -245,19 +347,26 @@ export default function TopUsersTable() {
       <Table className="min-w-full table-fixed overflow-hidden">
         <TableHeader>
           <TableRow className="bg-gradient-to-b from-[#22252c] to-[#16171b]">
+            <TableHead className={`${CELL_PADDING} ${COLUMN_WIDTHS.rank}`}>#</TableHead>
             <TableHead className={`${CELL_PADDING} ${COLUMN_WIDTHS.name}`}>User</TableHead>
             <TableHead className={`whitespace-nowrap ${CELL_PADDING} ${COLUMN_WIDTHS.dataCount}`}>
-              Count
+              Blobs
             </TableHead>
-            <TableHead className={`${CELL_PADDING} ${COLUMN_WIDTHS.percentage}`}>
-              <span className="sm:hidden">%</span>
-              <span className="hidden sm:inline">% of Total</span>
+            <TableHead className={`${CELL_PADDING} ${COLUMN_WIDTHS.percentage}`}>Share</TableHead>
+            <TableHead className={`whitespace-nowrap ${CELL_PADDING} ${COLUMN_WIDTHS.totalCost}`}>
+              Total Cost
+            </TableHead>
+            <TableHead className={`whitespace-nowrap ${CELL_PADDING} ${COLUMN_WIDTHS.lastActive}`}>
+              Last Active
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody className="divide-y divide-divider">
-          {[...Array(5)].map((_, index) => (
+          {[...Array(10)].map((_, index) => (
             <TableRow key={index} className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
+              <TableCell className={CELL_PADDING}>
+                <Skeleton className="h-5 w-6" />
+              </TableCell>
               <TableCell className={CELL_PADDING}>
                 <div className="flex min-w-0 items-center">
                   <Skeleton className="mr-3 h-5 w-5 shrink-0 rounded-full" />
@@ -275,6 +384,12 @@ export default function TopUsersTable() {
                   </div>
                 </div>
               </TableCell>
+              <TableCell className={`${CELL_PADDING} hidden md:table-cell`}>
+                <Skeleton className="h-5 w-20" />
+              </TableCell>
+              <TableCell className={`${CELL_PADDING} hidden md:table-cell`}>
+                <Skeleton className="h-5 w-16" />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -283,20 +398,25 @@ export default function TopUsersTable() {
   );
 
   return (
-    <section>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex flex-wrap items-center gap-3 text-2xl font-windsor-bold text-white">
-          Top Blob Users{' '}
-          <span className="whitespace-nowrap rounded-full border border-divider bg-container px-2.5 py-0.5 font-gt-flexa text-xs font-normal text-[#8a93a5]">
-            {RANGE_LABELS[timeRange]}
-          </span>
-        </h2>
-        <Link
-          href="/users"
-          className="inline-flex items-center gap-1 text-sm text-blue hover:underline whitespace-nowrap"
-        >
-          View all users <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </Link>
+    <div>
+      <div
+        className="mb-4 inline-flex items-center space-x-1 rounded-md bg-background/30 p-0.5"
+        role="group"
+        aria-label="Time window"
+      >
+        {RANGE_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            onClick={() => handleRangeChange(option.value)}
+            aria-pressed={option.value === range}
+            className={`px-3 py-1 text-sm rounded-md transition-none ${option.value === range
+              ? 'bg-[#1d1f23] text-white border border-divider border-b-[#282a2f] border-b-2'
+              : 'text-white hover:text-white/90 border border-transparent'
+              }`}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
 
       <DataStateWrapper
@@ -330,11 +450,20 @@ export default function TopUsersTable() {
                   </TableRow>
                 ))}
               </TableHeader>
-              <TableBody ref={tbodyRef} className="divide-y divide-divider">
+              <TableBody className="divide-y divide-divider">
+                {tableData.length === 0 && (
+                  <TableRow className="bg-gradient-to-r from-[#17181b] to-[#141519]/60">
+                    <TableCell
+                      colSpan={columns.length}
+                      className={`${CELL_PADDING} py-8 text-center text-sm text-[#6c727f]`}
+                    >
+                      No blob activity in this window.
+                    </TableCell>
+                  </TableRow>
+                )}
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.original.address}
-                    data-row-key={row.original.address}
                     className="cursor-pointer bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
                     onClick={() => goToUser(row.original.address)}
                     onKeyDown={(event) => handleRowKeyDown(event, row.original.address)}
@@ -357,6 +486,23 @@ export default function TopUsersTable() {
           </div>
         )}
       </DataStateWrapper>
-    </section>
+    </div>
+  );
+}
+
+/**
+ * Full blob users leaderboard: the dashboard's top-10 table expanded to the
+ * top 50, with rank, total spend, last activity, and the all-time window the
+ * backend supports but the dashboard never shows.
+ *
+ * The Suspense boundary is required: the inner component reads
+ * useSearchParams for the ?range= deep link, which opts its subtree into
+ * client rendering on the statically prerendered page.
+ */
+export default function UsersLeaderboard() {
+  return (
+    <Suspense fallback={null}>
+      <LeaderboardInner />
+    </Suspense>
   );
 }
