@@ -158,13 +158,18 @@ function Standings({
               </span>
               <AttributionBadge user={standing.entity.name} sizeClass="h-5 w-5" />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                {/* Wraps rather than overflowing: the badges are as wide as the
+                    names inside them, so on a narrow viewport they would run
+                    under the share column if they stayed on the name's line. */}
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="truncate text-sm text-white">{standing.entity.name}</span>
                   {standing.lastFlipWon && (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-green/10 px-1.5 py-0.5 text-[10px] text-green">
-                      <ArrowUp className="h-3 w-3" aria-hidden="true" />
-                      passed {standing.lastFlipWon.loser.name}{' '}
-                      <EventTime iso={standing.lastFlipWon.timestamp} />
+                    <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-sm bg-green/10 px-1.5 py-0.5 text-[10px] text-green">
+                      <ArrowUp className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      <span className="truncate">passed {standing.lastFlipWon.loser.name}</span>
+                      <span className="shrink-0">
+                        <EventTime iso={standing.lastFlipWon.timestamp} />
+                      </span>
                     </span>
                   )}
                   {inClosestPair && (
