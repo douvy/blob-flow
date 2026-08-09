@@ -4,10 +4,29 @@ import Image from 'next/image';
 import React from 'react';
 import { useNetwork } from '../hooks/useNetwork';
 import {
+  attributionNeedsLightBackdrop,
   getAttributionImageSrc,
   getAttributionInitial,
   getAttributionTestnetLabel,
 } from '../utils';
+
+/**
+ * Hairline outline drawn just inside the badge circle. Brand marks that are
+ * dark all the way to their edge (Shape's black disc, X Layer, Blast) have
+ * nothing to separate them from the #121316 page without it, and recoloring
+ * the artwork is not an option. Rendered as an overlay rather than a ring on
+ * the image itself, because an inset shadow on a replaced element is painted
+ * underneath the image content.
+ */
+const ICON_OUTLINE = 'pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-white/12';
+
+/**
+ * Light disc behind a dark logo that leaves its circle see-through, so the
+ * glyph reads as dark-on-light instead of dark-on-dark. The padding keeps a
+ * sliver of backdrop visible at the edge, between the artwork and the
+ * outline.
+ */
+const ICON_BACKDROP = 'bg-white/90 p-px';
 
 /**
  * Amber strip naming a testnet, overlaid on the bottom edge of an entity
@@ -63,20 +82,24 @@ export default function AttributionBadge({
   const { selectedNetwork } = useNetwork();
   const imageSrc = getAttributionImageSrc(user);
   const testnetLabel = getAttributionTestnetLabel(user, selectedNetwork);
+  const backdrop = attributionNeedsLightBackdrop(user) ? ICON_BACKDROP : '';
 
   return (
     <span className={`relative inline-flex shrink-0 ${className}`} title={title}>
       {imageSrc ? (
-        <Image
-          src={imageSrc}
-          alt=""
-          width={px}
-          height={px}
-          className={`${sizeClass} shrink-0 rounded-full`}
-          // The optimizer refuses SVGs without dangerouslyAllowSVG; the
-          // vector registry icons are tiny, so serve them as-is instead.
-          unoptimized={imageSrc.endsWith('.svg')}
-        />
+        <>
+          <Image
+            src={imageSrc}
+            alt=""
+            width={px}
+            height={px}
+            className={`${sizeClass} shrink-0 rounded-full ${backdrop}`}
+            // The optimizer refuses SVGs without dangerouslyAllowSVG; the
+            // vector registry icons are tiny, so serve them as-is instead.
+            unoptimized={imageSrc.endsWith('.svg')}
+          />
+          <span aria-hidden="true" className={ICON_OUTLINE} />
+        </>
       ) : (
         <span
           className={`${sizeClass} inline-flex shrink-0 items-center justify-center rounded-full bg-gray-500 ${textClass} font-medium text-white`}
