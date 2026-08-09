@@ -8,6 +8,16 @@ import {
 } from '@/constants';
 import { networkPath } from '@/utils';
 import { OG_CARD_DEFAULT_RANGE } from '@/lib/ogChartSeries';
+import {
+  buildCardHref,
+  buildCardImagePath,
+  CARD_RANGE_LABELS,
+  cardHeadline,
+  NETWORK_WIDE_ENTITY,
+  NETWORK_WIDE_NAME,
+  parseCardParams,
+  titleCaseSlug,
+} from '@/lib/statCard';
 
 /**
  * Page metadata shared by the bare routes (default network) and the
@@ -134,6 +144,48 @@ export function transactionMetadata(hash: string, network?: string): Metadata {
   return {
     title: `Blob Transaction · ${shortTxHash(canonicalHash)}${titleSuffix(network)}`,
     alternates: canonical(`/tx/${canonicalHash}`, network),
+  };
+}
+
+/**
+ * Stat card metadata. The whole card lives in the link's query string, so the
+ * share image is generated from those same validated params and a pasted link
+ * unfurls into the card its author built. Called from the pages because only
+ * they see searchParams.
+ */
+export function cardMetadata(
+  searchParams: { [key: string]: string | string[] | undefined },
+  network?: string
+): Metadata {
+  const params = parseCardParams(searchParams, network);
+  const entityName =
+    params.entity === NETWORK_WIDE_ENTITY ? NETWORK_WIDE_NAME : titleCaseSlug(params.entity);
+  // The name comes from the slug rather than a lookup: metadata must not
+  // depend on the indexer being reachable, and the image carries the real one.
+  const title = `${cardHeadline(params, entityName)}${titleSuffix(network)}`;
+  const description = `${entityName} blob activity, ${CARD_RANGE_LABELS[
+    params.range
+  ].toLowerCase()}, as a shareable ${SITE_NAME} stat card.`;
+  const cardUrl = buildCardImagePath(params);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: buildCardHref(params) },
+    openGraph: {
+      type: 'website',
+      siteName: SITE_NAME,
+      title,
+      description,
+      url: buildCardHref(params),
+      images: [{ url: cardUrl, width: 1200, height: 630, alt: title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [{ url: cardUrl, alt: title }],
+    },
   };
 }
 
