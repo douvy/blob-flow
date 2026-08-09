@@ -136,6 +136,57 @@
   }
 }
 
+/* TV mode (/live) ---------------------------------------------------- */
+
+/* Burn-in mitigation: the whole kiosk canvas creeps a few pixels around a
+   slow loop, so no bright glyph sits on one panel pixel for hours. The
+   canvas is inset by its own padding, so nothing is clipped at the edges. */
+@keyframes kiosk-drift {
+  0%, 100% {
+    transform: translate3d(-9px, -7px, 0);
+  }
+
+  25% {
+    transform: translate3d(9px, -3px, 0);
+  }
+
+  50% {
+    transform: translate3d(7px, 8px, 0);
+  }
+
+  75% {
+    transform: translate3d(-6px, 5px, 0);
+  }
+}
+
+/* Panel edge lights up when a block lands, then fades out completely. Drawn
+   by an overlay rather than the panel itself, so the animation can restart
+   per block without remounting the panel's contents. */
+@keyframes kiosk-block-flash {
+  0% {
+    border-color: rgba(154, 196, 253, 0.75);
+    box-shadow: inset 0 0 60px rgba(59, 85, 230, 0.22);
+  }
+
+  100% {
+    border-color: rgba(154, 196, 253, 0);
+    box-shadow: inset 0 0 60px rgba(59, 85, 230, 0);
+  }
+}
+
+/* Newest ticker card slides in from the leading edge as the row shifts. */
+@keyframes kiosk-ticker-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-30%);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Content area with solid background - spans between gutter lines */
 @utility content-area {
   background: var(--color-background);

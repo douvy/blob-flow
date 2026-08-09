@@ -84,6 +84,17 @@ export function mempoolMetadata(network?: string): Metadata {
   };
 }
 
+export function liveMetadata(network?: string): Metadata {
+  return {
+    title: `TV Mode: Live Blob Market${titleSuffix(network)}`,
+    description:
+      'Full-screen live view of the Ethereum blob market: current blob base fee, next-block ' +
+      'prediction, blobspace fullness, and the rollups filling recent blocks. Built for ' +
+      'conference screens and stream overlays.',
+    alternates: canonical('/live', network),
+  };
+}
+
 export function blockMetadata(blockNumber: string, network?: string): Metadata {
   return {
     title: `Block ${blockNumber} Blob Details${titleSuffix(network)}`,
