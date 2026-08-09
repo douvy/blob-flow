@@ -1,8 +1,13 @@
 import { ImageResponse } from 'next/og';
-import { parseNetwork } from '@/constants';
 import { OgCard, OG_CARD_CACHE_CONTROL, OG_SIZE, loadOgFonts, loadOgLogo } from '@/lib/og/card';
 import { getBlockOgData } from '@/lib/og/data';
 import { buildBlockCard, buildFallbackCard } from '@/lib/og/format';
+import {
+    cardNetwork,
+    cardNotFound,
+    hasCanonicalQuery,
+    parseCanonicalBlockNumber,
+} from '@/lib/og/request';
 
 /**
  * Branded social share card for a block's blob details. Sibling of the chart
@@ -16,33 +21,34 @@ export async function GET(
     { params }: { params: Promise<{ number: string }> }
 ) {
     const { number } = await params;
-    const network = parseNetwork(new URL(request.url).searchParams.get('network'));
+    const query = new URL(request.url).searchParams;
 
-    // Every distinct URL is its own rasterization and cache key, so a
-    // non-numeric block never reaches the backend or renders a card.
-    if (!/^\d+$/.test(number)) {
-        return new Response('Not found', {
-            status: 404,
-            headers: { 'Cache-Control': OG_CARD_CACHE_CONTROL },
-        });
-    }
+    const blockNumber = parseCanonicalBlockNumber(number);
+    if (blockNumber === null || !hasCanonicalQuery(query)) return cardNotFound();
 
-    const blockNumber = Number(number);
+    const network = await cardNetwork(query);
     const [fonts, logoSrc, block] = await Promise.all([
         loadOgFonts(),
         loadOgLogo(),
         getBlockOgData(blockNumber, network),
     ]);
-    const content = block
-        ? buildBlockCard(blockNumber, block, network)
-        : buildFallbackCard(
-              {
-                  eyebrow: 'Block blob details',
-                  title: `Block ${new Intl.NumberFormat().format(blockNumber)}`,
-                  subtitle: 'Blob activity for this block',
-              },
-              network
-          );
+
+    // A block the indexer says does not exist has no card. An indexer that
+    // could not answer is a different matter: the block may well exist, so
+    // the URL still gets a branded card rather than a cached 404.
+    if (block.status === 'missing') return cardNotFound();
+
+    const content =
+        block.status === 'ok'
+            ? buildBlockCard(blockNumber, block.data, network)
+            : buildFallbackCard(
+                  {
+                      eyebrow: 'Block blob details',
+                      title: `Block ${new Intl.NumberFormat().format(blockNumber)}`,
+                      subtitle: 'Blob activity for this block',
+                  },
+                  network
+              );
 
     return new ImageResponse(<OgCard content={content} logoSrc={logoSrc} />, {
         ...OG_SIZE,

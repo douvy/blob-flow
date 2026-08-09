@@ -1,8 +1,8 @@
 import { ImageResponse } from 'next/og';
-import { parseNetwork } from '@/constants';
 import { OgCard, OG_CARD_CACHE_CONTROL, OG_SIZE, loadOgFonts, loadOgLogo } from '@/lib/og/card';
 import { getUserOgData, isBlobSenderAddress } from '@/lib/og/data';
 import { buildFallbackCard, buildUserCard } from '@/lib/og/format';
+import { cardNetwork, cardNotFound, hasCanonicalQuery } from '@/lib/og/request';
 import { truncateAddress } from '@/utils';
 
 /**
@@ -17,32 +17,41 @@ export async function GET(
     { params }: { params: Promise<{ address: string }> }
 ) {
     const { address } = await params;
-    const network = parseNetwork(new URL(request.url).searchParams.get('network'));
+    const query = new URL(request.url).searchParams;
 
-    // Every distinct URL is its own rasterization and cache key, so a
-    // malformed address never reaches the backend or renders a card.
-    if (!isBlobSenderAddress(address)) {
-        return new Response('Not found', {
-            status: 404,
-            headers: { 'Cache-Control': OG_CARD_CACHE_CONTROL },
-        });
+    // One address, one card URL: the checksummed and lowercase spellings of
+    // an address would otherwise be two rasterizations of the same card.
+    const canonicalAddress = address.toLowerCase();
+    if (
+        !isBlobSenderAddress(address) ||
+        address !== canonicalAddress ||
+        !hasCanonicalQuery(query)
+    ) {
+        return cardNotFound();
     }
 
+    const network = await cardNetwork(query);
     const [fonts, logoSrc, user] = await Promise.all([
         loadOgFonts(),
         loadOgLogo(),
-        getUserOgData(address, network),
+        getUserOgData(canonicalAddress, network),
     ]);
-    const content = user
-        ? buildUserCard(address, user, network)
-        : buildFallbackCard(
-              {
-                  eyebrow: 'Blob sender',
-                  title: truncateAddress(address),
-                  subtitle: 'Blob activity for this address',
-              },
-              network
-          );
+
+    // An address the indexer has never seen send a blob has no card. An
+    // indexer that could not answer still gets a branded one.
+    if (user.status === 'missing') return cardNotFound();
+
+    const content =
+        user.status === 'ok'
+            ? buildUserCard(canonicalAddress, user.data, network)
+            : buildFallbackCard(
+                  {
+                      eyebrow: 'Blob sender',
+                      title: truncateAddress(canonicalAddress),
+                      subtitle: 'Blob activity for this address',
+                  },
+                  network
+              );
 
     return new ImageResponse(<OgCard content={content} logoSrc={logoSrc} />, {
         ...OG_SIZE,

@@ -113,6 +113,25 @@ describe('og/format', () => {
         expect(ogNetworkLabel()).toBe('Ethereum Mainnet');
     });
 
+    // The label comes from the requested scope, so it stays truthful only
+    // because the data layer refuses a response for another network. This
+    // pins the label to the scope rather than to whatever the payload says.
+    it('labels from the requested network, not the payload it was handed', () => {
+        const attribution = makeAttribution([{ name: 'Base', blob_share_percent: 10 }]);
+        attribution.network_name = 'mainnet';
+
+        const card = buildHomeCard(
+            { pricing, attribution },
+            { network: NETWORKS.SEPOLIA, range: '1h' }
+        );
+
+        expect(card!.networkLabel).toBe('Ethereum Sepolia');
+    });
+
+    it('names any served network, not just the bootstrap two', () => {
+        expect(ogNetworkLabel({ name: 'Hoodi', apiParam: 'hoodi' })).toBe('Ethereum Hoodi');
+    });
+
     it('returns null for the dashboard card without pricing data', () => {
         expect(buildHomeCard({ pricing: null, attribution: null })).toBeNull();
     });
