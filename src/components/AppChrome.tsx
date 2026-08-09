@@ -12,11 +12,24 @@ import Footer from './Footer';
  */
 const CHROMELESS_ROUTES = ['/live'];
 
+function matchesChromelessRoute(path: string): boolean {
+  return CHROMELESS_ROUTES.some(
+    (route) => path === route || path.startsWith(`${route}/`)
+  );
+}
+
 export function isChromelessRoute(pathname: string | null): boolean {
   if (!pathname) return false;
-  return CHROMELESS_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
-  );
+  if (matchesChromelessRoute(pathname)) return true;
+
+  // Network-scoped copies live under /<network>/live. The leading segment is
+  // dropped without consulting the network list: the [network] layout 404s
+  // any segment the deployment does not serve, so a path that renders at all
+  // and ends in a chromeless route is that route. Matching on the list would
+  // instead frame a dynamic-only network's kiosk in chrome whenever the
+  // fallback list was in use.
+  const withoutNetwork = pathname.replace(/^\/[^/]+/, '');
+  return withoutNetwork !== pathname && matchesChromelessRoute(withoutNetwork);
 }
 
 /**

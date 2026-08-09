@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from '@/components/NetworkLink';
 import { Block, BlobResponse } from '../types';
 import {
   beaconSlotForBlob,
@@ -10,6 +11,7 @@ import {
   formatBlobWeiCost,
   formatFeeHeadroom,
   truncateAddress,
+  truncateTxHash,
 } from '../utils';
 import { RelativeTime } from './RelativeTime';
 import RawBlobViewer from './RawBlobViewer';
@@ -17,11 +19,6 @@ import RawBlobActions from './RawBlobActions';
 import AttributionBadge from './AttributionBadge';
 import { useRawBlobAvailability } from '../hooks/useRawBlobAvailability';
 import { FEE_HEADROOM_TOOLTIP } from '../constants';
-
-function truncateTxHash(hash: string): string {
-  if (hash.length <= 14) return hash;
-  return `${hash.substring(0, 10)}...${hash.substring(hash.length - 4)}`;
-}
 
 function BlobUserCell({ blob }: { blob: BlobResponse }) {
   const attribution = blob.user_attribution || 'Unknown';
@@ -131,18 +128,13 @@ export function BlobDetailsContent({ block }: { block: Block }) {
                 </div>
                 <dl className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-3">
                   <BlobDetailField label="Tx Hash" title={blob.tx_hash} monospace>
-                    {blob.transaction_url ? (
-                      <a
-                        href={blob.transaction_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue hover:underline"
-                      >
-                        {truncateTxHash(blob.tx_hash)}
-                      </a>
-                    ) : (
-                      truncateTxHash(blob.tx_hash)
-                    )}
+                    <Link
+                      href={`/tx/${blob.tx_hash}`}
+                      className="text-blue hover:underline"
+                      aria-label={`Blob transaction ${blob.tx_hash}`}
+                    >
+                      {truncateTxHash(blob.tx_hash)}
+                    </Link>
                   </BlobDetailField>
                   <BlobDetailField label="From" title={blob.from_address} monospace>
                     {blob.from_address_url ? (

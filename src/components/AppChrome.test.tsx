@@ -25,10 +25,18 @@ describe('isChromelessRoute', () => {
     expect(isChromelessRoute('/live/mainnet')).toBe(true);
   });
 
+  it('covers the network-scoped copies of the kiosk', () => {
+    expect(isChromelessRoute('/sepolia/live')).toBe(true);
+    // Any served segment, including one absent from the fallback network list.
+    expect(isChromelessRoute('/some-new-chain/live')).toBe(true);
+  });
+
   it('does not match ordinary routes or lookalike prefixes', () => {
     expect(isChromelessRoute('/')).toBe(false);
     expect(isChromelessRoute('/blocks')).toBe(false);
     expect(isChromelessRoute('/livestream')).toBe(false);
+    expect(isChromelessRoute('/sepolia/blocks')).toBe(false);
+    expect(isChromelessRoute('/sepolia/livestream')).toBe(false);
     expect(isChromelessRoute(null)).toBe(false);
   });
 });

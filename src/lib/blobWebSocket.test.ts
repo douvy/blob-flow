@@ -71,8 +71,8 @@ describe('blobWebSocket', () => {
 
   it('derives websocket URLs from API URLs and preserves explicit overrides', () => {
     expect(
-      buildBlobWebSocketUrl('mainnet', 'https://blob-indexer.ahkc.win/api/v1', undefined)
-    ).toBe('wss://blob-indexer.ahkc.win/api/v1/ws?network=mainnet');
+      buildBlobWebSocketUrl('mainnet', 'https://api.blobflow.com/api/v1', undefined)
+    ).toBe('wss://api.blobflow.com/api/v1/ws?network=mainnet');
 
     expect(buildBlobWebSocketUrl('sepolia', 'http://localhost:8080/api/v1', undefined)).toBe(
       'ws://localhost:8080/api/v1/ws?network=sepolia'
