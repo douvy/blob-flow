@@ -2,18 +2,14 @@ import React from 'react';
 import type { Metadata } from 'next';
 import BlobFeeHero from '@/components/BlobFeeHero';
 import LiveMetrics from '@/components/LiveMetrics';
+import RelatableStats from '@/components/RelatableStats';
 import MetricsCharts from '@/components/MetricsCharts';
 import RecentBlocksPanel from '@/components/RecentBlocksPanel';
 import TopUsersTable from '@/components/TopUsersTable';
 import MempoolSummary from '@/components/MempoolSummary';
 import ExplainerSection from '@/components/ExplainerSection';
-import { ogImageMetadata } from '@/lib/og/metadata';
-import {
-  DEFAULT_TIME_RANGE,
-  TIME_RANGE_PARAM,
-  parseTimeRange,
-  timeRangeQuery,
-} from '@/lib/timeRange';
+import { homeMetadata } from '@/lib/pageMetadata';
+import { rangeFromSearchParams, type SearchParams } from '@/lib/timeRange';
 
 // The Open Graph card mirrors the time range selected in the UI, carried in
 // the shared URL as ?range=. Reading searchParams makes this page dynamic;
@@ -21,21 +17,9 @@ import {
 export async function generateMetadata({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<SearchParams>;
 }): Promise<Metadata> {
-  const resolvedParams = await searchParams;
-  const rawRange = resolvedParams[TIME_RANGE_PARAM];
-  const range = parseTimeRange(typeof rawRange === 'string' ? rawRange : null) ?? DEFAULT_TIME_RANGE;
-
-  return {
-    alternates: {
-      canonical: '/',
-    },
-    ...ogImageMetadata({
-      imageUrl: `/opengraph-image${timeRangeQuery(range)}`,
-      alt: 'BlobFlow: live Ethereum blob base fee and top rollup blob shares',
-    }),
-  };
+  return homeMetadata(undefined, rangeFromSearchParams(await searchParams));
 }
 
 export default function Home() {
@@ -67,6 +51,12 @@ export default function Home() {
           </div>
           <MetricsCharts />
         </div>
+      </div>
+
+      <div className="border-t border-frameLine" />
+
+      <div className="container mx-auto px-4 py-12 max-w-7xl">
+        <RelatableStats />
       </div>
     </>
   );

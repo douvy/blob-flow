@@ -83,17 +83,43 @@ describe('og/data', () => {
         await expect(fetchOgApi('/stats')).resolves.toBeNull();
     });
 
-    it('passes the requested range through to chart endpoints', async () => {
+    it('passes the requested range and network through to chart endpoints', async () => {
         const fetchMock = vi.fn().mockResolvedValue({
             ok: true,
             json: async () => ({ success: true, data: {} }),
         });
         global.fetch = fetchMock as unknown as typeof fetch;
 
-        await getAttributionOgChart('30d');
+        await getAttributionOgChart({ network: 'sepolia', range: '30d' });
 
         expect(fetchMock).toHaveBeenCalledWith(
-            expect.stringContaining('/charts/attribution-usage?range=30d'),
+            expect.stringContaining(
+                '/charts/attribution-usage?range=30d&granularity=auto&network=sepolia'
+            ),
+            expect.anything()
+        );
+    });
+
+    it('scopes block and user lookups to the requested network', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ success: true, data: {} }),
+        });
+        global.fetch = fetchMock as unknown as typeof fetch;
+
+        await getBlockOgData(21834102, 'sepolia');
+        await getUserOgData('0x1234567890abcdef1234567890abcdef12345678', 'sepolia');
+
+        expect(fetchMock).toHaveBeenNthCalledWith(
+            1,
+            expect.stringContaining('/block/21834102?network=sepolia'),
+            expect.anything()
+        );
+        expect(fetchMock).toHaveBeenNthCalledWith(
+            2,
+            expect.stringContaining(
+                '/users/0x1234567890abcdef1234567890abcdef12345678?network=sepolia'
+            ),
             expect.anything()
         );
     });

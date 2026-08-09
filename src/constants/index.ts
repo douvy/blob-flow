@@ -5,7 +5,7 @@
 import type { Network } from '../types';
 
 export const APP_NAME = 'Blob Flow';
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://blob-indexer.ahkc.win/api/v1';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.blobflow.com/api/v1';
 // Canonical site origin for SEO metadata (Open Graph URLs, sitemap, robots).
 // Set NEXT_PUBLIC_SITE_URL in production; falls back to Vercel's production
 // domain, then the current deployment URL. Trailing slashes are stripped so
@@ -37,6 +37,7 @@ export const CHART_PAGES = [
   { slug: 'base-fee', title: 'Blob Base Fee Chart' },
   { slug: 'gas-utilization', title: 'Blob Gas Utilization Chart' },
   { slug: 'blob-usage', title: 'Blob Usage Chart' },
+  { slug: 'blob-share', title: 'Blob Share Chart' },
   { slug: 'cost-comparison', title: 'Blob vs Calldata Cost Chart' },
   { slug: 'rolling-market-stats', title: 'Rolling Market Stats' },
 ] as const;

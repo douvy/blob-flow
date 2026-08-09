@@ -1,6 +1,6 @@
 "use client";
 
-import Link from 'next/link';
+import Link from '@/components/NetworkLink';
 import { ArrowLeft, Info } from 'lucide-react';
 import React from 'react';
 import AttributionBadge from '@/components/AttributionBadge';

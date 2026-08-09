@@ -18,8 +18,9 @@ import {
     formatWeiToGwei,
     truncateAddress,
 } from '@/utils';
-import type { HomeOgData } from './data';
-import { DEFAULT_TIME_RANGE, timeRangeLabel, type TimeRange } from '@/lib/timeRange';
+import { DEFAULT_NETWORK } from '@/constants';
+import { DEFAULT_OG_SCOPE, type HomeOgData, type OgScope } from './data';
+import { timeRangeLabel } from '@/lib/timeRange';
 
 /** Accent keys map to OG_COLORS in card.tsx. */
 export type OgAccent = 'blue' | 'lightBlue' | 'green' | 'red';
@@ -34,21 +35,40 @@ export interface OgCardContent {
     eyebrow: string;
     title: string;
     subtitle?: string;
+    /** Named on every card so a testnet unfurl is never mistaken for mainnet. */
+    networkLabel: string;
     stats: OgStat[];
 }
 
 const TAGLINE = 'Real-time Ethereum EIP-4844 blob market analytics';
+
+const NETWORK_SLUG_PATTERN = /^[a-z0-9-]{1,32}$/;
+
+/**
+ * How a network is named in the card's corner. Every network this site serves
+ * is an Ethereum network, so they all read as "Ethereum <Name>".
+ */
+export function ogNetworkLabel(network: string = DEFAULT_NETWORK.apiParam): string {
+    const slug = network.toLowerCase();
+    if (!NETWORK_SLUG_PATTERN.test(slug)) return `Ethereum ${DEFAULT_NETWORK.name}`;
+
+    return `Ethereum ${slug.charAt(0).toUpperCase()}${slug.slice(1)}`;
+}
 
 /**
  * Branded static card used whenever the indexer is unreachable or a route
  * param does not resolve to indexed data. Never throws, so an unfurl always
  * gets an image.
  */
-export function buildFallbackCard(overrides: Partial<OgCardContent> = {}): OgCardContent {
+export function buildFallbackCard(
+    overrides: Partial<OgCardContent> = {},
+    network: string = DEFAULT_NETWORK.apiParam
+): OgCardContent {
     return {
         eyebrow: 'Ethereum blob analytics',
         title: 'BlobFlow',
         subtitle: TAGLINE,
+        networkLabel: ogNetworkLabel(network),
         stats: [],
         ...overrides,
     };
@@ -84,7 +104,7 @@ function shareSummaryLine(
 
 export function buildHomeCard(
     { pricing, attribution }: HomeOgData,
-    range: TimeRange = DEFAULT_TIME_RANGE
+    { network, range }: OgScope = DEFAULT_OG_SCOPE
 ): OgCardContent | null {
     if (!pricing) return null;
 
@@ -113,19 +133,21 @@ export function buildHomeCard(
         eyebrow: 'Current blob base fee',
         title: formatGwei(pricing.current_base_fee_gwei, 4),
         subtitle: attribution ? shareSummaryLine(attribution, range) ?? TAGLINE : TAGLINE,
+        networkLabel: ogNetworkLabel(network),
         stats,
     };
 }
 
 export function buildBaseFeeCard(
     chart: BackendBlobMarketChartResponse,
-    range: TimeRange = DEFAULT_TIME_RANGE
+    { network, range }: OgScope = DEFAULT_OG_SCOPE
 ): OgCardContent {
     const { summary } = chart;
     return {
         eyebrow: `Blob base fee, ${timeRangeLabel(range)}`,
         title: formatGwei(summary.current_base_fee_gwei, 4),
         subtitle: 'Current blob base fee on Ethereum',
+        networkLabel: ogNetworkLabel(network),
         stats: [
             {
                 label: `${range} average`,
@@ -140,7 +162,7 @@ export function buildBaseFeeCard(
 
 export function buildGasUtilizationCard(
     chart: BackendBlobMarketChartResponse,
-    range: TimeRange = DEFAULT_TIME_RANGE
+    { network, range }: OgScope = DEFAULT_OG_SCOPE
 ): OgCardContent {
     const { summary } = chart;
     const utilizationRatio = Number(summary.average_utilization);
@@ -152,6 +174,7 @@ export function buildGasUtilizationCard(
         eyebrow: `Blob gas utilization, ${timeRangeLabel(range)}`,
         title: `${utilization} of target`,
         subtitle: 'Average blob gas used versus the protocol target',
+        networkLabel: ogNetworkLabel(network),
         stats: [
             { label: `${range} blobs`, value: formatNumber(summary.total_blobs), accent: 'green' },
             { label: 'Unique senders', value: formatNumber(summary.unique_senders), accent: 'lightBlue' },
@@ -162,7 +185,7 @@ export function buildGasUtilizationCard(
 
 export function buildBlobUsageCard(
     attribution: BackendAttributionUsageChartResponse,
-    range: TimeRange = DEFAULT_TIME_RANGE
+    { network, range }: OgScope = DEFAULT_OG_SCOPE
 ): OgCardContent {
     const shares = topAttributedShares(attribution);
     const stats: OgStat[] = shares.map((share, index) => ({
@@ -175,19 +198,21 @@ export function buildBlobUsageCard(
         eyebrow: `Blob usage by rollup, ${timeRangeLabel(range)}`,
         title: `${formatNumber(attribution.summary.total_blobs)} blobs`,
         subtitle: 'Share of blobspace by L2 rollup',
+        networkLabel: ogNetworkLabel(network),
         stats,
     };
 }
 
 export function buildCostComparisonCard(
     chart: BackendCostComparisonChartResponse,
-    range: TimeRange = DEFAULT_TIME_RANGE
+    { network, range }: OgScope = DEFAULT_OG_SCOPE
 ): OgCardContent {
     const { summary } = chart;
     return {
         eyebrow: `Blobs versus calldata, ${timeRangeLabel(range)}`,
         title: `${formatPercent(summary.savings_percent)} cheaper`,
         subtitle: 'What rollups saved by posting blobs instead of calldata',
+        networkLabel: ogNetworkLabel(network),
         stats: [
             { label: 'Blob cost', value: formatWeiToEth(summary.blob_cost_wei, true), accent: 'green' },
             {
@@ -207,7 +232,10 @@ function findWindow(
     return response.windows.find((window) => window.window === key);
 }
 
-export function buildRollingStatsCard(response: BackendStatsWindowsResponse): OgCardContent {
+export function buildRollingStatsCard(
+    response: BackendStatsWindowsResponse,
+    { network }: OgScope = DEFAULT_OG_SCOPE
+): OgCardContent {
     const day = findWindow(response, '24h') ?? response.windows[0];
     const week = findWindow(response, '7d');
 
@@ -231,6 +259,7 @@ export function buildRollingStatsCard(response: BackendStatsWindowsResponse): Og
         eyebrow: 'Rolling market stats',
         title: day ? `${formatNumber(day.total_blobs)} blobs in 24h` : 'Blob market stats',
         subtitle: 'Rolling blob market activity on Ethereum',
+        networkLabel: ogNetworkLabel(network),
         stats,
     };
 }
@@ -243,29 +272,36 @@ export function buildChartCard(
         | BackendCostComparisonChartResponse
         | BackendStatsWindowsResponse
         | null,
-    range: TimeRange = DEFAULT_TIME_RANGE
+    scope: OgScope = DEFAULT_OG_SCOPE
 ): OgCardContent | null {
     if (!data) return null;
 
     switch (slug) {
         case 'base-fee':
-            return buildBaseFeeCard(data as BackendBlobMarketChartResponse, range);
+            return buildBaseFeeCard(data as BackendBlobMarketChartResponse, scope);
         case 'gas-utilization':
-            return buildGasUtilizationCard(data as BackendBlobMarketChartResponse, range);
+            return buildGasUtilizationCard(data as BackendBlobMarketChartResponse, scope);
         case 'blob-usage':
-            return buildBlobUsageCard(data as BackendAttributionUsageChartResponse, range);
+        case 'blob-share':
+            // Both read the same attribution data; blob-share only differs in
+            // how the chart itself is drawn.
+            return buildBlobUsageCard(data as BackendAttributionUsageChartResponse, scope);
         case 'cost-comparison':
-            return buildCostComparisonCard(data as BackendCostComparisonChartResponse, range);
+            return buildCostComparisonCard(data as BackendCostComparisonChartResponse, scope);
         case 'rolling-market-stats':
             // Rolling stats always show the same fixed windows; the selected
             // range does not change what this chart displays.
-            return buildRollingStatsCard(data as BackendStatsWindowsResponse);
+            return buildRollingStatsCard(data as BackendStatsWindowsResponse, scope);
         default:
             return null;
     }
 }
 
-export function buildBlockCard(blockNumber: number, block: NewBlockData): OgCardContent {
+export function buildBlockCard(
+    blockNumber: number,
+    block: NewBlockData,
+    network: string = DEFAULT_NETWORK.apiParam
+): OgCardContent {
     const pricing = block.pricing;
     const blobCount = pricing?.blob_count ?? block.blob_count;
     const maxBlobs = pricing?.max_blobs ?? 0;
@@ -299,6 +335,7 @@ export function buildBlockCard(blockNumber: number, block: NewBlockData): OgCard
             maxBlobs > 0
                 ? `${blobCount} of ${maxBlobs} blobs, ${Math.round((blobCount / maxBlobs) * 100)}% full`
                 : `${formatNumber(blobCount)} blob${blobCount === 1 ? '' : 's'} in this block`,
+        networkLabel: ogNetworkLabel(network),
         stats,
     };
 }
@@ -317,7 +354,11 @@ function formatUserCost(user: UserResponse): string | null {
     return null;
 }
 
-export function buildUserCard(address: string, user: UserResponse): OgCardContent {
+export function buildUserCard(
+    address: string,
+    user: UserResponse,
+    network: string = DEFAULT_NETWORK.apiParam
+): OgCardContent {
     const displayName = user.name || truncateAddress(user.address || address);
     const cost = formatUserCost(user);
     const share =
@@ -347,6 +388,7 @@ export function buildUserCard(address: string, user: UserResponse): OgCardConten
             subtitleParts.length > 0
                 ? subtitleParts.join(', ')
                 : `${formatNumber(user.blob_count)} blobs sent on Ethereum`,
+        networkLabel: ogNetworkLabel(network),
         stats,
     };
 }

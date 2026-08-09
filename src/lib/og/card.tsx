@@ -150,7 +150,7 @@ export function OgCard({ content }: { content: OgCardContent }) {
                         }}
                     />
                     <span style={{ fontSize: 26, color: OG_COLORS.secondaryText }}>
-                        Ethereum Mainnet
+                        {content.networkLabel}
                     </span>
                 </div>
             </div>

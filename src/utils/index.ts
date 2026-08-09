@@ -2,9 +2,16 @@
  * Utility functions for the application
  */
 import { getAddress } from 'viem';
-import { BlobResponse, Network, SearchTarget } from '@/types';
-import { ATTRIBUTION_CONTRIBUTING_URL, ATTRIBUTION_REPO_URL, NETWORKS, SECONDS_PER_BLOCK } from '@/constants';
+import { BackendAttributionUsageShare, BlobResponse, Network, SearchTarget } from '@/types';
+import {
+  ATTRIBUTION_CONTRIBUTING_URL,
+  ATTRIBUTION_REPO_URL,
+  DEFAULT_NETWORK,
+  NETWORKS,
+  SECONDS_PER_BLOCK,
+} from '@/constants';
 import { SERIES_COLOR_PALETTE, SERIES_CATEGORY_NEUTRALS } from '@/constants/chartTheme';
+import { DATA_COMPARISONS } from '@/constants/dataComparisons';
 import { ENTITY_ICONS, EntityIcon } from '@/constants/entityIcons.generated';
 
 // The indexer sends blob-list entity names verbatim, which is what the
@@ -29,6 +36,8 @@ function lookupEntityIcon(name: string): EntityIcon | undefined {
 
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * 1024;
+const BYTES_PER_GIB = BYTES_PER_MIB * 1024;
+const BYTES_PER_TIB = BYTES_PER_GIB * 1024;
 const BLOB_GAS_PER_BLOB = 131072;
 const BYTES_PER_BLOB = 131072;
 
@@ -54,6 +63,64 @@ export function safeExplorerUrl(url?: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+// Networks are identified by a short lowercase slug; anything else is not a
+// network segment and must never be pasted into a path.
+const NETWORK_SEGMENT_PATTERN = /^[a-z0-9-]{1,32}$/;
+
+/**
+ * Scope an in-app path to a network. The default network keeps the bare paths
+ * (`/blocks`) and every other network is prefixed (`/sepolia/blocks`), so a
+ * URL always states which network it shows and can be shared as-is. Query
+ * strings and fragments are preserved; anything that is not an in-app path is
+ * returned untouched.
+ */
+export function networkPath(path: string, apiParam?: string): string {
+  if (!apiParam || !path.startsWith('/')) return path;
+
+  const network = apiParam.toLowerCase();
+  if (network === DEFAULT_NETWORK.apiParam || !NETWORK_SEGMENT_PATTERN.test(network)) {
+    return path;
+  }
+
+  const [, pathname, suffix] = path.match(/^([^?#]*)(.*)$/) as RegExpMatchArray;
+  return `/${network}${pathname === '/' ? '' : pathname}${suffix}`;
+}
+
+/**
+ * Inverse of networkPath: drop a leading network segment so a path can be
+ * re-scoped to another network or matched against the bare routes.
+ */
+export function stripNetworkPath(path: string, knownNetworks: string[]): string {
+  const match = path.match(/^\/([^/?#]+)(.*)$/);
+  if (!match) return path;
+
+  const [, firstSegment, rest] = match;
+  if (!knownNetworks.includes(decodeURIComponent(firstSegment).toLowerCase())) return path;
+
+  return rest.startsWith('/') ? rest : `/${rest}`;
+}
+
+/**
+ * Shorten a transaction hash for display, keeping both ends so two hashes
+ * stay distinguishable at a glance.
+ */
+export function truncateTxHash(hash: string): string {
+  if (hash.length <= 14) return hash;
+  return `${hash.substring(0, 10)}...${hash.substring(hash.length - 4)}`;
+}
+
+/**
+ * Host of a block explorer URL, so outbound links can name where they go
+ * (e.g. "etherscan.io") instead of leaving the destination to guesswork.
+ * Returns null for anything safeExplorerUrl rejects.
+ */
+export function explorerHostLabel(url?: string): string | null {
+  const safe = safeExplorerUrl(url);
+  if (!safe) return null;
+
+  return new URL(safe).hostname.replace(/^www\./, '');
 }
 
 export function getAttributionImageSrc(name: string): string | null {
@@ -208,6 +275,16 @@ const ATTRIBUTION_CHAINS: Record<string, { caip2: string; explorerUrl: string }>
 };
 
 /**
+ * Block explorer transaction URL for a network, used when the indexer has no
+ * row for a hash and therefore no explorer link of its own. Returns null for
+ * networks with no known explorer.
+ */
+export function explorerTxUrl(txHash: string, networkApiParam?: string): string | null {
+  const chain = ATTRIBUTION_CHAINS[networkApiParam ?? 'mainnet'];
+  return chain ? `${chain.explorerUrl}/tx/${txHash}` : null;
+}
+
+/**
  * Prefilled GitHub "new file" URL for suggesting an attribution in the
  * blob-list registry. When a contributor without write access commits the
  * prefilled file, GitHub forks the repo and opens a pull request, so the
@@ -270,6 +347,26 @@ addresses:
     value: template,
   });
   return `${ATTRIBUTION_REPO_URL}/new/main?${params.toString()}`;
+}
+
+/**
+ * Render an ISO timestamp in the viewer's local timezone, e.g.
+ * "Jul 13, 2026, 14:56:35", matching the local-time labels on the charts.
+ * Unparseable input is passed through unchanged.
+ */
+export function formatLocalTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp;
+
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
 }
 
 export function formatDate(date: Date): string {
@@ -497,6 +594,24 @@ export function formatBlobWeiCost(weiValue?: string): string {
   return safeFormat(() => formatCostEthOrWei(integerWei));
 }
 
+/**
+ * A cost field as a wei amount, so costs from different rows can be added.
+ * Follows the indexer's convention that a decimal string is denominated in
+ * ETH and an integer string in wei. Returns null for a missing or malformed
+ * value, which lets callers tell a genuine zero from an unusable field
+ * instead of silently dropping it from a total.
+ */
+export function costToWei(costEthOrWei?: string | number): bigint | null {
+  if (costEthOrWei === undefined || costEthOrWei === null || costEthOrWei === '') return null;
+
+  try {
+    const rawCost = normalizeDecimalString(costEthOrWei);
+    return rawCost.includes('.') ? ethStringToWei(rawCost) : BigInt(rawCost);
+  } catch {
+    return null;
+  }
+}
+
 export function formatBlobTotalCost(totalCost?: string): string {
   if (!totalCost) return '-';
   if (totalCost.includes('.')) return safeFormat(() => formatCostEthOrWei(totalCost));
@@ -720,4 +835,235 @@ export function beaconSlotForBlob(
     return blob.slot;
   }
   return deriveBeaconSlot(blob.timestamp, blob.network_name);
+}
+
+// ---- Relatable derived stats ----
+// Pure conversions that translate raw blob metrics (blob counts, wei costs,
+// window durations) into everyday units for the dashboard's "Blob Math"
+// strip. Cost math stays in BigInt wei so totals beyond Number precision
+// divide exactly.
+
+/**
+ * Total cost fields arrive in two shapes: `total_cost_wei` is an integer wei
+ * string (defensively truncate any fractional part, wei is indivisible), and
+ * `total_cost_eth` follows chartAggregation's weiToEth heuristic: a decimal
+ * point means an ETH amount, a bare integer means wei from an older backend.
+ * Returns null when neither field parses.
+ */
+function parseWindowCostToWei(totalCostWei?: string, totalCostEth?: string): bigint | null {
+  const weiField = totalCostWei?.trim();
+  if (weiField) {
+    const wholeWei = weiField.split('.')[0];
+    return /^\d+$/.test(wholeWei) ? BigInt(wholeWei) : null;
+  }
+
+  const ethField = totalCostEth?.trim();
+  if (!ethField) return null;
+
+  if (ethField.includes('.')) {
+    return /^\d+\.\d+$/.test(ethField) ? ethStringToWei(ethField) : null;
+  }
+
+  return /^\d+$/.test(ethField) ? BigInt(ethField) : null;
+}
+
+/**
+ * Average cost of posting one MiB of blob data over a stats window, in wei.
+ * Each blob carries 128 KiB, so the denominator is the window's full blob
+ * payload. Returns null when the window has no blobs or no parseable cost.
+ */
+export function computeCostPerMibWei(
+  totalBlobs: number,
+  totalCostWei?: string,
+  totalCostEth?: string
+): bigint | null {
+  if (!Number.isInteger(totalBlobs) || totalBlobs <= 0) return null;
+
+  const costWei = parseWindowCostToWei(totalCostWei, totalCostEth);
+  if (costWei === null) return null;
+
+  return (costWei * BigInt(BYTES_PER_MIB)) / (BigInt(totalBlobs) * BigInt(BYTES_PER_BLOB));
+}
+
+/**
+ * Average spacing between blobs across a window. Returns null when the
+ * window has no blobs or no positive duration, so callers can distinguish
+ * "no cadence" from a genuinely tiny interval.
+ */
+export function computeSecondsPerBlob(
+  totalBlobs: number,
+  durationSeconds: number
+): number | null {
+  if (!Number.isFinite(totalBlobs) || totalBlobs <= 0) return null;
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return null;
+
+  return durationSeconds / totalBlobs;
+}
+
+/**
+ * Render a blob interval like "12.5s" or "2 min". Sub-tenth intervals clamp
+ * to "<0.1s" instead of rounding to a nonsensical "0s".
+ */
+export function formatBlobCadence(secondsPerBlob: number | null): string {
+  if (secondsPerBlob === null || !Number.isFinite(secondsPerBlob) || secondsPerBlob <= 0) {
+    return '-';
+  }
+
+  if (secondsPerBlob < 0.1) return '<0.1s';
+  if (secondsPerBlob < 60) return `${formatCompactDecimal(secondsPerBlob, 1)}s`;
+
+  return formatDuration(secondsPerBlob);
+}
+
+/** Bytes carried by a blob count (128 KiB per blob). Malformed counts map to 0. */
+export function blobCountToBytes(blobCount: number): number {
+  if (!Number.isFinite(blobCount) || blobCount <= 0) return 0;
+
+  return blobCount * BYTES_PER_BLOB;
+}
+
+/**
+ * Data volume with GB/TB tiers on top of formatBlobSize's B/KB/MB. Like
+ * formatBlobSize, uses binary multiples with the everyday decimal labels.
+ */
+export function formatDataVolume(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '-';
+
+  if (bytes >= BYTES_PER_TIB) {
+    return `${formatCompactDecimal(bytes / BYTES_PER_TIB, 2)} TB`;
+  }
+
+  if (bytes >= BYTES_PER_GIB) {
+    return `${formatCompactDecimal(bytes / BYTES_PER_GIB, 2)} GB`;
+  }
+
+  return formatBlobSize(bytes);
+}
+
+/**
+ * Sustained data rate implied by a window's blob count, in bytes per
+ * second. Returns null without blobs or a positive duration.
+ */
+export function computeBlobBytesPerSecond(
+  totalBlobs: number,
+  durationSeconds: number
+): number | null {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return null;
+
+  const bytes = blobCountToBytes(totalBlobs);
+  if (bytes <= 0) return null;
+
+  return bytes / durationSeconds;
+}
+
+/** Render a byte rate like "57.1 KB/s" or "1.2 MB/s". */
+export function formatDataRate(bytesPerSecond: number | null): string {
+  if (bytesPerSecond === null || !Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) {
+    return '-';
+  }
+
+  return `${formatDataVolume(bytesPerSecond)}/s`;
+}
+
+/**
+ * Comparisons small enough that the count reads as a quantity rather than
+ * noise. Above this, "4.7B emoji" says less about scale than a comparison
+ * whose count is in the thousands, so the larger-count entries are only
+ * used when nothing in this band fits.
+ */
+const RELATABLE_COMPARISON_CEILING = 1_000_000;
+
+/**
+ * One of DATA_COMPARISONS rendered against a byte volume, e.g. "138 floppy
+ * disks" or "1.4K copies of the Bible". The seed picks which comparison,
+ * so callers can rotate through the pool (by passing a refresh timestamp,
+ * say) while keeping this function pure. Comparisons bigger than the
+ * volume itself are skipped, so the count is always at least one.
+ *
+ * Returns null when the volume is invalid or smaller than every comparison
+ * in the pool, letting callers fall back to a plainer caption.
+ */
+export function formatDataComparison(bytes: number, seed: number): string | null {
+  if (!Number.isFinite(bytes) || bytes <= 0) return null;
+
+  // The comparison must fit inside the volume at least once. Rounding here
+  // instead would admit entries half again the size of the volume and
+  // render them as "0.5 DVDs".
+  const eligible = DATA_COMPARISONS.filter(
+    (comparison) => comparison.bytes > 0 && bytes / comparison.bytes >= 1
+  );
+  if (eligible.length === 0) return null;
+
+  const relatable = eligible.filter(
+    (comparison) => bytes / comparison.bytes <= RELATABLE_COMPARISON_CEILING
+  );
+  const pool = relatable.length > 0 ? relatable : eligible;
+
+  const normalizedSeed = Number.isFinite(seed) ? Math.abs(Math.trunc(seed)) : 0;
+  const comparison = pool[normalizedSeed % pool.length];
+
+  const count = bytes / comparison.bytes;
+  const formatted = new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    // Below ten, a bare integer loses too much ("1 DVD" for 1.9 DVDs), so
+    // keep a decimal place there and round to whole units above it.
+    maximumFractionDigits: count < 10 ? 1 : 0,
+  }).format(count);
+
+  // Only an exact one takes the singular: English pluralizes "1.1 tweets".
+  return `${formatted} ${formatted === '1' ? comparison.singular : comparison.plural}`;
+}
+
+/**
+ * ETH rendering for wei values that may be negative, like the cost
+ * comparison's savings_wei when calldata would somehow have been cheaper.
+ * Fractional wei is truncated. Returns null when the value is missing or
+ * unparseable; "-0" collapses to "0 ETH".
+ */
+export function formatSignedWeiToEth(weiValue?: string): string | null {
+  if (weiValue === undefined) return null;
+
+  const trimmed = weiValue.trim();
+  const negative = trimmed.startsWith('-');
+  const magnitude = (negative ? trimmed.slice(1) : trimmed).split('.')[0];
+  if (!/^\d+$/.test(magnitude)) return null;
+
+  if (BigInt(magnitude) === BigInt(0)) return '0 ETH';
+
+  const formatted = formatWeiToEth(magnitude, true);
+  return negative ? `-${formatted}` : formatted;
+}
+
+/**
+ * Attribution categories that bucket unidentified senders rather than naming
+ * a real poster; a "top rollup" readout must never crown them.
+ */
+const NEUTRAL_USAGE_CATEGORIES = new Set(['other', 'unknown']);
+
+/**
+ * The named entity posting the most blobs in an attribution summary, or null
+ * when every share is a neutral bucket or empty. Selecting the max locally
+ * keeps the result correct even if the backend's ordering contract changes.
+ */
+export function selectTopUsageShare(
+  shares: ReadonlyArray<BackendAttributionUsageShare>
+): BackendAttributionUsageShare | null {
+  return shares.reduce<BackendAttributionUsageShare | null>((top, share) => {
+    if (NEUTRAL_USAGE_CATEGORIES.has((share.category ?? '').toLowerCase())) return top;
+    if (!Number.isFinite(share.blob_count) || share.blob_count <= 0) return top;
+
+    return !top || share.blob_count > top.blob_count ? share : top;
+  }, null);
+}
+
+/**
+ * Seconds covered by a chart response's start/end timestamps. Returns null
+ * when either timestamp is unparseable or the interval is not positive.
+ */
+export function durationSecondsBetween(startTime: string, endTime: string): number | null {
+  const start = Date.parse(startTime);
+  const end = Date.parse(endTime);
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return null;
+
+  return (end - start) / 1000;
 }

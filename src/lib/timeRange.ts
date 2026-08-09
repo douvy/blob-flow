@@ -16,6 +16,15 @@ export function parseTimeRange(value: string | null | undefined): TimeRange | nu
     return TIME_RANGES.includes(value as TimeRange) ? (value as TimeRange) : null;
 }
 
+/** Route search params, as a server page's generateMetadata receives them. */
+export type SearchParams = Record<string, string | string[] | undefined>;
+
+/** The range a page URL asks for, falling back to the default. */
+export function rangeFromSearchParams(params: SearchParams): TimeRange {
+    const raw = params[TIME_RANGE_PARAM];
+    return parseTimeRange(typeof raw === 'string' ? raw : null) ?? DEFAULT_TIME_RANGE;
+}
+
 /**
  * Query string that encodes a range in a shareable URL. The default range is
  * carried implicitly (empty string) so unfiltered URLs stay clean.

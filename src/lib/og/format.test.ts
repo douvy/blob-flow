@@ -11,6 +11,7 @@ import {
     buildFallbackCard,
     buildHomeCard,
     buildUserCard,
+    ogNetworkLabel,
     topAttributedShares,
 } from './format';
 
@@ -81,14 +82,18 @@ describe('og/format', () => {
         expect(shares.map((share) => share.name)).toEqual(['Base', 'Arbitrum One', 'OP Mainnet']);
     });
 
-    it('builds the home card from pricing and attribution for the given range', () => {
+    it('builds the home card from pricing and attribution for the given scope', () => {
         const attribution = makeAttribution([{ name: 'Base', blob_share_percent: 41.2 }]);
 
-        const card = buildHomeCard({ pricing, attribution }, '24h');
+        const card = buildHomeCard(
+            { pricing, attribution },
+            { network: 'mainnet', range: '24h' }
+        );
 
         expect(card).not.toBeNull();
         expect(card!.title).toBe('1.5 Gwei');
         expect(card!.subtitle).toBe('Base 41.2% of blobs (24h)');
+        expect(card!.networkLabel).toBe('Ethereum Mainnet');
         expect(card!.stats.map((stat) => stat.label)).toEqual([
             'Predicted next fee',
             'Recent blocks at max',
@@ -97,13 +102,30 @@ describe('og/format', () => {
         expect(card!.stats.map((stat) => stat.value)).toEqual(['1.6 Gwei', '35%', '12,345']);
     });
 
-    it('defaults the home card to the UI default range', () => {
+    it('defaults the home card to the default network and range', () => {
         const attribution = makeAttribution([{ name: 'Base', blob_share_percent: 41.2 }]);
 
         const card = buildHomeCard({ pricing, attribution });
 
         expect(card!.subtitle).toBe('Base 41.2% of blobs (1h)');
         expect(card!.stats[2].label).toBe('Blobs (1h)');
+        expect(card!.networkLabel).toBe('Ethereum Mainnet');
+    });
+
+    it('names a non-default network on the card so a testnet unfurl is obvious', () => {
+        const attribution = makeAttribution([{ name: 'Base', blob_share_percent: 41.2 }]);
+
+        const card = buildHomeCard(
+            { pricing, attribution },
+            { network: 'sepolia', range: '1h' }
+        );
+
+        expect(card!.networkLabel).toBe('Ethereum Sepolia');
+    });
+
+    it('falls back to the default network label for a malformed network', () => {
+        expect(ogNetworkLabel('../etc/passwd')).toBe('Ethereum Mainnet');
+        expect(ogNetworkLabel()).toBe('Ethereum Mainnet');
     });
 
     it('returns null for the home card without pricing data', () => {
@@ -123,10 +145,11 @@ describe('og/format', () => {
             },
         } as unknown as NewBlockData;
 
-        const card = buildBlockCard(21834102, block);
+        const card = buildBlockCard(21834102, block, 'sepolia');
 
         expect(card.title).toBe('Block 21,834,102');
         expect(card.subtitle).toBe('9 of 9 blobs, 100% full');
+        expect(card.networkLabel).toBe('Ethereum Sepolia');
         expect(card.stats).toEqual([
             { label: 'Blobs', value: '9 of 9', accent: 'blue' },
             { label: 'Blobspace used', value: '100% full', accent: 'red' },
@@ -229,7 +252,7 @@ describe('og/format', () => {
             },
         } as unknown as Parameters<typeof buildChartCard>[1];
 
-        const card = buildChartCard('base-fee', chart, '7d');
+        const card = buildChartCard('base-fee', chart, { network: 'mainnet', range: '7d' });
 
         expect(card!.eyebrow).toBe('Blob base fee, last 7d');
         expect(card!.stats.map((stat) => stat.label)).toEqual([
@@ -237,6 +260,22 @@ describe('og/format', () => {
             '7d p95',
             '7d blobs',
         ]);
+    });
+
+    it('builds the blob-share card from the same attribution data as blob-usage', () => {
+        const attribution = makeAttribution([
+            { name: 'Base', blob_share_percent: 30 },
+            { name: 'Arbitrum One', blob_share_percent: 20 },
+        ]);
+
+        const card = buildChartCard('blob-share', attribution, {
+            network: 'mainnet',
+            range: '7d',
+        });
+
+        expect(card).not.toBeNull();
+        expect(card!.title).toBe('12,345 blobs');
+        expect(card!.stats.map((stat) => stat.label)).toEqual(['Base', 'Arbitrum One']);
     });
 
     it('returns null for unknown chart slugs and missing data', () => {

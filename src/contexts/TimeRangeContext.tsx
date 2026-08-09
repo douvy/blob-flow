@@ -8,7 +8,8 @@ import React, {
   useSyncExternalStore,
   ReactNode,
 } from 'react';
-import { usePathname } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
+import { stripNetworkPath } from '@/utils';
 import {
   DEFAULT_TIME_RANGE,
   TIME_RANGE_PARAM,
@@ -74,9 +75,14 @@ export function resetTimeRangeStoreForTests() {
 }
 
 // The header only shows the time filter on these routes, so only their URLs
-// carry the range param (it would be meaningless noise elsewhere).
-function pathUsesTimeRange(pathname: string | null): boolean {
-  return pathname === '/' || Boolean(pathname?.startsWith('/charts/'));
+// carry the range param (it would be meaningless noise elsewhere). Which page
+// is showing is a property of the route, not of the network it is scoped to,
+// so this compares against the unscoped path.
+function pathUsesTimeRange(pathname: string | null, networkSegment: string | null): boolean {
+  if (!pathname) return false;
+
+  const path = networkSegment ? stripNetworkPath(pathname, [networkSegment]) : pathname;
+  return path === '/' || path.startsWith('/charts/');
 }
 
 interface TimeRangeContextValue {
@@ -92,12 +98,16 @@ const TimeRangeContext = createContext<TimeRangeContextValue>({
 export function TimeRangeProvider({ children }: { children: ReactNode }) {
   const timeRange = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const pathname = usePathname();
+  // Set only on the /[network] routes, naming the segment to drop.
+  const routeParams = useParams();
+  const networkSegment =
+    typeof routeParams?.network === 'string' ? routeParams.network : null;
 
   // Reflect the selection in the URL so sharing the page (and its Open Graph
   // card) carries the timeframe. Re-runs on navigation because client-side
   // transitions drop query params. replaceState keeps Next's router state.
   useEffect(() => {
-    if (!pathUsesTimeRange(pathname)) return;
+    if (!pathUsesTimeRange(pathname, networkSegment)) return;
 
     const url = new URL(window.location.href);
     const current = url.searchParams.get(TIME_RANGE_PARAM);
@@ -111,7 +121,7 @@ export function TimeRangeProvider({ children }: { children: ReactNode }) {
     }
 
     window.history.replaceState(window.history.state, '', url);
-  }, [timeRange, pathname]);
+  }, [timeRange, pathname, networkSegment]);
 
   const value = useMemo(() => ({ timeRange, setTimeRange }), [timeRange]);
 

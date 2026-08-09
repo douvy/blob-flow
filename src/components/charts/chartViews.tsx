@@ -12,6 +12,7 @@ export const CHART_VIEW_IDS = [
   'base-fee',
   'gas-utilization',
   'blob-usage',
+  'blob-share',
   'cost-comparison',
   'rolling-market-stats',
 ] as const;
@@ -81,6 +82,24 @@ export const CHART_VIEWS: readonly ChartView[] = [
       <BlobUsageChart
         data={chartData.blobUsage}
         series={chartData.blobUsageSeries}
+      />
+    ),
+  },
+  {
+    id: 'blob-share',
+    title: 'Blob Share by Attribution',
+    shortTitle: 'Blob Share',
+    description: 'Each rollup or sender as a percentage of the blobs in every bucket.',
+    dashboardFrameClassName: 'h-56 relative',
+    detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
+    getTitle: (chartData) => `Blob Share over ${chartData.chartRangeLabel}`,
+    getCoverageLabel: (chartData) => chartData.blobUsageCoverageLabel,
+    getPointCount: (chartData) => chartData.blobUsage.length,
+    render: (chartData) => (
+      <BlobUsageChart
+        data={chartData.blobUsage}
+        series={chartData.blobUsageSeries}
+        variant="share"
       />
     ),
   },

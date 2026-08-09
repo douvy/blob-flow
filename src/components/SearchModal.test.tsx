@@ -64,6 +64,10 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', ResizeObserverStub);
   Element.prototype.scrollIntoView = vi.fn();
   pushMock.mockReset();
+  // Module mocks keep their call history across tests otherwise, so a lookup
+  // one test made would still count as called in the next.
+  (api.getBlobByTxHash as Mock).mockReset();
+  (api.getBlobByVersionedHash as Mock).mockReset();
   (useNetwork as Mock).mockReturnValue({
     selectedNetwork: DEFAULT_NETWORK,
     setSelectedNetwork: vi.fn(),
@@ -109,77 +113,76 @@ describe('SearchModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('resolves a transaction hash to its block', async () => {
-    (api.getBlobByTxHash as Mock).mockResolvedValue({
-      success: true,
-      data: { block_number: 25467700 },
-    });
+  it('navigates to the transaction page for a transaction hash', async () => {
     const { onClose, input } = await openModal();
 
     fireEvent.change(input, { target: { value: txHash } });
     const item = await screen.findByText(
-      `Find the block for transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}`
+      `View blob transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}`
     );
 
     fireEvent.click(item);
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/block/25467700'));
-    expect(api.getBlobByTxHash).toHaveBeenCalledWith(txHash, DEFAULT_NETWORK.apiParam);
+    // The page resolves the hash, so the modal makes no lookup of its own.
+    expect(pushMock).toHaveBeenCalledWith(`/tx/${txHash}`);
+    expect(api.getBlobByTxHash).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('shows an error when a transaction hash is not found', async () => {
-    (api.getBlobByTxHash as Mock).mockRejectedValue(new ApiError(404, 'Not Found'));
+  it('shows an error when a blob hash is not found', async () => {
+    (api.getBlobByVersionedHash as Mock).mockRejectedValue(new ApiError(404, 'Not Found'));
     const { onClose, input } = await openModal();
 
-    fireEvent.change(input, { target: { value: `tx:${txHash}` } });
+    fireEvent.change(input, { target: { value: `blob:${blobHash}` } });
     const item = await screen.findByText(
-      `Find the block for transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}`
+      `Find the block for blob ${blobHash.slice(0, 6)}...${blobHash.slice(-4)}`
     );
 
     fireEvent.click(item);
 
-    await screen.findByText(/No confirmed blob transaction found/);
+    await screen.findByText(/No confirmed blob found/);
     expect(pushMock).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
 
   it('reports transient lookup failures distinctly from not-found', async () => {
-    (api.getBlobByTxHash as Mock).mockRejectedValue(new ApiError(500, 'Internal Server Error'));
+    (api.getBlobByVersionedHash as Mock).mockRejectedValue(
+      new ApiError(500, 'Internal Server Error')
+    );
     const { input } = await openModal();
 
-    fireEvent.change(input, { target: { value: `tx:${txHash}` } });
+    fireEvent.change(input, { target: { value: `blob:${blobHash}` } });
     fireEvent.click(
       await screen.findByText(
-        `Find the block for transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}`
+        `Find the block for blob ${blobHash.slice(0, 6)}...${blobHash.slice(-4)}`
       )
     );
 
     await screen.findByText(/Search failed — the indexer did not respond/);
-    expect(screen.queryByText(/No confirmed blob transaction found/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No confirmed blob found/)).not.toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
   });
 
   it('ignores hash lookups that resolve after the query has changed', async () => {
     let resolveLookup: (value: unknown) => void = () => {};
-    (api.getBlobByTxHash as Mock).mockReturnValue(
+    (api.getBlobByVersionedHash as Mock).mockReturnValue(
       new Promise((resolve) => {
         resolveLookup = resolve;
       })
     );
     const { onClose, input } = await openModal();
 
-    fireEvent.change(input, { target: { value: txHash } });
+    fireEvent.change(input, { target: { value: blobHash } });
     fireEvent.click(
       await screen.findByText(
-        `Find the block for transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}`
+        `Find the block for blob ${blobHash.slice(0, 6)}...${blobHash.slice(-4)}`
       )
     );
 
     // The user keeps typing while the lookup is in flight.
     fireEvent.change(input, { target: { value: '25467750' } });
     await act(async () => {
-      resolveLookup({ success: true, data: { block_number: 999 } });
+      resolveLookup({ block_number: 999 });
     });
 
     expect(pushMock).not.toHaveBeenCalled();

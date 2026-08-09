@@ -20,9 +20,13 @@ import { assignSeriesColors } from '@/utils';
 import { ChartTooltipFrame, ChartTooltipRow } from './ChartTooltip';
 import { isolateLegendKey } from './legendIsolation';
 
+/** 'count' plots blobs per bucket; 'share' plots each series' percentage of the bucket. */
+export type BlobUsageVariant = 'count' | 'share';
+
 interface BlobUsageChartProps {
   data: BlobUsageDataPoint[];
   series: BlobUsageSeries[];
+  variant?: BlobUsageVariant;
 }
 
 function getNumericValue(point: BlobUsageDataPoint, key: string): number {
@@ -30,24 +34,60 @@ function getNumericValue(point: BlobUsageDataPoint, key: string): number {
   return typeof value === 'number' ? value : 0;
 }
 
-export default function BlobUsageChart({ data, series }: BlobUsageChartProps) {
+const SHARE_TICKS = [0, 25, 50, 75, 100];
+
+function formatSharePct(value: number): string {
+  if (value > 0 && value < 0.1) return '<0.1%';
+  return `${value.toFixed(1)}%`;
+}
+
+/**
+ * Restates each bucket as every series' percentage of that bucket's blob total,
+ * so a rising band means a growing share of blobspace rather than a busier
+ * chain. `total` stays the bucket's absolute blob count, both so the tooltip can
+ * show volume alongside the share (a 100% share of two blobs is not a busy
+ * bucket) and so it stays the denominator: blobs outside the plotted series
+ * leave a visible gap below 100% rather than being renormalized away.
+ */
+export function toShareData(
+  data: BlobUsageDataPoint[],
+  series: BlobUsageSeries[]
+): BlobUsageDataPoint[] {
+  return data.map((point) => {
+    const total = getNumericValue(point, 'total');
+    const row: BlobUsageDataPoint = { ...point };
+
+    for (const entry of series) {
+      row[entry.key] = total > 0 ? (getNumericValue(point, entry.key) / total) * 100 : 0;
+    }
+
+    return row;
+  });
+}
+
+export default function BlobUsageChart({ data, series, variant = 'count' }: BlobUsageChartProps) {
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
 
   const isolateKey = (key: string, allKeys: string[]) => {
     setHiddenKeys((prev) => isolateLegendKey(prev, allKeys, key));
   };
 
+  const isShare = variant === 'share';
   const seriesColors = useMemo(() => assignSeriesColors(series), [series]);
+  const plotData = useMemo(
+    () => (isShare ? toShareData(data, series) : data),
+    [data, series, isShare]
+  );
 
   const legendEntries = useMemo(
     () => series
       .map((entry) => ({
         ...entry,
         color: seriesColors[entry.key],
-        total: data.reduce((sum, point) => sum + getNumericValue(point, entry.key), 0),
+        total: plotData.reduce((sum, point) => sum + getNumericValue(point, entry.key), 0),
       }))
       .filter((entry) => entry.total > 0),
-    [data, series, seriesColors]
+    [plotData, series, seriesColors]
   );
 
   // A data refresh can drop the isolated series out of the legend, leaving
@@ -68,7 +108,7 @@ export default function BlobUsageChart({ data, series }: BlobUsageChartProps) {
   return (
     <>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 32 }}>
+        <AreaChart data={plotData} margin={{ top: 5, right: 10, left: 0, bottom: 32 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.3} />
           <XAxis
             dataKey="label"
@@ -84,11 +124,18 @@ export default function BlobUsageChart({ data, series }: BlobUsageChartProps) {
             tick={AXIS_TICK}
             axisLine={AXIS_LINE}
             tickLine={AXIS_LINE}
-            width={35}
+            width={isShare ? 42 : 35}
+            domain={isShare ? [0, 100] : undefined}
+            ticks={isShare ? SHARE_TICKS : undefined}
+            tickFormatter={isShare ? (value: number) => `${value}%` : undefined}
           />
           <Tooltip
             content={({ active, payload, label }) => {
               if (!active || !payload || payload.length === 0) return null;
+              const bucketTotal = getNumericValue(
+                payload[0].payload as BlobUsageDataPoint,
+                'total'
+              );
               return (
                 <ChartTooltipFrame label={label}>
                   {payload
@@ -98,9 +145,19 @@ export default function BlobUsageChart({ data, series }: BlobUsageChartProps) {
                         key={entry.dataKey?.toString()}
                         swatchColor={entry.color}
                         label={String(entry.name ?? '')}
-                        value={entry.value}
+                        value={
+                          isShare && typeof entry.value === 'number'
+                            ? formatSharePct(entry.value)
+                            : entry.value
+                        }
                       />
                     ))}
+                  {isShare && (
+                    <ChartTooltipRow
+                      label="Total"
+                      value={`${bucketTotal} ${bucketTotal === 1 ? 'blob' : 'blobs'}`}
+                    />
+                  )}
                 </ChartTooltipFrame>
               );
             }}
@@ -118,7 +175,7 @@ export default function BlobUsageChart({ data, series }: BlobUsageChartProps) {
               hide={effectiveHiddenKeys.has(entry.key)}
               // A single bucket draws no area segment; show a dot so a sparse
               // range still renders a visible marker instead of empty axes.
-              dot={data.length === 1}
+              dot={plotData.length === 1}
             />
           ))}
         </AreaChart>

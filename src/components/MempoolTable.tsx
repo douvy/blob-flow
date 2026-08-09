@@ -1,6 +1,6 @@
 "use client";
 
-import Link from 'next/link';
+import Link from '@/components/NetworkLink';
 import React from 'react';
 import { MempoolTransaction } from '../types';
 import DataStateWrapper from './DataStateWrapper';

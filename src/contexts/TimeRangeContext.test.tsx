@@ -8,9 +8,11 @@ import {
 } from './TimeRangeContext';
 
 let mockPathname = '/';
+let mockParams: Record<string, string> = {};
 
 vi.mock('next/navigation', () => ({
     usePathname: () => mockPathname,
+    useParams: () => mockParams,
 }));
 
 function Probe({ next }: { next?: TimeRange }) {
@@ -29,6 +31,7 @@ function setUrl(path: string) {
 describe('TimeRangeProvider URL sync', () => {
     beforeEach(() => {
         mockPathname = '/';
+        mockParams = {};
         setUrl('/');
         resetTimeRangeStoreForTests();
     });
@@ -81,6 +84,42 @@ describe('TimeRangeProvider URL sync', () => {
         // is not rewritten there even though the state changes.
         expect(screen.getByText('7d')).toBeInTheDocument();
         expect(window.location.search).toBe('?range=bogus');
+    });
+
+    it('writes the range on network-scoped home and chart routes', async () => {
+        mockPathname = '/sepolia/charts/base-fee';
+        mockParams = { network: 'sepolia', chart: 'base-fee' };
+        setUrl('/sepolia/charts/base-fee');
+
+        render(
+            <TimeRangeProvider>
+                <Probe next="7d" />
+            </TimeRangeProvider>
+        );
+
+        await act(async () => {
+            screen.getByRole('button').click();
+        });
+
+        expect(window.location.search).toBe('?range=7d');
+    });
+
+    it('leaves network-scoped routes without a time filter alone', async () => {
+        mockPathname = '/sepolia/blocks';
+        mockParams = { network: 'sepolia' };
+        setUrl('/sepolia/blocks');
+
+        render(
+            <TimeRangeProvider>
+                <Probe next="7d" />
+            </TimeRangeProvider>
+        );
+
+        await act(async () => {
+            screen.getByRole('button').click();
+        });
+
+        expect(window.location.search).toBe('');
     });
 
     it('preserves unrelated query params when writing the range', async () => {

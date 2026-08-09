@@ -75,7 +75,7 @@ PR titles must use Conventional Commit format: `type: subject` or `type(scope): 
 
 ## Environment Variables
 
-- `NEXT_PUBLIC_API_URL`: API base URL (default: `https://blob-indexer.ahkc.win/api/v1`)
+- `NEXT_PUBLIC_API_URL`: API base URL (default: `https://api.blobflow.com/api/v1`)
 - `NEXT_PUBLIC_USE_MOCK_DATA`: Toggle mock data (default: `false`)
 - `NEXT_PUBLIC_SITE_URL`: Canonical site origin for SEO metadata, sitemap, and robots (falls back to `VERCEL_URL`, then `http://localhost:3000`)
 - `BLOB_ARCHIVE_URL`: Server-only base URL of a BlobArchive (bloar) follower's read API including the head prefix (e.g. `http://127.0.0.1:8550/live`). Enables the raw blob viewer; unset disables it (the proxy route returns 501)

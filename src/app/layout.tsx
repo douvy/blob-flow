@@ -5,7 +5,7 @@ import Header from '@/components/Header';
 import IndexerStatusBanner from '@/components/IndexerStatusBanner';
 import Footer from '@/components/Footer';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from '@/constants';
-import { ogImageMetadata } from '@/lib/og/metadata';
+import { defaultOgMetadata } from '@/lib/pageMetadata';
 
 // Removed Inter font
 
@@ -32,13 +32,9 @@ export const metadata: Metadata = {
     'zkSync',
   ],
   // Default Open Graph card for routes without their own: the dynamic home
-  // card at its default time range. Home and chart pages override this per
-  // request with a range-carrying URL, and block/user pages override it via
-  // their opengraph-image.tsx file conventions.
-  ...ogImageMetadata({
-    imageUrl: '/opengraph-image',
-    alt: 'BlobFlow: live Ethereum blob base fee and top rollup blob shares',
-  }),
+  // card at its defaults. Pages that describe something more specific (a
+  // network, a time range, a block, an address) replace it in pageMetadata.
+  ...defaultOgMetadata(),
   icons: {
     icon: '/images/favicon.png',
   },
