@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.10.0](https://github.com/douvy/blob-flow/compare/v1.9.1...v1.10.0) (2026-08-09)
+
+
+### Features
+
+* add self-hosted Umami analytics support ([#274](https://github.com/douvy/blob-flow/issues/274)) ([572f06b](https://github.com/douvy/blob-flow/commit/572f06bc5254bb802cac824ca304b99c82d92f54))
+
+
+### Bug Fixes
+
+* stop reporting a flippening gap of 0.0 pts ([#272](https://github.com/douvy/blob-flow/issues/272)) ([62271d6](https://github.com/douvy/blob-flow/commit/62271d6412c01925290bb093bcaa78dbbfc86237))
+* stop standings badges overlapping the blob share column ([#273](https://github.com/douvy/blob-flow/issues/273)) ([8a42a4d](https://github.com/douvy/blob-flow/commit/8a42a4dabfc0b92e7700955aa2c64de516787c2f))
+
 ## [1.9.1](https://github.com/douvy/blob-flow/compare/v1.9.0...v1.9.1) (2026-08-09)
 
 
