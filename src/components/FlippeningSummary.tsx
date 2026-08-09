@@ -3,8 +3,9 @@
 import Link from '@/components/NetworkLink';
 import { ArrowRight } from 'lucide-react';
 import React from 'react';
-import { useFlippening } from '../hooks/useFlippening';
-import type { FlippeningEntity } from '../lib/flippening';
+import { FLIPPENING_WINDOW_SECONDS, useFlippening } from '../hooks/useFlippening';
+import type { TimeRange } from '../contexts/TimeRangeContext';
+import type { FlippeningEntity, FlippeningEvent } from '../lib/flippening';
 import AttributionBadge from './AttributionBadge';
 import { RelativeTime } from './RelativeTime';
 
@@ -34,6 +35,34 @@ function Rollup({ entity }: { entity: FlippeningEntity }) {
 }
 
 /**
+ * The newest crossover that happened inside the selected window, or null.
+ *
+ * The analysis covers more history than the window on purpose (a 24h filter
+ * reads 7d, a 30d filter reads all time) so the rolling share has room to
+ * move. Its events therefore reach back further than the strip is about, and
+ * taking the last one outright led the 24h view with flips from days earlier
+ * while suppressing the current close race.
+ */
+export function newestFlipInWindow(
+  events: FlippeningEvent[] | undefined,
+  timeRange: TimeRange,
+  now: number = Date.now()
+): FlippeningEvent | null {
+  if (!events?.length) return null;
+
+  const earliest = now - FLIPPENING_WINDOW_SECONDS[timeRange] * 1000;
+
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const at = Date.parse(events[index].timestamp);
+    // Unparseable timestamps cannot be placed in the window, so they are not
+    // claimed to be recent.
+    if (Number.isFinite(at) && at >= earliest) return events[index];
+  }
+
+  return null;
+}
+
+/**
  * One-line flippening status for the homepage: the newest crossover if one
  * happened in the window, otherwise how close the tightest race is. Shares
  * its request with the /flippening page via useFlippening, so the strip and
@@ -54,7 +83,7 @@ export default function FlippeningSummary() {
     );
   }
 
-  const latestFlip = analysis?.events[analysis.events.length - 1] ?? null;
+  const latestFlip = newestFlipInWindow(analysis?.events, timeRange);
   const gap = analysis?.closestGap ?? null;
 
   const summaryLabel = latestFlip

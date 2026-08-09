@@ -5,6 +5,7 @@
  * server-rendered Open Graph image can derive identical numbers from the
  * attribution-usage summary shares.
  */
+import { ATTRIBUTION_ENTITY_LIMIT } from '@/constants';
 import type {
   BackendAttributionUsageShare,
   BackendChartRange,
@@ -32,7 +33,7 @@ export const VS_RANGE_LABELS: Record<BackendChartRange, string> = {
  * report a quieter rollup as having no activity. Ask for enough entities to
  * cover the whole registry so every real poster is addressable.
  */
-export const VS_ENTITY_LIMIT = 50;
+export const VS_ENTITY_LIMIT = ATTRIBUTION_ENTITY_LIMIT;
 
 /** Coerce an arbitrary ?range= value to a supported range, defaulting to 24h. */
 export function parseVsRange(value: string | null | undefined): BackendChartRange {
@@ -136,6 +137,11 @@ function weiToBigInt(value: string | undefined): bigint {
 
 // A blob carries 131072 bytes (128 KiB), exactly 1/8 MiB, so
 // cost-per-MB = total_cost / (blob_count / 8) = total_cost * 8 / blob_count.
+//
+// The unit is a binary megabyte spelled "MB", which is what formatBytes and
+// the rest of the UI already do. Reading it as a decimal MB would make these
+// figures look about 4.9% high; both contenders are measured the same way, so
+// the comparison itself is unaffected either way.
 const BLOBS_PER_MB = BigInt(8);
 
 /** Average wei paid per blob, floored; '0' when no blobs were posted. */

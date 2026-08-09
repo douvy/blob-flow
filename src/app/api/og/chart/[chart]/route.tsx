@@ -1,11 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
-import { CHART_PAGES, SITE_NAME, SITE_URL, parseNetwork, parseTimeRange } from '@/constants';
+import { CHART_PAGES, SITE_NAME, SITE_URL, parseTimeRange } from '@/constants';
 import { fetchOgChartSeries, OG_CARD_DEFAULT_RANGE } from '@/lib/ogChartSeries';
 import { buildSparkDataUrl } from '@/lib/ogChartSpark';
 import { OG_CARD_CACHE_CONTROL } from '@/lib/og/card';
 import { cardNotFound, hasCanonicalQuery } from '@/lib/og/request';
+import { resolveCardNetwork } from '@/lib/serverNetworks';
 
 /**
  * Branded social share card for chart deep links (og:image, and X's
@@ -20,7 +21,7 @@ import { cardNotFound, hasCanonicalQuery } from '@/lib/og/request';
  *
  * Query params:
  *   range    one of the header's time ranges
- *   network  one of the known networks; both fall back to the app defaults
+ *   network  one this deployment serves; both fall back to the app defaults
  *
  * Unknown slugs 404 rather than rendering a generic card, and so does a query
  * naming anything beyond the two params above, or naming one of them twice:
@@ -47,7 +48,10 @@ export async function GET(
   if (!hasCanonicalQuery(query)) return cardNotFound();
 
   const range = parseTimeRange(query.get('range'), OG_CARD_DEFAULT_RANGE);
-  const network = parseNetwork(query.get('network'));
+  // Resolved against the networks this deployment serves rather than the
+  // bootstrap constants, so a chart page on a dynamically advertised network
+  // does not unfurl a mainnet plot labeled with that network's name.
+  const network = await resolveCardNetwork(query.get('network'));
 
   const page = CHART_PAGES.find((chartPage) => chartPage.slug === chart);
   if (!page) return cardNotFound();

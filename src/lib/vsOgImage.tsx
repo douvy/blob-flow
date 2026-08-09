@@ -74,36 +74,29 @@ async function fetchShares(
   }
 }
 
+/**
+ * The two contenders as the requested range sees them, on the network the
+ * route names.
+ *
+ * Only that range is read. An earlier version widened a quiet matchup to 30d
+ * so the card would have numbers to show, but the page never widens: a /1h
+ * link where one rollup was idle then unfurled as a 30d victory while the
+ * page it points at reported no activity. A card that disagrees with its own
+ * page is worse than one that says there was nothing to compare.
+ */
 async function resolveMatchup(
   aSlug: string,
   bSlug: string,
-  requested: BackendChartRange,
+  range: BackendChartRange,
   network: string,
 ) {
-  // A rollup can be quiet in a short window while still active over a month;
-  // widen once before giving up on numbers entirely.
-  const attempts: BackendChartRange[] = requested === '30d' ? ['30d'] : [requested, '30d'];
+  const shares = await fetchShares(range, network);
 
-  let attempt: {
-    range: BackendChartRange;
-    shareA: BackendAttributionUsageShare | undefined;
-    shareB: BackendAttributionUsageShare | undefined;
-  } = { range: requested, shareA: undefined, shareB: undefined };
-
-  for (const range of attempts) {
-    const shares = await fetchShares(range, network);
-    const shareA = findShareBySlug(shares, aSlug);
-    const shareB = findShareBySlug(shares, bSlug);
-    if (shareA && shareB) {
-      return { range, shareA, shareB };
-    }
-    // Remember the first attempt that matched at least one side so the card
-    // can still show canonical names.
-    if (!attempt.shareA && !attempt.shareB) {
-      attempt = { range, shareA, shareB };
-    }
-  }
-  return attempt;
+  return {
+    range,
+    shareA: findShareBySlug(shares, aSlug),
+    shareB: findShareBySlug(shares, bSlug),
+  };
 }
 
 const ICON_MIME_TYPES: Record<string, string> = {
