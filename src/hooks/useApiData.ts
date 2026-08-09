@@ -1,12 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from 'react';
-import { useQuery, type QueryKey } from '@tanstack/react-query';
+import { useQuery, type Query, type QueryKey } from '@tanstack/react-query';
 
 export interface UseApiDataOptions<T> {
   enabled?: boolean;
   initialData?: T;
-  refetchInterval?: number;
+  /**
+   * Poll interval in ms. A function form lets the interval depend on what
+   * came back, e.g. polling only until a result settles; return false to
+   * stop polling.
+   */
+  refetchInterval?: number | ((query: Query<T, Error>) => number | false);
   refetchOnWindowFocus?: boolean;
   staleTime?: number;
 }

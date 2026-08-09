@@ -70,8 +70,12 @@ export async function fetchApi<T>(
     timeoutMs: number = DEFAULT_TIMEOUT_MS,
     retries: number = 0
 ): Promise<T> {
-    // Add network parameter to the endpoint if provided
-    const networkParam = network ? `${endpoint.includes('?') ? '&' : '?'}network=${network}` : '';
+    // Add network parameter to the endpoint if provided. Networks can come
+    // from a URL segment, so the value is encoded rather than pasted in: a
+    // name containing & or = would otherwise inject query parameters.
+    const networkParam = network
+        ? `${endpoint.includes('?') ? '&' : '?'}network=${encodeURIComponent(network)}`
+        : '';
     const url = `${API_BASE_URL}${endpoint}${networkParam}`;
     const requestKey = retries === 0 ? getInFlightGetRequestKey(url, options) : null;
     const inFlightRequest = requestKey ? inFlightGetRequests.get(requestKey) : undefined;

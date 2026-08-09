@@ -1,22 +1,22 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import BlobFeeHero from '@/components/BlobFeeHero';
+import DeepLinkedTimeRange from '@/components/DeepLinkedTimeRange';
 import LiveMetrics from '@/components/LiveMetrics';
+import RelatableStats from '@/components/RelatableStats';
 import MetricsCharts from '@/components/MetricsCharts';
 import RecentBlocksPanel from '@/components/RecentBlocksPanel';
 import TopUsersTable from '@/components/TopUsersTable';
 import MempoolSummary from '@/components/MempoolSummary';
 import ExplainerSection from '@/components/ExplainerSection';
+import { homeMetadata } from '@/lib/pageMetadata';
 
-export const metadata: Metadata = {
-  alternates: {
-    canonical: '/',
-  },
-};
+export const metadata: Metadata = homeMetadata();
 
 export default function Home() {
   return (
     <>
+      <DeepLinkedTimeRange />
       <div className="container mx-auto px-4 py-12 max-w-7xl">
         <h1 className="sr-only">Real-time Ethereum blob analytics</h1>
         <BlobFeeHero />
@@ -43,6 +43,12 @@ export default function Home() {
           </div>
           <MetricsCharts />
         </div>
+      </div>
+
+      <div className="border-t border-frameLine" />
+
+      <div className="container mx-auto px-4 py-12 max-w-7xl">
+        <RelatableStats />
       </div>
     </>
   );

@@ -18,7 +18,8 @@ export interface ApiResponse<T> {
 export interface BlobResponse {
   network_id: number;
   network_name: string;
-  block_number: number;
+  /** Including block; null while the transaction is pending. */
+  block_number: number | null;
   blob_index: number;
   tx_hash: string;
   transaction_url?: string;
@@ -48,6 +49,28 @@ export interface BlobResponse {
   versioned_hash?: string;
   /** All versioned hashes carried by this blob's transaction. Omitted for rows indexed before versioned hashes were stored. */
   versioned_hashes?: string[];
+}
+
+/**
+ * One blob transaction, assembled for the transaction detail page: every blob
+ * row the indexer holds for a tx hash, plus the row that carries the fields
+ * they all share (sender, fees, including block, timestamp).
+ */
+export interface BlobTransaction {
+  txHash: string;
+  /** Blob rows for this transaction, ordered by blob index. Never empty. */
+  blobs: BlobResponse[];
+  /** Row the transaction-level fields are read from. */
+  primary: BlobResponse;
+  /** Including block, or null while the transaction is still pending. */
+  blockNumber: number | null;
+  confirmed: boolean;
+  /**
+   * Whether `blobs` holds every blob the transaction carries. False when only
+   * part of the transaction could be assembled (pending rows, or a block
+   * lookup that failed), so totals derived from `blobs` are lower bounds.
+   */
+  blobsComplete: boolean;
 }
 
 // ---- WebSocket Live Data Types ----
@@ -741,6 +764,215 @@ export interface ChartDataset {
   costComparisonCoverageLabel: string;
 }
 
+// ---- Blob market records ----
+//
+// The backend has no dedicated records endpoint yet, so these shapes are
+// derived client-side from the pricing, rolling-window, stats, and
+// attribution endpoints (see src/lib/records.ts). When a /records endpoint
+// ships, its response should be mapped onto BlobRecords so the page and
+// components below it stay unchanged.
+
+// Backend historical records response. Matches GET /records in
+// blob-indexer-api (a-thomas-22/blob-indexer-api PR 316).
+export interface BackendBlobStreakRun {
+  length: number;
+  start_block: number;
+  end_block: number;
+  start_timestamp: string;
+  end_timestamp: string;
+}
+
+export interface BackendBlobStreakBoard {
+  /** Run ending at the last indexed block; null when that block does not qualify. */
+  current: BackendBlobStreakRun | null;
+  /** Longest runs, sorted by length desc, then end_block desc. */
+  top: BackendBlobStreakRun[];
+}
+
+export interface BackendBlobFeePeak {
+  block_number: number;
+  timestamp: string;
+  blob_base_fee: string;
+  blob_base_fee_gwei: string;
+  blob_count: number;
+}
+
+export interface BackendBusiestHour {
+  /** Start of the UTC hour bucket, ISO-8601. */
+  hour_start: string;
+  blob_count: number;
+  total_cost_wei: string;
+}
+
+export interface BackendBusiestDay {
+  /** Start of the UTC day bucket, ISO-8601. */
+  day_start: string;
+  blob_count: number;
+  total_cost_wei: string;
+}
+
+export interface BackendUtilizationDay {
+  day_start: string;
+  /** Mean per-block blob utilization over the day. */
+  average_utilization_percent: number;
+  block_count: number;
+  blob_count: number;
+  blocks_at_max: number;
+  blocks_above_target: number;
+}
+
+export interface BackendExpensiveBlock {
+  block_number: number;
+  timestamp: string;
+  blob_count: number;
+  blob_base_fee: string;
+  blob_base_fee_gwei: string;
+  /** The block's total blob spend in wei. */
+  total_cost_wei: string;
+}
+
+export interface BackendRecordTopSpender {
+  address: string;
+  /** Known rollup name; absent when the address is unattributed. */
+  user_attribution?: string;
+  blob_count: number;
+  total_cost_wei: string;
+}
+
+export interface BackendBlobRecordsResponse {
+  network_id: number;
+  network_name: string;
+  generated_at: string;
+  /** Streaks of consecutive blocks that used every available blob slot. */
+  full_block_streaks: BackendBlobStreakBoard;
+  /** Streaks of consecutive blocks with blob gas usage above target. */
+  above_target_streaks: BackendBlobStreakBoard;
+  /** Streaks of consecutive blocks carrying no blobs at all. */
+  drought_streaks: BackendBlobStreakBoard;
+  /** Streaks of consecutive blocks strictly below the blob gas target. */
+  below_target_streaks: BackendBlobStreakBoard;
+  /** Highest blob base fee blocks ever indexed, highest first. */
+  base_fee_peaks: BackendBlobFeePeak[];
+  /** Blocks that burned the most on blob fees, priciest first. */
+  most_expensive_blocks: BackendExpensiveBlock[];
+  /** Busiest UTC hours by blob count ever indexed, busiest first. */
+  busiest_hours: BackendBusiestHour[];
+  /** Busiest UTC days by blob count ever indexed, busiest first. */
+  busiest_days: BackendBusiestDay[];
+  /** UTC days with the highest mean blob utilization, highest first. */
+  highest_utilization_days: BackendUtilizationDay[];
+  /** Largest all-history blob spenders by address. */
+  top_spenders: BackendRecordTopSpender[];
+}
+
+/** One historical streak run (frontend shape). */
+export interface StreakRun {
+  length: number;
+  startBlock: number;
+  endBlock: number;
+  endTimestamp: string;
+}
+
+/** Historical streak leaderboard for one streak kind. */
+export interface StreakLeaderboard {
+  /** Run ending at the last indexed block; null when the tip does not qualify. */
+  current: StreakRun | null;
+  /** Longest runs, best first. */
+  top: StreakRun[];
+}
+
+/** One all-time base fee peak (frontend shape). */
+export interface FeePeak {
+  blockNumber: number;
+  timestamp: string;
+  feeGwei: number;
+  blobCount: number;
+}
+
+/** One all-time priciest block by total blob spend (frontend shape). */
+export interface ExpensiveBlock {
+  blockNumber: number;
+  timestamp: string;
+  totalCostWei: string;
+  blobCount: number;
+}
+
+/** One all-time busiest UTC hour (frontend shape). */
+export interface BusiestHour {
+  hourStart: string;
+  blobCount: number;
+  totalCostWei: string;
+}
+
+/** One all-time busiest UTC day (frontend shape). */
+export interface BusiestDay {
+  dayStart: string;
+  blobCount: number;
+  totalCostWei: string;
+}
+
+/** One all-time highest mean utilization UTC day (frontend shape). */
+export interface UtilizationDay {
+  dayStart: string;
+  averageUtilizationPercent: number;
+  blockCount: number;
+  blobCount: number;
+}
+
+/** One attributed entity in the spend ranking. */
+export interface SpenderRecord {
+  key: string;
+  name: string;
+  category: string;
+  totalCostWei: string;
+  spendSharePercent: number;
+  blobCount: number;
+}
+
+/** Progress of one attributed entity toward its next round blob-count milestone. */
+export interface RollupMilestone {
+  key: string;
+  name: string;
+  category: string;
+  blobCount: number;
+  blobSharePercent: number;
+  nextMilestone: number;
+  remainingToMilestone: number;
+  /** Percent of the way from zero to nextMilestone, in [0, 100). */
+  progressPercent: number;
+}
+
+export interface AllTimeTotalsRecord {
+  totalBlobs: number;
+  averageBaseFee: string;
+}
+
+/**
+ * All records shown on /records. The leaderboard sections come from GET
+ * /records; the spend ranking and milestones from all-time attribution
+ * shares; the totals from /stats. A section that is empty (a board with no
+ * runs, an empty list) simply renders no card.
+ */
+export interface BlobRecords {
+  fullBlockStreaks: StreakLeaderboard;
+  aboveTargetStreaks: StreakLeaderboard;
+  belowTargetStreaks: StreakLeaderboard;
+  feePeaks: FeePeak[];
+  expensiveBlocks: ExpensiveBlock[];
+  busiestHours: BusiestHour[];
+  busiestDays: BusiestDay[];
+  /**
+   * UTC days ranked by total blob spend, derived from the all-time
+   * attribution day buckets rather than GET /records.
+   */
+  priciestDays: BusiestDay[];
+  utilizationDays: UtilizationDay[];
+  /** Attributed entities ranked by total blob spend, biggest first. */
+  topSpenders: SpenderRecord[];
+  allTime: AllTimeTotalsRecord;
+  milestones: RollupMilestone[];
+}
+
 // ---- Search ----
 
 /** A navigable destination parsed from a search query. */
@@ -762,4 +994,47 @@ export interface SearchMatchResponse {
   user_attribution?: string;
   name?: string;
   addresses?: string[];
+}
+
+// ---- Rollup head-to-head comparison (/vs/[a]/[b]) ----
+
+/** How a comparison row's raw values should be rendered. */
+export type VsMetricFormat = 'count' | 'percent' | 'eth' | 'cost';
+
+/** Which side of the matchup a row or the overall result favors. */
+export type VsWinner = 'a' | 'b' | 'tie';
+
+/**
+ * One metric row of the battle card. Raw values are numeric strings: plain
+ * numbers for count/percent formats, integer wei for eth/cost formats, so
+ * they survive serialization and BigInt comparison without precision loss.
+ *
+ * `detail` carries a metric that is fully derived from the primary one
+ * (blob share from blob count, spend share from ETH spent, per-blob cost
+ * from per-MB cost) and therefore always shares its winner; it is shown as
+ * context but never scored as a separate contest.
+ */
+export interface VsComparisonRow {
+  key: string;
+  label: string;
+  format: VsMetricFormat;
+  /** Whether a higher or a lower value wins this row. */
+  betterDirection: 'higher' | 'lower';
+  a: string;
+  b: string;
+  winner: VsWinner;
+  detail?: {
+    format: VsMetricFormat;
+    /** Short suffix rendered after the value, e.g. "share" or "per blob". */
+    label: string;
+    a: string;
+    b: string;
+  };
+}
+
+/** Full matchup result: per-metric rows plus the overall verdict. */
+export interface VsComparison {
+  rows: VsComparisonRow[];
+  rowWins: { a: number; b: number };
+  overall: VsWinner;
 }

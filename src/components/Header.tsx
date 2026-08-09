@@ -2,17 +2,19 @@
 
 import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Blocks, Clock3, Globe, GraduationCap, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, type LucideIcon } from 'lucide-react';
+import Link from '@/components/NetworkLink';
+import { usePathname, useRouter } from 'next/navigation';
+import { Blocks, Clock3, Globe, GraduationCap, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, Trophy, Tv, type LucideIcon } from 'lucide-react';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
 import { useNetwork } from '../hooks/useNetwork';
-import { DEFAULT_NETWORK } from '../constants';
+import { buildChartViewUrl, isChartViewPath } from '../lib/chartViewUrl';
+import { DEFAULT_NETWORK, TIME_RANGES } from '../constants';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import { useBlobWebSocket } from '../contexts/LiveDataContext';
 import { BlobWebSocketConnectionState, type Network } from '../types';
+import { stripNetworkPath } from '../utils';
 import {
   Select,
   SelectContent,
@@ -35,6 +37,7 @@ const NAV_LINKS: NavLink[] = [
   { href: '/', label: 'Home', icon: Home, activePrefixes: [] },
   { href: '/blocks', label: 'Blocks', icon: Blocks, activePrefixes: ['/blocks', '/block'] },
   { href: '/mempool', label: 'Mempool', icon: Hourglass, activePrefixes: ['/mempool'] },
+  { href: '/records', label: 'Records', icon: Trophy, activePrefixes: ['/records'] },
   { href: '/efficiency', label: 'Efficiency', icon: GraduationCap, activePrefixes: ['/efficiency'] },
 ];
 
@@ -113,11 +116,18 @@ function LiveStatusIndicator({
 }
 
 export default function Header() {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const router = useRouter();
   const { selectedNetwork, setSelectedNetwork, networkOptions } = useNetwork();
+  // Which page is showing is a property of the route, not of the network it is
+  // scoped to, so nav highlighting compares against the unscoped path.
+  const pathname = stripNetworkPath(
+    rawPathname,
+    networkOptions.map((option) => option.apiParam)
+  );
   const { timeRange: selectedTimeRange, setTimeRange: setSelectedTimeRange } = useTimeRange();
   // Chart detail pages read the time range via useChartData, so they keep the filter too
-  const showTimeFilters = pathname === '/' || pathname.startsWith('/charts/');
+  const showTimeFilters = isChartViewPath(pathname);
   const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -125,7 +135,6 @@ export default function Header() {
   // Lock scrolling when the mobile menu is open
   useScrollLock(isMobileMenuOpen);
 
-  const timeRangeOptions: TimeRange[] = ['1h', '24h', '7d', '30d'];
 
   const handleNetworkChange = (network: typeof DEFAULT_NETWORK) => {
     setSelectedNetwork(network);
@@ -140,6 +149,18 @@ export default function Header() {
 
   const handleTimeRangeChange = (range: TimeRange) => {
     setSelectedTimeRange(range);
+
+    // Reflect the range in the URL so the address bar states the view on
+    // screen and can be copied as is; replace rather than push, since a
+    // filter change is not a navigation worth a history entry. The route
+    // test uses the network-stripped path, but the target keeps rawPathname
+    // so the network segment survives the rewrite.
+    if (isChartViewPath(pathname)) {
+      router.replace(
+        buildChartViewUrl(rawPathname, window.location.search, range, window.location.hash),
+        { scroll: false }
+      );
+    }
   };
 
   const isNavLinkActive = (link: NavLink) => {
@@ -240,6 +261,16 @@ export default function Header() {
             <div className="flex-grow order-last md:order-none mt-2 md:mt-0"></div>
 
             <div className="hidden md:flex items-center gap-4">
+              {/* TV mode: full-screen display view at /live */}
+              <Link
+                href="/live"
+                aria-label="Open TV mode"
+                title="TV mode: full-screen display view"
+                className="group select-none rounded-sm flex items-center justify-center text-nowrap border border-transparent transition-colors duration-75 text-bodyText h-8 px-2.5 hover:bg-[#202327]"
+              >
+                <Tv className="h-4 w-4" aria-hidden="true" />
+              </Link>
+
               {/* Search Button */}
               <button
                 onClick={toggleSearchModal}
@@ -266,7 +297,7 @@ export default function Header() {
             {/* Time Period Selector - only on routes that use the time range */}
             {showTimeFilters && (
               <div className="hidden md:flex items-center space-x-1 bg-background/30 rounded-md p-0.5 ml-4">
-                {timeRangeOptions.map((range) => (
+                {TIME_RANGES.map((range) => (
                   <button
                     key={range}
                     onClick={() => handleTimeRangeChange(range)}
@@ -497,7 +528,7 @@ export default function Header() {
                     <span className="text-bodyText">Time Period</span>
                   </div>
                   <div className="flex items-center space-x-1 bg-background/30 border border-divider rounded-md p-0.5">
-                    {timeRangeOptions.map((range) => (
+                    {TIME_RANGES.map((range) => (
                       <button
                         key={range}
                         onClick={() => handleTimeRangeChange(range)}
