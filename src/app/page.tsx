@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import BlobFeeHero from '@/components/BlobFeeHero';
+import DeepLinkedTimeRange from '@/components/DeepLinkedTimeRange';
 import LiveMetrics from '@/components/LiveMetrics';
 import RelatableStats from '@/components/RelatableStats';
 import MetricsCharts from '@/components/MetricsCharts';
@@ -16,6 +17,7 @@ export const metadata: Metadata = homeMetadata();
 export default function Home() {
   return (
     <>
+      <DeepLinkedTimeRange />
       <div className="container mx-auto px-4 py-12 max-w-7xl">
         <h1 className="sr-only">Real-time Ethereum blob analytics</h1>
         <BlobFeeHero />

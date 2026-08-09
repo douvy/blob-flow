@@ -3,6 +3,7 @@
 import Link from '@/components/NetworkLink';
 import { ArrowLeft, CircleHelp } from 'lucide-react';
 import React from 'react';
+import DeepLinkedTimeRange from '@/components/DeepLinkedTimeRange';
 import FlippeningWatch from '@/components/FlippeningWatch';
 import TapTooltip from '@/components/TapTooltip';
 import { DEFAULT_FLIPPENING_TOP_N } from '@/lib/flippening';
@@ -45,6 +46,9 @@ function MethodologyTooltip() {
 export default function FlippeningPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
+      {/* The window is the selected range, so a shared link has to open on
+          the range it was captured at, the same as a chart page. */}
+      <DeepLinkedTimeRange />
       <Link
         href="/"
         className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2"
