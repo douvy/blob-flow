@@ -9,8 +9,6 @@ RUN npm ci
 # builder: produce the Next.js standalone output (.next/standalone, .next/static)
 FROM node:22-alpine AS builder
 WORKDIR /app
-# VERSION is accepted so the image can be tagged/labelled with the release
-# version; the app does not consume it yet.
 ARG VERSION=0.0.0
 ARG NEXT_PUBLIC_SITE_URL=https://blobflow.com
 # Umami website id. Next inlines NEXT_PUBLIC_ values into the client bundle at
@@ -18,6 +16,7 @@ ARG NEXT_PUBLIC_SITE_URL=https://blobflow.com
 # the tracker is never loaded. Empty (the default) ships no tracker at all.
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID=
 ENV NEXT_TELEMETRY_DISABLED=1 \
+    APP_VERSION=$VERSION \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
 COPY --from=deps /app/node_modules ./node_modules

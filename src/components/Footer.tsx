@@ -35,7 +35,22 @@ function StatusLink() {
   );
 }
 
+/**
+ * Release builds stamp a semver version and link to its GitHub release; dev
+ * images stamp `main-<sha>`, which has no release to point at, so those link
+ * to the commit instead.
+ */
+function versionLink(version: string): { label: string; href: string } {
+  const devBuild = /^main-([0-9a-f]{7,40})$/.exec(version);
+  if (devBuild) {
+    return { label: version, href: `https://github.com/douvy/blob-flow/commit/${devBuild[1]}` };
+  }
+  return { label: `v${version}`, href: `https://github.com/douvy/blob-flow/releases/tag/v${version}` };
+}
+
 export default function Footer() {
+  const version = versionLink(process.env.NEXT_PUBLIC_APP_VERSION ?? '0.0.0');
+
   return (
     <footer className="relative z-10 w-full py-6 border-t border-divider bg-[#101114]">
       <div className="container mx-auto px-4 max-w-7xl">
@@ -70,12 +85,12 @@ export default function Footer() {
             {/* Meta line: version and GitHub star, kept together so neither is orphaned */}
             <p className="flex flex-wrap items-center gap-2 text-xs text-[#7d8590] justify-start md:justify-end">
               <Link
-                href={`https://github.com/douvy/blob-flow/releases/tag/v${process.env.NEXT_PUBLIC_APP_VERSION}`}
+                href={version.href}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="decoration-[#4a5568] underline underline-offset-2 hover:text-[#d9d9d9] hover:decoration-[#d9d9d9]"
               >
-                v{process.env.NEXT_PUBLIC_APP_VERSION}
+                {version.label}
               </Link>
               <span aria-hidden="true">•</span>
               <StatusLink />

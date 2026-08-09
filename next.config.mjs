@@ -16,7 +16,10 @@ const nextConfig = {
   },
   env: {
     NEXT_PUBLIC_USE_MOCK_DATA: process.env.NEXT_PUBLIC_USE_MOCK_DATA || 'false',
-    NEXT_PUBLIC_APP_VERSION: pkg.version,
+    // APP_VERSION lets a build stamp itself with something other than the
+    // released package version — dev images pass main-<sha> so the footer
+    // identifies the commit rather than the last release.
+    NEXT_PUBLIC_APP_VERSION: process.env.APP_VERSION || pkg.version,
   },
 };
 
