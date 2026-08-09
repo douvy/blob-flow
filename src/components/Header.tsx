@@ -4,12 +4,12 @@ import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore }
 import Image from 'next/image';
 import Link from '@/components/NetworkLink';
 import { usePathname } from 'next/navigation';
-import { Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, Trophy, type LucideIcon } from 'lucide-react';
+import { Blocks, Clock3, Globe, Home, Hourglass, Menu, RadioTower, Search, TrendingUp, Trophy, Tv, type LucideIcon } from 'lucide-react';
 import SearchModal from './SearchModal';
 import useSearchShortcut from '../hooks/useSearchShortcut';
 import useScrollLock from '../hooks/useScrollLock';
 import { useNetwork } from '../hooks/useNetwork';
-import { DEFAULT_NETWORK } from '../constants';
+import { DEFAULT_NETWORK, TIME_RANGES } from '../constants';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import { useBlobWebSocket } from '../contexts/LiveDataContext';
 import { BlobWebSocketConnectionState, type Network } from '../types';
@@ -132,7 +132,6 @@ export default function Header() {
   // Lock scrolling when the mobile menu is open
   useScrollLock(isMobileMenuOpen);
 
-  const timeRangeOptions: TimeRange[] = ['1h', '24h', '7d', '30d'];
 
   const handleNetworkChange = (network: typeof DEFAULT_NETWORK) => {
     setSelectedNetwork(network);
@@ -247,6 +246,16 @@ export default function Header() {
             <div className="flex-grow order-last md:order-none mt-2 md:mt-0"></div>
 
             <div className="hidden md:flex items-center gap-4">
+              {/* TV mode: full-screen display view at /live */}
+              <Link
+                href="/live"
+                aria-label="Open TV mode"
+                title="TV mode: full-screen display view"
+                className="group select-none rounded-sm flex items-center justify-center text-nowrap border border-transparent transition-colors duration-75 text-bodyText h-8 px-2.5 hover:bg-[#202327]"
+              >
+                <Tv className="h-4 w-4" aria-hidden="true" />
+              </Link>
+
               {/* Search Button */}
               <button
                 onClick={toggleSearchModal}
@@ -273,7 +282,7 @@ export default function Header() {
             {/* Time Period Selector - only on routes that use the time range */}
             {showTimeFilters && (
               <div className="hidden md:flex items-center space-x-1 bg-background/30 rounded-md p-0.5 ml-4">
-                {timeRangeOptions.map((range) => (
+                {TIME_RANGES.map((range) => (
                   <button
                     key={range}
                     onClick={() => handleTimeRangeChange(range)}
@@ -504,7 +513,7 @@ export default function Header() {
                     <span className="text-bodyText">Time Period</span>
                   </div>
                   <div className="flex items-center space-x-1 bg-background/30 border border-divider rounded-md p-0.5">
-                    {timeRangeOptions.map((range) => (
+                    {TIME_RANGES.map((range) => (
                       <button
                         key={range}
                         onClick={() => handleTimeRangeChange(range)}

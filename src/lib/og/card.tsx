@@ -1,8 +1,17 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { SITE_NAME } from '@/constants';
 import type { OgCardContent, OgAccent } from './format';
 
 export const OG_SIZE = { width: 1200, height: 630 };
+
+/**
+ * Crawlers refetch cards often, so serve them from cache for five minutes
+ * instead of turning every unfurl into a backend request. Matches the chart
+ * card route.
+ */
+export const OG_CARD_CACHE_CONTROL =
+    'public, max-age=300, s-maxage=300, stale-while-revalidate=86400';
 
 /** Mirrors the @theme palette in src/app/globals.css. */
 export const OG_COLORS = {
@@ -30,6 +39,20 @@ export interface OgFont {
     data: Buffer;
     weight: 400 | 700;
     style: 'normal';
+}
+
+/**
+ * The site logo as a data URI. Satori renders background images and cannot
+ * run next/image, and it has no origin to resolve a public path against.
+ * Null when the file cannot be read, which only costs the card its mark.
+ */
+export async function loadOgLogo(): Promise<string | null> {
+    try {
+        const logo = await readFile(join(process.cwd(), 'public', 'images', 'logo.png'));
+        return `data:image/png;base64,${logo.toString('base64')}`;
+    } catch {
+        return null;
+    }
 }
 
 /**
@@ -94,7 +117,7 @@ function StatChip({ label, value, accent }: { label: string; value: string; acce
  * The shared 1200x630 Open Graph card: dark grid background, BlobFlow brand
  * row, a big headline, and up to three stat chips.
  */
-export function OgCard({ content }: { content: OgCardContent }) {
+export function OgCard({ content, logoSrc }: { content: OgCardContent; logoSrc?: string | null }) {
     return (
         <div
             style={{
@@ -121,12 +144,18 @@ export function OgCard({ content }: { content: OgCardContent }) {
                 }}
             >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                    {/* Satori renders background images; next/image cannot run here. */}
                     <div
                         style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 9999,
-                            background: `linear-gradient(135deg, ${OG_COLORS.blue}, ${OG_COLORS.lightBlue})`,
+                            display: 'flex',
+                            width: 56,
+                            height: 56,
+                            borderRadius: logoSrc ? 0 : 9999,
+                            ...(logoSrc
+                                ? { backgroundImage: `url(${logoSrc})`, backgroundSize: '56px 56px' }
+                                : {
+                                      background: `linear-gradient(135deg, ${OG_COLORS.blue}, ${OG_COLORS.lightBlue})`,
+                                  }),
                         }}
                     />
                     <span
@@ -137,7 +166,7 @@ export function OgCard({ content }: { content: OgCardContent }) {
                             fontWeight: 700,
                         }}
                     >
-                        BlobFlow
+                        {SITE_NAME}
                     </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

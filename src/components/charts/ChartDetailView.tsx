@@ -1,11 +1,14 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import Link from '@/components/NetworkLink';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Minimize2 } from 'lucide-react';
 import DataStateWrapper from '@/components/DataStateWrapper';
+import ChartCardActions from '@/components/charts/ChartCardActions';
 import { useChartData } from '@/hooks/useChartData';
+import { useTimeRange } from '@/contexts/TimeRangeContext';
+import { isTimeRange } from '@/constants';
 import { CHART_CARD_CLASS } from '@/constants/chartTheme';
 import {
   CHART_VIEWS,
@@ -52,6 +55,7 @@ function EmptyChartState() {
 
 function ChartDetail({ view }: { view: ChartView }) {
   const { chartData, isLoading, error } = useChartData();
+  const captureRef = useRef<HTMLDivElement>(null);
 
   const loadingComponent = (
     <div className={CHART_CARD_CLASS}>
@@ -77,15 +81,24 @@ function ChartDetail({ view }: { view: ChartView }) {
                 {view.getCoverageLabel(chartData)}
               </p>
             </div>
-            <Link
-              href="/#data-trends"
-              className="inline-flex h-8 items-center justify-center gap-2 self-start rounded-md border border-divider bg-[#1d1f23] px-3 text-sm text-bodyText transition-colors hover:bg-[#252936] hover:text-white focus:outline-none focus:ring-2 focus:ring-blue/60"
-            >
-              <Minimize2 className="h-4 w-4" aria-hidden="true" />
-              Dashboard
-            </Link>
+            <div className="flex flex-none items-center gap-2 self-start">
+              <ChartCardActions
+                chartId={view.id}
+                chartTitle={view.getTitle(chartData)}
+                headlineStat={view.getHeadlineStat(chartData)}
+                rangeLabel={chartData.chartRangeLabel}
+                captureRef={captureRef}
+              />
+              <Link
+                href="/#data-trends"
+                className="inline-flex h-8 items-center justify-center gap-2 rounded-md border border-divider bg-[#1d1f23] px-3 text-sm text-bodyText transition-colors hover:bg-[#252936] hover:text-white focus:outline-none focus:ring-2 focus:ring-blue/60"
+              >
+                <Minimize2 className="h-4 w-4" aria-hidden="true" />
+                Dashboard
+              </Link>
+            </div>
           </div>
-          <div className={view.detailFrameClassName}>
+          <div ref={captureRef} className={view.detailFrameClassName}>
             {view.getPointCount(chartData) > 0 ? view.render(chartData) : <EmptyChartState />}
           </div>
         </div>
@@ -106,10 +119,33 @@ function UnknownChart({ chartId }: { chartId: string | undefined }) {
   );
 }
 
-export default function ChartDetailPage() {
-  const params = useParams();
-  const chartId = params.chart as string | undefined;
+/**
+ * Applies a ?range= deep link to the shared time range. Shared chart links
+ * carry the range they were captured at, so the page has to open on that
+ * range instead of the header default.
+ *
+ * Keyed on the parameter's value rather than a once-per-mount flag: browser
+ * history and in-app navigation swap the range without remounting, and a
+ * one-shot guard would leave the chart on the previous range while the URL
+ * and the page metadata said otherwise. Header changes still win, since the
+ * effect only re-runs when the URL itself changes.
+ */
+function useDeepLinkedTimeRange() {
+  const searchParams = useSearchParams();
+  const { setTimeRange } = useTimeRange();
+  const rangeParam = searchParams.get('range');
+  const applied = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (applied.current === rangeParam || !isTimeRange(rangeParam)) return;
+    applied.current = rangeParam;
+    setTimeRange(rangeParam);
+  }, [rangeParam, setTimeRange]);
+}
+
+export default function ChartDetailView({ chartId }: { chartId: string }) {
   const view = getChartView(chartId);
+  useDeepLinkedTimeRange();
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-[1600px]">

@@ -5,6 +5,8 @@
 import type { Network } from '../types';
 
 export const APP_NAME = 'Blob Flow';
+/** The brand as displayed: page titles, the header, and share imagery. */
+export const SITE_NAME = 'BlobFlow';
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.blobflow.com/api/v1';
 // Canonical site origin for SEO metadata (Open Graph URLs, sitemap, robots).
 // Set NEXT_PUBLIC_SITE_URL in production; falls back to Vercel's production
@@ -19,28 +21,74 @@ const rawSiteUrl =
   'http://localhost:3000';
 export const SITE_URL = rawSiteUrl.replace(/\/+$/, '');
 
-// Shared SEO strings, used by the root layout metadata and by per-page
-// Open Graph metadata (which must restate them: Next replaces the whole
-// openGraph object rather than deep-merging it).
-export const SITE_NAME = 'BlobFlow';
+// Shared with per-page Open Graph metadata, which must restate them: Next
+// replaces the whole openGraph object per segment rather than deep-merging it.
 export const SITE_TITLE = 'BlobFlow: Real-Time Ethereum Blob Analytics';
 export const SITE_DESCRIPTION =
   'Track the Ethereum EIP-4844 blob market in real time: live blob base fees, ' +
   'next-block fee predictions, mempool pressure, and L2 rollup usage across ' +
   'Arbitrum, Optimism, Base, and zkSync, streamed block by block.';
 
-// Chart detail pages, used for SEO (sitemap entries, per-chart page titles).
-// Keep the slugs in sync with CHART_VIEWS in
-// src/components/charts/chartViews.tsx (a "use client" module, so its
-// exports can't be imported from server-only code).
+// Chart detail pages, used for SEO (sitemap entries, per-chart page titles,
+// and social share cards). Keep the slugs and descriptions in sync with
+// CHART_VIEWS in src/components/charts/chartViews.tsx (a "use client" module,
+// so its exports can't be imported from server-only code).
 export const CHART_PAGES = [
-  { slug: 'base-fee', title: 'Blob Base Fee Chart' },
-  { slug: 'gas-utilization', title: 'Blob Gas Utilization Chart' },
-  { slug: 'blob-usage', title: 'Blob Usage Chart' },
-  { slug: 'blob-share', title: 'Blob Share Chart' },
-  { slug: 'cost-comparison', title: 'Blob vs Calldata Cost Chart' },
-  { slug: 'rolling-market-stats', title: 'Rolling Market Stats' },
+  {
+    slug: 'base-fee',
+    title: 'Blob Base Fee Chart',
+    description: 'Blob base fee trend across the most recent indexed blocks.',
+  },
+  {
+    slug: 'gas-utilization',
+    title: 'Blob Gas Utilization Chart',
+    description: 'Blob gas used per block against the current target.',
+  },
+  {
+    slug: 'blob-usage',
+    title: 'Blob Usage Chart',
+    description: 'Bucketed blob usage grouped by known rollup or sender attribution.',
+  },
+  {
+    slug: 'blob-share',
+    title: 'Blob Share Chart',
+    description: 'Each rollup or sender as a percentage of the blobs in every bucket.',
+  },
+  {
+    slug: 'cost-comparison',
+    title: 'Blob vs Calldata Cost Chart',
+    description: 'Blob cost compared with calldata-equivalent cost approximation.',
+  },
+  {
+    slug: 'rolling-market-stats',
+    title: 'Rolling Market Stats',
+    description: 'Windowed fee, utilization, cost, and sender totals.',
+  },
 ] as const;
+/**
+ * Time ranges the header offers. Defined here rather than in
+ * TimeRangeContext so server code (share card metadata and image rendering)
+ * can read them: every export of a "use client" module reaches the server as
+ * a client reference, not a callable value.
+ */
+export const TIME_RANGES = ['1h', '24h', '7d', '30d'] as const;
+
+export type TimeRange = (typeof TIME_RANGES)[number];
+
+export const DEFAULT_TIME_RANGE: TimeRange = '1h';
+
+export function isTimeRange(value: unknown): value is TimeRange {
+  return TIME_RANGES.some((range) => range === value);
+}
+
+/** Narrows an untrusted value (query param, storage) to a header range. */
+export function parseTimeRange(
+  value: string | undefined | null,
+  fallback: TimeRange = DEFAULT_TIME_RANGE
+): TimeRange {
+  return isTimeRange(value) ? value : fallback;
+}
+
 export const HOMEPAGE_BLOCK_ROWS = 5;
 export const BLOCKS_PAGE_LIMIT = 100;
 export const BLOCKS_PAGE_SIZE = 20;
@@ -79,6 +127,19 @@ export const NETWORKS: Record<string, Network> = {
 };
 
 export const DEFAULT_NETWORK: Network = NETWORKS.MAINNET;
+
+/**
+ * Narrows an untrusted network value (a share link's query param) to one of
+ * the known networks. The live list comes from GET /networks, but share
+ * rendering happens without a session, so it stays on this finite bootstrap
+ * set rather than forwarding an arbitrary string to the backend.
+ */
+export function parseNetwork(value: string | undefined | null): Network {
+  return (
+    Object.values(NETWORKS).find((network) => network.apiParam === value) ??
+    DEFAULT_NETWORK
+  );
+}
 
 export const ROUTES = {
   HOME: '/',

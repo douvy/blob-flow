@@ -1,10 +1,10 @@
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
+import type { TimeRange } from '@/constants';
 import {
     TimeRangeProvider,
     resetTimeRangeStoreForTests,
     useTimeRange,
-    type TimeRange,
 } from './TimeRangeContext';
 
 let mockPathname = '/';
@@ -64,26 +64,16 @@ describe('TimeRangeProvider URL sync', () => {
         expect(window.location.search).toBe('?range=30d');
     });
 
-    it('ignores invalid range params and leaves the URL alone elsewhere', async () => {
-        mockPathname = '/blocks';
-        setUrl('/blocks?range=bogus');
+    it('ignores an invalid range param', async () => {
+        setUrl('/?range=bogus');
 
         render(
             <TimeRangeProvider>
-                <Probe next="7d" />
+                <Probe />
             </TimeRangeProvider>
         );
 
         expect(await screen.findByText('1h')).toBeInTheDocument();
-
-        await act(async () => {
-            screen.getByRole('button').click();
-        });
-
-        // The header filter is not shown outside home and charts, so the URL
-        // is not rewritten there even though the state changes.
-        expect(screen.getByText('7d')).toBeInTheDocument();
-        expect(window.location.search).toBe('?range=bogus');
     });
 
     it('writes the range on network-scoped home and chart routes', async () => {
@@ -104,7 +94,7 @@ describe('TimeRangeProvider URL sync', () => {
         expect(window.location.search).toBe('?range=7d');
     });
 
-    it('leaves network-scoped routes without a time filter alone', async () => {
+    it('leaves routes without a time filter alone', async () => {
         mockPathname = '/sepolia/blocks';
         mockParams = { network: 'sepolia' };
         setUrl('/sepolia/blocks');
@@ -119,6 +109,8 @@ describe('TimeRangeProvider URL sync', () => {
             screen.getByRole('button').click();
         });
 
+        // The state still changes; only the URL is left untouched.
+        expect(screen.getByText('7d')).toBeInTheDocument();
         expect(window.location.search).toBe('');
     });
 

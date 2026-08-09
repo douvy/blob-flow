@@ -1,11 +1,8 @@
 import type {
     BackendAttributionUsageChartResponse,
     BackendAttributionUsageShare,
-    BackendBlobMarketChartResponse,
-    BackendCostComparisonChartResponse,
-    BackendStatsWindow,
-    BackendStatsWindowsResponse,
     NewBlockData,
+    Network,
     UserResponse,
 } from '@/types';
 import {
@@ -13,14 +10,11 @@ import {
     formatGwei,
     formatNumber,
     formatPercent,
-    formatUtilizationPercent,
     formatWeiToEth,
-    formatWeiToGwei,
     truncateAddress,
 } from '@/utils';
-import { DEFAULT_NETWORK } from '@/constants';
+import { DEFAULT_NETWORK, SITE_NAME } from '@/constants';
 import { DEFAULT_OG_SCOPE, type HomeOgData, type OgScope } from './data';
-import { timeRangeLabel } from '@/lib/timeRange';
 
 /** Accent keys map to OG_COLORS in card.tsx. */
 export type OgAccent = 'blue' | 'lightBlue' | 'green' | 'red';
@@ -42,31 +36,22 @@ export interface OgCardContent {
 
 const TAGLINE = 'Real-time Ethereum EIP-4844 blob market analytics';
 
-const NETWORK_SLUG_PATTERN = /^[a-z0-9-]{1,32}$/;
-
-/**
- * How a network is named in the card's corner. Every network this site serves
- * is an Ethereum network, so they all read as "Ethereum <Name>".
- */
-export function ogNetworkLabel(network: string = DEFAULT_NETWORK.apiParam): string {
-    const slug = network.toLowerCase();
-    if (!NETWORK_SLUG_PATTERN.test(slug)) return `Ethereum ${DEFAULT_NETWORK.name}`;
-
-    return `Ethereum ${slug.charAt(0).toUpperCase()}${slug.slice(1)}`;
+/** How a network is named in the card's corner. */
+export function ogNetworkLabel(network: Network = DEFAULT_NETWORK): string {
+    return `Ethereum ${network.name}`;
 }
 
 /**
- * Branded static card used whenever the indexer is unreachable or a route
- * param does not resolve to indexed data. Never throws, so an unfurl always
- * gets an image.
+ * Branded card used whenever the indexer is unreachable or a route param does
+ * not resolve to indexed data. Never throws, so an unfurl always gets an image.
  */
 export function buildFallbackCard(
     overrides: Partial<OgCardContent> = {},
-    network: string = DEFAULT_NETWORK.apiParam
+    network: Network = DEFAULT_NETWORK
 ): OgCardContent {
     return {
         eyebrow: 'Ethereum blob analytics',
-        title: 'BlobFlow',
+        title: SITE_NAME,
         subtitle: TAGLINE,
         networkLabel: ogNetworkLabel(network),
         stats: [],
@@ -138,174 +123,16 @@ export function buildHomeCard(
     };
 }
 
-export function buildBaseFeeCard(
-    chart: BackendBlobMarketChartResponse,
-    { network, range }: OgScope = DEFAULT_OG_SCOPE
-): OgCardContent {
-    const { summary } = chart;
-    return {
-        eyebrow: `Blob base fee, ${timeRangeLabel(range)}`,
-        title: formatGwei(summary.current_base_fee_gwei, 4),
-        subtitle: 'Current blob base fee on Ethereum',
-        networkLabel: ogNetworkLabel(network),
-        stats: [
-            {
-                label: `${range} average`,
-                value: formatGwei(summary.average_blob_base_fee_gwei, 4),
-                accent: 'lightBlue',
-            },
-            { label: `${range} p95`, value: formatGwei(summary.p95_blob_base_fee_gwei, 4), accent: 'blue' },
-            { label: `${range} blobs`, value: formatNumber(summary.total_blobs), accent: 'green' },
-        ],
-    };
-}
-
-export function buildGasUtilizationCard(
-    chart: BackendBlobMarketChartResponse,
-    { network, range }: OgScope = DEFAULT_OG_SCOPE
-): OgCardContent {
-    const { summary } = chart;
-    const utilizationRatio = Number(summary.average_utilization);
-    const utilization = Number.isFinite(utilizationRatio)
-        ? formatUtilizationPercent(utilizationRatio * 100)
-        : '-';
-
-    return {
-        eyebrow: `Blob gas utilization, ${timeRangeLabel(range)}`,
-        title: `${utilization} of target`,
-        subtitle: 'Average blob gas used versus the protocol target',
-        networkLabel: ogNetworkLabel(network),
-        stats: [
-            { label: `${range} blobs`, value: formatNumber(summary.total_blobs), accent: 'green' },
-            { label: 'Unique senders', value: formatNumber(summary.unique_senders), accent: 'lightBlue' },
-            { label: 'Current fee', value: formatGwei(summary.current_base_fee_gwei, 4), accent: 'blue' },
-        ],
-    };
-}
-
-export function buildBlobUsageCard(
-    attribution: BackendAttributionUsageChartResponse,
-    { network, range }: OgScope = DEFAULT_OG_SCOPE
-): OgCardContent {
-    const shares = topAttributedShares(attribution);
-    const stats: OgStat[] = shares.map((share, index) => ({
-        label: share.name,
-        value: formatPercent(share.blob_share_percent),
-        accent: (['blue', 'lightBlue', 'green'] as const)[index % 3],
-    }));
-
-    return {
-        eyebrow: `Blob usage by rollup, ${timeRangeLabel(range)}`,
-        title: `${formatNumber(attribution.summary.total_blobs)} blobs`,
-        subtitle: 'Share of blobspace by L2 rollup',
-        networkLabel: ogNetworkLabel(network),
-        stats,
-    };
-}
-
-export function buildCostComparisonCard(
-    chart: BackendCostComparisonChartResponse,
-    { network, range }: OgScope = DEFAULT_OG_SCOPE
-): OgCardContent {
-    const { summary } = chart;
-    return {
-        eyebrow: `Blobs versus calldata, ${timeRangeLabel(range)}`,
-        title: `${formatPercent(summary.savings_percent)} cheaper`,
-        subtitle: 'What rollups saved by posting blobs instead of calldata',
-        networkLabel: ogNetworkLabel(network),
-        stats: [
-            { label: 'Blob cost', value: formatWeiToEth(summary.blob_cost_wei, true), accent: 'green' },
-            {
-                label: 'Calldata equivalent',
-                value: formatWeiToEth(summary.calldata_equivalent_cost_wei, true),
-                accent: 'red',
-            },
-            { label: 'Saved', value: formatWeiToEth(summary.savings_wei, true), accent: 'lightBlue' },
-        ],
-    };
-}
-
-function findWindow(
-    response: BackendStatsWindowsResponse,
-    key: string
-): BackendStatsWindow | undefined {
-    return response.windows.find((window) => window.window === key);
-}
-
-export function buildRollingStatsCard(
-    response: BackendStatsWindowsResponse,
-    { network }: OgScope = DEFAULT_OG_SCOPE
-): OgCardContent {
-    const day = findWindow(response, '24h') ?? response.windows[0];
-    const week = findWindow(response, '7d');
-
-    const stats: OgStat[] = [];
-    if (day) {
-        const feeWei = day.average_blob_base_fee_wei ?? day.average_blob_base_fee;
-        if (feeWei) {
-            stats.push({ label: '24h avg fee', value: formatWeiToGwei(feeWei, 4), accent: 'lightBlue' });
-        }
-        stats.push({
-            label: '24h unique senders',
-            value: formatNumber(day.unique_senders),
-            accent: 'blue',
-        });
-    }
-    if (week) {
-        stats.push({ label: '7d blobs', value: formatNumber(week.total_blobs), accent: 'green' });
-    }
-
-    return {
-        eyebrow: 'Rolling market stats',
-        title: day ? `${formatNumber(day.total_blobs)} blobs in 24h` : 'Blob market stats',
-        subtitle: 'Rolling blob market activity on Ethereum',
-        networkLabel: ogNetworkLabel(network),
-        stats,
-    };
-}
-
-export function buildChartCard(
-    slug: string,
-    data:
-        | BackendBlobMarketChartResponse
-        | BackendAttributionUsageChartResponse
-        | BackendCostComparisonChartResponse
-        | BackendStatsWindowsResponse
-        | null,
-    scope: OgScope = DEFAULT_OG_SCOPE
-): OgCardContent | null {
-    if (!data) return null;
-
-    switch (slug) {
-        case 'base-fee':
-            return buildBaseFeeCard(data as BackendBlobMarketChartResponse, scope);
-        case 'gas-utilization':
-            return buildGasUtilizationCard(data as BackendBlobMarketChartResponse, scope);
-        case 'blob-usage':
-        case 'blob-share':
-            // Both read the same attribution data; blob-share only differs in
-            // how the chart itself is drawn.
-            return buildBlobUsageCard(data as BackendAttributionUsageChartResponse, scope);
-        case 'cost-comparison':
-            return buildCostComparisonCard(data as BackendCostComparisonChartResponse, scope);
-        case 'rolling-market-stats':
-            // Rolling stats always show the same fixed windows; the selected
-            // range does not change what this chart displays.
-            return buildRollingStatsCard(data as BackendStatsWindowsResponse, scope);
-        default:
-            return null;
-    }
-}
-
 export function buildBlockCard(
     blockNumber: number,
     block: NewBlockData,
-    network: string = DEFAULT_NETWORK.apiParam
+    network: Network = DEFAULT_NETWORK
 ): OgCardContent {
     const pricing = block.pricing;
     const blobCount = pricing?.blob_count ?? block.blob_count;
     const maxBlobs = pricing?.max_blobs ?? 0;
     const feeGwei = pricing?.blob_base_fee_gwei;
+    const fullness = maxBlobs > 0 ? Math.round((blobCount / maxBlobs) * 100) : null;
 
     const stats: OgStat[] = [
         {
@@ -315,8 +142,7 @@ export function buildBlockCard(
         },
     ];
 
-    if (maxBlobs > 0) {
-        const fullness = Math.round((blobCount / maxBlobs) * 100);
+    if (fullness !== null) {
         stats.push({
             label: 'Blobspace used',
             value: `${fullness}% full`,
@@ -332,8 +158,8 @@ export function buildBlockCard(
         eyebrow: 'Block blob details',
         title: `Block ${formatNumber(blockNumber)}`,
         subtitle:
-            maxBlobs > 0
-                ? `${blobCount} of ${maxBlobs} blobs, ${Math.round((blobCount / maxBlobs) * 100)}% full`
+            fullness !== null
+                ? `${blobCount} of ${maxBlobs} blobs, ${fullness}% full`
                 : `${formatNumber(blobCount)} blob${blobCount === 1 ? '' : 's'} in this block`,
         networkLabel: ogNetworkLabel(network),
         stats,
@@ -357,7 +183,7 @@ function formatUserCost(user: UserResponse): string | null {
 export function buildUserCard(
     address: string,
     user: UserResponse,
-    network: string = DEFAULT_NETWORK.apiParam
+    network: Network = DEFAULT_NETWORK
 ): OgCardContent {
     const displayName = user.name || truncateAddress(user.address || address);
     const cost = formatUserCost(user);
@@ -387,7 +213,7 @@ export function buildUserCard(
         subtitle:
             subtitleParts.length > 0
                 ? subtitleParts.join(', ')
-                : `${formatNumber(user.blob_count)} blobs sent on Ethereum`,
+                : `${formatNumber(user.blob_count)} blobs sent`,
         networkLabel: ogNetworkLabel(network),
         stats,
     };

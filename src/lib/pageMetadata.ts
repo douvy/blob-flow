@@ -5,17 +5,16 @@ import {
   SITE_DESCRIPTION,
   SITE_NAME,
   SITE_TITLE,
+  parseNetwork,
+  parseTimeRange,
 } from '@/constants';
 import { networkPath } from '@/utils';
-import { OG_SIZE } from '@/lib/og/card';
-import { OG_NETWORK_PARAM } from '@/lib/og/params';
-import { DEFAULT_TIME_RANGE, TIME_RANGE_PARAM, type TimeRange } from '@/lib/timeRange';
+import { OG_CARD_DEFAULT_RANGE } from '@/lib/ogChartSeries';
 
 /**
  * Page metadata shared by the bare routes (default network) and the
- * network-scoped copies under /[network], so a page's title, canonical URL,
- * and Open Graph card are defined once and only differ by which network and
- * time range they name.
+ * network-scoped copies under /[network], so a page's title and canonical URL
+ * are defined once and only differ by which network they name.
  */
 
 const NETWORK_SEGMENT_PATTERN = /^[a-z0-9-]{1,32}$/;
@@ -47,75 +46,61 @@ function shortTxHash(hash: string): string {
   return hash.length > 18 ? `${hash.slice(0, 10)}…${hash.slice(-6)}` : hash;
 }
 
-interface OgImageOptions {
-  /** Named on the card, and read by the image route to pick the data source. */
-  network?: string;
-  /** Window the card reports over. Only pages with a time filter pass one. */
-  range?: TimeRange;
-  /** Card title, defaulting to the site title. */
-  title?: string;
-}
-
 /**
- * Open Graph and Twitter tags pointing at a dynamic image route.
+ * Social card tags for the pages whose card is a live stat card rather than a
+ * plotted chart: the dashboard, a block, and a sender. Same shape as
+ * chartMetadata's, so every page unfurls as a large image.
  *
- * The image routes are route handlers rather than opengraph-image file
- * conventions because a card depends on the network and time range the page
- * is showing: file conventions receive no query params, and the tags they
- * generate would override these. Both params are omitted at their defaults so
- * the common URLs stay clean, and the routes re-validate whatever arrives.
- *
- * Next replaces the whole openGraph and twitter objects per segment rather
- * than deep-merging them, so the site-wide strings are restated here.
+ * Like the chart card, these are route handlers rather than opengraph-image
+ * file conventions: that convention only receives route params, and a card
+ * has to honor the network (and, on the dashboard, the range) the URL names.
  */
-function ogImage(
+function statCard(
   path: string,
   alt: string,
-  { network, range, title = SITE_TITLE }: OgImageOptions = {}
+  { network, range, title = SITE_TITLE, description = SITE_DESCRIPTION }: {
+    network?: string;
+    range?: string;
+    title?: string;
+    description?: string;
+  } = {}
 ): Pick<Metadata, 'openGraph' | 'twitter'> {
-  const params = new URLSearchParams();
-  const slug = network?.toLowerCase();
-  if (slug && slug !== DEFAULT_NETWORK.apiParam && NETWORK_SEGMENT_PATTERN.test(slug)) {
-    params.set(OG_NETWORK_PARAM, slug);
-  }
-  if (range && range !== DEFAULT_TIME_RANGE) {
-    params.set(TIME_RANGE_PARAM, range);
+  const cardNetwork = parseNetwork(network);
+  const params = new URLSearchParams({ network: cardNetwork.apiParam });
+  if (range !== undefined) {
+    // Same fallback as the chart card: a card read at a glance wants a window
+    // wider than the dashboard's live default.
+    params.set('range', parseTimeRange(range, OG_CARD_DEFAULT_RANGE));
   }
 
-  const query = params.toString();
-  const image = {
-    url: `${path}${query ? `?${query}` : ''}`,
-    width: OG_SIZE.width,
-    height: OG_SIZE.height,
-    alt,
-  };
+  const url = `${path}?${params.toString()}`;
 
   return {
     openGraph: {
       type: 'website',
       siteName: SITE_NAME,
       title,
-      description: SITE_DESCRIPTION,
-      images: [image],
+      description,
+      images: [{ url, width: 1200, height: 630, alt }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
-      description: SITE_DESCRIPTION,
-      images: [image],
+      description,
+      images: [{ url, alt }],
     },
   };
 }
 
 /**
- * Site-wide Open Graph tags for the root layout: the dynamic home card at its
- * defaults. Pages that describe something more specific replace this, and any
- * route without its own metadata still unfurls as a branded live card.
+ * Site-wide card for the root layout: the dashboard card at its defaults, so
+ * a route with no metadata of its own still unfurls as a branded live card
+ * rather than a bare logo.
  */
 export function defaultOgMetadata(): Pick<Metadata, 'openGraph' | 'twitter'> {
-  return ogImage(
-    '/opengraph-image',
-    'BlobFlow: live Ethereum blob base fee and top rollup blob shares'
+  return statCard(
+    '/api/og/home',
+    `Live blob base fee and top rollup shares on ${SITE_NAME}`
   );
 }
 
@@ -131,59 +116,77 @@ export function unknownNetworkMetadata(): Metadata {
   };
 }
 
-export function homeMetadata(network?: string, range?: TimeRange): Metadata {
+export function homeMetadata(network?: string, range?: string): Metadata {
   const suffix = titleSuffix(network);
   const title = suffix ? `Real-Time Ethereum Blob Analytics${suffix}` : SITE_TITLE;
+  const cardNetwork = parseNetwork(network);
 
   return {
     // The default network's dashboard keeps the site-wide title.
     ...(suffix ? { title } : {}),
     alternates: canonical('/', network),
-    ...ogImage(
-      '/opengraph-image',
-      'BlobFlow: live Ethereum blob base fee and top rollup blob shares',
-      { network, range, title }
+    // The dashboard's card reports over the header's range, so a shared link
+    // unfurls the window the sharer was looking at.
+    ...statCard(
+      '/api/og/home',
+      `Live blob base fee and top rollup shares on ${cardNetwork.name}, from ${SITE_NAME}`,
+      { network, range: range ?? '', title }
     ),
   };
 }
 
 export function blocksMetadata(network?: string): Metadata {
   const title = `Latest Blocks & Blob Fees${titleSuffix(network)}`;
+  const description =
+    'Browse recent Ethereum blocks in real time with live blob counts, blob base fees, and per-blob details.';
   return {
     title,
-    description:
-      'Browse recent Ethereum blocks in real time with live blob counts, blob base fees, and per-blob details.',
+    description,
     alternates: canonical('/blocks', network),
-    // No card of its own; the branded home card, scoped to this network.
-    ...ogImage('/opengraph-image', 'BlobFlow: live Ethereum blob analytics', {
+    // No card of its own, so it shares the dashboard's, scoped to this network.
+    ...statCard('/api/og/home', `Live Ethereum blob analytics on ${SITE_NAME}`, {
       network,
       title,
+      description,
     }),
   };
 }
 
 export function mempoolMetadata(network?: string): Metadata {
   const suffix = titleSuffix(network);
+  const title = suffix ? `Pending Blob Transactions${suffix}` : SITE_TITLE;
   return {
     // The bare mempool page has never set a title; only the scoped copies need
     // one, to say which network's pending transactions they list.
     ...(suffix ? { title: `Pending Blob Transactions${suffix}` } : {}),
     alternates: canonical('/mempool', network),
-    ...ogImage('/opengraph-image', 'BlobFlow: live Ethereum blob analytics', {
+    ...statCard('/api/og/home', `Live Ethereum blob analytics on ${SITE_NAME}`, {
       network,
-      title: suffix ? `Pending Blob Transactions${suffix}` : SITE_TITLE,
+      title,
     }),
+  };
+}
+
+export function liveMetadata(network?: string): Metadata {
+  return {
+    title: `TV Mode: Live Blob Market${titleSuffix(network)}`,
+    description:
+      'Full-screen live view of the Ethereum blob market: current blob base fee, next-block ' +
+      'prediction, blobspace fullness, and the rollups filling recent blocks. Built for ' +
+      'conference screens and stream overlays.',
+    alternates: canonical('/live', network),
   };
 }
 
 export function blockMetadata(blockNumber: string, network?: string): Metadata {
   const title = `Block ${blockNumber} Blob Details${titleSuffix(network)}`;
+  const cardNetwork = parseNetwork(network);
   return {
     title,
     alternates: canonical(`/block/${blockNumber}`, network),
-    ...ogImage(
-      `/block/${encodeURIComponent(blockNumber)}/opengraph-image`,
-      'BlobFlow: blob details for an Ethereum block',
+    ...statCard(
+      `/api/og/block/${encodeURIComponent(blockNumber)}`,
+      `Blob details for block ${blockNumber} on ${cardNetwork.name}, from ${SITE_NAME}`,
       { network, title }
     ),
   };
@@ -191,12 +194,13 @@ export function blockMetadata(blockNumber: string, network?: string): Metadata {
 
 export function userMetadata(address: string, network?: string): Metadata {
   const title = `Blob Activity · ${shortAddress(address)}${titleSuffix(network)}`;
+  const cardNetwork = parseNetwork(network);
   return {
     title,
     alternates: canonical(`/user/${address}`, network),
-    ...ogImage(
-      `/user/${encodeURIComponent(address)}/opengraph-image`,
-      'BlobFlow: blob activity for an Ethereum address',
+    ...statCard(
+      `/api/og/user/${encodeURIComponent(address)}`,
+      `Blob activity for ${shortAddress(address)} on ${cardNetwork.name}, from ${SITE_NAME}`,
       { network, title }
     ),
   };
@@ -206,27 +210,54 @@ export function transactionMetadata(hash: string, network?: string): Metadata {
   // The page reads hashes case-insensitively, so the canonical URL uses the
   // lowercase spelling and every casing of one hash points at a single page.
   const canonicalHash = /^0x[0-9a-f]{64}$/i.test(hash) ? hash.toLowerCase() : hash;
-  const title = `Blob Transaction · ${shortTxHash(canonicalHash)}${titleSuffix(network)}`;
   return {
-    title,
+    title: `Blob Transaction · ${shortTxHash(canonicalHash)}${titleSuffix(network)}`,
     alternates: canonical(`/tx/${canonicalHash}`, network),
-    ...ogImage('/opengraph-image', 'BlobFlow: live Ethereum blob analytics', {
-      network,
-      title,
-    }),
   };
 }
 
-export function chartMetadata(chart: string, network?: string, range?: TimeRange): Metadata {
+/**
+ * Chart metadata, including the social share card. The card is generated per
+ * chart, range, and network so a shared link unfurls the view the sharer was
+ * looking at; `range` comes from the URL's query string, which is why this is
+ * called from the pages rather than a layout (layouts never see searchParams).
+ */
+export function chartMetadata(
+  chart: string,
+  network?: string,
+  range?: string
+): Metadata {
   const page = CHART_PAGES.find((chartPage) => chartPage.slug === chart);
   const title = `${page?.title ?? 'Charts'}${titleSuffix(network)}`;
+
+  // An unserved chart renders a "not found" view, so it advertises no
+  // description and no card of its own.
+  if (!page) {
+    return { title, alternates: canonical(`/charts/${chart}`, network) };
+  }
+
+  const cardRange = parseTimeRange(range, OG_CARD_DEFAULT_RANGE);
+  const cardNetwork = parseNetwork(network);
+  const cardUrl = `/api/og/chart/${chart}?range=${cardRange}&network=${cardNetwork.apiParam}`;
+  const cardAlt = `${page.title}: ${cardNetwork.name} over the last ${cardRange} on ${SITE_NAME}`;
+
   return {
     title,
+    description: page.description,
     alternates: canonical(`/charts/${chart}`, network),
-    ...ogImage(
-      `/charts/${encodeURIComponent(chart)}/opengraph-image`,
-      'BlobFlow chart: live Ethereum blob market stats',
-      { network, range, title }
-    ),
+    openGraph: {
+      type: 'website',
+      siteName: SITE_NAME,
+      title,
+      description: page.description,
+      url: networkPath(`/charts/${chart}`, network),
+      images: [{ url: cardUrl, width: 1200, height: 630, alt: cardAlt }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: page.description,
+      images: [{ url: cardUrl, alt: cardAlt }],
+    },
   };
 }

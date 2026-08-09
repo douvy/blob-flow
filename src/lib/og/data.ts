@@ -1,38 +1,37 @@
 import type {
     ApiResponse,
     BackendAttributionUsageChartResponse,
-    BackendBlobMarketChartResponse,
     BackendBlobPricingResponse,
-    BackendCostComparisonChartResponse,
-    BackendStatsWindowsResponse,
     NewBlockData,
+    Network,
     UserResponse,
 } from '@/types';
-import { API_BASE_URL, DEFAULT_NETWORK } from '@/constants';
-import { DEFAULT_TIME_RANGE, type TimeRange } from '@/lib/timeRange';
+import { API_BASE_URL, DEFAULT_NETWORK, DEFAULT_TIME_RANGE, type TimeRange } from '@/constants';
 
 /**
- * Unfurl crawlers (X, Discord, Telegram) give up on slow responses, so the
- * Open Graph image routes use a much shorter timeout than the client API
- * layer and treat every failure as "no data": callers render a branded
- * static fallback card instead of erroring.
+ * Backend reads for the stat share cards (dashboard, block, sender). The
+ * chart cards read their series through lib/ogChartSeries instead.
+ *
+ * Unfurl crawlers give up on slow responses, so these use a much shorter
+ * timeout than the client API layer and treat every failure as "no data":
+ * callers render a branded fallback card rather than erroring.
  */
 export const OG_FETCH_TIMEOUT_MS = 3500;
 
 /** What a card is about: which network, over which window. */
 export interface OgScope {
-    network: string;
+    network: Network;
     range: TimeRange;
 }
 
 export const DEFAULT_OG_SCOPE: OgScope = {
-    network: DEFAULT_NETWORK.apiParam,
+    network: DEFAULT_NETWORK,
     range: DEFAULT_TIME_RANGE,
 };
 
 export async function fetchOgApi<T>(
     endpoint: string,
-    network: string = DEFAULT_NETWORK.apiParam
+    network: Network = DEFAULT_NETWORK
 ): Promise<T | null> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), OG_FETCH_TIMEOUT_MS);
@@ -40,13 +39,13 @@ export async function fetchOgApi<T>(
     // The indexer rejects requests without a network param when it serves
     // multiple networks, and the network is part of what the card reports.
     const separator = endpoint.includes('?') ? '&' : '?';
-    const url = `${API_BASE_URL}${endpoint}${separator}network=${encodeURIComponent(network)}`;
+    const url = `${API_BASE_URL}${endpoint}${separator}network=${network.apiParam}`;
 
     try {
         const response = await fetch(url, {
             signal: controller.signal,
-            // Always render from live data; crawlers cache the resulting
-            // image on their side, so the request rate stays low.
+            // Always render from live data; the route's own Cache-Control is
+            // what keeps repeat unfurls off the backend.
             cache: 'no-store',
             headers: { Accept: 'application/json' },
         });
@@ -68,7 +67,7 @@ export interface HomeOgData {
     attribution: BackendAttributionUsageChartResponse | null;
 }
 
-/** Live fee plus rollup shares for the home page card. */
+/** Live fee plus rollup shares for the dashboard card. */
 export async function getHomeOgData({
     network,
     range,
@@ -84,45 +83,9 @@ export async function getHomeOgData({
     return { pricing, attribution };
 }
 
-export function getBlobMarketOgChart({
-    network,
-    range,
-}: OgScope = DEFAULT_OG_SCOPE): Promise<BackendBlobMarketChartResponse | null> {
-    return fetchOgApi<BackendBlobMarketChartResponse>(
-        `/charts/blob-market?range=${range}&granularity=auto`,
-        network
-    );
-}
-
-export function getAttributionOgChart({
-    network,
-    range,
-}: OgScope = DEFAULT_OG_SCOPE): Promise<BackendAttributionUsageChartResponse | null> {
-    return fetchOgApi<BackendAttributionUsageChartResponse>(
-        `/charts/attribution-usage?range=${range}&granularity=auto`,
-        network
-    );
-}
-
-export function getCostComparisonOgChart({
-    network,
-    range,
-}: OgScope = DEFAULT_OG_SCOPE): Promise<BackendCostComparisonChartResponse | null> {
-    return fetchOgApi<BackendCostComparisonChartResponse>(
-        `/charts/cost-comparison?range=${range}&granularity=auto`,
-        network
-    );
-}
-
-export function getRollingStatsOgChart({
-    network,
-}: OgScope = DEFAULT_OG_SCOPE): Promise<BackendStatsWindowsResponse | null> {
-    return fetchOgApi<BackendStatsWindowsResponse>('/stats/windows?windows=1h,24h,7d', network);
-}
-
 export function getBlockOgData(
     blockNumber: number,
-    network: string = DEFAULT_NETWORK.apiParam
+    network: Network = DEFAULT_NETWORK
 ): Promise<NewBlockData | null> {
     if (!Number.isSafeInteger(blockNumber) || blockNumber < 0) {
         return Promise.resolve(null);
@@ -133,13 +96,18 @@ export function getBlockOgData(
 
 const ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 
+/** Whether a URL segment is shaped like an address the indexer can look up. */
+export function isBlobSenderAddress(address: string): boolean {
+    return ADDRESS_PATTERN.test(address);
+}
+
 export function getUserOgData(
     address: string,
-    network: string = DEFAULT_NETWORK.apiParam
+    network: Network = DEFAULT_NETWORK
 ): Promise<UserResponse | null> {
     // The address comes straight from the URL; only forward well-formed
     // Ethereum addresses to the indexer.
-    if (!ADDRESS_PATTERN.test(address)) {
+    if (!isBlobSenderAddress(address)) {
         return Promise.resolve(null);
     }
 

@@ -1,6 +1,19 @@
-import { fetchOgApi, getAttributionOgChart, getBlockOgData, getUserOgData } from './data';
+import { NETWORKS } from '@/constants';
+import {
+    fetchOgApi,
+    getBlockOgData,
+    getHomeOgData,
+    getUserOgData,
+    isBlobSenderAddress,
+} from './data';
 
 const originalFetch = global.fetch;
+
+function mockJson(payload: unknown) {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => payload });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    return fetchMock;
+}
 
 describe('og/data', () => {
     beforeEach(() => {
@@ -12,11 +25,7 @@ describe('og/data', () => {
     });
 
     it('returns the unwrapped data payload on success', async () => {
-        const fetchMock = vi.fn().mockResolvedValue({
-            ok: true,
-            json: async () => ({ success: true, data: { total_blobs: 42 } }),
-        });
-        global.fetch = fetchMock as unknown as typeof fetch;
+        const fetchMock = mockJson({ success: true, data: { total_blobs: 42 } });
 
         const data = await fetchOgApi<{ total_blobs: number }>('/stats');
 
@@ -27,27 +36,21 @@ describe('og/data', () => {
         );
     });
 
-    it('appends the network param with & when the endpoint has a query', async () => {
-        const fetchMock = vi.fn().mockResolvedValue({
-            ok: true,
-            json: async () => ({ success: true, data: {} }),
-        });
-        global.fetch = fetchMock as unknown as typeof fetch;
+    it('appends the network param with & when the endpoint already has a query', async () => {
+        const fetchMock = mockJson({ success: true, data: {} });
 
-        await fetchOgApi('/blob/pricing?blocks=20');
+        await fetchOgApi('/blob/pricing?blocks=20', NETWORKS.SEPOLIA);
 
         expect(fetchMock).toHaveBeenCalledWith(
-            expect.stringContaining('/blob/pricing?blocks=20&network=mainnet'),
+            expect.stringContaining('/blob/pricing?blocks=20&network=sepolia'),
             expect.anything()
         );
     });
 
     it('returns null on HTTP errors instead of throwing', async () => {
-        global.fetch = vi.fn().mockResolvedValue({
-            ok: false,
-            status: 503,
-            json: async () => ({}),
-        }) as unknown as typeof fetch;
+        global.fetch = vi
+            .fn()
+            .mockResolvedValue({ ok: false, status: 503, json: async () => ({}) }) as unknown as typeof fetch;
 
         await expect(fetchOgApi('/stats')).resolves.toBeNull();
     });
@@ -55,14 +58,8 @@ describe('og/data', () => {
     it('returns null when the payload reports failure or has no data', async () => {
         global.fetch = vi
             .fn()
-            .mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ success: false, error: 'nope' }),
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({ success: true }),
-            }) as unknown as typeof fetch;
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ success: false }) })
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) }) as unknown as typeof fetch;
 
         await expect(fetchOgApi('/stats')).resolves.toBeNull();
         await expect(fetchOgApi('/stats')).resolves.toBeNull();
@@ -83,16 +80,18 @@ describe('og/data', () => {
         await expect(fetchOgApi('/stats')).resolves.toBeNull();
     });
 
-    it('passes the requested range and network through to chart endpoints', async () => {
-        const fetchMock = vi.fn().mockResolvedValue({
-            ok: true,
-            json: async () => ({ success: true, data: {} }),
-        });
-        global.fetch = fetchMock as unknown as typeof fetch;
+    it('scopes the dashboard reads to the requested network and range', async () => {
+        const fetchMock = mockJson({ success: true, data: {} });
 
-        await getAttributionOgChart({ network: 'sepolia', range: '30d' });
+        await getHomeOgData({ network: NETWORKS.SEPOLIA, range: '30d' });
 
-        expect(fetchMock).toHaveBeenCalledWith(
+        expect(fetchMock).toHaveBeenNthCalledWith(
+            1,
+            expect.stringContaining('/blob/pricing?blocks=20&network=sepolia'),
+            expect.anything()
+        );
+        expect(fetchMock).toHaveBeenNthCalledWith(
+            2,
             expect.stringContaining(
                 '/charts/attribution-usage?range=30d&granularity=auto&network=sepolia'
             ),
@@ -100,15 +99,11 @@ describe('og/data', () => {
         );
     });
 
-    it('scopes block and user lookups to the requested network', async () => {
-        const fetchMock = vi.fn().mockResolvedValue({
-            ok: true,
-            json: async () => ({ success: true, data: {} }),
-        });
-        global.fetch = fetchMock as unknown as typeof fetch;
+    it('scopes block and sender lookups to the requested network', async () => {
+        const fetchMock = mockJson({ success: true, data: {} });
 
-        await getBlockOgData(21834102, 'sepolia');
-        await getUserOgData('0x1234567890abcdef1234567890abcdef12345678', 'sepolia');
+        await getBlockOgData(21834102, NETWORKS.SEPOLIA);
+        await getUserOgData('0x1234567890abcdef1234567890abcdef12345678', NETWORKS.SEPOLIA);
 
         expect(fetchMock).toHaveBeenNthCalledWith(
             1,
@@ -124,19 +119,17 @@ describe('og/data', () => {
         );
     });
 
-    it('rejects malformed user addresses without hitting the API', async () => {
+    // These values come straight from the URL, so a malformed one must never
+    // reach the backend.
+    it('rejects malformed addresses and block numbers without hitting the API', async () => {
         const fetchMock = vi.fn();
         global.fetch = fetchMock as unknown as typeof fetch;
+
+        expect(isBlobSenderAddress('not-an-address')).toBe(false);
+        expect(isBlobSenderAddress('0x1234567890abcdef1234567890abcdef12345678')).toBe(true);
 
         await expect(getUserOgData('not-an-address')).resolves.toBeNull();
         await expect(getUserOgData('0x123')).resolves.toBeNull();
-        expect(fetchMock).not.toHaveBeenCalled();
-    });
-
-    it('rejects invalid block numbers without hitting the API', async () => {
-        const fetchMock = vi.fn();
-        global.fetch = fetchMock as unknown as typeof fetch;
-
         await expect(getBlockOgData(NaN)).resolves.toBeNull();
         await expect(getBlockOgData(-5)).resolves.toBeNull();
         await expect(getBlockOgData(1.5)).resolves.toBeNull();

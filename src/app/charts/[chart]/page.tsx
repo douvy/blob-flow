@@ -1,24 +1,42 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
+import ChartDetailView from '@/components/charts/ChartDetailView';
 import { chartMetadata } from '@/lib/pageMetadata';
-import { rangeFromSearchParams, type SearchParams } from '@/lib/timeRange';
-import ChartsPageClient from './ChartsPageClient';
 
-// Server wrapper around the client chart page. Its only job is metadata: the
-// Open Graph card mirrors the time range selected in the UI, carried in the
-// shared URL as ?range=, and search params are only readable from a server
-// page's generateMetadata.
+/**
+ * Server shell for the chart detail page, with the chart UI itself in the
+ * client ChartDetailView. It exists so metadata can read the ?range= a share
+ * link carries: only pages receive searchParams, never layouts, and the share
+ * card has to render the range the sharer was viewing. That is also why this
+ * segment has no layout.tsx.
+ *
+ * The network-scoped copy under /[network] re-exports this component and
+ * supplies its own metadata naming that network.
+ */
 export async function generateMetadata({
   params,
   searchParams,
 }: {
   params: Promise<{ chart: string }>;
-  searchParams: Promise<SearchParams>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }): Promise<Metadata> {
-  const [{ chart }, resolvedSearchParams] = await Promise.all([params, searchParams]);
+  const [{ chart }, query] = await Promise.all([params, searchParams]);
+  const range = Array.isArray(query.range) ? query.range[0] : query.range;
 
-  return chartMetadata(chart, undefined, rangeFromSearchParams(resolvedSearchParams));
+  return chartMetadata(chart, undefined, range);
 }
 
-export default function ChartDetailPage() {
-  return <ChartsPageClient />;
+export default async function ChartDetailPage({
+  params,
+}: {
+  params: Promise<{ chart: string }>;
+}) {
+  const { chart } = await params;
+
+  // ChartDetailView reads the ?range= deep link via useSearchParams.
+  return (
+    <Suspense fallback={null}>
+      <ChartDetailView chartId={chart} />
+    </Suspense>
+  );
 }

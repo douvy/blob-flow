@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { chartMetadata, unknownNetworkMetadata } from '@/lib/pageMetadata';
 import { isServedNetwork } from '@/lib/serverNetworks';
-import { rangeFromSearchParams, type SearchParams } from '@/lib/timeRange';
 
 export { default } from '../../../charts/[chart]/page';
 
@@ -10,10 +9,13 @@ export async function generateMetadata({
   searchParams,
 }: {
   params: Promise<{ network: string; chart: string }>;
-  searchParams: Promise<SearchParams>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }): Promise<Metadata> {
-  const [{ network, chart }, resolvedSearchParams] = await Promise.all([params, searchParams]);
+  const [{ network, chart }, query] = await Promise.all([params, searchParams]);
   if (!(await isServedNetwork(network))) return unknownNetworkMetadata();
 
-  return chartMetadata(chart, network, rangeFromSearchParams(resolvedSearchParams));
+  // The share card follows the range from the link, same as the bare route.
+  const range = Array.isArray(query.range) ? query.range[0] : query.range;
+
+  return chartMetadata(chart, network, range);
 }

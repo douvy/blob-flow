@@ -9,17 +9,22 @@ import TopUsersTable from '@/components/TopUsersTable';
 import MempoolSummary from '@/components/MempoolSummary';
 import ExplainerSection from '@/components/ExplainerSection';
 import { homeMetadata } from '@/lib/pageMetadata';
-import { rangeFromSearchParams, type SearchParams } from '@/lib/timeRange';
 
-// The Open Graph card mirrors the time range selected in the UI, carried in
-// the shared URL as ?range=. Reading searchParams makes this page dynamic;
-// its content is client-fetched, so nothing else changes.
+/**
+ * The dashboard's share card reports over the header's range, which the URL
+ * carries as ?range=. Only pages receive searchParams, never layouts, which
+ * is why this is generateMetadata rather than a static export. The page's own
+ * content is client-fetched, so nothing else changes.
+ */
 export async function generateMetadata({
   searchParams,
 }: {
-  searchParams: Promise<SearchParams>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }): Promise<Metadata> {
-  return homeMetadata(undefined, rangeFromSearchParams(await searchParams));
+  const query = await searchParams;
+  const range = Array.isArray(query.range) ? query.range[0] : query.range;
+
+  return homeMetadata(undefined, range);
 }
 
 export default function Home() {

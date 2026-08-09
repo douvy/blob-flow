@@ -1,9 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import AppProviders from '@/components/AppProviders';
-import Header from '@/components/Header';
-import IndexerStatusBanner from '@/components/IndexerStatusBanner';
-import Footer from '@/components/Footer';
+import AppChrome from '@/components/AppChrome';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from '@/constants';
 import { defaultOgMetadata } from '@/lib/pageMetadata';
 
@@ -31,9 +29,9 @@ export const metadata: Metadata = {
     'Base',
     'zkSync',
   ],
-  // Default Open Graph card for routes without their own: the dynamic home
-  // card at its defaults. Pages that describe something more specific (a
-  // network, a time range, a block, an address) replace it in pageMetadata.
+  // Default card for routes without one of their own: the dynamic home card.
+  // Pages that describe something more specific (a network, a block, an
+  // address, a chart) replace it in pageMetadata.
   ...defaultOgMetadata(),
   icons: {
     icon: '/images/favicon.png',
@@ -68,14 +66,7 @@ export default function RootLayout({
           }}
         />
         <AppProviders>
-          <main className="flex min-h-screen flex-col bg-background xl:bg-grid-pattern xl:bg-grid-size">
-            <div className="gutter-lines" aria-hidden="true" />
-            <div className="gutter-line-cap" aria-hidden="true" />
-            <Header />
-            <IndexerStatusBanner />
-            <div className="content-area flex-1">{children}</div>
-            <Footer />
-          </main>
+          <AppChrome>{children}</AppChrome>
         </AppProviders>
       </body>
     </html>
