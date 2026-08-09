@@ -46,30 +46,38 @@ export default function FlippeningSummary() {
       <Link
         href="/flippening"
         aria-label={`Flippening watch: ${summaryLabel}. View details.`}
-        className="group flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-divider bg-gradient-to-r from-[#17181b] to-[#141519]/60 px-4 py-3 transition-colors hover:from-[#1f2127]/70 hover:to-[#23252b]/70"
+        className="group flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-divider bg-gradient-to-r from-[#17181b] to-[#141519]/60 px-4 py-3 transition-colors hover:from-[#1f2127]/70 hover:to-[#23252b]/70 sm:flex-nowrap"
       >
-        <span className="font-windsor-bold text-xl leading-none text-white pt-[2px]">
+        <span className="shrink-0 font-windsor-bold text-xl leading-none text-white pt-[2px]">
           Flippening
         </span>
-        <span className="text-sm text-[#8a93a5]">
+        {/* From sm up the status is the only flexible element and truncates,
+            so the icons and Details stay on one line instead of wrapping the
+            strip to a second row. Narrower than that there is no room to
+            truncate without losing the sentence, so the strip wraps instead,
+            matching the mempool summary above it. */}
+        <span className="text-sm text-[#8a93a5] sm:min-w-0 sm:flex-1 sm:truncate">
           {latestFlip ? (
             <>
               <span className="text-white">{latestFlip.winner.name}</span> flipped{' '}
-              <span className="text-white">{latestFlip.loser.name}</span> in {timeRange} blob
-              share <RelativeTime timestamp={latestFlip.timestamp} />
+              <span className="text-white">{latestFlip.loser.name}</span> in {timeRange} share
+              <span className="text-[#6e7787]">
+                {' '}
+                · <RelativeTime timestamp={latestFlip.timestamp} />
+              </span>
             </>
           ) : gap ? (
             <>
               <span className="text-white">{gap.trailer.name}</span> trails{' '}
               <span className="text-white">{gap.leader.name}</span> by{' '}
               <span className="tabular-nums">{formatPoints(gap.gapPoints)} pts</span> in{' '}
-              {timeRange} blob share
+              {timeRange} share
             </>
           ) : (
             'not enough rollups with blob activity to compare'
           )}
         </span>
-        <span className="ml-auto flex items-center gap-3">
+        <span className="ml-auto flex shrink-0 items-center gap-3">
           {leaders.length > 0 && (
             <span className="relative hidden items-center sm:flex" aria-hidden="true">
               {leaders.map((standing) => (
