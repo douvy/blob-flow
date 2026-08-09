@@ -1,4 +1,5 @@
 import React from 'react';
+import NetworkLink from '@/components/NetworkLink';
 
 /** Panel grid placeholder, matching the kiosk's two-row layout. */
 export function KioskPanelSkeleton() {
@@ -28,9 +29,15 @@ export default function KioskSkeleton() {
     <div className="relative h-dvh w-full overflow-hidden bg-background text-bodyText">
       <div className="flex h-full flex-col gap-[1.2vh] p-[2.2vh]">
         <header className="flex shrink-0 items-center justify-between gap-4">
-          <span className="font-windsor-bold text-[clamp(1rem,min(1.5vw,2.6vh),1.75rem)] leading-none text-titleText">
+          {/* A link here too, so the wordmark does not become clickable only
+              once the kiosk hydrates. */}
+          <NetworkLink
+            href="/"
+            aria-label="Leave TV mode for the dashboard"
+            className="font-windsor-bold text-[clamp(1rem,min(1.5vw,2.6vh),1.75rem)] leading-none text-titleText"
+          >
             BlobFlow
-          </span>
+          </NetworkLink>
           <span className="text-[clamp(0.7rem,min(1vw,1.8vh),1.1rem)] uppercase tracking-[0.15em] text-[#6e7687]">
             Connecting
           </span>

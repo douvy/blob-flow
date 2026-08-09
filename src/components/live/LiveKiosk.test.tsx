@@ -546,6 +546,14 @@ describe('LiveKiosk', () => {
     );
   });
 
+  it('offers the wordmark as the way out of the kiosk', () => {
+    renderKiosk();
+
+    const exit = screen.getByLabelText('Leave TV mode for the dashboard');
+    expect(exit).toHaveAttribute('href', '/');
+    expect(exit).toHaveTextContent('BlobFlow');
+  });
+
   it('lists the top rollups sized against the leader', () => {
     vi.mocked(useTopUsers).mockReturnValue({
       data: {

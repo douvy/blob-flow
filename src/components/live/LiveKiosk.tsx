@@ -54,6 +54,7 @@ import { useTopUsers } from '@/hooks/useTopUsers';
 import { useBlobWebSocket, useLiveBlobEvent } from '@/contexts/LiveDataContext';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
+import NetworkLink from '@/components/NetworkLink';
 import { MEMPOOL_SAMPLE_LIMIT } from '@/constants';
 import type { BlobPricing, BlobPricingRecentBlock } from '@/types';
 import { formatPercent } from '@/utils';
@@ -345,9 +346,18 @@ export default function LiveKiosk() {
       <div className="flex h-full flex-col gap-[1.2vh] p-[2.2vh] animate-[kiosk-drift_300s_ease-in-out_infinite] motion-reduce:animate-none">
         <header className="flex shrink-0 items-center justify-between gap-4">
           <div className="flex items-center gap-[1.2em]">
-            <span className="font-windsor-bold text-[clamp(1rem,min(1.5vw,2.6vh),1.75rem)] leading-none text-titleText">
+            {/* The one always-live control: a way out of the kiosk. Kept out
+                of the auto-hiding cluster because the wordmark is branding a
+                viewer expects to see, and staying visible is what makes it
+                discoverable as the way back. Network-scoped, so leaving
+                /sepolia/live lands on Sepolia's dashboard. */}
+            <NetworkLink
+              href="/"
+              aria-label="Leave TV mode for the dashboard"
+              className="font-windsor-bold text-[clamp(1rem,min(1.5vw,2.6vh),1.75rem)] leading-none text-titleText transition-opacity hover:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue"
+            >
               BlobFlow
-            </span>
+            </NetworkLink>
             <span className="text-[clamp(0.7rem,min(1vw,1.8vh),1.1rem)] uppercase tracking-[0.2em] text-[#6e7687]">
               {headlinePricing?.networkName ?? selectedNetwork.name}
             </span>
