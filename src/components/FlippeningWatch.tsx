@@ -4,12 +4,15 @@ import React, { useMemo } from 'react';
 import { ArrowLeftRight, ArrowUp } from 'lucide-react';
 import AttributionBadge from '@/components/AttributionBadge';
 import DataStateWrapper from '@/components/DataStateWrapper';
+import Link from '@/components/NetworkLink';
 import { RelativeTime } from '@/components/RelativeTime';
 import TapTooltip from '@/components/TapTooltip';
 import { useFlippening } from '@/hooks/useFlippening';
+import { useRollupAddresses } from '@/hooks/useRollupAddresses';
 import {
   DEFAULT_FLIPPENING_TOP_N,
   formatGapPoints,
+  type FlippeningEntity,
   type FlippeningEvent,
   type FlippeningGap,
   type FlippeningStanding,
@@ -79,6 +82,43 @@ function formatPoints(value: number): string {
   return value.toFixed(1);
 }
 
+/**
+ * A rollup's name, linked to its own blob activity. The page names rollups
+ * without offering any way into them, so the standings could say a rollup
+ * had just taken the lead and leave no route to what it had been posting.
+ *
+ * The chart data these names come from carries no address, so the link is
+ * resolved through the window's user list; an unattributed sender already
+ * knows its own address. A name that resolves to neither stays plain text
+ * rather than linking nowhere.
+ */
+function RollupName({
+  entity,
+  className = '',
+  // Names sitting on their own take the app's link blue on hover. Inside a
+  // coloured badge the phrase already has a colour of its own, so that one
+  // asks for the underline alone.
+  hoverColorClass = 'hover:text-blue',
+}: {
+  entity: FlippeningEntity;
+  className?: string;
+  hoverColorClass?: string;
+}) {
+  const addressByName = useRollupAddresses();
+  const address = entity.address ?? addressByName.get(entity.name.trim().toLowerCase());
+  if (address === undefined) return <span className={className}>{entity.name}</span>;
+
+  return (
+    <Link
+      href={`/user/${encodeURIComponent(address)}`}
+      title={`Blob activity for ${address}`}
+      className={`rounded-sm transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue ${hoverColorClass} ${className}`}
+    >
+      {entity.name}
+    </Link>
+  );
+}
+
 function GapIndicator({ gap, rangeLabel }: { gap: FlippeningGap; rangeLabel: string }) {
   // Bar lengths are relative to the leader so the pair always fills the card,
   // making small gaps read as "almost there" at a glance.
@@ -96,13 +136,13 @@ function GapIndicator({ gap, rangeLabel }: { gap: FlippeningGap; rangeLabel: str
       <p className="text-sm text-white mb-3">
         {gapLabel === null ? (
           <>
-            <span className="font-medium">{gap.trailer.name}</span> is level with{' '}
-            <span className="font-medium">{gap.leader.name}</span> in {rangeLabel} blob share.
+            <RollupName entity={gap.trailer} className="font-medium" /> is level with{' '}
+            <RollupName entity={gap.leader} className="font-medium" /> in {rangeLabel} blob share.
           </>
         ) : (
           <>
-            <span className="font-medium">{gap.trailer.name}</span> trails{' '}
-            <span className="font-medium">{gap.leader.name}</span> by{' '}
+            <RollupName entity={gap.trailer} className="font-medium" /> trails{' '}
+            <RollupName entity={gap.leader} className="font-medium" /> by{' '}
             <span className="font-medium tabular-nums">{gapLabel} pts</span> in {rangeLabel} blob
             share.
           </>
@@ -120,7 +160,7 @@ function GapIndicator({ gap, rangeLabel }: { gap: FlippeningGap; rangeLabel: str
         ].map(({ entity, share, width, barClass }) => (
           <div key={entity.key} className="flex items-center gap-2">
             <AttributionBadge user={entity.name} sizeClass="h-4 w-4" px={16} />
-            <span className="w-24 truncate text-xs text-bodyText">{entity.name}</span>
+            <RollupName entity={entity} className="w-24 truncate text-xs text-bodyText" />
             <div className="flex-1 h-1.5 rounded-full bg-[#26282e] overflow-hidden">
               <div
                 className={`h-full rounded-full ${barClass}`}
@@ -175,11 +215,14 @@ function Standings({
                     names inside them, so on a narrow viewport they would run
                     under the share column if they stayed on the name's line. */}
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="truncate text-sm text-white">{standing.entity.name}</span>
+                  <RollupName entity={standing.entity} className="truncate text-sm text-white" />
                   {standing.lastFlipWon && (
                     <span className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-sm bg-green/10 px-1.5 py-0.5 text-[10px] text-green">
                       <ArrowUp className="h-3 w-3 shrink-0" aria-hidden="true" />
-                      <span className="truncate">passed {standing.lastFlipWon.loser.name}</span>
+                      <span className="truncate">
+                        passed{' '}
+                        <RollupName entity={standing.lastFlipWon.loser} hoverColorClass="" />
+                      </span>
                       <span className="shrink-0">
                         <EventTime iso={standing.lastFlipWon.timestamp} />
                       </span>
@@ -226,8 +269,8 @@ function EventRow({ event, windowLabel }: { event: FlippeningEvent; windowLabel:
       </span>
       <div className="min-w-0">
         <p className="text-sm text-white">
-          <span className="font-medium">{event.winner.name}</span> flipped{' '}
-          <span className="font-medium">{event.loser.name}</span> in {windowLabel} blob share{' '}
+          <RollupName entity={event.winner} className="font-medium" /> flipped{' '}
+          <RollupName entity={event.loser} className="font-medium" /> in {windowLabel} blob share{' '}
           <EventTime iso={event.timestamp} />
         </p>
         <p className="text-xs text-[#8a93a5] tabular-nums">
