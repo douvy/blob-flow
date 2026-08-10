@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.11.0](https://github.com/douvy/blob-flow/compare/v1.10.0...v1.11.0) (2026-08-10)
+
+
+### Features
+
+* add a top blob users leaderboard page ([#279](https://github.com/douvy/blob-flow/issues/279)) ([176a808](https://github.com/douvy/blob-flow/commit/176a80815a8cdfb8c6701ca84c9e91b1cabb73f8))
+* add entity pages and make entity surfaces aggregate all addresses ([#283](https://github.com/douvy/blob-flow/issues/283)) ([857dfde](https://github.com/douvy/blob-flow/commit/857dfdedf8d32bb8004bf6f93d2c717e611ff52e))
+* link rollup names on the flippening page to their blob activity ([#278](https://github.com/douvy/blob-flow/issues/278)) ([12fcc5c](https://github.com/douvy/blob-flow/commit/12fcc5c317f30c118b669c043ff1cc034b3d56a0))
+* share charts to Farcaster, behind a share menu ([#276](https://github.com/douvy/blob-flow/issues/276)) ([58058ca](https://github.com/douvy/blob-flow/commit/58058cadaedf7d98ec14c0f9916664879ac5245a))
+
+
+### Bug Fixes
+
+* stamp dev builds with the commit instead of the last release version ([#281](https://github.com/douvy/blob-flow/issues/281)) ([bf9b52a](https://github.com/douvy/blob-flow/commit/bf9b52a6cdc8636e30ffa28de99de65ed9e42211))
+* stop stacked entity icons showing through each other ([#282](https://github.com/douvy/blob-flow/issues/282)) ([303bf3e](https://github.com/douvy/blob-flow/commit/303bf3ef14ae92ed7da215a49dd46b2924c9100b))
+
 ## [1.10.0](https://github.com/douvy/blob-flow/compare/v1.9.1...v1.10.0) (2026-08-09)
 
 
