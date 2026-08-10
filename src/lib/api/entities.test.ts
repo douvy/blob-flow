@@ -205,6 +205,18 @@ describe('api/entities getEntityBlobs', () => {
     );
   });
 
+  it('sorts malformed timestamps oldest so they cannot displace valid rows', async () => {
+    const entitiesApi = await import('./entities');
+    mockBlobFetch({
+      [ADDRESS_A]: [blob(ADDRESS_A, 'not-a-timestamp', '0xbad')],
+      [ADDRESS_B]: [blob(ADDRESS_B, '2026-08-10T00:00:01.000Z', '0xgood')],
+    });
+
+    const merged = await entitiesApi.getEntityBlobs([ADDRESS_A, ADDRESS_B], true, 1, 'mainnet');
+
+    expect(merged.map((b) => b.tx_hash)).toEqual(['0xgood']);
+  });
+
   it('returns an empty list for no addresses without fetching', async () => {
     const entitiesApi = await import('./entities');
     const fetchMock = vi.fn();

@@ -74,7 +74,8 @@ export async function getEntityBySlug(
  * aggregated view fans out one request per address and merges client-side.
  * Each per-address request uses the full `limit`, so the merged top `limit`
  * is exact: no blob that belongs in it can be hiding past an address's cap.
- * Callers bound the fan-out by passing a capped address list.
+ * The fan-out is bounded by the entity's registry entry, which holds a
+ * handful of operator addresses in practice.
  *
  * @param addresses - Sender addresses to merge (deduplicated here)
  * @param confirmed - true for confirmed blobs, false for mempool
@@ -94,10 +95,19 @@ export async function getEntityBlobs(
         unique.map((address) => getUserBlobs(address, confirmed, limit, network))
     );
 
+    // A malformed timestamp parses to NaN, which would make the comparator
+    // inconsistent (NaN is falsy, so ordering would fall through for some
+    // pairs but not others). Pin it to epoch 0 so bad rows sort oldest,
+    // deterministically, and fall off the end of the limit.
+    const parseTime = (timestamp: string): number => {
+        const time = Date.parse(timestamp);
+        return Number.isNaN(time) ? 0 : time;
+    };
+
     return lists
         .flat()
         .sort((a, b) => {
-            const byTime = Date.parse(b.timestamp) - Date.parse(a.timestamp);
+            const byTime = parseTime(b.timestamp) - parseTime(a.timestamp);
             if (byTime) return byTime;
             // Same-second blobs: keep block then index order stable.
             const byBlock = (b.block_number ?? 0) - (a.block_number ?? 0);

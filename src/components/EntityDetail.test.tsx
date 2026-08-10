@@ -169,6 +169,32 @@ describe('EntityDetail', () => {
     expect(screen.getAllByText('0xbbbb...bbbb')).toHaveLength(2);
   });
 
+  it('queries every active address for confirmed blobs and only registry addresses for pending', () => {
+    // Nine active senders, all retired: no cap may drop the tail, and the
+    // pending query must not fall back to retired addresses, since the
+    // registry no longer attributes their new activity to the entity.
+    const addresses = [...Array(9)].map((_, index) => ({
+      address: `0x${String(index).repeat(40)}`,
+      dataCount: 100 - index,
+      totalCostEth: '1',
+      totalCostWei: '1000000000000000000',
+      lastTimestamp: '2026-08-09T00:00:00.000Z',
+      inRegistry: false,
+    }));
+    mockEntity({ ...scroll, addresses });
+    // Call history persists across tests in this suite; drop earlier
+    // renders' calls so the keys below come from this one.
+    vi.mocked(useApiData).mockClear();
+    render(<EntityDetail slug="scroll" />);
+
+    const keys = vi.mocked(useApiData).mock.calls.map(([, queryKey]) => queryKey as unknown[]);
+    const confirmedKey = keys.find((key) => key[0] === 'entity-blobs' && key[3] === 'confirmed');
+    const mempoolKey = keys.find((key) => key[0] === 'entity-blobs' && key[3] === 'mempool');
+
+    expect(confirmedKey?.[4]).toBe(addresses.map((a) => a.address).join(','));
+    expect(mempoolKey?.[4]).toBe('');
+  });
+
   it('summarizes pending blobs in the collapsible header', () => {
     mockEntity(scroll, {
       mempool: [

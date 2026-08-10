@@ -34,12 +34,6 @@ const CELL_PADDING = 'px-2 sm:px-6';
 
 const ENTITY_BLOB_LIMIT = 20;
 
-// The blob endpoints filter by one address at a time, so the merged lists
-// fan out one request per address. Addresses arrive busiest first; capping
-// the fan-out keeps a long tail of dormant registry addresses from
-// multiplying requests while still covering every active operator.
-const MAX_BLOB_FANOUT = 8;
-
 // On phones only the address and blob count fit; spend and last activity
 // join at md, matching the users leaderboard's breakpoints.
 const COLUMN_WIDTHS = {
@@ -67,26 +61,27 @@ export default function EntityDetail({ slug }: { slug: string }) {
   );
   const entityNotFound = entity === null;
 
-  // Confirmed history can only come from addresses with indexed activity;
-  // pending blobs come from the entity's current (in-registry) operators,
-  // falling back to the active set when the registry list is empty.
+  // The merged lists fan out one request per address (the blob endpoints
+  // filter by a single sender), so each candidate set stays as small as
+  // correctness allows. Confirmed history can only come from addresses with
+  // indexed activity; pending blobs only from the entity's current
+  // (in-registry) operators. A retired address's new pending transactions
+  // are deliberately not shown here: the registry no longer attributes that
+  // address to this entity, so surfacing them would misattribute activity.
   const activeAddresses = React.useMemo(
     () =>
       (entity?.addresses ?? [])
         .filter((address) => address.dataCount > 0)
-        .slice(0, MAX_BLOB_FANOUT)
         .map((address) => address.address),
     [entity]
   );
-  const registryAddresses = React.useMemo(
+  const mempoolAddresses = React.useMemo(
     () =>
       (entity?.addresses ?? [])
         .filter((address) => address.inRegistry)
-        .slice(0, MAX_BLOB_FANOUT)
         .map((address) => address.address),
     [entity]
   );
-  const mempoolAddresses = registryAddresses.length > 0 ? registryAddresses : activeAddresses;
 
   const { data: confirmedBlobs, isLoading: blobsLoading, error: blobsError } = useApiData<BlobResponse[]>(
     () => api.getEntityBlobs(activeAddresses, true, ENTITY_BLOB_LIMIT, selectedNetwork.apiParam),
