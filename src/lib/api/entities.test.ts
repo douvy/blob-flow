@@ -139,3 +139,78 @@ describe('api/entities', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('api/entities getEntityBlobs', () => {
+  const blob = (from: string, timestamp: string, txHash: string, blobIndex = 0) => ({
+    tx_hash: txHash,
+    blob_index: blobIndex,
+    from_address: from,
+    timestamp,
+    block_number: 100,
+  });
+
+  // Answers each per-address blob request with that address's fixture list.
+  const mockBlobFetch = (byAddress: Record<string, unknown[]>) => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      const from = new URL(url).searchParams.get('from') ?? '';
+      return {
+        ok: true,
+        json: async () => ({ success: true, data: byAddress[from] ?? [] }),
+      };
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    return fetchMock;
+  };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('merges per-address lists newest first and applies the limit', async () => {
+    const entitiesApi = await import('./entities');
+    mockBlobFetch({
+      [ADDRESS_A]: [
+        blob(ADDRESS_A, '2026-08-10T00:00:03.000Z', '0xa1'),
+        blob(ADDRESS_A, '2026-08-10T00:00:01.000Z', '0xa2'),
+      ],
+      [ADDRESS_B]: [
+        blob(ADDRESS_B, '2026-08-10T00:00:04.000Z', '0xb1'),
+        blob(ADDRESS_B, '2026-08-10T00:00:02.000Z', '0xb2'),
+      ],
+    });
+
+    const merged = await entitiesApi.getEntityBlobs([ADDRESS_A, ADDRESS_B], true, 3, 'mainnet');
+
+    expect(merged.map((b) => b.tx_hash)).toEqual(['0xb1', '0xa1', '0xb2']);
+  });
+
+  it('requests each address once, against the endpoint matching confirmed', async () => {
+    const entitiesApi = await import('./entities');
+    const fetchMock = mockBlobFetch({});
+
+    await entitiesApi.getEntityBlobs([ADDRESS_A, ADDRESS_A, ADDRESS_B], false, 5, 'mainnet');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/blob/mempool?from=${ADDRESS_A}&limit=5`),
+      expect.any(Object)
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/blob/mempool?from=${ADDRESS_B}&limit=5`),
+      expect.any(Object)
+    );
+  });
+
+  it('returns an empty list for no addresses without fetching', async () => {
+    const entitiesApi = await import('./entities');
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    expect(await entitiesApi.getEntityBlobs([], true, 10, 'mainnet')).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

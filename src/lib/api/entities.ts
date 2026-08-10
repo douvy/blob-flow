@@ -1,10 +1,12 @@
 import {
     ApiResponse,
     BackendEntityResponse,
+    BlobResponse,
     EntityDetail,
 } from '../../types';
 import { slugifyEntity } from '../statCard';
 import { fetchApi, isNotFoundError } from './core';
+import { getUserBlobs } from './users';
 
 export function transformEntityResponse(entity: BackendEntityResponse): EntityDetail {
     return {
@@ -63,4 +65,44 @@ export async function getEntityBySlug(
         }
         throw error;
     }
+}
+
+/**
+ * Get one merged blob list across several sender addresses, newest first.
+ *
+ * The blob list endpoints filter by a single `from` address, so an entity's
+ * aggregated view fans out one request per address and merges client-side.
+ * Each per-address request uses the full `limit`, so the merged top `limit`
+ * is exact: no blob that belongs in it can be hiding past an address's cap.
+ * Callers bound the fan-out by passing a capped address list.
+ *
+ * @param addresses - Sender addresses to merge (deduplicated here)
+ * @param confirmed - true for confirmed blobs, false for mempool
+ * @param limit - Number of blobs to return after the merge
+ * @param network - Optional network parameter
+ */
+export async function getEntityBlobs(
+    addresses: string[],
+    confirmed: boolean,
+    limit = 20,
+    network?: string
+): Promise<BlobResponse[]> {
+    const unique = [...new Set(addresses)];
+    if (unique.length === 0) return [];
+
+    const lists = await Promise.all(
+        unique.map((address) => getUserBlobs(address, confirmed, limit, network))
+    );
+
+    return lists
+        .flat()
+        .sort((a, b) => {
+            const byTime = Date.parse(b.timestamp) - Date.parse(a.timestamp);
+            if (byTime) return byTime;
+            // Same-second blobs: keep block then index order stable.
+            const byBlock = (b.block_number ?? 0) - (a.block_number ?? 0);
+            if (byBlock) return byBlock;
+            return a.blob_index - b.blob_index;
+        })
+        .slice(0, limit);
 }

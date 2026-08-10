@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { DEFAULT_NETWORK } from '../constants';
 import { useApiData } from '../hooks/useApiData';
 import { useNetwork } from '../hooks/useNetwork';
-import { EntityDetail as EntityDetailData } from '../types';
+import { BlobResponse, EntityDetail as EntityDetailData } from '../types';
 import { networkPath } from '../utils';
 import EntityDetail from './EntityDetail';
 
@@ -67,13 +67,38 @@ const scroll: EntityDetailData = {
   ],
 };
 
-function mockEntity(data: EntityDetailData | null | undefined) {
-  vi.mocked(useApiData<EntityDetailData | null>).mockReturnValue({
-    data,
-    isLoading: data === undefined,
-    error: null,
-    refetch: vi.fn(),
+// The component reads three queries through the same mocked hook; dispatch
+// on the query key so the entity fixture only answers the entity query.
+function mockEntity(
+  data: EntityDetailData | null | undefined,
+  blobs: { confirmed?: BlobResponse[]; mempool?: BlobResponse[] } = {}
+) {
+  vi.mocked(useApiData).mockImplementation((fetchFunction, queryKey) => {
+    const key = Array.isArray(queryKey) ? queryKey : [queryKey];
+    if (key[0] === 'entity') {
+      return { data, isLoading: data === undefined, error: null, refetch: vi.fn() };
+    }
+    const list = key[3] === 'mempool' ? blobs.mempool : blobs.confirmed;
+    return { data: list ?? [], isLoading: false, error: null, refetch: vi.fn() };
   });
+}
+
+function makeBlob(overrides: Partial<BlobResponse> = {}): BlobResponse {
+  return {
+    network_id: 1,
+    network_name: 'mainnet',
+    block_number: 123456,
+    blob_index: 0,
+    tx_hash: '0x1111111111111111111111111111111111111111111111111111111111111111',
+    from_address: ADDRESS_A,
+    blob_size_bytes: 131072,
+    base_fee_per_blob_gas: '1',
+    tip_per_blob_gas: '0',
+    total_cost_eth: '0.0001',
+    timestamp: '2026-08-09T00:00:00.000Z',
+    confirmed: true,
+    ...overrides,
+  };
 }
 
 describe('EntityDetail', () => {
@@ -125,5 +150,40 @@ describe('EntityDetail', () => {
     render(<EntityDetail slug="nope" />);
 
     expect(screen.getByText('Entity not found')).toBeInTheDocument();
+  });
+
+  it('renders aggregated recent blobs with the posting address', () => {
+    const txHash = '0x2222222222222222222222222222222222222222222222222222222222222222';
+    mockEntity(scroll, {
+      confirmed: [
+        makeBlob({ from_address: ADDRESS_A }),
+        makeBlob({ tx_hash: txHash, from_address: ADDRESS_B }),
+      ],
+    });
+    render(<EntityDetail slug="scroll" />);
+
+    expect(screen.getByRole('heading', { name: 'Recent Blobs' })).toBeInTheDocument();
+    // Each row names its sender, since the list spans several addresses.
+    // The addresses table also shows both, so expect one extra occurrence.
+    expect(screen.getAllByText('0xaaaa...aaaa')).toHaveLength(2);
+    expect(screen.getAllByText('0xbbbb...bbbb')).toHaveLength(2);
+  });
+
+  it('summarizes pending blobs in the collapsible header', () => {
+    mockEntity(scroll, {
+      mempool: [
+        makeBlob({ confirmed: false, block_number: null, from_address: ADDRESS_B }),
+      ],
+    });
+    render(<EntityDetail slug="scroll" />);
+
+    const toggle = screen.getByRole('button', { name: /pending blobs/i });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle.textContent).toContain('1 tx');
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    // The expanded table shows the pending tx, truncated.
+    expect(screen.getByText('0x11111111...1111')).toBeInTheDocument();
   });
 });
