@@ -16,7 +16,7 @@ import {
   formatNumber,
   getAttributionTestnetLabels,
 } from '../utils';
-import AttributionBadge, { TestnetRibbon } from './AttributionBadge';
+import AttributionBadge, { STACKED_ICON, TestnetRibbon } from './AttributionBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 
 const TOOLTIP_GROUP_LIMIT = 6;
@@ -88,7 +88,7 @@ export default function MempoolSummary() {
             {topGroups.map((group) => (
               <span
                 key={group.user}
-                className="-ml-1.5 flex rounded-full ring-2 ring-[#17181b] first:ml-0"
+                className={`-ml-1.5 flex first:ml-0 ${STACKED_ICON}`}
                 title={group.user}
               >
                 <AttributionBadge

@@ -29,6 +29,16 @@ const ICON_OUTLINE = 'pointer-events-none absolute inset-0 rounded-full ring-1 r
 const ICON_BACKDROP = 'bg-white/90 p-px';
 
 /**
+ * Wrapper classes for a badge that overlaps its neighbours. Most registry
+ * marks are transparent outside their glyph, so the icon behind shows through
+ * the one in front unless the front badge carries an opaque disc of its own.
+ * The disc and the ring are both the surface color, which keeps a clean gap
+ * between neighbours and leaves a lone badge looking exactly as it does
+ * outside a stack.
+ */
+export const STACKED_ICON = 'rounded-full bg-[#17181b] ring-2 ring-[#17181b]';
+
+/**
  * Amber strip naming a testnet, overlaid on the bottom edge of an entity
  * icon. Testnet entities reuse their mainnet brand marks, so the logo alone
  * cannot identify them; the ribbon makes the network explicit wherever an
