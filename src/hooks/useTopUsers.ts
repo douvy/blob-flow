@@ -13,10 +13,13 @@ interface LiveSnapshot {
 }
 
 /**
- * Top blob users scoped to a time window, kept current by users_update live
+ * Top blob users scoped to a time window, entity-grouped: an entity posting
+ * from several addresses is one row ranked by its combined total, with the
+ * busiest member as the row's address. Kept current by users_update live
  * events. Subscribers passing the same limit/network/range share one React
  * Query cache entry, so every surface reading a window (the Top Blob Users
- * table, the Top User metric card) shows the same rows.
+ * table, the Top User metric card, the kiosk rollup bars) shows the same
+ * rows.
  *
  * Live events carry the window they aggregate over; one scoped to a
  * different window or network must never overwrite this view. Snapshots are
@@ -26,8 +29,8 @@ interface LiveSnapshot {
  */
 export function useTopUsers(limit: number, network: string, range: BackendUsersRange) {
   const { data, isLoading, error, dataUpdatedAt } = useApiData<TopUsersResponse>(
-    () => api.getTopUsers(limit, network, range),
-    ['top-users', network, limit, range]
+    () => api.getTopUsers(limit, network, range, 'entity'),
+    ['top-users', network, limit, range, 'entity']
   );
 
   const scopeKey = `${network}:${range}`;
@@ -35,7 +38,10 @@ export function useTopUsers(limit: number, network: string, range: BackendUsersR
     new Map()
   );
   useLiveBlobEvent('users_update', (event) => {
-    if (event.range === range) {
+    // The backend broadcasts a per-address and an entity-grouped variant of
+    // every update; this hook shows entity rows, so only the grouped payload
+    // may overwrite the view (folding both would alternate the table).
+    if (event.range === range && event.group === 'entity') {
       setLiveSnapshots((current) => {
         const next = new Map(current);
         next.set(scopeKey, {

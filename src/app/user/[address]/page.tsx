@@ -25,6 +25,7 @@ import {
 } from '@/utils';
 import { RelativeTime } from '@/components/RelativeTime';
 import AttributionBadge from '@/components/AttributionBadge';
+import { entityPagePath } from '@/lib/entityLink';
 import { ATTRIBUTION_CONTRIBUTING_URL, FEE_HEADROOM_TOOLTIP } from '@/constants';
 
 const USER_BLOB_LIMIT = 20;
@@ -185,6 +186,7 @@ export default function UserDetailPage() {
         : `${txDisplay} tx · ${formatBlobCount(mempoolSummary.blobCount)} · ${formatBlobSize(mempoolSummary.blobSizeBytes)}`;
 
   const userName = user?.name || truncateAddress(address);
+  const entityHref = user?.name ? entityPagePath(user.name) : null;
   // Null when the route param is not a parseable address; the callout then
   // only links to the contribution guide instead of a prefilled file.
   const attributionSuggestionUrl = getAttributionSuggestionUrl(
@@ -279,19 +281,32 @@ export default function UserDetailPage() {
                 />
                 <h1 className="text-3xl font-windsor-bold text-white">{userName}</h1>
               </div>
-              <div className="flex items-center gap-2 mb-6">
-                <p className="text-bodyText font-mono text-sm break-all">{address}</p>
-                {explorerUrl && (
-                  <a
-                    href={explorerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-blue hover:underline text-sm shrink-0"
-                    aria-label="View address on block explorer"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                    Explorer
-                  </a>
+              <div className="mb-6">
+                <div className="flex items-center gap-2">
+                  <p className="text-bodyText font-mono text-sm break-all">{address}</p>
+                  {explorerUrl && (
+                    <a
+                      href={explorerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-blue hover:underline text-sm shrink-0"
+                      aria-label="View address on block explorer"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                      Explorer
+                    </a>
+                  )}
+                </div>
+                {/* The stats below cover this address only; an attributed
+                    entity may post from several, so point at the entity page
+                    for the aggregated view. */}
+                {entityHref && (
+                  <p className="text-sm text-bodyText mt-2">
+                    One of the addresses attributed to {user.name}.{' '}
+                    <Link href={entityHref} className="text-blue hover:underline">
+                      View all {user.name} addresses
+                    </Link>
+                  </p>
                 )}
               </div>
 

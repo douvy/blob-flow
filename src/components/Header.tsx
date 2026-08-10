@@ -38,7 +38,7 @@ const NAV_LINKS: NavLink[] = [
   { href: '/', label: 'Home', icon: Home, activePrefixes: [] },
   { href: '/blocks', label: 'Blocks', icon: Blocks, activePrefixes: ['/blocks', '/block'] },
   { href: '/mempool', label: 'Mempool', icon: Hourglass, activePrefixes: ['/mempool'] },
-  { href: '/users', label: 'Users', icon: Users, activePrefixes: ['/users', '/user'] },
+  { href: '/users', label: 'Users', icon: Users, activePrefixes: ['/users', '/user', '/entity'] },
   { href: '/records', label: 'Records', icon: Trophy, activePrefixes: ['/records'] },
   { href: '/flippening', label: 'Flippening', icon: ArrowLeftRight, activePrefixes: ['/flippening'] },
 ];

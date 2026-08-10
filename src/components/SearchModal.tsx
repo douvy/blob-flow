@@ -24,6 +24,7 @@ import {
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 import { api } from '@/lib/api';
 import { isNotFoundError } from '@/lib/api/core';
+import { entityPagePath } from '@/lib/entityLink';
 import { useNetwork } from '@/hooks/useNetwork';
 import useSearchMatches from '@/hooks/useSearchMatches';
 import { SearchMatchResponse, SearchTarget } from '@/types';
@@ -94,8 +95,13 @@ function matchPath(match: SearchMatchResponse): string | null {
       return match.block_number != null ? `/block/${match.block_number}` : null;
     case 'address':
       return match.address ? `/user/${match.address}` : null;
-    case 'rollup':
+    case 'rollup': {
+      // The entity page aggregates every address the registry maps to the
+      // name; a single address page would silently show a slice of it.
+      const entityPath = match.name ? entityPagePath(match.name) : null;
+      if (entityPath) return entityPath;
       return match.addresses?.length ? `/user/${match.addresses[0]}` : null;
+    }
   }
 }
 

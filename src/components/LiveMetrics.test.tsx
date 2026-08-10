@@ -201,9 +201,11 @@ function makeNewBlockMessage(blockNumber: number, blobCount: number): string {
 }
 
 function makeUsersUpdateMessage(range: BackendUsersRange): string {
+  // The card consumes the entity-grouped broadcast variant.
   return JSON.stringify({
     type: 'users_update',
     range,
+    group: 'entity',
     data: [
       {
         network_id: 1,
@@ -300,7 +302,7 @@ describe('LiveMetrics', () => {
     // Users table, so the card matches the table for the selected filter.
     expect(vi.mocked(useApiData)).toHaveBeenCalledWith(
       expect.any(Function),
-      ['top-users', DEFAULT_NETWORK.apiParam, 10, '1h']
+      ['top-users', DEFAULT_NETWORK.apiParam, 10, '1h', 'entity']
     );
 
     expect(screen.getByText('Avg Base Fee (1h)')).toBeInTheDocument();

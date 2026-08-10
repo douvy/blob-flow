@@ -33,10 +33,14 @@ const restData: TopUsersResponse = {
   hasServerShares: true,
 };
 
-function liveEvent(range: UsersUpdateEvent['range']): UsersUpdateEvent {
+function liveEvent(
+  range: UsersUpdateEvent['range'],
+  variant: 'grouped' | 'per-address' = 'grouped'
+): UsersUpdateEvent {
   return {
     type: 'users_update',
     range,
+    ...(variant === 'grouped' ? { group: 'entity' } : {}),
     data: [
       {
         network_id: 1,
@@ -82,8 +86,22 @@ describe('useTopUsers', () => {
 
     expect(vi.mocked(useApiData)).toHaveBeenCalledWith(
       expect.any(Function),
-      ['top-users', 'mainnet', 10, '7d']
+      ['top-users', 'mainnet', 10, '7d', 'entity']
     );
+  });
+
+  it('ignores the per-address broadcast variant', () => {
+    // The backend emits both variants on every update; folding the
+    // ungrouped one would alternate the table between merged and unmerged
+    // rows.
+    mockRest({ dataUpdatedAt: 1000 });
+    const { result } = renderTopUsers();
+
+    act(() => {
+      usersUpdateHandler?.(liveEvent('1h', 'per-address'));
+    });
+
+    expect(result.current.data?.data[0].name).toBe('Arbitrum');
   });
 
   it('overlays a live snapshot that is newer than the REST fetch', () => {

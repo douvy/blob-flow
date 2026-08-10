@@ -20,6 +20,7 @@ import { useNetwork } from '../hooks/useNetwork';
 import { useTimeRange } from '../contexts/TimeRangeContext';
 import { useLiveBlockList } from '../hooks/useLiveBlockList';
 import { useTopUsers } from '../hooks/useTopUsers';
+import { entityPagePath } from '../lib/entityLink';
 import { formatScientific, RUNAWAY_GWEI_THRESHOLD } from '../utils';
 import { useNow } from '../hooks/useNow';
 import { formatRelativeTime } from '../lib/api/core';
@@ -191,7 +192,12 @@ export default function LiveMetrics() {
             ? 'User data unavailable'
             : 'No user data yet',
       icon: UserIcon,
-      href: user ? `/user/${encodeURIComponent(user.address)}` : undefined,
+      // An attributed leader is an entity-grouped row and opens its entity
+      // page; an unattributed one is a single address.
+      href: user
+        ? (user.attributed && entityPagePath(user.key ?? user.name)) ||
+          `/user/${encodeURIComponent(user.address)}`
+        : undefined,
       ariaLabel: user ? `View user ${user.name}` : undefined,
     },
   ];

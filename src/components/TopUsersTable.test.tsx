@@ -68,9 +68,11 @@ const restData: TopUsersResponse = {
 };
 
 function liveEvent(range: UsersUpdateEvent['range']): UsersUpdateEvent {
+  // The table consumes the entity-grouped broadcast variant.
   return {
     type: 'users_update',
     range,
+    group: 'entity',
     data: [
       {
         network_id: 1,

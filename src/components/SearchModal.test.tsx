@@ -297,7 +297,9 @@ describe('SearchModal', () => {
     );
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    expect(pushMock).toHaveBeenCalledWith(`/user/${address}`);
+    // A rollup match opens the entity page, which aggregates every address
+    // the registry maps to the name, not one address's page.
+    expect(pushMock).toHaveBeenCalledWith('/entity/base');
     expect(onClose).toHaveBeenCalled();
   });
 

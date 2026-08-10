@@ -54,6 +54,17 @@ const restData: TopUsersResponse = {
       totalCostWei: '400000000000000000',
       lastTimestamp: '2026-01-01T00:00:10.000Z',
     },
+    {
+      id: 3,
+      name: '0x3333...3333',
+      address: '0x3333333333333333333333333333333333333333',
+      attributed: false,
+      dataCount: 1000,
+      percentage: 1,
+      totalCostEth: '0.01',
+      totalCostWei: '10000000000000000',
+      lastTimestamp: '2026-01-01T00:00:20.000Z',
+    },
   ],
   hasServerShares: true,
 };
@@ -125,14 +136,26 @@ describe('UsersLeaderboard', () => {
     });
   });
 
-  it('navigates to the user page when a row is clicked', () => {
+  it('navigates to the entity page when an attributed row is clicked', () => {
     renderLeaderboard();
 
     fireEvent.click(screen.getByRole('link', { name: 'View activity for Arbitrum' }));
 
+    // The entity page aggregates every address the registry maps to the
+    // entity; this row may only be one of them.
+    expect(routerPush).toHaveBeenCalledWith(
+      networkPath('/entity/arbitrum', DEFAULT_NETWORK.apiParam)
+    );
+  });
+
+  it('navigates to the address page when an unattributed row is clicked', () => {
+    renderLeaderboard();
+
+    fireEvent.click(screen.getByRole('link', { name: 'View activity for 0x3333...3333' }));
+
     expect(routerPush).toHaveBeenCalledWith(
       networkPath(
-        '/user/0x1111111111111111111111111111111111111111',
+        '/user/0x3333333333333333333333333333333333333333',
         DEFAULT_NETWORK.apiParam
       )
     );

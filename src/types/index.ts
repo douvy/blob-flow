@@ -152,6 +152,10 @@ export interface UsersUpdateEvent {
   // Window the aggregates cover; clients drop events that don't match their
   // selected range instead of overwriting a differently-scoped view.
   range: BackendUsersRange;
+  // Row grouping of the payload. Absent for per-address rows; "entity" tags
+  // the entity-grouped variant the backend broadcasts alongside them.
+  // Clients must filter on this or the two variants overwrite each other.
+  group?: string;
   data: UserResponse[];
 }
 
@@ -387,6 +391,10 @@ export interface UserResponse {
   address: string;
   name?: string;
   category?: string;
+  /** Entity key of a group=entity row; absent on per-address rows. */
+  key?: string;
+  /** Member addresses of a group=entity row, busiest first. */
+  addresses?: string[];
   blob_count: number;
   total_cost_wei?: string;
   total_cost_eth: string;
@@ -399,14 +407,89 @@ export interface UserResponse {
 export interface User {
   id: number;
   name: string;
+  /** Sender address; for an entity-grouped row, the busiest member. */
   address: string;
   /** False when the backend had no attribution and name is a truncated address. */
   attributed: boolean;
+  /** Canonical entity key of a grouped row; absent on per-address rows. */
+  key?: string;
+  /** Member addresses of a grouped row, busiest first. */
+  addresses?: string[];
   dataCount: number;
   percentage: number;
   totalCostEth: string;
   totalCostWei?: string;
   lastTimestamp: string;
+}
+
+// Backend EntityAddressResponse - matches api.EntityAddressResponse from swagger
+export interface BackendEntityAddress {
+  address: string;
+  blob_count: number;
+  total_cost_wei: string;
+  total_cost_eth: string;
+  /** Absent when the address has no indexed activity. */
+  last_timestamp?: string;
+  /** False when attributed only in indexed history (retired from the registry). */
+  in_registry: boolean;
+}
+
+// Backend EntityResponse - matches api.EntityResponse from swagger
+export interface BackendEntityResponse {
+  chain_id: number;
+  network_name?: string;
+  key: string;
+  name: string;
+  category: string;
+  range: string;
+  blob_count: number;
+  total_cost_wei: string;
+  total_cost_eth: string;
+  last_timestamp?: string;
+  blob_share_percent: number;
+  spend_share_percent: number;
+  addresses: BackendEntityAddress[];
+}
+
+/** Aggregated blob stats for one sender address of an attributed entity. */
+export interface EntityAddressStats {
+  address: string;
+  dataCount: number;
+  totalCostEth: string;
+  totalCostWei?: string;
+  /** Null when the address has no indexed activity in the range. */
+  lastTimestamp: string | null;
+  /** False when attributed only in indexed history (retired from the registry). */
+  inRegistry: boolean;
+}
+
+/**
+ * An attributed entity with stats aggregated across every sender address
+ * attributed to it (frontend shape; see lib/api/entities.ts).
+ */
+export interface EntityDetail {
+  /** Canonical backend entity key (underscore form). */
+  key: string;
+  /** URL slug the entity page is addressed by (hyphen form of the key). */
+  slug: string;
+  /** Canonical display name from the attribution registry. */
+  name: string;
+  category: string;
+  /**
+   * Every attributed address, busiest first, including registry addresses
+   * with no indexed activity on the network.
+   */
+  addresses: EntityAddressStats[];
+  totalDataCount: number;
+  /** Exact wei sum across addresses, as a decimal string. */
+  totalCostWei: string;
+  totalCostEth: string;
+  /** Most recent activity across addresses; null when none is indexed. */
+  lastTimestamp: string | null;
+  /** Share of all blobs posted in the range, in percent. */
+  blobSharePercent: number;
+  /** Share of all blob spend in the range, in percent. */
+  spendSharePercent: number;
 }
 
 // Top users response (frontend-shaped)

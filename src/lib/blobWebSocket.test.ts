@@ -158,6 +158,20 @@ describe('blobWebSocket', () => {
     if (tagged?.type === 'users_update') {
       expect(tagged.range).toBe('24h');
       expect(tagged.data).toEqual([user]);
+      // A per-address event carries no group tag, and the parser must not
+      // invent one: consumers distinguish the variants by its absence.
+      expect(tagged.group).toBeUndefined();
+    }
+
+    // The entity-grouped broadcast variant keeps its group tag through
+    // parsing; dropping it would make the two variants indistinguishable.
+    const grouped = parseBlobWebSocketEvent(
+      JSON.stringify({ type: 'users_update', range: '24h', group: 'entity', data: [user] })
+    );
+    if (grouped?.type === 'users_update') {
+      expect(grouped.group).toBe('entity');
+    } else {
+      expect.unreachable('grouped users_update must parse');
     }
 
     // Consumers scope these events to the selected window, so an event
