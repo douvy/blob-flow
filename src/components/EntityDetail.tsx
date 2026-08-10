@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import Link from '@/components/NetworkLink';
 import AttributionBadge from '@/components/AttributionBadge';
+import BlobTable, { BlobTableSkeleton } from '@/components/BlobTable';
 import DataStateWrapper from '@/components/DataStateWrapper';
+import PendingBlobsSection from '@/components/PendingBlobsSection';
 import { RelativeTime } from '@/components/RelativeTime';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
-import { EntityDetail as EntityDetailData } from '@/types';
+import { BlobResponse, EntityDetail as EntityDetailData } from '@/types';
 import {
   formatCostEthOrWei,
   formatNumber,
@@ -29,6 +31,8 @@ import { Skeleton } from './ui/skeleton';
 
 // Overrides the table primitives' px-6, which is too wide for phone columns.
 const CELL_PADDING = 'px-2 sm:px-6';
+
+const ENTITY_BLOB_LIMIT = 20;
 
 // On phones only the address and blob count fit; spend and last activity
 // join at md, matching the users leaderboard's breakpoints.
@@ -56,6 +60,40 @@ export default function EntityDetail({ slug }: { slug: string }) {
     ['entity', selectedNetwork.apiParam, slug]
   );
   const entityNotFound = entity === null;
+
+  // The merged lists fan out one request per address (the blob endpoints
+  // filter by a single sender), so each candidate set stays as small as
+  // correctness allows. Confirmed history can only come from addresses with
+  // indexed activity; pending blobs only from the entity's current
+  // (in-registry) operators. A retired address's new pending transactions
+  // are deliberately not shown here: the registry no longer attributes that
+  // address to this entity, so surfacing them would misattribute activity.
+  const activeAddresses = React.useMemo(
+    () =>
+      (entity?.addresses ?? [])
+        .filter((address) => address.dataCount > 0)
+        .map((address) => address.address),
+    [entity]
+  );
+  const mempoolAddresses = React.useMemo(
+    () =>
+      (entity?.addresses ?? [])
+        .filter((address) => address.inRegistry)
+        .map((address) => address.address),
+    [entity]
+  );
+
+  const { data: confirmedBlobs, isLoading: blobsLoading, error: blobsError } = useApiData<BlobResponse[]>(
+    () => api.getEntityBlobs(activeAddresses, true, ENTITY_BLOB_LIMIT, selectedNetwork.apiParam),
+    ['entity-blobs', selectedNetwork.apiParam, slug, 'confirmed', activeAddresses.join(',')],
+    { enabled: Boolean(entity) }
+  );
+
+  const { data: mempoolBlobs, isLoading: mempoolLoading, error: mempoolError } = useApiData<BlobResponse[]>(
+    () => api.getEntityBlobs(mempoolAddresses, false, ENTITY_BLOB_LIMIT, selectedNetwork.apiParam),
+    ['entity-blobs', selectedNetwork.apiParam, slug, 'mempool', mempoolAddresses.join(',')],
+    { enabled: Boolean(entity) }
+  );
 
   const goToAddress = React.useCallback(
     (address: string) => {
@@ -111,7 +149,7 @@ export default function EntityDetail({ slug }: { slug: string }) {
   );
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
       <Link
         href="/users"
         className="text-blue hover:underline text-sm mb-6 inline-flex items-center gap-2"
@@ -173,7 +211,7 @@ export default function EntityDetail({ slug }: { slug: string }) {
               </div>
             </div>
 
-            <section>
+            <section className="mb-8">
               <h2 className="text-2xl font-windsor-bold text-white mb-4">Addresses</h2>
               {entity.addresses.length === 0 ? (
                 <div className="text-center py-8 border border-divider rounded-lg bg-gradient-to-r from-[#17181b] to-[#141519]/60">
@@ -247,6 +285,21 @@ export default function EntityDetail({ slug }: { slug: string }) {
                   </Table>
                 </div>
               )}
+            </section>
+
+            <PendingBlobsSection
+              blobs={mempoolBlobs}
+              isLoading={mempoolLoading}
+              error={mempoolError}
+              limit={ENTITY_BLOB_LIMIT}
+              showFrom
+            />
+
+            <section className="mb-8">
+              <h2 className="text-2xl font-windsor-bold text-white mb-4">Recent Blobs</h2>
+              <DataStateWrapper isLoading={blobsLoading} error={blobsError} loadingComponent={<BlobTableSkeleton />}>
+                {confirmedBlobs && <BlobTable blobs={confirmedBlobs} showBlock={true} showFrom />}
+              </DataStateWrapper>
             </section>
           </div>
         )}
