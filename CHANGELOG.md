@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.12.0](https://github.com/douvy/blob-flow/compare/v1.11.0...v1.12.0) (2026-08-10)
+
+
+### Features
+
+* aggregate pending and recent blobs on entity pages ([#285](https://github.com/douvy/blob-flow/issues/285)) ([7f30c4a](https://github.com/douvy/blob-flow/commit/7f30c4a7ad87326c415efef1a4f6bde795bf0f0f))
+
+
+### Bug Fixes
+
+* make clickable table rows read as links ([#284](https://github.com/douvy/blob-flow/issues/284)) ([a734f63](https://github.com/douvy/blob-flow/commit/a734f63abe2fe5222153b9e3206350edea1bd46e))
+
 ## [1.11.0](https://github.com/douvy/blob-flow/compare/v1.10.0...v1.11.0) (2026-08-10)
 
 
