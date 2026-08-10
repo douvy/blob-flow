@@ -159,7 +159,12 @@ function UserIdentity({ user }: { user: User }) {
         className="mr-3"
         textClass="text-[10px]"
       />
-      <span className="truncate">{user.name}</span>
+      {/* The whole row is the link target, so the name carries the affordance
+          for it: the blue the app gives its other row links, underlined
+          whenever the row is hovered or focused. */}
+      <span className="truncate text-blue underline-offset-2 group-hover:underline group-focus-visible:underline">
+        {user.name}
+      </span>
     </div>
   );
 }
@@ -462,7 +467,7 @@ function LeaderboardInner() {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.original.address}
-                    className="cursor-pointer bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
+                    className="group cursor-pointer bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
                     onClick={() => goToRow(row.original)}
                     onKeyDown={(event) => handleRowKeyDown(event, row.original)}
                     tabIndex={0}
