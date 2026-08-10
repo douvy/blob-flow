@@ -242,7 +242,7 @@ export default function EntityDetail({ slug }: { slug: string }) {
                       {entity.addresses.map((addressStats) => (
                         <TableRow
                           key={addressStats.address}
-                          className="cursor-pointer bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
+                          className="group cursor-pointer bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
                           onClick={() => goToAddress(addressStats.address)}
                           onKeyDown={(event) => handleRowKeyDown(event, addressStats.address)}
                           tabIndex={0}
@@ -253,7 +253,13 @@ export default function EntityDetail({ slug }: { slug: string }) {
                             className={`whitespace-nowrap text-sm text-white ${CELL_PADDING} ${COLUMN_WIDTHS.address}`}
                             title={addressStats.address}
                           >
-                            <span className="font-mono">{truncateAddress(addressStats.address)}</span>
+                            {/* The whole row is the link target, so the address
+                                carries the affordance for it: the same blue the
+                                rest of the app gives address links, underlined
+                                whenever the row is hovered or focused. */}
+                            <span className="font-mono text-blue underline-offset-2 group-hover:underline group-focus-visible:underline">
+                              {truncateAddress(addressStats.address)}
+                            </span>
                             {!addressStats.inRegistry && (
                               <span className="ml-2 rounded-full border border-divider px-2 py-0.5 text-xs text-[#8a93a5]">
                                 retired
