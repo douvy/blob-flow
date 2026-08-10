@@ -16,7 +16,7 @@ import {
   formatUtilizationPercent,
   getAttributionTestnetLabels,
 } from '../utils';
-import AttributionBadge, { TestnetRibbon } from './AttributionBadge';
+import AttributionBadge, { STACKED_ICON, TestnetRibbon } from './AttributionBadge';
 import { BlobDetailsContent } from './BlobDetailsContent';
 import { BLOCKS_PAGE_LIMIT, BLOCKS_PAGE_SIZE } from '../constants';
 import { useFlipRows } from '../hooks/useFlipRows';
@@ -120,7 +120,7 @@ function AttributionDisplay({ attribution }: { attribution: string[] }) {
             key={attr}
             user={attr}
             sizeClass="w-5 h-5"
-            className="rounded-full ring-1 ring-gray-800"
+            className={STACKED_ICON}
             textClass="text-[10px]"
             title={attr}
             showTestnetLabel={false}
