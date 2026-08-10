@@ -29,6 +29,8 @@ export function transformUserResponses(usersResponse: UserResponse[]): TopUsersR
             name: user.name || truncateAddress(user.address),
             address: user.address,
             attributed: Boolean(user.name),
+            key: user.key,
+            addresses: user.addresses,
             dataCount: user.blob_count,
             percentage,
             totalCostEth: formatTotalCostEth(user.total_cost_wei, user.total_cost_eth),
@@ -45,9 +47,21 @@ export function transformUserResponses(usersResponse: UserResponse[]): TopUsersR
  * @param limit - Number of users to return
  * @param network - Optional network parameter
  * @param range - Time window to aggregate over
+ * @param group - 'entity' collapses an entity's addresses into one row
+ *   (ordering and limit apply after grouping, so a multi-address entity
+ *   ranks by its combined total); omitted keeps per-address rows
  */
-export const getTopUsers = async (limit = 10, network?: string, range: BackendUsersRange = 'all'): Promise<TopUsersResponse> => {
-    const response = await fetchApi<ApiResponse<UserResponse[]>>(`/users?limit=${limit}&range=${range}`, network);
+export const getTopUsers = async (
+    limit = 10,
+    network?: string,
+    range: BackendUsersRange = 'all',
+    group?: 'entity'
+): Promise<TopUsersResponse> => {
+    const groupParam = group ? `&group=${group}` : '';
+    const response = await fetchApi<ApiResponse<UserResponse[]>>(
+        `/users?limit=${limit}&range=${range}${groupParam}`,
+        network
+    );
 
     return transformUserResponses(response.data);
 };

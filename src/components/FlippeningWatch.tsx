@@ -8,7 +8,7 @@ import Link from '@/components/NetworkLink';
 import { RelativeTime } from '@/components/RelativeTime';
 import TapTooltip from '@/components/TapTooltip';
 import { useFlippening } from '@/hooks/useFlippening';
-import { useRollupAddresses } from '@/hooks/useRollupAddresses';
+import { entityPagePath } from '@/lib/entityLink';
 import {
   DEFAULT_FLIPPENING_TOP_N,
   formatGapPoints,
@@ -87,10 +87,10 @@ function formatPoints(value: number): string {
  * without offering any way into them, so the standings could say a rollup
  * had just taken the lead and leave no route to what it had been posting.
  *
- * The chart data these names come from carries no address, so the link is
- * resolved through the window's user list; an unattributed sender already
- * knows its own address. A name that resolves to neither stays plain text
- * rather than linking nowhere.
+ * Named entities link to their entity page, which aggregates every address
+ * the registry maps to them. A tracked sender the registry does not name
+ * only has an address page; a name that resolves to neither stays plain
+ * text rather than linking nowhere.
  */
 function RollupName({
   entity,
@@ -104,14 +104,15 @@ function RollupName({
   className?: string;
   hoverColorClass?: string;
 }) {
-  const addressByName = useRollupAddresses();
-  const address = entity.address ?? addressByName.get(entity.name.trim().toLowerCase());
-  if (address === undefined) return <span className={className}>{entity.name}</span>;
+  const href = entity.address
+    ? `/user/${encodeURIComponent(entity.address)}`
+    : entityPagePath(entity.name);
+  if (href === null) return <span className={className}>{entity.name}</span>;
 
   return (
     <Link
-      href={`/user/${encodeURIComponent(address)}`}
-      title={`Blob activity for ${address}`}
+      href={href}
+      title={`Blob activity for ${entity.name}`}
       className={`rounded-sm transition-colors hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue ${hoverColorClass} ${className}`}
     >
       {entity.name}

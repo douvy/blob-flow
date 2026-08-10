@@ -22,7 +22,7 @@ export default function UsersPage() {
         <p className="text-sm text-bodyText mb-6">
           Rollups and other senders ranked by blobs posted over the selected window, with
           their share of blobspace, total spend, and latest activity. Click any row for
-          that user&apos;s full history.
+          that entity&apos;s addresses and full history.
         </p>
         <UsersLeaderboard />
       </section>

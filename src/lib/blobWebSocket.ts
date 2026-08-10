@@ -141,10 +141,14 @@ export function parseBlobWebSocketEvent(message: string): BlobWebSocketEvent | n
     case 'users_update':
       // The range tag is part of the contract: consumers scope these events
       // to the user's selected window, so an untagged event is unusable.
+      // The group tag distinguishes the entity-grouped broadcast variant
+      // from the per-address one; consumers filter on it, so dropping it
+      // here would make the two variants indistinguishable.
       if (isBackendUsersRange(payload.range) && Array.isArray(payload.data)) {
         return {
           type: 'users_update',
           range: payload.range,
+          ...(typeof payload.group === 'string' ? { group: payload.group } : {}),
           data: payload.data.filter(isRecord) as unknown as UserResponse[],
         };
       }

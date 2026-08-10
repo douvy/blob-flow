@@ -31,6 +31,7 @@ import {
   type SeriesColorInput,
 } from '../utils';
 import AttributionBadge from './AttributionBadge';
+import { entityPagePath } from '../lib/entityLink';
 import {
   Table,
   TableBody,
@@ -223,21 +224,27 @@ export default function TopUsersTable() {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  const goToUser = React.useCallback(
-    (address: string) => {
-      router.push(networkPath(`/user/${address}`, selectedNetwork.apiParam));
+  // Attributed rows are entity-grouped and open the entity page; the key is
+  // the canonical join, with the display name as fallback (same slug by
+  // construction). Unattributed rows are a single address and go straight to
+  // its page.
+  const goToRow = React.useCallback(
+    (user: User) => {
+      const path =
+        (user.attributed && entityPagePath(user.key ?? user.name)) || `/user/${user.address}`;
+      router.push(networkPath(path, selectedNetwork.apiParam));
     },
     [router, selectedNetwork.apiParam]
   );
 
   const handleRowKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLTableRowElement>, address: string) => {
+    (event: React.KeyboardEvent<HTMLTableRowElement>, user: User) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
-        goToUser(address);
+        goToRow(user);
       }
     },
-    [goToUser]
+    [goToRow]
   );
 
   const loadingComponent = (
@@ -336,8 +343,8 @@ export default function TopUsersTable() {
                     key={row.original.address}
                     data-row-key={row.original.address}
                     className="cursor-pointer bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
-                    onClick={() => goToUser(row.original.address)}
-                    onKeyDown={(event) => handleRowKeyDown(event, row.original.address)}
+                    onClick={() => goToRow(row.original)}
+                    onKeyDown={(event) => handleRowKeyDown(event, row.original)}
                     tabIndex={0}
                     role="link"
                     aria-label={`View activity for ${row.original.name}`}

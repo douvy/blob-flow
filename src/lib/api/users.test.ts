@@ -71,6 +71,46 @@ describe('api/users', () => {
     );
   });
 
+  it('requests entity grouping and maps grouped row fields', async () => {
+    const usersApi = await import('./users');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [
+          {
+            address: '0xcF2898225ED05Be911D3709d9417e86E0b4Cfc8f',
+            name: 'Scroll',
+            key: 'scroll',
+            addresses: [
+              '0xcF2898225ED05Be911D3709d9417e86E0b4Cfc8f',
+              '0x054a47B9E2a22aF6c0CE55020238C8FEcd7d334B',
+            ],
+            blob_count: 348008,
+            total_cost_eth: '20.9',
+            last_timestamp: '2026-08-09T00:00:00.000Z',
+            blob_share_percent: 0.8,
+          },
+        ],
+      }),
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await usersApi.getTopUsers(50, 'mainnet', 'all', 'entity');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/users?limit=50&range=all&group=entity&network=mainnet'),
+      expect.any(Object)
+    );
+    expect(result.data[0]).toMatchObject({
+      name: 'Scroll',
+      key: 'scroll',
+      dataCount: 348008,
+    });
+    expect(result.data[0].addresses).toHaveLength(2);
+  });
+
   it('uses server-computed blob shares when every row has one', async () => {
     const usersApi = await import('./users');
     const fetchMock = vi.fn().mockResolvedValue({

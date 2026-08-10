@@ -4,7 +4,6 @@ import { DEFAULT_NETWORK } from '../constants';
 import type { TimeRange } from '../contexts/TimeRangeContext';
 import { useFlippening } from '../hooks/useFlippening';
 import { useNetwork } from '../hooks/useNetwork';
-import { useRollupAddresses } from '../hooks/useRollupAddresses';
 import type { FlippeningAnalysis, FlippeningEntity } from '../lib/flippening';
 import FlippeningWatch from './FlippeningWatch';
 import { TooltipProvider } from './ui/tooltip';
@@ -20,13 +19,6 @@ vi.mock('../hooks/useFlippening', () => ({
 vi.mock('../hooks/useNetwork', () => ({
   useNetwork: vi.fn(),
 }));
-
-vi.mock('../hooks/useRollupAddresses', () => ({
-  useRollupAddresses: vi.fn(),
-}));
-
-const BASE_ADDRESS = '0x5050F69a9786F081509234F1a7F4684b5E5b76C9';
-const ROBINHOOD_ADDRESS = '0xDaa526086787d9DEbE1D7F3FFdb1fE50cf8687F4';
 
 const base: FlippeningEntity = { key: 'base', name: 'Base' };
 const robinhood: FlippeningEntity = { key: 'robinhood_chain', name: 'Robinhood Chain' };
@@ -82,27 +74,20 @@ describe('FlippeningWatch rollup links', () => {
   beforeEach(() => {
     vi.mocked(useNetwork).mockReset();
     vi.mocked(useFlippening).mockReset();
-    vi.mocked(useRollupAddresses).mockReset();
     vi.mocked(useNetwork).mockReturnValue({
       selectedNetwork: DEFAULT_NETWORK,
       setSelectedNetwork: vi.fn(),
     } as unknown as ReturnType<typeof useNetwork>);
-    vi.mocked(useRollupAddresses).mockReturnValue(
-      new Map([
-        ['base', BASE_ADDRESS],
-        ['robinhood chain', ROBINHOOD_ADDRESS],
-      ])
-    );
   });
 
-  it('links a rollup name to its own blob activity', () => {
+  it('links a rollup name to its entity page', () => {
     renderWatch(analysis());
 
     for (const link of screen.getAllByRole('link', { name: 'Robinhood Chain' })) {
-      expect(link).toHaveAttribute('href', `/user/${ROBINHOOD_ADDRESS}`);
+      expect(link).toHaveAttribute('href', '/entity/robinhood-chain');
     }
     for (const link of screen.getAllByRole('link', { name: 'Base' })) {
-      expect(link).toHaveAttribute('href', `/user/${BASE_ADDRESS}`);
+      expect(link).toHaveAttribute('href', '/entity/base');
     }
   });
 
@@ -129,7 +114,7 @@ describe('FlippeningWatch rollup links', () => {
     for (const section of [race, standings, feed]) {
       expect(within(section).getAllByRole('link', { name: 'Base' })[0]).toHaveAttribute(
         'href',
-        `/user/${BASE_ADDRESS}`
+        '/entity/base'
       );
     }
   });
@@ -156,7 +141,7 @@ describe('FlippeningWatch rollup links', () => {
     const badge = screen.getByText(/passed/i);
     expect(within(badge).getByRole('link', { name: 'Base' })).toHaveAttribute(
       'href',
-      `/user/${BASE_ADDRESS}`
+      '/entity/base'
     );
   });
 
@@ -181,13 +166,25 @@ describe('FlippeningWatch rollup links', () => {
     );
   });
 
-  it('leaves a name with no known address as plain text', () => {
-    // The user list is the only bridge from a chart name to an address, so a
-    // rollup missing from it must not link to a made-up page.
-    vi.mocked(useRollupAddresses).mockReturnValue(new Map());
-    renderWatch(analysis());
+  it('leaves a name that cannot make an entity slug as plain text', () => {
+    // slugifyEntity strips everything but [a-z0-9-]; a name with nothing left
+    // has no entity page and must not link to a made-up one.
+    const unsluggable: FlippeningEntity = { key: 'odd', name: '???' };
+    renderWatch(
+      analysis({
+        entities: [robinhood, unsluggable],
+        standings: [standing(robinhood, 1, 25.8), standing(unsluggable, 2, 24.7)],
+        closestGap: {
+          leader: robinhood,
+          trailer: unsluggable,
+          leaderSharePercent: 25.8,
+          trailerSharePercent: 24.7,
+          gapPoints: 1.1,
+        },
+      })
+    );
 
-    expect(screen.queryByRole('link', { name: 'Base' })).toBeNull();
-    expect(screen.getAllByText('Base').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('link', { name: '???' })).toBeNull();
+    expect(screen.getAllByText('???').length).toBeGreaterThan(0);
   });
 });

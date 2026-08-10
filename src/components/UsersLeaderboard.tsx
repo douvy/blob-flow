@@ -21,11 +21,13 @@ import { trackEvent } from '../lib/analytics';
 import {
   assignSeriesColors,
   attributionColorKey,
+  costToWei,
   formatCostEthOrWei,
   formatNumber,
   networkPath,
   type SeriesColorInput,
 } from '../utils';
+import { entityPagePath } from '../lib/entityLink';
 import AttributionBadge from './AttributionBadge';
 import { RelativeTime } from './RelativeTime';
 import {
@@ -86,23 +88,13 @@ const COLUMN_WIDTHS: Record<string, string> = {
 const CELL_PADDING = 'px-2 sm:px-6';
 const EMPTY_USERS: User[] = [];
 
-const WEI_PER_ETH = BigInt('1000000000000000000');
-
 /**
- * Total cost as wei for sorting. Prefers the exact wei string; the ETH
- * decimal fallback is parsed to wei rather than floated so near-equal spends
- * still order correctly.
+ * Total cost as wei for sorting. Prefers the exact wei string with the ETH
+ * decimal as fallback, via costToWei so near-equal spends still order
+ * correctly instead of colliding as floats.
  */
 function totalCostWeiValue(user: User): bigint {
-  if (user.totalCostWei && /^\d+$/.test(user.totalCostWei)) {
-    return BigInt(user.totalCostWei);
-  }
-  const [whole = '', fraction = ''] = user.totalCostEth.split('.');
-  if (!/^\d*$/.test(whole) || !/^\d*$/.test(fraction)) return BigInt(0);
-  return (
-    BigInt(whole || '0') * WEI_PER_ETH +
-    BigInt(fraction.slice(0, 18).padEnd(18, '0') || '0')
-  );
+  return costToWei(user.totalCostWei) ?? costToWei(user.totalCostEth) ?? BigInt(0);
 }
 
 function compareBigint(a: bigint, b: bigint): number {
@@ -189,8 +181,8 @@ function LeaderboardInner() {
   ]);
 
   const { data: displayData, isLoading, error } = useApiData(
-    () => api.getTopUsers(USERS_LEADERBOARD_LIMIT, selectedNetwork.apiParam, range),
-    ['top-users', selectedNetwork.apiParam, USERS_LEADERBOARD_LIMIT, range],
+    () => api.getTopUsers(USERS_LEADERBOARD_LIMIT, selectedNetwork.apiParam, range, 'entity'),
+    ['top-users', selectedNetwork.apiParam, USERS_LEADERBOARD_LIMIT, range, 'entity'],
     { refetchInterval: REFRESH_INTERVAL_MS }
   );
   const tableData = displayData?.data ?? EMPTY_USERS;
@@ -325,21 +317,27 @@ function LeaderboardInner() {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  const goToUser = React.useCallback(
-    (address: string) => {
-      router.push(networkPath(`/user/${address}`, selectedNetwork.apiParam));
+  // Attributed rows are entity-grouped and open the entity page; the key is
+  // the canonical join, with the display name as fallback (same slug by
+  // construction). Unattributed rows are a single address and go straight to
+  // its page.
+  const goToRow = React.useCallback(
+    (user: User) => {
+      const path =
+        (user.attributed && entityPagePath(user.key ?? user.name)) || `/user/${user.address}`;
+      router.push(networkPath(path, selectedNetwork.apiParam));
     },
     [router, selectedNetwork.apiParam]
   );
 
   const handleRowKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLTableRowElement>, address: string) => {
+    (event: React.KeyboardEvent<HTMLTableRowElement>, user: User) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
-        goToUser(address);
+        goToRow(user);
       }
     },
-    [goToUser]
+    [goToRow]
   );
 
   const loadingComponent = (
@@ -465,8 +463,8 @@ function LeaderboardInner() {
                   <TableRow
                     key={row.original.address}
                     className="cursor-pointer bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-inset"
-                    onClick={() => goToUser(row.original.address)}
-                    onKeyDown={(event) => handleRowKeyDown(event, row.original.address)}
+                    onClick={() => goToRow(row.original)}
+                    onKeyDown={(event) => handleRowKeyDown(event, row.original)}
                     tabIndex={0}
                     role="link"
                     aria-label={`View activity for ${row.original.name}`}

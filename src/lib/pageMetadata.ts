@@ -17,6 +17,7 @@ import {
   NETWORK_WIDE_ENTITY,
   NETWORK_WIDE_NAME,
   parseCardParams,
+  slugifyEntity,
   titleCaseSlug,
 } from '@/lib/statCard';
 
@@ -274,6 +275,29 @@ export function blockMetadata(blockNumber: string, network?: string): Metadata {
           { network, title, description }
         )
       : {}),
+  };
+}
+
+export function entityMetadata(entity: string, network?: string): Metadata {
+  const slug = slugifyEntity(entity);
+  // The name comes from the slug rather than a lookup, like the stat card
+  // pages: metadata must not depend on the indexer being reachable.
+  const name = slug ? titleCaseSlug(slug) : 'Entity';
+  const title = `${name} Blob Activity${networkTitleSuffix(network)}`;
+  const description =
+    `Aggregated EIP-4844 blob activity for ${name} across every sender address ` +
+    'attributed to it: blobs posted, ETH spent on blob fees, and a per-address breakdown.';
+
+  return {
+    title,
+    description,
+    alternates: canonical(`/entity/${slug || entity}`, network),
+    // No card of its own, so it shares the dashboard's, scoped to this network.
+    ...statCard('/api/og/home', `Live Ethereum blob analytics on ${SITE_NAME}`, {
+      network,
+      title,
+      description,
+    }),
   };
 }
 

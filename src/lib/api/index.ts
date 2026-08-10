@@ -7,6 +7,7 @@ import {
     getCostComparisonChart,
     getRollingStatsChart,
 } from './charts';
+import { getEntityBySlug } from './entities';
 import { getMempool } from './mempool';
 import { getNetworks } from './networks';
 import { getBlobPricing } from './pricing';
@@ -38,6 +39,7 @@ export const api = {
     getTopUsers,
     getUserByAddress,
     getUserBlobs,
+    getEntityBySlug,
 };
 
 export default api;
