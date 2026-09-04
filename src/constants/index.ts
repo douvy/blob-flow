@@ -227,6 +227,12 @@ export const MEMPOOL_REFRESH_MS = 30000;
  * same way.
  */
 /**
+ * Newest blocks the homepage samples for live figures. Shared by every
+ * surface that reads them so React Query serves one fetch to all of them.
+ */
+export const LATEST_BLOCKS_SAMPLE = 30;
+
+/**
  * Tooltip for the priority fee (tip) figures. A blob transaction's bid for a
  * blob slot is the priority fee it pays on execution gas, so one sender
  * raising it can crowd the others out of blocks.
