@@ -680,12 +680,27 @@ function transformCostComparison(
 }
 
 /**
+ * A fee field as a finite non-negative gwei number, or null when it is
+ * absent or malformed. Tips can legitimately be zero, so a missing field
+ * must not collapse to zero the way parseFiniteNumber would make it: a
+ * partial payload has to read as "unknown", never as "everyone bid nothing".
+ */
+function parseFeeGwei(value: string | number | undefined): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? roundTo(parsed, 6) : null;
+}
+
+/**
  * A tip bucket with no priced blobs reports zero for every fee, which would
  * plot as a false collapse to zero. Unlike base fees a genuine zero tip is
- * possible, but only alongside a nonzero blob count.
+ * possible, but only alongside a nonzero blob count and a parseable fee.
  */
-export function tipPointHasData(point: { blob_count: number }): boolean {
-  return point.blob_count > 0;
+export function tipPointHasData(point: {
+  blob_count: number;
+  average_priority_fee_gwei?: string;
+}): boolean {
+  return point.blob_count > 0 && parseFeeGwei(point.average_priority_fee_gwei) !== null;
 }
 
 function transformBlobTips(
@@ -719,24 +734,36 @@ function transformBlobTips(
   const labelStyle = getBucketLabelStyle(bucketWidthSeconds, coverage?.spanMs ?? 0);
 
   const blobTips = points.map((point) => {
+    // tipPointHasData guarantees the average parses; the other percentiles
+    // fall back to it rather than to zero, and a max below the p95 (or p95
+    // below the median) is a malformed payload that is clamped into order
+    // so the spread band can never invert.
+    const averageGwei = parseFeeGwei(point.average_priority_fee_gwei) ?? 0;
+    const medianGwei = parseFeeGwei(point.median_priority_fee_gwei) ?? averageGwei;
+    const p95Gwei = Math.max(medianGwei, parseFeeGwei(point.p95_priority_fee_gwei) ?? averageGwei);
+    const maxGwei = Math.max(p95Gwei, parseFeeGwei(point.max_priority_fee_gwei) ?? p95Gwei);
     const row: BlobTipDataPoint = {
       timestamp: isoTimestamp(point.timestamp),
       label: getMarketPointLabel(tips.granularity, point, labelStyle),
       blockNumber: point.end_block ?? point.start_block,
       blobCount: point.blob_count,
-      averageGwei: roundTo(parseFiniteNumber(point.average_priority_fee_gwei), 6),
-      medianGwei: roundTo(parseFiniteNumber(point.median_priority_fee_gwei), 6),
-      p95Gwei: roundTo(parseFiniteNumber(point.p95_priority_fee_gwei), 6),
-      maxGwei: roundTo(parseFiniteNumber(point.max_priority_fee_gwei), 6),
+      averageGwei,
+      medianGwei,
+      p95Gwei,
+      maxGwei,
       values: {},
     };
 
     for (const series of blobTipSeries) {
       const value = point.values?.[series.key];
+      const seriesAverage = parseFeeGwei(value?.average_priority_fee_gwei);
+      // A series value without a parseable fee is treated as absent so the
+      // line breaks instead of dropping to a zero bid.
+      const blobCount = seriesAverage === null ? 0 : (parseOptionalCount(value?.blob_count) ?? 0);
       row.values[series.key] = {
-        blobCount: value?.blob_count ?? 0,
-        averageGwei: roundTo(parseFiniteNumber(value?.average_priority_fee_gwei), 6),
-        maxGwei: roundTo(parseFiniteNumber(value?.max_priority_fee_gwei), 6),
+        blobCount,
+        averageGwei: blobCount > 0 ? (seriesAverage ?? 0) : 0,
+        maxGwei: blobCount > 0 ? Math.max(seriesAverage ?? 0, parseFeeGwei(value?.max_priority_fee_gwei) ?? 0) : 0,
       };
     }
 
@@ -744,22 +771,30 @@ function transformBlobTips(
   });
 
   const summary = tips.summary;
+  const summaryAverage = parseFeeGwei(summary?.average_priority_fee_gwei);
+  const summaryMedian = parseFeeGwei(summary?.median_priority_fee_gwei) ?? summaryAverage ?? 0;
+  const summaryP95 = Math.max(summaryMedian, parseFeeGwei(summary?.p95_priority_fee_gwei) ?? summaryAverage ?? 0);
+  const summaryMax = Math.max(summaryP95, parseFeeGwei(summary?.max_priority_fee_gwei) ?? summaryP95);
   const blobTipSummary: BlobTipSummary = {
     totalBlobs: parseOptionalCount(summary?.total_blobs) ?? 0,
-    pricedBlobs: parseOptionalCount(summary?.priced_blobs) ?? 0,
-    averageGwei: roundTo(parseFiniteNumber(summary?.average_priority_fee_gwei), 6),
-    medianGwei: roundTo(parseFiniteNumber(summary?.median_priority_fee_gwei), 6),
-    p95Gwei: roundTo(parseFiniteNumber(summary?.p95_priority_fee_gwei), 6),
-    maxGwei: roundTo(parseFiniteNumber(summary?.max_priority_fee_gwei), 6),
-    shares: (summary?.shares ?? []).map((share) => ({
-      key: share.key,
-      name: share.name,
-      category: share.category,
-      blobCount: share.blob_count,
-      blobSharePercent: roundTo(parseFiniteNumber(share.blob_share_percent), 2),
-      averageGwei: roundTo(parseFiniteNumber(share.average_priority_fee_gwei), 6),
-      maxGwei: roundTo(parseFiniteNumber(share.max_priority_fee_gwei), 6),
-    })),
+    // Without a parseable average the headline figures would be zeros, so
+    // the range reads as unpriced instead.
+    pricedBlobs: summaryAverage === null ? 0 : (parseOptionalCount(summary?.priced_blobs) ?? 0),
+    averageGwei: summaryAverage ?? 0,
+    medianGwei: summaryMedian,
+    p95Gwei: summaryP95,
+    maxGwei: summaryMax,
+    shares: (summary?.shares ?? [])
+      .filter((share) => parseFeeGwei(share.average_priority_fee_gwei) !== null)
+      .map((share) => ({
+        key: share.key,
+        name: share.name,
+        category: share.category,
+        blobCount: parseOptionalCount(share.blob_count) ?? 0,
+        blobSharePercent: roundTo(parseFiniteNumber(share.blob_share_percent), 2),
+        averageGwei: parseFeeGwei(share.average_priority_fee_gwei) ?? 0,
+        maxGwei: parseFeeGwei(share.max_priority_fee_gwei) ?? 0,
+      })),
   };
 
   return { blobTips, blobTipSeries, blobTipSummary, coverage };

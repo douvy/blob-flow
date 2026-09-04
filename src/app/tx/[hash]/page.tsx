@@ -278,7 +278,7 @@ function TransactionSummary({ transaction }: { transaction: BlobTransaction }) {
         <DetailField label="Base Fee">
           {formatBlobFee(blob.base_fee_per_blob_gas_gwei, blob.base_fee_per_blob_gas)}
         </DetailField>
-        <DetailField label="Tip" title={PRIORITY_FEE_TOOLTIP}>
+        <DetailField label="Exec Tip" title={PRIORITY_FEE_TOOLTIP}>
           {formatBlobFee(blob.priority_fee_per_gas_gwei, blob.priority_fee_per_gas)}
         </DetailField>
         <DetailField label="Max Fee">

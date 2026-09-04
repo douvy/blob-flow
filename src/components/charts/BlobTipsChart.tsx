@@ -44,15 +44,53 @@ export function toTipPlotRows(data: BlobTipDataPoint[], series: BlobUsageSeries[
   });
 }
 
+/**
+ * Indices where a series has a value but neither neighbor does. A line
+ * needs two consecutive points to draw anything, so these observations
+ * would otherwise vanish while the sender stays in the legend.
+ */
+export function isolatedIndices(values: ReadonlyArray<number | null>): Set<number> {
+  const isolated = new Set<number>();
+  values.forEach((value, index) => {
+    if (value === null) return;
+    const before = index > 0 ? values[index - 1] : null;
+    const after = index < values.length - 1 ? values[index + 1] : null;
+    if (before === null && after === null) isolated.add(index);
+  });
+  return isolated;
+}
+
+/**
+ * Legend isolation lives with the series it was made for: a network switch
+ * or a refetch that changes the series set starts over, rather than leaving
+ * an arbitrary subset of the new series hidden.
+ */
+interface IsolationState {
+  signature: string;
+  hiddenKeys: Set<string>;
+}
+
 export default function BlobTipsChart({ data, series }: BlobTipsChartProps) {
-  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
+  const signature = series.map((entry) => entry.key).join('|');
+  const [isolation, setIsolation] = useState<IsolationState>({ signature, hiddenKeys: new Set() });
+  const hiddenKeys = isolation.signature === signature ? isolation.hiddenKeys : new Set<string>();
 
   const isolateKey = (key: string, allKeys: string[]) => {
-    setHiddenKeys((prev) => isolateLegendKey(prev, allKeys, key));
+    setIsolation((prev) => ({
+      signature,
+      hiddenKeys: isolateLegendKey(prev.signature === signature ? prev.hiddenKeys : new Set(), allKeys, key),
+    }));
   };
 
   const seriesColors = useMemo(() => assignSeriesColors(series), [series]);
   const plotData = useMemo(() => toTipPlotRows(data, series), [data, series]);
+  const isolatedByKey = useMemo(() => {
+    const result: Record<string, Set<number>> = {};
+    for (const entry of series) {
+      result[entry.key] = isolatedIndices(plotData.map((row) => row.values[entry.key]));
+    }
+    return result;
+  }, [plotData, series]);
 
   const legendEntries = useMemo(
     () => series
@@ -140,9 +178,15 @@ export default function BlobTipsChart({ data, series }: BlobTipsChartProps) {
               strokeWidth={2}
               name={entry.name}
               hide={effectiveHiddenKeys.has(entry.key)}
-              // An isolated bucket draws no line segment; a dot keeps sparse
-              // bids (one tx in a range) visible.
-              dot={plotData.length === 1 ? { r: 3, fill: entry.color } : false}
+              // An observation with no neighbor draws no line segment; a dot
+              // keeps a sender that bid in a single bucket visible.
+              dot={(props: { cx?: number; cy?: number; index?: number }) =>
+                props.index !== undefined && isolatedByKey[entry.key]?.has(props.index) && props.cx !== undefined && props.cy !== undefined ? (
+                  <circle key={`${entry.key}-${props.index}`} cx={props.cx} cy={props.cy} r={3} fill={entry.color} />
+                ) : (
+                  <g key={`${entry.key}-${props.index ?? 'none'}`} />
+                )
+              }
               activeDot={{ r: 4, fill: entry.color }}
               connectNulls={false}
               isAnimationActive={false}

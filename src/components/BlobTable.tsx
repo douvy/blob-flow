@@ -125,7 +125,7 @@ export default function BlobTable({
                 </td>
                 <td className="hidden md:table-cell py-3 px-3 sm:px-4 text-sm text-white">
                   <div className="whitespace-nowrap">{baseFee}</div>
-                  <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap" title={PRIORITY_FEE_TOOLTIP}>tip {tip}</div>
+                  <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap" title={PRIORITY_FEE_TOOLTIP}>exec tip {tip}</div>
                   <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">max {maxFee}</div>
                 </td>
                 <td className="py-3 px-3 sm:px-4 text-sm text-white">

@@ -161,6 +161,18 @@ function pricedTipPoints(tips: BackendBlobTipsChartResponse) {
   return withoutPartialBucket(tips.points).filter((point) => point.blob_count > 0);
 }
 
+/**
+ * Captions quote the backend's range summary, which is computed over the
+ * underlying blobs; a mean of bucket means would weight a one-blob bucket
+ * like a hundred-blob one, and bucket p95s do not average into a range p95.
+ */
+function summaryFee(tips: BackendBlobTipsChartResponse, field: 'average_priority_fee_gwei' | 'p95_priority_fee_gwei'): number | null {
+  const raw = tips.summary?.[field];
+  if (raw === undefined || raw === null || raw === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
 function tipAverageSeries(
   tips: BackendBlobTipsChartResponse,
   range: TimeRange
@@ -168,10 +180,11 @@ function tipAverageSeries(
   const values = plottable(
     pricedTipPoints(tips).map((point) => Number(point.average_priority_fee_gwei))
   );
-  if (values.length === 0) return null;
+  const rangeAverage = summaryFee(tips, 'average_priority_fee_gwei');
+  if (values.length === 0 || rangeAverage === null) return null;
   return {
     values,
-    caption: `avg tip ${formatGwei(average(values), 4)} over ${range}`,
+    caption: `avg tip ${formatGwei(rangeAverage, 4)} over ${range}`,
     stroke: COLORS.red,
     fill: COLORS.red,
   };
@@ -184,10 +197,11 @@ function tipSpreadSeries(
   const values = plottable(
     pricedTipPoints(tips).map((point) => Number(point.p95_priority_fee_gwei))
   );
-  if (values.length === 0) return null;
+  const rangeP95 = summaryFee(tips, 'p95_priority_fee_gwei');
+  if (values.length === 0 || rangeP95 === null) return null;
   return {
     values,
-    caption: `p95 tip ${formatGwei(average(values), 4)} over ${range}`,
+    caption: `p95 tip ${formatGwei(rangeP95, 4)} over ${range}`,
     stroke: COLORS.purple,
     fill: COLORS.purple,
   };

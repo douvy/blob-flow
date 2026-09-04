@@ -17,8 +17,9 @@ export default function BlockTipsSection({ summary }: { summary: BlockTipSummary
     <section className="mb-8">
       <h2 className="text-2xl font-windsor-bold text-white mb-1">Tips</h2>
       <p className="text-bodyText text-sm mb-4" title={PRIORITY_FEE_TOOLTIP}>
-        Priority fee each blob transaction paid per gas, highest bid first. Builders fill blob
-        slots in this order, so the top bars are the senders that won blobspace in this block.
+        Priority fee each blob transaction paid per unit of execution gas, highest bid first. When
+        blob slots are contested, higher tips are the main lever for getting in, so the top bars
+        show who paid most for this block&apos;s blobspace.
       </p>
       <div className="border border-divider rounded-lg bg-[#0f1322] px-2 py-3">
         {summary.pricedBlobs > 0 ? (

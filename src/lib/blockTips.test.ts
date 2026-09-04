@@ -34,9 +34,23 @@ describe('summarizeBlockTips', () => {
     expect(summary.averageGwei).toBe(3.25);
     expect(summary.maxGwei).toBe(5);
     expect(summary.transactions).toEqual([
-      { txHash: '0xop', attribution: 'Optimism', fromAddress: '0xsender', blobCount: 2, priorityFeeGwei: 5 },
-      { txHash: '0xanon', attribution: 'Unknown', fromAddress: '0xnobody', blobCount: 1, priorityFeeGwei: 2 },
-      { txHash: '0xarb', attribution: 'Arbitrum', fromAddress: '0xsender', blobCount: 1, priorityFeeGwei: 1 },
+      { txHash: '0xop', attribution: 'Optimism', fromAddress: '0xsender', blobCount: 2, pricedBlobCount: 2, priorityFeeGwei: 5 },
+      { txHash: '0xanon', attribution: 'Unknown', fromAddress: '0xnobody', blobCount: 1, pricedBlobCount: 1, priorityFeeGwei: 2 },
+      { txHash: '0xarb', attribution: 'Arbitrum', fromAddress: '0xsender', blobCount: 1, pricedBlobCount: 1, priorityFeeGwei: 1 },
+    ]);
+  });
+
+  it('takes the fee from any priced row of a partially recorded transaction', () => {
+    const summary = summarizeBlockTips([
+      makeBlob({ blob_index: 0, tx_hash: '0xmixed', user_attribution: 'Optimism' }),
+      makeBlob({ blob_index: 1, tx_hash: '0xmixed', user_attribution: 'Optimism', priority_fee_per_gas_gwei: '4' }),
+      makeBlob({ blob_index: 2, tx_hash: '0xmixed', user_attribution: 'Optimism' }),
+    ]);
+
+    expect(summary.pricedBlobs).toBe(1);
+    expect(summary.averageGwei).toBe(4);
+    expect(summary.transactions).toEqual([
+      { txHash: '0xmixed', attribution: 'Optimism', fromAddress: '0xsender', blobCount: 3, pricedBlobCount: 1, priorityFeeGwei: 4 },
     ]);
   });
 

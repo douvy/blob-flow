@@ -20,7 +20,7 @@ function blob(txHash: string, attribution: string, feeGwei: string | undefined, 
   };
 }
 
-function block(number: number, blobs: BlobResponse[]): Block {
+function block(number: number, blobs: BlobResponse[], isFull = true): Block {
   return {
     id: number,
     number: String(number),
@@ -33,8 +33,8 @@ function block(number: number, blobs: BlobResponse[]): Block {
     availableBlobs: 0,
     baseFeeGwei: '1',
     utilizationPercent: 0,
-    isFull: false,
-    isAboveTarget: false,
+    isFull,
+    isAboveTarget: isFull,
     timestamp: '2026-09-04T10:00:00Z',
     attribution: [],
     blobs,
@@ -50,7 +50,9 @@ describe('summarizeRecentTips', () => {
     ]);
 
     expect(summary.blockCount).toBe(3);
+    expect(summary.fullBlocks).toBe(3);
     expect(summary.pricedBlobs).toBe(6);
+    expect(summary.bids).toBe(5);
     // Blob-weighted: 0.5, 1, 1, 1, 12, 12 => median 1.
     expect(summary.medianGwei).toBe(1);
     expect(summary.topGwei).toBe(12);
@@ -58,6 +60,65 @@ describe('summarizeRecentTips', () => {
     expect(summary.topBlockNumber).toBe(102);
     expect(summary.topMultiple).toBe(12);
     expect(summary.contested).toBe(true);
+  });
+
+  it('does not call an overbid into blocks with room to spare contested', () => {
+    const summary = summarizeRecentTips([
+      block(102, [blob('0xop', 'Optimism', '12', 0), blob('0xarb', 'Arbitrum', '1', 1)], false),
+      block(101, [blob('0xbase', 'Base', '1', 0), blob('0xzk', 'zkSync', '0.5', 1)], false),
+      block(100, [blob('0xarb2', 'Arbitrum', '1', 0)], false),
+    ]);
+
+    expect(summary.fullBlocks).toBe(0);
+    expect(summary.topMultiple).toBe(12);
+    expect(summary.contested).toBe(false);
+  });
+
+  it('counts bids per transaction, not per blob, toward the minimum', () => {
+    const summary = summarizeRecentTips([
+      block(100, [
+        blob('0xop', 'Optimism', '30', 0),
+        blob('0xop', 'Optimism', '30', 1),
+        blob('0xop', 'Optimism', '30', 2),
+        blob('0xarb', 'Arbitrum', '1', 3),
+        blob('0xarb', 'Arbitrum', '1', 4),
+        blob('0xarb', 'Arbitrum', '1', 5),
+      ]),
+    ]);
+
+    expect(summary.pricedBlobs).toBe(6);
+    expect(summary.bids).toBe(2);
+    expect(summary.contested).toBe(false);
+  });
+
+  it('treats a positive bid over a zero median as contested', () => {
+    const summary = summarizeRecentTips([
+      block(100, [
+        blob('0xop', 'Optimism', '2', 0),
+        blob('0xa', 'Arbitrum', '0', 1),
+        blob('0xb', 'Base', '0', 2),
+        blob('0xc', 'zkSync', '0', 3),
+        blob('0xd', 'Scroll', '0', 4),
+      ]),
+    ]);
+
+    expect(summary.medianGwei).toBe(0);
+    expect(summary.topMultiple).toBeNull();
+    expect(summary.contested).toBe(true);
+  });
+
+  it('weights a partially recorded transaction by its priced blobs only', () => {
+    const summary = summarizeRecentTips([
+      block(100, [
+        blob('0xmixed', 'Optimism', '9', 0),
+        blob('0xmixed', 'Optimism', undefined, 1),
+        blob('0xmixed', 'Optimism', undefined, 2),
+        blob('0xarb', 'Arbitrum', '1', 3),
+      ]),
+    ]);
+
+    expect(summary.pricedBlobs).toBe(2);
+    expect(summary.medianGwei).toBe(5);
   });
 
   it('is not contested while bids sit near the median', () => {
@@ -76,6 +137,7 @@ describe('summarizeRecentTips', () => {
     ]);
 
     expect(summary.topMultiple).toBe(30);
+    expect(summary.bids).toBe(3);
     expect(summary.contested).toBe(false);
   });
 
@@ -94,7 +156,9 @@ describe('summarizeRecentTips', () => {
   it('reports nothing without priced blobs', () => {
     expect(summarizeRecentTips([block(100, []), block(99, [blob('0xold', 'Base', undefined, 0)])])).toEqual({
       blockCount: 0,
+      fullBlocks: 0,
       pricedBlobs: 0,
+      bids: 0,
       medianGwei: null,
       topGwei: null,
       topAttribution: null,
@@ -118,7 +182,9 @@ describe('summarizeRecentTips', () => {
 describe('describeTopTip', () => {
   const base = {
     blockCount: 30,
+    fullBlocks: 12,
     pricedBlobs: 120,
+    bids: 60,
     medianGwei: 1,
     topGwei: 1.5,
     topAttribution: 'Base',
@@ -142,6 +208,14 @@ describe('describeTopTip', () => {
       alert: true,
     });
     expect(describeTopTip({ ...base, topGwei: 3.4, topMultiple: 3.42, contested: true }).hint).toBe('Base · 3.4x the median');
+  });
+
+  it('explains a contested market whose median tip is zero', () => {
+    expect(describeTopTip({ ...base, medianGwei: 0, topGwei: 2, topMultiple: null, contested: true })).toEqual({
+      value: '2 Gwei',
+      hint: 'Base · others paid no tip',
+      alert: true,
+    });
   });
 
   it('shows a placeholder before any tips are recorded', () => {

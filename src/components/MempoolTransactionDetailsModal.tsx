@@ -158,7 +158,7 @@ export default function MempoolTransactionDetailsModal({
             />
             <DetailItem label="Base Fee" value={safeFormatWei(blob.base_fee_per_blob_gas)} />
             <DetailItem
-              label="Max Tip"
+              label="Max Exec Tip"
               value={blob.max_priority_fee_per_gas ? safeFormatWei(blob.max_priority_fee_per_gas) : '-'}
               title={PRIORITY_FEE_TOOLTIP}
             />

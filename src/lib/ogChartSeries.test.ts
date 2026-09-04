@@ -214,7 +214,10 @@ describe('blob tip cards', () => {
     vi.mocked(fetchOgApi).mockReset();
   });
 
-  function tipsResponse(points: Array<{ avg: string; p95: string; blobs: number }>) {
+  function tipsResponse(
+    points: Array<{ avg: string; p95: string; blobs: number }>,
+    summary: { avg: string; p95: string } = { avg: '1.75', p95: '9' }
+  ) {
     return ok({
       points: points.map((point, index) => ({
         timestamp: `2026-08-02T0${index}:00:00Z`,
@@ -225,10 +228,14 @@ describe('blob tip cards', () => {
         max_priority_fee_gwei: point.p95,
         values: {},
       })),
+      summary: {
+        average_priority_fee_gwei: summary.avg,
+        p95_priority_fee_gwei: summary.p95,
+      },
     } as unknown as BackendBlobTipsChartResponse);
   }
 
-  it('plots average tips and captions them with the window average', async () => {
+  it('plots average tips and captions them with the blob-weighted range average', async () => {
     vi.mocked(fetchOgApi).mockResolvedValue(
       tipsResponse([
         { avg: '1', p95: '2', blobs: 3 },
@@ -239,7 +246,8 @@ describe('blob tip cards', () => {
     const series = await fetchOgChartSeries('blob-tips', '7d');
 
     expect(series?.values).toEqual([1, 3]);
-    expect(series?.caption).toBe('avg tip 2 Gwei over 7d');
+    // 1.75 is the backend's mean over blobs, not the 2 a mean of bucket means would give.
+    expect(series?.caption).toBe('avg tip 1.75 Gwei over 7d');
     expect(fetchOgApi).toHaveBeenCalledWith(
       '/charts/blob-tips?range=7d&granularity=auto',
       DEFAULT_NETWORK
@@ -257,7 +265,15 @@ describe('blob tip cards', () => {
     const series = await fetchOgChartSeries('tip-spread', '24h');
 
     expect(series?.values).toEqual([2, 10]);
-    expect(series?.caption).toBe('p95 tip 6 Gwei over 24h');
+    expect(series?.caption).toBe('p95 tip 9 Gwei over 24h');
+  });
+
+  it('declines when the range summary is missing rather than inventing a caption', async () => {
+    vi.mocked(fetchOgApi).mockResolvedValue(
+      tipsResponse([{ avg: '1', p95: '2', blobs: 3 }], { avg: '', p95: '' })
+    );
+
+    expect(await fetchOgChartSeries('blob-tips', '1h')).toBeNull();
   });
 
   it('skips buckets with no priced blobs rather than plotting zero bids', async () => {

@@ -38,6 +38,8 @@ export interface ChartView {
   getCoverageLabel: (chartData: ChartDataset) => string;
   getPointCount: (chartData: ChartDataset) => number;
   render: (chartData: ChartDataset) => React.ReactNode;
+  /** True for views plotting the optional tips endpoint, whose loading and error state is tracked apart from the rest. */
+  usesTips?: boolean;
 }
 
 /** Matches the precision RollingWindowStats uses for windowed ETH totals. */
@@ -181,6 +183,7 @@ export const CHART_VIEWS: readonly ChartView[] = [
     render: (chartData) => (
       <BlobTipsChart data={chartData.blobTips} series={chartData.blobTipSeries} />
     ),
+    usesTips: true,
   },
   {
     id: 'tip-spread',
@@ -198,6 +201,7 @@ export const CHART_VIEWS: readonly ChartView[] = [
     getCoverageLabel: (chartData) => chartData.blobTipsCoverageLabel,
     getPointCount: (chartData) => chartData.blobTips.length,
     render: (chartData) => <TipSpreadChart data={chartData.blobTips} />,
+    usesTips: true,
   },
   {
     id: 'rolling-market-stats',

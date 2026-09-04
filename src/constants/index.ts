@@ -238,7 +238,7 @@ export const LATEST_BLOCKS_SAMPLE = 30;
  * raising it can crowd the others out of blocks.
  */
 export const PRIORITY_FEE_TOOLTIP =
-  'Priority fee (tip) per execution gas. Builders fill a block\'s blob slots highest tip first, so this is what decides whose blobs get in when blobspace is contested.';
+  'Priority fee (tip) per unit of execution gas, distinct from the blob fee market. When blob slots are contested, builders favor higher-tipping blob transactions, so this is the main lever a sender has to get its blobs in ahead of others.';
 
 export const FEE_HEADROOM_TOOLTIP =
   'Fee cap headroom: how far this transaction\'s max fee sits above the current blob base fee. Higher means more buffer before it stops being includable.';

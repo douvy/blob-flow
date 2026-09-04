@@ -160,7 +160,7 @@ export function BlobDetailsContent({ block }: { block: Block }) {
                   <BlobDetailField label="Base Fee" title={baseFee}>
                     {baseFee}
                   </BlobDetailField>
-                  <BlobDetailField label="Tip" title={PRIORITY_FEE_TOOLTIP}>
+                  <BlobDetailField label="Exec Tip" title={PRIORITY_FEE_TOOLTIP}>
                     {tip}
                   </BlobDetailField>
                   <BlobDetailField label="Max Fee" title={maxFee}>

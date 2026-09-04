@@ -15,7 +15,9 @@ import type {
   BackendAttributionUsageChartResponse,
   BackendBlobMarketChartPoint,
   BackendBlobMarketChartResponse,
+  BackendBlobTipsChartPoint,
   BackendBlobTipsChartResponse,
+  BackendBlobTipsChartValue,
   BackendCostComparisonChartResponse,
   BackendStatsWindow,
   BackendStatsWindowsResponse,
@@ -878,8 +880,9 @@ describe('buildChartDatasetFromResponses blob tips', () => {
     );
 
     expect(dataset.blobTips.map((point) => point.label)).toEqual(['09:00', '21:00']);
-    expect(tipPointHasData({ blob_count: 0 })).toBe(false);
-    expect(tipPointHasData({ blob_count: 1 })).toBe(true);
+    expect(tipPointHasData({ blob_count: 0, average_priority_fee_gwei: '1' })).toBe(false);
+    expect(tipPointHasData({ blob_count: 1 })).toBe(false);
+    expect(tipPointHasData({ blob_count: 1, average_priority_fee_gwei: '0' })).toBe(true);
   });
 
   it('drops tip buckets that predate the indexed market coverage', () => {
@@ -929,6 +932,50 @@ describe('buildChartDatasetFromResponses blob tips', () => {
     expect(dataset.blobTips).toEqual([]);
     expect(dataset.blobTipSummary).toMatchObject({ totalBlobs: 0, pricedBlobs: 0, shares: [] });
     expect(dataset.blobTipsCoverageLabel).toBe('no chart buckets in this view');
+  });
+
+  it('treats missing or malformed fee fields as unknown rather than zero bids', () => {
+    const tips = makeTipsResponse(timestamps);
+    const partial = tips.points[1] as Partial<BackendBlobTipsChartPoint>;
+    delete partial.average_priority_fee_gwei;
+    tips.points[2].values.optimism = { blob_count: 2 } as BackendBlobTipsChartValue;
+    tips.points[2].p95_priority_fee_gwei = 'garbage';
+    tips.points[2].max_priority_fee_gwei = '0.1';
+
+    const dataset = buildChartDatasetFromResponses(
+      market,
+      makeAttributionResponse(timestamps),
+      makeCostResponse(timestamps),
+      '30d',
+      undefined,
+      undefined,
+      tips
+    );
+
+    // A bucket without a parseable average is dropped, not plotted at zero.
+    expect(dataset.blobTips.map((point) => point.label)).toEqual(['09:00', '21:00']);
+    // A series value without a fee breaks the line instead of bidding zero.
+    expect(dataset.blobTips[1].values.optimism).toEqual({ blobCount: 0, averageGwei: 0, maxGwei: 0 });
+    // Percentiles fall back to the average and never invert.
+    expect(dataset.blobTips[1].p95Gwei).toBe(2.5);
+    expect(dataset.blobTips[1].maxGwei).toBe(2.5);
+  });
+
+  it('marks the range unpriced when the summary has no parseable average', () => {
+    const tips = makeTipsResponse(timestamps);
+    tips.summary = { total_blobs: 20, priced_blobs: 15 } as BackendBlobTipsChartResponse['summary'];
+
+    const dataset = buildChartDatasetFromResponses(
+      market,
+      makeAttributionResponse(timestamps),
+      makeCostResponse(timestamps),
+      '30d',
+      undefined,
+      undefined,
+      tips
+    );
+
+    expect(dataset.blobTipSummary).toMatchObject({ totalBlobs: 20, pricedBlobs: 0, averageGwei: 0, shares: [] });
   });
 
   it('keeps legacy pricing datasets without tip data', () => {

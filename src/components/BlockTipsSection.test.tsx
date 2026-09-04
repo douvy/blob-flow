@@ -9,8 +9,8 @@ const priced: BlockTipSummary = {
   averageGwei: 3,
   maxGwei: 5,
   transactions: [
-    { txHash: '0xop', attribution: 'Optimism', fromAddress: '0xa', blobCount: 2, priorityFeeGwei: 5 },
-    { txHash: '0xarb', attribution: 'Arbitrum', fromAddress: '0xb', blobCount: 1, priorityFeeGwei: 1 },
+    { txHash: '0xop', attribution: 'Optimism', fromAddress: '0xa', blobCount: 2, pricedBlobCount: 2, priorityFeeGwei: 5 },
+    { txHash: '0xarb', attribution: 'Arbitrum', fromAddress: '0xb', blobCount: 1, pricedBlobCount: 1, priorityFeeGwei: 1 },
   ],
 };
 
@@ -40,7 +40,7 @@ describe('BlockTipsSection', () => {
           totalBlobs: 5,
           transactions: [
             ...priced.transactions,
-            { txHash: '0xold', attribution: 'Base', fromAddress: '0xc', blobCount: 2, priorityFeeGwei: null },
+            { txHash: '0xold', attribution: 'Base', fromAddress: '0xc', blobCount: 2, pricedBlobCount: 0, priorityFeeGwei: null },
           ],
         }}
       />
@@ -58,7 +58,7 @@ describe('BlockTipsSection', () => {
           averageGwei: null,
           maxGwei: null,
           transactions: [
-            { txHash: '0xold', attribution: 'Base', fromAddress: '0xc', blobCount: 2, priorityFeeGwei: null },
+            { txHash: '0xold', attribution: 'Base', fromAddress: '0xc', blobCount: 2, pricedBlobCount: 0, priorityFeeGwei: null },
           ],
         }}
       />

@@ -6,6 +6,8 @@ export interface BlockTipTransaction {
   attribution: string;
   fromAddress: string;
   blobCount: number;
+  /** Blobs of this transaction with a recorded fee; every row of a transaction is written together, so normally 0 or blobCount. */
+  pricedBlobCount: number;
   /** Priority fee per execution gas in gwei; null when the indexer did not record it. */
   priorityFeeGwei: number | null;
 }
@@ -50,12 +52,17 @@ export function summarizeBlockTips(blobs: BlobResponse[]): BlockTipSummary {
     const existing = byTx.get(blob.tx_hash);
     if (existing) {
       existing.blobCount += 1;
+      if (fee !== null) {
+        existing.pricedBlobCount += 1;
+        if (existing.priorityFeeGwei === null) existing.priorityFeeGwei = fee;
+      }
     } else {
       byTx.set(blob.tx_hash, {
         txHash: blob.tx_hash,
         attribution: blob.user_attribution || 'Unknown',
         fromAddress: blob.from_address,
         blobCount: 1,
+        pricedBlobCount: fee === null ? 0 : 1,
         priorityFeeGwei: fee,
       });
     }

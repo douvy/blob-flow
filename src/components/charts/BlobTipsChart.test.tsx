@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BlobTipDataPoint, BlobUsageSeries } from '../../types';
-import BlobTipsChart, { toTipPlotRows } from './BlobTipsChart';
+import BlobTipsChart, { isolatedIndices, toTipPlotRows } from './BlobTipsChart';
 
 const series: BlobUsageSeries[] = [
   { key: 'arbitrum', name: 'Arbitrum', category: 'rollup' },
@@ -43,6 +43,15 @@ describe('toTipPlotRows', () => {
   });
 });
 
+describe('isolatedIndices', () => {
+  it('finds observations with no neighbor to draw a line to', () => {
+    expect(isolatedIndices([1, null, 1, 2, null, null, 3])).toEqual(new Set([0, 6]));
+    expect(isolatedIndices([null, 4, null])).toEqual(new Set([1]));
+    expect(isolatedIndices([5])).toEqual(new Set([0]));
+    expect(isolatedIndices([1, 2, 3])).toEqual(new Set());
+  });
+});
+
 describe('BlobTipsChart', () => {
   it('lists only senders that posted priced blobs in the legend', () => {
     render(<BlobTipsChart data={data} series={series} />);
@@ -62,6 +71,27 @@ describe('BlobTipsChart', () => {
 
     await user.click(legendButton(/Optimism/));
     expect(legendButton(/Arbitrum/)).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('forgets an isolation when the series set changes', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<BlobTipsChart data={data} series={series} />);
+
+    await user.click(legendButton(/Optimism/));
+    expect(legendButton(/Arbitrum/)).toHaveAttribute('aria-pressed', 'false');
+
+    const otherNetwork: BlobUsageSeries[] = [
+      { key: 'arbitrum', name: 'Arbitrum', category: 'rollup' },
+      { key: 'scroll', name: 'Scroll', category: 'rollup' },
+    ];
+    const otherData = data.map((point) => ({
+      ...point,
+      values: { arbitrum: point.values.arbitrum, scroll: { blobCount: 1, averageGwei: 2, maxGwei: 2 } },
+    }));
+    rerender(<BlobTipsChart data={otherData} series={otherNetwork} />);
+
+    expect(legendButton(/Arbitrum/)).toHaveAttribute('aria-pressed', 'true');
+    expect(legendButton(/Scroll/)).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('shows an empty state without priced series', () => {
