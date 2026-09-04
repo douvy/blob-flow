@@ -1,17 +1,21 @@
 "use client";
 
+import { useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from '@/components/NetworkLink';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { BlobDetailsContent } from '@/components/BlobDetailsContent';
+import BlockTipsSection from '@/components/BlockTipsSection';
 import StatCard from '@/components/StatCard';
 import { useApiData } from '@/hooks/useApiData';
 import { useIndexerStatus } from '@/hooks/useIndexerStatus';
 import { api } from '@/lib/api';
 import { useNetwork } from '@/hooks/useNetwork';
 import { Block, StatusResponse } from '@/types';
-import { formatBlobFee, formatLocalTimestamp, formatUtilizationPercent } from '@/utils';
+import { formatBlobFee, formatGwei, formatLocalTimestamp, formatUtilizationPercent } from '@/utils';
+import { summarizeBlockTips } from '@/lib/blockTips';
+import { PRIORITY_FEE_TOOLTIP } from '@/constants';
 
 function formatBaseFee(block: Block): string {
   if (!block.baseFeeGwei || block.baseFeeGwei === '0') return '-';
@@ -26,6 +30,10 @@ function formatBlobCapacity(block: Block): string {
 function formatUtilization(block: Block): string {
   if (block.maxBlobs <= 0) return '-';
   return formatUtilizationPercent(block.utilizationPercent);
+}
+
+function formatTip(gwei: number | null): string {
+  return gwei === null ? '-' : formatGwei(gwei, 4);
 }
 
 function isAheadOfIndex(blockNumber: number, coverage?: StatusResponse): boolean {
@@ -66,11 +74,13 @@ export default function BlockDetailPage() {
   // bounds fall back to the generic message.
   const { data: coverage } = useIndexerStatus();
 
+  const tipSummary = useMemo(() => (block ? summarizeBlockTips(block.blobs) : null), [block]);
+
   const loadingComponent = (
     <div className="space-y-6">
       <div className="h-8 bg-[#26282e] rounded w-64 animate-pulse" />
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {[...Array(6)].map((_, i) => (
           <div key={i} className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
             <div className="h-3 bg-[#26282e] rounded w-20 animate-pulse mb-2" />
             <div className="h-6 bg-[#26282e] rounded w-24 animate-pulse" />
@@ -160,13 +170,25 @@ export default function BlockDetailPage() {
                     )}
                   </p>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     <StatCard label="Blobs" value={block.blobCount.toLocaleString()} />
                     <StatCard label="Utilization" value={formatUtilization(block)} />
                     <StatCard label="Base Fee" value={formatBaseFee(block)} />
                     <StatCard label="Blob Capacity" value={formatBlobCapacity(block)} />
+                    <StatCard
+                      label="Avg Tip"
+                      value={formatTip(tipSummary?.averageGwei ?? null)}
+                      title={PRIORITY_FEE_TOOLTIP}
+                    />
+                    <StatCard
+                      label="Top Tip"
+                      value={formatTip(tipSummary?.maxGwei ?? null)}
+                      title={PRIORITY_FEE_TOOLTIP}
+                    />
                   </div>
                 </div>
+
+                {tipSummary && <BlockTipsSection summary={tipSummary} />}
 
                 <section>
                   <h2 className="text-2xl font-windsor-bold text-white mb-4">Blobs</h2>

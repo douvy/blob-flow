@@ -14,6 +14,7 @@ import {
   formatWeiToReadable,
   safeExplorerUrl,
 } from '../utils';
+import { PRIORITY_FEE_TOOLTIP } from '@/constants';
 import { RelativeTime } from './RelativeTime';
 import AttributionBadge from './AttributionBadge';
 import NetworkLink from './NetworkLink';
@@ -156,7 +157,11 @@ export default function MempoolTransactionDetailsModal({
               title={partialNote}
             />
             <DetailItem label="Base Fee" value={safeFormatWei(blob.base_fee_per_blob_gas)} />
-            <DetailItem label="Tip" value={safeFormatWei(blob.tip_per_blob_gas)} />
+            <DetailItem
+              label="Max Tip"
+              value={blob.max_priority_fee_per_gas ? safeFormatWei(blob.max_priority_fee_per_gas) : '-'}
+              title={PRIORITY_FEE_TOOLTIP}
+            />
             <DetailItem label="Max Fee" value={safeFormatWei(blob.max_fee_per_blob_gas)} />
             <DetailItem
               label="Estimated Cost"

@@ -2,6 +2,7 @@ import { ATTRIBUTION_ENTITY_LIMIT } from '@/constants';
 import {
   getAttributionUsageChart,
   getBlobMarketChart,
+  getBlobTipsChart,
   getCostComparisonChart,
   getRollingStatsChart,
 } from './charts';
@@ -47,6 +48,44 @@ describe('api/charts', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/charts/blob-market?range=24h&granularity=hour&limit=100&network=mainnet'),
+      expect.any(Object)
+    );
+    expect(result).toBe(mockData);
+  });
+
+  it('fetches blob tips chart data with range, granularity, and series limit', async () => {
+    const mockData = {
+      chain_id: 1,
+      network_name: 'mainnet',
+      range: '24h',
+      granularity: 'minute',
+      bucket_seconds: 300,
+      start_time: '2026-01-01T00:00:00.000Z',
+      end_time: '2026-01-02T00:00:00.000Z',
+      generated_at: '2026-01-02T00:00:00.000Z',
+      series: [],
+      points: [],
+      summary: {
+        total_blobs: 0,
+        priced_blobs: 0,
+        average_priority_fee_gwei: '0',
+        median_priority_fee_gwei: '0',
+        p95_priority_fee_gwei: '0',
+        max_priority_fee_gwei: '0',
+        shares: [],
+      },
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: mockData }),
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await getBlobTipsChart('24h', 'mainnet', 'auto', 8);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/charts/blob-tips?range=24h&granularity=auto&limit=8&network=mainnet'),
       expect.any(Object)
     );
     expect(result).toBe(mockData);

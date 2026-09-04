@@ -2,7 +2,7 @@
 
 import Link from '@/components/NetworkLink';
 import { RelativeTime } from '@/components/RelativeTime';
-import { FEE_HEADROOM_TOOLTIP } from '@/constants';
+import { FEE_HEADROOM_TOOLTIP, PRIORITY_FEE_TOOLTIP } from '@/constants';
 import { BlobResponse } from '@/types';
 import {
   formatBlobCount,
@@ -64,7 +64,7 @@ export default function BlobTable({
           {blobs.map((blob) => {
             const blobCount = getBlobCount(blob.blob_gas_used, blob.blob_size_bytes);
             const baseFee = formatBlobFee(blob.base_fee_per_blob_gas_gwei, blob.base_fee_per_blob_gas);
-            const tip = formatBlobFee(blob.tip_per_blob_gas_gwei, blob.tip_per_blob_gas);
+            const tip = formatBlobFee(blob.priority_fee_per_gas_gwei, blob.priority_fee_per_gas);
             const maxFee = formatBlobFee(blob.max_fee_per_blob_gas_gwei, blob.max_fee_per_blob_gas);
             const realizedCost = blob.realized_cost_wei
               ? formatBlobWeiCost(blob.realized_cost_wei)
@@ -125,7 +125,7 @@ export default function BlobTable({
                 </td>
                 <td className="hidden md:table-cell py-3 px-3 sm:px-4 text-sm text-white">
                   <div className="whitespace-nowrap">{baseFee}</div>
-                  <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">tip {tip}</div>
+                  <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap" title={PRIORITY_FEE_TOOLTIP}>tip {tip}</div>
                   <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap">max {maxFee}</div>
                 </td>
                 <td className="py-3 px-3 sm:px-4 text-sm text-white">

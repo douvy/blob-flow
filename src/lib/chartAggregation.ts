@@ -4,11 +4,14 @@ import type {
   BackendAttributionUsageChartResponse,
   BackendBlobMarketChartPoint,
   BackendBlobMarketChartResponse,
+  BackendBlobTipsChartResponse,
   BackendChartRange,
   BackendCostComparisonChartResponse,
   BackendStatsWindowsResponse,
   BaseFeeDataPoint,
   BlobPricing,
+  BlobTipDataPoint,
+  BlobTipSummary,
   ChartDataset,
   CostComparisonDataPoint,
   GasUtilizationDataPoint,
@@ -676,13 +679,121 @@ function transformCostComparison(
   };
 }
 
+/**
+ * A tip bucket with no priced blobs reports zero for every fee, which would
+ * plot as a false collapse to zero. Unlike base fees a genuine zero tip is
+ * possible, but only alongside a nonzero blob count.
+ */
+export function tipPointHasData(point: { blob_count: number }): boolean {
+  return point.blob_count > 0;
+}
+
+function transformBlobTips(
+  tips: BackendBlobTipsChartResponse,
+  coverageStartMs?: number
+): {
+  blobTips: BlobTipDataPoint[];
+  blobTipSeries: BlobUsageSeries[];
+  blobTipSummary: BlobTipSummary;
+  coverage: ChartDataCoverage | null;
+} {
+  // A backend that predates the endpoint may answer with an empty envelope
+  // rather than a 404, so every collection is read defensively.
+  const blobTipSeries = (tips.series ?? []).map((series) => ({
+    key: series.key,
+    name: series.name,
+    category: series.category,
+    address: series.address,
+  }));
+
+  const bucketWidthSeconds = getBucketWidthSeconds(tips);
+  const points = filterToCoverage(
+    (tips.points ?? []).filter(tipPointHasData),
+    coverageStartMs,
+    bucketWidthSeconds * 1000
+  ).sort((a, b) => {
+    const timestampDiff = isoTimestamp(a.timestamp) - isoTimestamp(b.timestamp);
+    return timestampDiff !== 0 ? timestampDiff : (a.end_block ?? 0) - (b.end_block ?? 0);
+  });
+  const coverage = getChartDataCoverage(tips, points);
+  const labelStyle = getBucketLabelStyle(bucketWidthSeconds, coverage?.spanMs ?? 0);
+
+  const blobTips = points.map((point) => {
+    const row: BlobTipDataPoint = {
+      timestamp: isoTimestamp(point.timestamp),
+      label: getMarketPointLabel(tips.granularity, point, labelStyle),
+      blockNumber: point.end_block ?? point.start_block,
+      blobCount: point.blob_count,
+      averageGwei: roundTo(parseFiniteNumber(point.average_priority_fee_gwei), 6),
+      medianGwei: roundTo(parseFiniteNumber(point.median_priority_fee_gwei), 6),
+      p95Gwei: roundTo(parseFiniteNumber(point.p95_priority_fee_gwei), 6),
+      maxGwei: roundTo(parseFiniteNumber(point.max_priority_fee_gwei), 6),
+      values: {},
+    };
+
+    for (const series of blobTipSeries) {
+      const value = point.values?.[series.key];
+      row.values[series.key] = {
+        blobCount: value?.blob_count ?? 0,
+        averageGwei: roundTo(parseFiniteNumber(value?.average_priority_fee_gwei), 6),
+        maxGwei: roundTo(parseFiniteNumber(value?.max_priority_fee_gwei), 6),
+      };
+    }
+
+    return row;
+  });
+
+  const summary = tips.summary;
+  const blobTipSummary: BlobTipSummary = {
+    totalBlobs: parseOptionalCount(summary?.total_blobs) ?? 0,
+    pricedBlobs: parseOptionalCount(summary?.priced_blobs) ?? 0,
+    averageGwei: roundTo(parseFiniteNumber(summary?.average_priority_fee_gwei), 6),
+    medianGwei: roundTo(parseFiniteNumber(summary?.median_priority_fee_gwei), 6),
+    p95Gwei: roundTo(parseFiniteNumber(summary?.p95_priority_fee_gwei), 6),
+    maxGwei: roundTo(parseFiniteNumber(summary?.max_priority_fee_gwei), 6),
+    shares: (summary?.shares ?? []).map((share) => ({
+      key: share.key,
+      name: share.name,
+      category: share.category,
+      blobCount: share.blob_count,
+      blobSharePercent: roundTo(parseFiniteNumber(share.blob_share_percent), 2),
+      averageGwei: roundTo(parseFiniteNumber(share.average_priority_fee_gwei), 6),
+      maxGwei: roundTo(parseFiniteNumber(share.max_priority_fee_gwei), 6),
+    })),
+  };
+
+  return { blobTips, blobTipSeries, blobTipSummary, coverage };
+}
+
+/**
+ * Tip coverage caption. Rows indexed before priority fees were stored never
+ * enter the fee statistics, so while that history is being reindexed the
+ * caption says how much of the range's blobs the figures actually describe.
+ */
+function formatTipCoverage(
+  tips: BackendBlobTipsChartResponse,
+  pointCount: number,
+  timeRange: TimeRange,
+  coverage: ChartDataCoverage | null,
+  summary: BlobTipSummary
+): string {
+  const base = formatBucketCoverage(tips, pointCount, timeRange, coverage);
+  if (summary.totalBlobs > 0 && summary.pricedBlobs < summary.totalBlobs) {
+    return `${base}; tips recorded for ${summary.pricedBlobs.toLocaleString()} of ${summary.totalBlobs.toLocaleString()} blobs`;
+  }
+  return base;
+}
+
+const TIPS_UNAVAILABLE_COVERAGE_LABEL = 'tip data unavailable for this view';
+
 export function buildChartDatasetFromResponses(
   market: BackendBlobMarketChartResponse,
   attribution: BackendAttributionUsageChartResponse,
   costComparison: BackendCostComparisonChartResponse,
   timeRange: TimeRange,
   stats?: NetworkStats,
-  statsWindows?: BackendStatsWindowsResponse
+  statsWindows?: BackendStatsWindowsResponse,
+  blobTips?: BackendBlobTipsChartResponse | null
 ): ChartDataset {
   const rollingWindows = statsWindows ? transformStatsWindows(statsWindows) : [];
   const selectedWindow =
@@ -719,6 +830,10 @@ export function buildChartDatasetFromResponses(
     timeRange,
     costComparisonCoverage
   );
+  const tips = blobTips ? transformBlobTips(blobTips, coverage?.startMs) : null;
+  const blobTipsCoverageLabel = blobTips && tips
+    ? formatTipCoverage(blobTips, tips.blobTips.length, timeRange, tips.coverage, tips.blobTipSummary)
+    : TIPS_UNAVAILABLE_COVERAGE_LABEL;
   const chartRangeLabel = formatChartRangeLabel(timeRange, selectedWindow);
 
   return {
@@ -727,6 +842,9 @@ export function buildChartDatasetFromResponses(
     blobUsage,
     blobUsageSeries,
     costComparison: costComparisonData,
+    blobTips: tips?.blobTips ?? [],
+    blobTipSeries: tips?.blobTipSeries ?? [],
+    blobTipSummary: tips?.blobTipSummary ?? null,
     rollingWindows: rollingWindows.length > 0 ? rollingWindows : [selectedWindow],
     selectedWindow,
     indicators: {
@@ -746,6 +864,7 @@ export function buildChartDatasetFromResponses(
     blockCoverageLabel,
     blobUsageCoverageLabel,
     costComparisonCoverageLabel,
+    blobTipsCoverageLabel,
     coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show ${blockCoverageLabel}.`,
   };
 }
@@ -776,6 +895,9 @@ export function buildChartDataset(
     blobUsage: [],
     blobUsageSeries: [],
     costComparison: [],
+    blobTips: [],
+    blobTipSeries: [],
+    blobTipSummary: null,
     rollingWindows,
     selectedWindow,
     indicators: {
@@ -795,6 +917,7 @@ export function buildChartDataset(
     blockCoverageLabel,
     blobUsageCoverageLabel: NO_BUCKETS_COVERAGE_LABEL,
     costComparisonCoverageLabel: NO_BUCKETS_COVERAGE_LABEL,
+    blobTipsCoverageLabel: TIPS_UNAVAILABLE_COVERAGE_LABEL,
     coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show the ${blockCoverageLabel}.`,
   };
 }

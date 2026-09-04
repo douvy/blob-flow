@@ -2,6 +2,7 @@ import type {
     ApiResponse,
     BackendAttributionUsageChartResponse,
     BackendBlobMarketChartResponse,
+    BackendBlobTipsChartResponse,
     BackendChartGranularity,
     BackendChartRange,
     BackendCostComparisonChartResponse,
@@ -64,6 +65,20 @@ export async function getCostComparisonChart(
 ): Promise<BackendCostComparisonChartResponse> {
     const response = await fetchApi<ApiResponse<BackendCostComparisonChartResponse>>(
         `/charts/cost-comparison?${buildChartQuery(range, granularity, limit)}`,
+        network
+    );
+
+    return response.data;
+}
+
+export async function getBlobTipsChart(
+    range: BackendChartRange,
+    network?: string,
+    granularity: BackendChartGranularity = 'auto',
+    limit?: number,
+): Promise<BackendBlobTipsChartResponse> {
+    const response = await fetchApi<ApiResponse<BackendBlobTipsChartResponse>>(
+        `/charts/blob-tips?${buildChartQuery(range, granularity, limit)}`,
         network
     );
 

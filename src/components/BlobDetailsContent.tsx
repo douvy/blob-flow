@@ -18,7 +18,7 @@ import RawBlobViewer from './RawBlobViewer';
 import RawBlobActions from './RawBlobActions';
 import AttributionBadge from './AttributionBadge';
 import { useRawBlobAvailability } from '../hooks/useRawBlobAvailability';
-import { FEE_HEADROOM_TOOLTIP } from '../constants';
+import { FEE_HEADROOM_TOOLTIP, PRIORITY_FEE_TOOLTIP } from '../constants';
 
 function BlobUserCell({ blob }: { blob: BlobResponse }) {
   const attribution = blob.user_attribution || 'Unknown';
@@ -106,7 +106,7 @@ export function BlobDetailsContent({ block }: { block: Block }) {
               : formatBlobTotalCost(blob.total_cost_wei || blob.total_cost_eth);
             const maxCost = formatBlobWeiCost(blob.max_cost_wei);
             const baseFee = formatBlobFee(blob.base_fee_per_blob_gas_gwei, blob.base_fee_per_blob_gas);
-            const tip = formatBlobFee(blob.tip_per_blob_gas_gwei, blob.tip_per_blob_gas);
+            const tip = formatBlobFee(blob.priority_fee_per_gas_gwei, blob.priority_fee_per_gas);
             const maxFee = formatBlobFee(blob.max_fee_per_blob_gas_gwei, blob.max_fee_per_blob_gas);
             const headroom = formatFeeHeadroom(blob.fee_cap_headroom_percent);
 
@@ -160,7 +160,7 @@ export function BlobDetailsContent({ block }: { block: Block }) {
                   <BlobDetailField label="Base Fee" title={baseFee}>
                     {baseFee}
                   </BlobDetailField>
-                  <BlobDetailField label="Tip" title={tip}>
+                  <BlobDetailField label="Tip" title={PRIORITY_FEE_TOOLTIP}>
                     {tip}
                   </BlobDetailField>
                   <BlobDetailField label="Max Fee" title={maxFee}>

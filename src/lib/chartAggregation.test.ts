@@ -8,12 +8,14 @@ import {
   getRequestedRollingWindow,
   marketPointHasData,
   selectRollingWindow,
+  tipPointHasData,
   transformStatsWindows,
 } from './chartAggregation';
 import type {
   BackendAttributionUsageChartResponse,
   BackendBlobMarketChartPoint,
   BackendBlobMarketChartResponse,
+  BackendBlobTipsChartResponse,
   BackendCostComparisonChartResponse,
   BackendStatsWindow,
   BackendStatsWindowsResponse,
@@ -695,5 +697,245 @@ describe('backend-sent point labels', () => {
 
     expect(dataset.baseFee.map((point) => point.label)).toEqual(['#101', '#102']);
     expect(dataset.gasUtilization.map((point) => point.label)).toEqual(['#101', '#102']);
+  });
+});
+
+function makeTipsResponse(
+  timestamps: string[],
+  overrides: Partial<BackendBlobTipsChartResponse> = {}
+): BackendBlobTipsChartResponse {
+  return {
+    chain_id: 1,
+    network_name: 'mainnet',
+    range: '30d',
+    granularity: 'hour',
+    bucket_seconds: 21600,
+    start_time: '2026-06-06T06:00:00Z',
+    end_time: '2026-07-06T06:00:00Z',
+    generated_at: '2026-07-06T06:00:00Z',
+    series: [
+      { key: 'optimism', name: 'Optimism', category: 'rollup' },
+      { key: 'arbitrum', name: 'Arbitrum', category: 'rollup' },
+    ],
+    points: timestamps.map((timestamp, index) => ({
+      timestamp,
+      blob_count: 3,
+      average_priority_fee_gwei: '2.5',
+      median_priority_fee_gwei: '1',
+      p95_priority_fee_gwei: '5',
+      max_priority_fee_gwei: '5.123456789',
+      values: {
+        optimism: { blob_count: 2, average_priority_fee_gwei: '4.5', max_priority_fee_gwei: '5' },
+        // Arbitrum sits out every other bucket.
+        arbitrum: index % 2 === 0
+          ? { blob_count: 1, average_priority_fee_gwei: '0.5', max_priority_fee_gwei: '0.5' }
+          : { blob_count: 0, average_priority_fee_gwei: '0', max_priority_fee_gwei: '0' },
+      },
+    })),
+    summary: {
+      total_blobs: 20,
+      priced_blobs: 15,
+      average_priority_fee_gwei: '2.2',
+      median_priority_fee_gwei: '1',
+      p95_priority_fee_gwei: '5',
+      max_priority_fee_gwei: '5.123456789',
+      shares: [
+        {
+          key: 'optimism',
+          name: 'Optimism',
+          category: 'rollup',
+          blob_count: 10,
+          blob_share_percent: 66.67,
+          average_priority_fee_gwei: '4.5',
+          max_priority_fee_gwei: '5',
+        },
+        {
+          key: 'arbitrum',
+          name: 'Arbitrum',
+          category: 'rollup',
+          blob_count: 5,
+          blob_share_percent: 33.33,
+          average_priority_fee_gwei: '0.5',
+          max_priority_fee_gwei: '0.5',
+        },
+      ],
+    },
+    ...overrides,
+  };
+}
+
+describe('buildChartDatasetFromResponses blob tips', () => {
+  const timestamps = ['2026-07-05T00:00:00Z', '2026-07-05T06:00:00Z', '2026-07-05T12:00:00Z'];
+  const market = makeMarketResponse({
+    points: timestamps.map((timestamp) => makeMarketPoint(timestamp)),
+  });
+
+  it('transforms tip buckets, series values, and the range summary', () => {
+    const dataset = buildChartDatasetFromResponses(
+      market,
+      makeAttributionResponse(timestamps),
+      makeCostResponse(timestamps),
+      '30d',
+      undefined,
+      undefined,
+      makeTipsResponse(timestamps)
+    );
+
+    expect(dataset.blobTips).toHaveLength(3);
+    expect(dataset.blobTips[0]).toMatchObject({
+      label: '09:00',
+      blobCount: 3,
+      averageGwei: 2.5,
+      medianGwei: 1,
+      p95Gwei: 5,
+      maxGwei: 5.123457,
+    });
+    expect(dataset.blobTips[0].values.optimism).toEqual({ blobCount: 2, averageGwei: 4.5, maxGwei: 5 });
+    expect(dataset.blobTips[1].values.arbitrum).toEqual({ blobCount: 0, averageGwei: 0, maxGwei: 0 });
+    expect(dataset.blobTipSeries.map((series) => series.key)).toEqual(['optimism', 'arbitrum']);
+    expect(dataset.blobTipSummary).toEqual({
+      totalBlobs: 20,
+      pricedBlobs: 15,
+      averageGwei: 2.2,
+      medianGwei: 1,
+      p95Gwei: 5,
+      maxGwei: 5.123457,
+      shares: [
+        {
+          key: 'optimism',
+          name: 'Optimism',
+          category: 'rollup',
+          blobCount: 10,
+          blobSharePercent: 66.67,
+          averageGwei: 4.5,
+          maxGwei: 5,
+        },
+        {
+          key: 'arbitrum',
+          name: 'Arbitrum',
+          category: 'rollup',
+          blobCount: 5,
+          blobSharePercent: 33.33,
+          averageGwei: 0.5,
+          maxGwei: 0.5,
+        },
+      ],
+    });
+  });
+
+  it('captions partial tip coverage while older rows lack a recorded fee', () => {
+    const dataset = buildChartDatasetFromResponses(
+      market,
+      makeAttributionResponse(timestamps),
+      makeCostResponse(timestamps),
+      '30d',
+      undefined,
+      undefined,
+      makeTipsResponse(timestamps)
+    );
+
+    expect(dataset.blobTipsCoverageLabel).toBe(
+      '3 6-hour buckets over the 30d view (indexed data starts 7/5 09:00); tips recorded for 15 of 20 blobs'
+    );
+  });
+
+  it('keeps the plain caption once every blob in the range is priced', () => {
+    const tips = makeTipsResponse(timestamps, { start_time: '2026-07-05T00:00:00Z' });
+    tips.summary.priced_blobs = tips.summary.total_blobs;
+
+    const dataset = buildChartDatasetFromResponses(
+      market,
+      makeAttributionResponse(timestamps),
+      makeCostResponse(timestamps),
+      '30d',
+      undefined,
+      undefined,
+      tips
+    );
+
+    expect(dataset.blobTipsCoverageLabel).toBe('3 6-hour buckets over the 30d view');
+  });
+
+  it('drops tip buckets with no priced blobs so they do not plot as zero bids', () => {
+    const tips = makeTipsResponse(timestamps);
+    tips.points[1] = {
+      ...tips.points[1],
+      blob_count: 0,
+      average_priority_fee_gwei: '0',
+      median_priority_fee_gwei: '0',
+      p95_priority_fee_gwei: '0',
+      max_priority_fee_gwei: '0',
+    };
+
+    const dataset = buildChartDatasetFromResponses(
+      market,
+      makeAttributionResponse(timestamps),
+      makeCostResponse(timestamps),
+      '30d',
+      undefined,
+      undefined,
+      tips
+    );
+
+    expect(dataset.blobTips.map((point) => point.label)).toEqual(['09:00', '21:00']);
+    expect(tipPointHasData({ blob_count: 0 })).toBe(false);
+    expect(tipPointHasData({ blob_count: 1 })).toBe(true);
+  });
+
+  it('drops tip buckets that predate the indexed market coverage', () => {
+    const backfillMarket = makeMarketResponse({
+      points: [makeEmptyMarketPoint('2026-06-06T06:00:00Z'), makeMarketPoint('2026-07-05T06:00:00Z')],
+    });
+
+    const dataset = buildChartDatasetFromResponses(
+      backfillMarket,
+      makeAttributionResponse(['2026-07-05T06:00:00Z']),
+      makeCostResponse(['2026-07-05T06:00:00Z']),
+      '30d',
+      undefined,
+      undefined,
+      makeTipsResponse(['2026-06-06T06:00:00Z', '2026-07-05T06:00:00Z'])
+    );
+
+    expect(dataset.blobTips).toHaveLength(1);
+    expect(dataset.blobTips[0].timestamp).toBe(Date.parse('2026-07-05T06:00:00Z'));
+  });
+
+  it('leaves the tip views empty when the endpoint is unavailable', () => {
+    const dataset = buildChartDatasetFromResponses(
+      market,
+      makeAttributionResponse(timestamps),
+      makeCostResponse(timestamps),
+      '30d'
+    );
+
+    expect(dataset.blobTips).toEqual([]);
+    expect(dataset.blobTipSeries).toEqual([]);
+    expect(dataset.blobTipSummary).toBeNull();
+    expect(dataset.blobTipsCoverageLabel).toBe('tip data unavailable for this view');
+  });
+
+  it('tolerates an empty envelope from a backend without the endpoint', () => {
+    const dataset = buildChartDatasetFromResponses(
+      market,
+      makeAttributionResponse(timestamps),
+      makeCostResponse(timestamps),
+      '30d',
+      undefined,
+      undefined,
+      {} as BackendBlobTipsChartResponse
+    );
+
+    expect(dataset.blobTips).toEqual([]);
+    expect(dataset.blobTipSummary).toMatchObject({ totalBlobs: 0, pricedBlobs: 0, shares: [] });
+    expect(dataset.blobTipsCoverageLabel).toBe('no chart buckets in this view');
+  });
+
+  it('keeps legacy pricing datasets without tip data', () => {
+    const dataset = buildChartDataset(makeStatsWindows([makeWindow('1h', 3600)]), pricing, '1h', stats);
+
+    expect(dataset.blobTips).toEqual([]);
+    expect(dataset.blobTipSummary).toBeNull();
+    expect(dataset.blobTipsCoverageLabel).toBe('tip data unavailable for this view');
   });
 });

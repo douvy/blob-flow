@@ -29,8 +29,28 @@ export interface BlobResponse {
   blob_size_bytes: number;
   base_fee_per_blob_gas: string;
   base_fee_per_blob_gas_gwei?: string;
+  /**
+   * Blob fee-cap headroom (max_fee_per_blob_gas minus the blob base fee),
+   * which is never paid. Not a priority fee; see priority_fee_per_gas.
+   */
   tip_per_blob_gas: string;
   tip_per_blob_gas_gwei?: string;
+  /**
+   * The transaction's EIP-1559 priority fee cap in wei: its bid for a blob
+   * slot, since builders order competing blob transactions by the priority
+   * fee paid on execution gas. Omitted for rows indexed before it was stored.
+   */
+  max_priority_fee_per_gas?: string;
+  max_priority_fee_per_gas_gwei?: string;
+  /** The transaction's EIP-1559 total fee cap in wei. Omitted for older rows. */
+  max_fee_per_gas?: string;
+  max_fee_per_gas_gwei?: string;
+  /**
+   * Priority fee actually paid per execution gas, in wei. Omitted for
+   * pending blobs (unknown until inclusion) and for older rows.
+   */
+  priority_fee_per_gas?: string;
+  priority_fee_per_gas_gwei?: string;
   total_cost_wei?: string;
   total_cost_eth: string;
   timestamp: string;
@@ -769,6 +789,61 @@ export interface BackendCostComparisonChartResponse {
   summary: BackendCostComparisonSummary;
 }
 
+export interface BackendBlobTipsChartValue {
+  blob_count: number;
+  average_priority_fee_gwei: string;
+  max_priority_fee_gwei: string;
+}
+
+export interface BackendBlobTipsChartPoint {
+  timestamp: string;
+  start_block?: number;
+  end_block?: number;
+  /** Blobs in the bucket with a recorded priority fee. */
+  blob_count: number;
+  average_priority_fee_gwei: string;
+  median_priority_fee_gwei: string;
+  p95_priority_fee_gwei: string;
+  max_priority_fee_gwei: string;
+  values: Record<string, BackendBlobTipsChartValue>;
+}
+
+export interface BackendBlobTipsChartShare {
+  key: string;
+  name: string;
+  category: string;
+  blob_count: number;
+  blob_share_percent: number;
+  average_priority_fee_gwei: string;
+  max_priority_fee_gwei: string;
+}
+
+export interface BackendBlobTipsChartSummary {
+  /** Every blob in the range, priced or not. */
+  total_blobs: number;
+  /** Blobs with a recorded priority fee, the population behind every fee figure. */
+  priced_blobs: number;
+  average_priority_fee_gwei: string;
+  median_priority_fee_gwei: string;
+  p95_priority_fee_gwei: string;
+  max_priority_fee_gwei: string;
+  shares: BackendBlobTipsChartShare[];
+}
+
+export interface BackendBlobTipsChartResponse {
+  chain_id: number;
+  network_name: string;
+  range: BackendChartRange | string;
+  granularity: Exclude<BackendChartGranularity, 'auto'> | string;
+  bucket_seconds: number;
+  start_time: string;
+  end_time: string;
+  generated_at: string;
+  series: BackendAttributionUsageSeries[];
+  points: BackendBlobTipsChartPoint[];
+  summary: BackendBlobTipsChartSummary;
+}
+
 export interface BaseFeeDataPoint {
   timestamp: number;
   label: string;
@@ -809,6 +884,48 @@ export interface CostComparisonDataPoint {
   savingsPct: number;
 }
 
+export interface BlobTipSeriesValue {
+  blobCount: number;
+  averageGwei: number;
+  maxGwei: number;
+}
+
+/** One tip chart bucket; fees are gwei per execution gas. */
+export interface BlobTipDataPoint {
+  timestamp: number;
+  label: string;
+  blockNumber?: number;
+  /** Blobs in the bucket with a recorded priority fee. */
+  blobCount: number;
+  averageGwei: number;
+  medianGwei: number;
+  p95Gwei: number;
+  maxGwei: number;
+  /** Per-series values keyed by series key; charts read them via `values.<key>.<field>`. */
+  values: Record<string, BlobTipSeriesValue>;
+}
+
+export interface BlobTipShare {
+  key: string;
+  name: string;
+  category: string;
+  blobCount: number;
+  blobSharePercent: number;
+  averageGwei: number;
+  maxGwei: number;
+}
+
+export interface BlobTipSummary {
+  totalBlobs: number;
+  pricedBlobs: number;
+  averageGwei: number;
+  medianGwei: number;
+  p95Gwei: number;
+  maxGwei: number;
+  /** Ordered like the chart series: most blobs first, then highest bid. */
+  shares: BlobTipShare[];
+}
+
 export interface FeeMarketIndicators {
   currentBaseFeeGwei: number;
   averageBaseFeeGwei: number;
@@ -845,6 +962,10 @@ export interface ChartDataset {
   blobUsage: BlobUsageDataPoint[];
   blobUsageSeries: BlobUsageSeries[];
   costComparison: CostComparisonDataPoint[];
+  blobTips: BlobTipDataPoint[];
+  blobTipSeries: BlobUsageSeries[];
+  /** Null when the tips endpoint returned nothing (older backend, or a failed request). */
+  blobTipSummary: BlobTipSummary | null;
   rollingWindows: RollingWindowDataPoint[];
   selectedWindow: RollingWindowDataPoint | null;
   indicators: FeeMarketIndicators;
@@ -859,6 +980,8 @@ export interface ChartDataset {
   blobUsageCoverageLabel: string;
   /** Coverage caption for the cost savings chart (cost-comparison buckets). */
   costComparisonCoverageLabel: string;
+  /** Coverage caption for the tip charts (blob-tips buckets). */
+  blobTipsCoverageLabel: string;
 }
 
 // ---- Blob market records ----

@@ -12,6 +12,7 @@ import { formatGwei, formatNumber } from '@/utils';
 import type {
   BackendAttributionUsageChartResponse,
   BackendBlobMarketChartResponse,
+  BackendBlobTipsChartResponse,
   BackendCostComparisonChartResponse,
 } from '@/types';
 
@@ -155,6 +156,43 @@ function blobCountSeries(
   };
 }
 
+/** Buckets with no priced blobs report zero fees and would plot as a false collapse. */
+function pricedTipPoints(tips: BackendBlobTipsChartResponse) {
+  return withoutPartialBucket(tips.points).filter((point) => point.blob_count > 0);
+}
+
+function tipAverageSeries(
+  tips: BackendBlobTipsChartResponse,
+  range: TimeRange
+): OgChartSeries | null {
+  const values = plottable(
+    pricedTipPoints(tips).map((point) => Number(point.average_priority_fee_gwei))
+  );
+  if (values.length === 0) return null;
+  return {
+    values,
+    caption: `avg tip ${formatGwei(average(values), 4)} over ${range}`,
+    stroke: COLORS.red,
+    fill: COLORS.red,
+  };
+}
+
+function tipSpreadSeries(
+  tips: BackendBlobTipsChartResponse,
+  range: TimeRange
+): OgChartSeries | null {
+  const values = plottable(
+    pricedTipPoints(tips).map((point) => Number(point.p95_priority_fee_gwei))
+  );
+  if (values.length === 0) return null;
+  return {
+    values,
+    caption: `p95 tip ${formatGwei(average(values), 4)} over ${range}`,
+    stroke: COLORS.purple,
+    fill: COLORS.purple,
+  };
+}
+
 /** The chart data a slug plots, or null when the backend could not answer. */
 async function fetchChartData<T>(endpoint: string, network: Network): Promise<T | null> {
   const result = await fetchOgApi<T>(endpoint, network);
@@ -206,6 +244,20 @@ export async function fetchOgChartSeries(
         network
       );
       return cost ? costSeries(cost, range) : null;
+    }
+    case 'blob-tips': {
+      const tips = await fetchChartData<BackendBlobTipsChartResponse>(
+        `/charts/blob-tips?${query}`,
+        network
+      );
+      return tips ? tipAverageSeries(tips, range) : null;
+    }
+    case 'tip-spread': {
+      const tips = await fetchChartData<BackendBlobTipsChartResponse>(
+        `/charts/blob-tips?${query}`,
+        network
+      );
+      return tips ? tipSpreadSeries(tips, range) : null;
     }
     case 'rolling-market-stats': {
       const market = await fetchChartData<BackendBlobMarketChartResponse>(
