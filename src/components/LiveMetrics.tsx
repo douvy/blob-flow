@@ -13,7 +13,7 @@ import {
   User,
 } from '../types';
 import DataStateWrapper from './DataStateWrapper';
-import { MEMPOOL_SAMPLE_LIMIT } from '../constants';
+import { LATEST_BLOCKS_SAMPLE, MEMPOOL_SAMPLE_LIMIT } from '../constants';
 import { aggregateMempoolAttribution } from '../lib/mempoolAttribution';
 import { useMempoolLiveList } from '../hooks/useMempoolLiveList';
 import { useNetwork } from '../hooks/useNetwork';
@@ -25,7 +25,6 @@ import { formatScientific, RUNAWAY_GWEI_THRESHOLD } from '../utils';
 import { useNow } from '../hooks/useNow';
 import { formatRelativeTime } from '../lib/api/core';
 
-const LATEST_BLOCKS_SAMPLE = 30;
 // Must match the Top Blob Users table's limit so both read (and dedupe into)
 // the same top-users cache entry.
 const TOP_USERS_LIMIT = 10;

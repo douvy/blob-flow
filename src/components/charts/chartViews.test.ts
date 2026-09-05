@@ -9,6 +9,9 @@ const chartData: ChartDataset = {
   blobUsage: [],
   blobUsageSeries: [],
   costComparison: [],
+  blobTips: [],
+  blobTipSeries: [],
+  blobTipSummary: null,
   rollingWindows: [],
   selectedWindow: null,
   indicators: {
@@ -26,6 +29,20 @@ const chartData: ChartDataset = {
   blockCoverageLabel: 'market coverage',
   blobUsageCoverageLabel: 'blob usage coverage',
   costComparisonCoverageLabel: 'cost comparison coverage',
+  blobTipsCoverageLabel: 'tip coverage',
+};
+
+const blobTipSummary: NonNullable<ChartDataset['blobTipSummary']> = {
+  totalBlobs: 20,
+  pricedBlobs: 15,
+  averageGwei: 2.2,
+  medianGwei: 1,
+  p95Gwei: 5,
+  maxGwei: 5.5,
+  shares: [
+    { key: 'arbitrum', name: 'Arbitrum', category: 'rollup', blobCount: 10, blobSharePercent: 66.67, averageGwei: 0.5, maxGwei: 1 },
+    { key: 'optimism', name: 'Optimism', category: 'rollup', blobCount: 5, blobSharePercent: 33.33, averageGwei: 4.5, maxGwei: 5.5 },
+  ],
 };
 
 const selectedWindow: NonNullable<ChartDataset['selectedWindow']> = {
@@ -46,7 +63,7 @@ const selectedWindow: NonNullable<ChartDataset['selectedWindow']> = {
 
 describe('chartViews', () => {
   it('summarizes each view with a rolling-window headline stat', () => {
-    const withWindow = { ...chartData, selectedWindow };
+    const withWindow = { ...chartData, selectedWindow, blobTipSummary };
     const stats = Object.fromEntries(
       CHART_VIEWS.map((view) => [view.id, view.getHeadlineStat(withWindow)])
     );
@@ -57,6 +74,8 @@ describe('chartViews', () => {
       'blob-usage': '1,234 blobs posted',
       'blob-share': '1,234 blobs across 42 senders',
       'cost-comparison': '0.4568 ETH spent on blobs',
+      'blob-tips': 'avg tip 2.2 Gwei, Optimism bid highest at 4.5 Gwei',
+      'tip-spread': 'median tip 1 Gwei, max 5.5 Gwei',
       'rolling-market-stats': '1,234 blobs from 42 senders',
     });
   });
@@ -64,6 +83,26 @@ describe('chartViews', () => {
   it('returns no headline stat when the rolling window is absent', () => {
     for (const view of CHART_VIEWS) {
       expect(view.getHeadlineStat(chartData)).toBeNull();
+    }
+  });
+
+  it('quotes only the average tip when a single sender posted blobs', () => {
+    const view = CHART_VIEWS.find((entry) => entry.id === 'blob-tips');
+    if (!view) throw new Error('no blob-tips view');
+    const single = {
+      ...chartData,
+      blobTipSummary: { ...blobTipSummary, shares: blobTipSummary.shares.slice(0, 1) },
+    };
+
+    expect(view.getHeadlineStat(single)).toBe('avg tip 2.2 Gwei');
+  });
+
+  it('returns no tip headline for a range with no priced blobs', () => {
+    const unpriced = { ...chartData, blobTipSummary: { ...blobTipSummary, pricedBlobs: 0 } };
+    for (const id of ['blob-tips', 'tip-spread']) {
+      const view = CHART_VIEWS.find((entry) => entry.id === id);
+      if (!view) throw new Error(`no chart view ${id}`);
+      expect(view.getHeadlineStat(unpriced)).toBeNull();
     }
   });
 
@@ -78,6 +117,8 @@ describe('chartViews', () => {
       'blob-usage': 'blob usage coverage',
       'blob-share': 'blob usage coverage',
       'cost-comparison': 'cost comparison coverage',
+      'blob-tips': 'tip coverage',
+      'tip-spread': 'tip coverage',
       'rolling-market-stats': 'rolling coverage',
     });
   });

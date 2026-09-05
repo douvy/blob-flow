@@ -7,6 +7,8 @@ import BaseFeeChart from './BaseFeeChart';
 import CostComparisonChart from './CostComparisonChart';
 import GasUtilizationChart from './GasUtilizationChart';
 import BlobUsageChart from './BlobUsageChart';
+import BlobTipsChart from './BlobTipsChart';
+import TipSpreadChart from './TipSpreadChart';
 import RollingWindowStats from './RollingWindowStats';
 
 export const CHART_VIEW_IDS = [
@@ -15,6 +17,8 @@ export const CHART_VIEW_IDS = [
   'blob-usage',
   'blob-share',
   'cost-comparison',
+  'blob-tips',
+  'tip-spread',
   'rolling-market-stats',
 ] as const;
 
@@ -34,12 +38,30 @@ export interface ChartView {
   getCoverageLabel: (chartData: ChartDataset) => string;
   getPointCount: (chartData: ChartDataset) => number;
   render: (chartData: ChartDataset) => React.ReactNode;
+  /** True for views plotting the optional tips endpoint, whose loading and error state is tracked apart from the rest. */
+  usesTips?: boolean;
 }
 
 /** Matches the precision RollingWindowStats uses for windowed ETH totals. */
 function formatEthStat(value: number): string {
   if (value < 0.001) return value.toFixed(6);
   return value.toFixed(4);
+}
+
+/**
+ * Headline for the tip views: the range's average tip and, when one sender
+ * bid above the rest, who it was. Null until the tips endpoint has answered,
+ * and for a range with no priced blobs, where there is nothing to quote.
+ */
+function formatTipHeadline(chartData: ChartDataset): string | null {
+  const summary = chartData.blobTipSummary;
+  if (!summary || summary.pricedBlobs === 0) return null;
+  const topBidder = [...summary.shares]
+    .filter((share) => share.blobCount > 0)
+    .sort((a, b) => b.averageGwei - a.averageGwei)[0];
+  const headline = `avg tip ${formatGwei(summary.averageGwei, 4)}`;
+  if (!topBidder || summary.shares.length < 2) return headline;
+  return `${headline}, ${topBidder.name} bid highest at ${formatGwei(topBidder.averageGwei, 4)}`;
 }
 
 export const CHART_VIEWS: readonly ChartView[] = [
@@ -145,6 +167,41 @@ export const CHART_VIEWS: readonly ChartView[] = [
     render: (chartData) => (
       <CostComparisonChart data={chartData.costComparison} />
     ),
+  },
+  {
+    id: 'blob-tips',
+    title: 'Blob Tips by Attribution (Gwei)',
+    shortTitle: 'Blob Tips',
+    description:
+      'Average priority fee each rollup or sender paid per blob transaction, the bid that decides whose blobs a builder includes.',
+    dashboardFrameClassName: 'h-56 relative',
+    detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
+    getTitle: (chartData) => `Blob Tips by Attribution over ${chartData.chartRangeLabel} (Gwei)`,
+    getHeadlineStat: formatTipHeadline,
+    getCoverageLabel: (chartData) => chartData.blobTipsCoverageLabel,
+    getPointCount: (chartData) => chartData.blobTips.length,
+    render: (chartData) => (
+      <BlobTipsChart data={chartData.blobTips} series={chartData.blobTipSeries} />
+    ),
+    usesTips: true,
+  },
+  {
+    id: 'tip-spread',
+    title: 'Blob Tip Spread (Gwei)',
+    shortTitle: 'Tip Spread',
+    description:
+      'Median, 95th percentile, and highest priority fee paid for blobs in every bucket, showing how far the top bids run above the market.',
+    dashboardFrameClassName: 'h-56 relative',
+    detailFrameClassName: 'h-[62vh] min-h-[360px] max-h-[720px] relative',
+    getTitle: (chartData) => `Blob Tip Spread over ${chartData.chartRangeLabel} (Gwei)`,
+    getHeadlineStat: (chartData) =>
+      chartData.blobTipSummary && chartData.blobTipSummary.pricedBlobs > 0
+        ? `median tip ${formatGwei(chartData.blobTipSummary.medianGwei, 4)}, max ${formatGwei(chartData.blobTipSummary.maxGwei, 4)}`
+        : null,
+    getCoverageLabel: (chartData) => chartData.blobTipsCoverageLabel,
+    getPointCount: (chartData) => chartData.blobTips.length,
+    render: (chartData) => <TipSpreadChart data={chartData.blobTips} />,
+    usesTips: true,
   },
   {
     id: 'rolling-market-stats',

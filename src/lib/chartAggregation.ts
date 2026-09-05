@@ -4,11 +4,14 @@ import type {
   BackendAttributionUsageChartResponse,
   BackendBlobMarketChartPoint,
   BackendBlobMarketChartResponse,
+  BackendBlobTipsChartResponse,
   BackendChartRange,
   BackendCostComparisonChartResponse,
   BackendStatsWindowsResponse,
   BaseFeeDataPoint,
   BlobPricing,
+  BlobTipDataPoint,
+  BlobTipSummary,
   ChartDataset,
   CostComparisonDataPoint,
   GasUtilizationDataPoint,
@@ -676,13 +679,156 @@ function transformCostComparison(
   };
 }
 
+/**
+ * A fee field as a finite non-negative gwei number, or null when it is
+ * absent or malformed. Tips can legitimately be zero, so a missing field
+ * must not collapse to zero the way parseFiniteNumber would make it: a
+ * partial payload has to read as "unknown", never as "everyone bid nothing".
+ */
+function parseFeeGwei(value: string | number | undefined): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? roundTo(parsed, 6) : null;
+}
+
+/**
+ * A tip bucket with no priced blobs reports zero for every fee, which would
+ * plot as a false collapse to zero. Unlike base fees a genuine zero tip is
+ * possible, but only alongside a nonzero blob count and a parseable fee.
+ */
+export function tipPointHasData(point: {
+  blob_count: number;
+  average_priority_fee_gwei?: string;
+}): boolean {
+  return point.blob_count > 0 && parseFeeGwei(point.average_priority_fee_gwei) !== null;
+}
+
+function transformBlobTips(
+  tips: BackendBlobTipsChartResponse,
+  coverageStartMs?: number
+): {
+  blobTips: BlobTipDataPoint[];
+  blobTipSeries: BlobUsageSeries[];
+  blobTipSummary: BlobTipSummary;
+  coverage: ChartDataCoverage | null;
+} {
+  // A backend that predates the endpoint may answer with an empty envelope
+  // rather than a 404, so every collection is read defensively.
+  const blobTipSeries = (tips.series ?? []).map((series) => ({
+    key: series.key,
+    name: series.name,
+    category: series.category,
+    address: series.address,
+  }));
+
+  const bucketWidthSeconds = getBucketWidthSeconds(tips);
+  const points = filterToCoverage(
+    (tips.points ?? []).filter(tipPointHasData),
+    coverageStartMs,
+    bucketWidthSeconds * 1000
+  ).sort((a, b) => {
+    const timestampDiff = isoTimestamp(a.timestamp) - isoTimestamp(b.timestamp);
+    return timestampDiff !== 0 ? timestampDiff : (a.end_block ?? 0) - (b.end_block ?? 0);
+  });
+  const coverage = getChartDataCoverage(tips, points);
+  const labelStyle = getBucketLabelStyle(bucketWidthSeconds, coverage?.spanMs ?? 0);
+
+  const blobTips = points.map((point) => {
+    // tipPointHasData guarantees the average parses; the other percentiles
+    // fall back to it rather than to zero, and a max below the p95 (or p95
+    // below the median) is a malformed payload that is clamped into order
+    // so the spread band can never invert.
+    const averageGwei = parseFeeGwei(point.average_priority_fee_gwei) ?? 0;
+    const medianGwei = parseFeeGwei(point.median_priority_fee_gwei) ?? averageGwei;
+    const p95Gwei = Math.max(medianGwei, parseFeeGwei(point.p95_priority_fee_gwei) ?? averageGwei);
+    const maxGwei = Math.max(p95Gwei, parseFeeGwei(point.max_priority_fee_gwei) ?? p95Gwei);
+    const row: BlobTipDataPoint = {
+      timestamp: isoTimestamp(point.timestamp),
+      label: getMarketPointLabel(tips.granularity, point, labelStyle),
+      blockNumber: point.end_block ?? point.start_block,
+      blobCount: point.blob_count,
+      averageGwei,
+      medianGwei,
+      p95Gwei,
+      maxGwei,
+      values: {},
+    };
+
+    for (const series of blobTipSeries) {
+      const value = point.values?.[series.key];
+      const seriesAverage = parseFeeGwei(value?.average_priority_fee_gwei);
+      // A series value without a parseable fee is treated as absent so the
+      // line breaks instead of dropping to a zero bid.
+      const blobCount = seriesAverage === null ? 0 : (parseOptionalCount(value?.blob_count) ?? 0);
+      row.values[series.key] = {
+        blobCount,
+        averageGwei: blobCount > 0 ? (seriesAverage ?? 0) : 0,
+        maxGwei: blobCount > 0 ? Math.max(seriesAverage ?? 0, parseFeeGwei(value?.max_priority_fee_gwei) ?? 0) : 0,
+      };
+    }
+
+    return row;
+  });
+
+  const summary = tips.summary;
+  const summaryAverage = parseFeeGwei(summary?.average_priority_fee_gwei);
+  const summaryMedian = parseFeeGwei(summary?.median_priority_fee_gwei) ?? summaryAverage ?? 0;
+  const summaryP95 = Math.max(summaryMedian, parseFeeGwei(summary?.p95_priority_fee_gwei) ?? summaryAverage ?? 0);
+  const summaryMax = Math.max(summaryP95, parseFeeGwei(summary?.max_priority_fee_gwei) ?? summaryP95);
+  const blobTipSummary: BlobTipSummary = {
+    totalBlobs: parseOptionalCount(summary?.total_blobs) ?? 0,
+    // Without a parseable average the headline figures would be zeros, so
+    // the range reads as unpriced instead.
+    pricedBlobs: summaryAverage === null ? 0 : (parseOptionalCount(summary?.priced_blobs) ?? 0),
+    averageGwei: summaryAverage ?? 0,
+    medianGwei: summaryMedian,
+    p95Gwei: summaryP95,
+    maxGwei: summaryMax,
+    shares: (summary?.shares ?? [])
+      .filter((share) => parseFeeGwei(share.average_priority_fee_gwei) !== null)
+      .map((share) => ({
+        key: share.key,
+        name: share.name,
+        category: share.category,
+        blobCount: parseOptionalCount(share.blob_count) ?? 0,
+        blobSharePercent: roundTo(parseFiniteNumber(share.blob_share_percent), 2),
+        averageGwei: parseFeeGwei(share.average_priority_fee_gwei) ?? 0,
+        maxGwei: parseFeeGwei(share.max_priority_fee_gwei) ?? 0,
+      })),
+  };
+
+  return { blobTips, blobTipSeries, blobTipSummary, coverage };
+}
+
+/**
+ * Tip coverage caption. Rows indexed before priority fees were stored never
+ * enter the fee statistics, so while that history is being reindexed the
+ * caption says how much of the range's blobs the figures actually describe.
+ */
+function formatTipCoverage(
+  tips: BackendBlobTipsChartResponse,
+  pointCount: number,
+  timeRange: TimeRange,
+  coverage: ChartDataCoverage | null,
+  summary: BlobTipSummary
+): string {
+  const base = formatBucketCoverage(tips, pointCount, timeRange, coverage);
+  if (summary.totalBlobs > 0 && summary.pricedBlobs < summary.totalBlobs) {
+    return `${base}; tips recorded for ${summary.pricedBlobs.toLocaleString()} of ${summary.totalBlobs.toLocaleString()} blobs`;
+  }
+  return base;
+}
+
+const TIPS_UNAVAILABLE_COVERAGE_LABEL = 'tip data unavailable for this view';
+
 export function buildChartDatasetFromResponses(
   market: BackendBlobMarketChartResponse,
   attribution: BackendAttributionUsageChartResponse,
   costComparison: BackendCostComparisonChartResponse,
   timeRange: TimeRange,
   stats?: NetworkStats,
-  statsWindows?: BackendStatsWindowsResponse
+  statsWindows?: BackendStatsWindowsResponse,
+  blobTips?: BackendBlobTipsChartResponse | null
 ): ChartDataset {
   const rollingWindows = statsWindows ? transformStatsWindows(statsWindows) : [];
   const selectedWindow =
@@ -719,6 +865,10 @@ export function buildChartDatasetFromResponses(
     timeRange,
     costComparisonCoverage
   );
+  const tips = blobTips ? transformBlobTips(blobTips, coverage?.startMs) : null;
+  const blobTipsCoverageLabel = blobTips && tips
+    ? formatTipCoverage(blobTips, tips.blobTips.length, timeRange, tips.coverage, tips.blobTipSummary)
+    : TIPS_UNAVAILABLE_COVERAGE_LABEL;
   const chartRangeLabel = formatChartRangeLabel(timeRange, selectedWindow);
 
   return {
@@ -727,6 +877,9 @@ export function buildChartDatasetFromResponses(
     blobUsage,
     blobUsageSeries,
     costComparison: costComparisonData,
+    blobTips: tips?.blobTips ?? [],
+    blobTipSeries: tips?.blobTipSeries ?? [],
+    blobTipSummary: tips?.blobTipSummary ?? null,
     rollingWindows: rollingWindows.length > 0 ? rollingWindows : [selectedWindow],
     selectedWindow,
     indicators: {
@@ -746,6 +899,7 @@ export function buildChartDatasetFromResponses(
     blockCoverageLabel,
     blobUsageCoverageLabel,
     costComparisonCoverageLabel,
+    blobTipsCoverageLabel,
     coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show ${blockCoverageLabel}.`,
   };
 }
@@ -776,6 +930,9 @@ export function buildChartDataset(
     blobUsage: [],
     blobUsageSeries: [],
     costComparison: [],
+    blobTips: [],
+    blobTipSeries: [],
+    blobTipSummary: null,
     rollingWindows,
     selectedWindow,
     indicators: {
@@ -795,6 +952,7 @@ export function buildChartDataset(
     blockCoverageLabel,
     blobUsageCoverageLabel: NO_BUCKETS_COVERAGE_LABEL,
     costComparisonCoverageLabel: NO_BUCKETS_COVERAGE_LABEL,
+    blobTipsCoverageLabel: TIPS_UNAVAILABLE_COVERAGE_LABEL,
     coverageLabel: `${rollingCoverageLabel}; fee and utilization charts show the ${blockCoverageLabel}.`,
   };
 }

@@ -51,12 +51,14 @@ import {
 import ChartCardActions from '@/components/charts/ChartCardActions';
 import { useApiData } from '@/hooks/useApiData';
 import { useLatestBlobBaseFee } from '@/hooks/useLatestBlobBaseFee';
+import { useLiveBlockList } from '@/hooks/useLiveBlockList';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useMempoolLiveList } from '@/hooks/useMempoolLiveList';
 import { useNetwork } from '@/hooks/useNetwork';
 import { useNow } from '@/hooks/useNow';
 import { useBlobWebSocket, useLiveBlobEvent } from '@/contexts/LiveDataContext';
-import { MEMPOOL_SAMPLE_LIMIT } from '@/constants';
+import { LATEST_BLOCKS_SAMPLE, MEMPOOL_SAMPLE_LIMIT, PRIORITY_FEE_TOOLTIP } from '@/constants';
+import { describeTopTip, summarizeRecentTips } from '@/lib/recentTips';
 import {
   aggregateMempoolAttribution,
   countLikelyIncludable,
@@ -542,15 +544,34 @@ function ComparisonBadge({ label, deltaPercent, averageGwei }: {
   );
 }
 
-function PressureStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function PressureStat({
+  label,
+  value,
+  hint,
+  title,
+  className = '',
+  alert = false,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  title?: string;
+  className?: string;
+  /** Draws the tile in the warning tone used for above-target blocks. */
+  alert?: boolean;
+}) {
   return (
-    <div className="rounded-md border border-[#292e35] bg-[#17181b] px-3 py-2">
+    <div
+      className={`rounded-md border px-3 py-2 ${alert ? 'border-[#5a4320] bg-[#221b12]' : 'border-[#292e35] bg-[#17181b]'} ${className}`}
+      title={title}
+    >
       <div className="text-[10px] uppercase tracking-wider text-white">{label}</div>
-      <div className="mt-0.5 text-sm font-medium text-white">{value}</div>
-      {hint && <div className="text-[10px] text-[#666666]">{hint}</div>}
+      <div className={`mt-0.5 text-sm font-medium ${alert ? 'text-[#ffb86b]' : 'text-white'}`}>{value}</div>
+      {hint && <div className={`text-[10px] ${alert ? 'text-[#c9a06a]' : 'text-[#666666]'}`}>{hint}</div>}
     </div>
   );
 }
+
 
 function HeroSkeleton() {
   return (
@@ -665,6 +686,11 @@ export default function BlobFeeHero() {
     () => countLikelyIncludable(mempoolTransactions ?? [], latestBlobBaseFeeWei),
     [mempoolTransactions, latestBlobBaseFeeWei]
   );
+
+  // Who is paying most for blob slots right now. Reads the same live block
+  // sample (and cache entry) as Live Metrics, so it costs no extra request.
+  const { blocks: recentBlocks } = useLiveBlockList(LATEST_BLOCKS_SAMPLE);
+  const topTip = useMemo(() => describeTopTip(summarizeRecentTips(recentBlocks)), [recentBlocks]);
 
   // Blocks accumulated live from the WebSocket between pricing refetches.
   const [liveState, setLiveState] = useState<{
@@ -966,7 +992,7 @@ export default function BlobFeeHero() {
                   </div>
                 )}
 
-                <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+                <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
                   <PressureStat
                     label="Above target"
                     value={aboveTargetStat.value}
@@ -998,6 +1024,14 @@ export default function BlobFeeHero() {
                         }${mempoolError ? ' · refresh failed' : ''}`
                         : 'mempool blobs'
                     }
+                  />
+                  <PressureStat
+                    label="Top tip"
+                    value={topTip.value}
+                    hint={topTip.hint}
+                    title={PRIORITY_FEE_TOOLTIP}
+                    alert={topTip.alert}
+                    className="col-span-2"
                   />
                 </div>
               </div>

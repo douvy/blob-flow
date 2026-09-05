@@ -31,7 +31,7 @@ import {
   truncateAddress,
   truncateTxHash,
 } from '@/utils';
-import { FEE_HEADROOM_TOOLTIP, SECONDS_PER_BLOCK } from '@/constants';
+import { FEE_HEADROOM_TOOLTIP, PRIORITY_FEE_TOOLTIP, SECONDS_PER_BLOCK } from '@/constants';
 
 const TX_HASH_PATTERN = /^0x[0-9a-f]{64}$/i;
 
@@ -278,8 +278,8 @@ function TransactionSummary({ transaction }: { transaction: BlobTransaction }) {
         <DetailField label="Base Fee">
           {formatBlobFee(blob.base_fee_per_blob_gas_gwei, blob.base_fee_per_blob_gas)}
         </DetailField>
-        <DetailField label="Tip">
-          {formatBlobFee(blob.tip_per_blob_gas_gwei, blob.tip_per_blob_gas)}
+        <DetailField label="Exec Tip" title={PRIORITY_FEE_TOOLTIP}>
+          {formatBlobFee(blob.priority_fee_per_gas_gwei, blob.priority_fee_per_gas)}
         </DetailField>
         <DetailField label="Max Fee">
           {formatBlobFee(blob.max_fee_per_blob_gas_gwei, blob.max_fee_per_blob_gas)}

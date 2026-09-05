@@ -4,6 +4,7 @@ import { search } from './search';
 import {
     getAttributionUsageChart,
     getBlobMarketChart,
+    getBlobTipsChart,
     getCostComparisonChart,
     getRollingStatsChart,
 } from './charts';
@@ -30,6 +31,7 @@ export const api = {
     getBlobMarketChart,
     getAttributionUsageChart,
     getCostComparisonChart,
+    getBlobTipsChart,
     getRollingStatsChart,
     getStats,
     getStatsWindows,

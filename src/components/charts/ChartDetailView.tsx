@@ -38,13 +38,13 @@ function ChartTabs({ activeId }: { activeId?: string }) {
   );
 }
 
-function EmptyChartState() {
+function EmptyChartState({ detail }: { detail?: string }) {
   return (
     <div className="flex h-full min-h-[260px] items-center justify-center text-center">
       <div>
         <div className="text-lg font-medium text-white">No chart data available</div>
         <div className="mt-1 text-sm text-[#6e7687]">
-          The selected network has not returned data for this view.
+          {detail ?? 'The selected network has not returned data for this view.'}
         </div>
       </div>
     </div>
@@ -52,8 +52,16 @@ function EmptyChartState() {
 }
 
 function ChartDetail({ view }: { view: ChartView }) {
-  const { chartData, isLoading, error } = useChartData();
+  const { chartData, isLoading, error, blobTipsLoading, blobTipsError } = useChartData();
   const captureRef = useRef<HTMLDivElement>(null);
+  // Tips load apart from the rest so an older backend cannot take the
+  // dashboard down; a tip page still has to wait for them and say why they
+  // are missing rather than calling an unsupported endpoint an empty range.
+  const viewLoading = isLoading || (view.usesTips === true && blobTipsLoading);
+  const emptyDetail =
+    view.usesTips && blobTipsError
+      ? 'Tip data could not be loaded. The backend may not record blob transaction tips yet.'
+      : undefined;
 
   const loadingComponent = (
     <div className={CHART_CARD_CLASS}>
@@ -69,7 +77,7 @@ function ChartDetail({ view }: { view: ChartView }) {
   );
 
   return (
-    <DataStateWrapper isLoading={isLoading} error={error} loadingComponent={loadingComponent}>
+    <DataStateWrapper isLoading={viewLoading} error={error} loadingComponent={loadingComponent}>
       {chartData && (
         <div className={CHART_CARD_CLASS}>
           <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -97,7 +105,7 @@ function ChartDetail({ view }: { view: ChartView }) {
             </div>
           </div>
           <div ref={captureRef} className={view.detailFrameClassName}>
-            {view.getPointCount(chartData) > 0 ? view.render(chartData) : <EmptyChartState />}
+            {view.getPointCount(chartData) > 0 ? view.render(chartData) : <EmptyChartState detail={emptyDetail} />}
           </div>
         </div>
       )}

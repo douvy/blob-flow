@@ -215,13 +215,93 @@ const mockStats = {
   },
 };
 
+const mockBlobTips = {
+  success: true,
+  data: {
+    chain_id: 1,
+    network_name: 'mainnet',
+    range: '1h',
+    granularity: 'minute',
+    bucket_seconds: 60,
+    start_time: '2026-01-01T00:00:00.000Z',
+    end_time: '2026-01-01T01:00:00.000Z',
+    generated_at: '2026-01-01T01:00:00.000Z',
+    series: [
+      { key: 'optimism', name: 'Optimism', category: 'rollup' },
+      { key: 'base', name: 'Base', category: 'rollup' },
+    ],
+    points: [
+      {
+        timestamp: '2026-01-01T00:00:00.000Z',
+        blob_count: 2,
+        average_priority_fee_gwei: '3',
+        median_priority_fee_gwei: '3',
+        p95_priority_fee_gwei: '5',
+        max_priority_fee_gwei: '5',
+        values: {
+          optimism: { blob_count: 1, average_priority_fee_gwei: '5', max_priority_fee_gwei: '5' },
+          base: { blob_count: 1, average_priority_fee_gwei: '1', max_priority_fee_gwei: '1' },
+        },
+      },
+      {
+        timestamp: '2026-01-01T00:01:00.000Z',
+        blob_count: 7,
+        average_priority_fee_gwei: '2',
+        median_priority_fee_gwei: '1',
+        p95_priority_fee_gwei: '8',
+        max_priority_fee_gwei: '8',
+        values: {
+          optimism: { blob_count: 6, average_priority_fee_gwei: '2.1', max_priority_fee_gwei: '8' },
+          base: { blob_count: 1, average_priority_fee_gwei: '1', max_priority_fee_gwei: '1' },
+        },
+      },
+    ],
+    summary: {
+      total_blobs: 9,
+      priced_blobs: 9,
+      average_priority_fee_gwei: '2.2',
+      median_priority_fee_gwei: '1',
+      p95_priority_fee_gwei: '8',
+      max_priority_fee_gwei: '8',
+      shares: [
+        {
+          key: 'optimism',
+          name: 'Optimism',
+          category: 'rollup',
+          blob_count: 7,
+          blob_share_percent: 77.78,
+          average_priority_fee_gwei: '2.5',
+          max_priority_fee_gwei: '8',
+        },
+        {
+          key: 'base',
+          name: 'Base',
+          category: 'rollup',
+          blob_count: 2,
+          blob_share_percent: 22.22,
+          average_priority_fee_gwei: '1',
+          max_priority_fee_gwei: '1',
+        },
+      ],
+    },
+  },
+};
+
 function createFetchMock(
   marketResponse: typeof mockMarket = mockMarket,
   attributionResponse: typeof mockAttribution = mockAttribution,
   costComparisonResponse: typeof mockCostComparison = mockCostComparison,
-  rollingStatsResponse: typeof mockRollingStats = mockRollingStats
+  rollingStatsResponse: typeof mockRollingStats = mockRollingStats,
+  blobTipsResponse: { ok: boolean; body: unknown } = { ok: true, body: mockBlobTips }
 ) {
   return vi.fn().mockImplementation((url: string) => {
+    if (url.includes('/charts/blob-tips')) {
+      return Promise.resolve({
+        ok: blobTipsResponse.ok,
+        status: blobTipsResponse.ok ? 200 : 404,
+        json: async () => blobTipsResponse.body,
+      });
+    }
     if (url.includes('/charts/blob-market')) {
       return Promise.resolve({
         ok: true,
@@ -295,6 +375,36 @@ describe('useChartData', () => {
     expect(urls.some((url) => url.includes('/charts/attribution-usage?range=1h&granularity=auto'))).toBe(true);
     expect(urls.some((url) => url.includes('/charts/cost-comparison?range=1h&granularity=auto'))).toBe(true);
     expect(urls.some((url) => url.includes('/charts/rolling-stats?windows=5m,1h,24h,7d,30d'))).toBe(true);
+    expect(urls.some((url) => url.includes('/charts/blob-tips?range=1h&granularity=auto'))).toBe(true);
+    expect(result.current.chartData!.blobTipSeries.map((series) => series.key)).toEqual(['optimism', 'base']);
+    expect(result.current.chartData!.blobTips.map((point) => point.maxGwei)).toEqual([5, 8]);
+    expect(result.current.chartData!.blobTips[1].values.optimism.blobCount).toBe(6);
+    expect(result.current.chartData!.blobTipSummary?.averageGwei).toBe(2.2);
+    expect(result.current.blobTipsError).toBeNull();
+  });
+
+  it('keeps the dashboard up when the tips endpoint is missing', async () => {
+    const fetchMock = createFetchMock(mockMarket, mockAttribution, mockCostComparison, mockRollingStats, {
+      ok: false,
+      body: { success: false, error: 'Not found' },
+    });
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { result } = renderHook(() => useChartData(), { wrapper: createQueryWrapper(wrapper) });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.blobTipsLoading).toBe(false);
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.blobTipsError).not.toBeNull();
+    expect(result.current.chartData).not.toBeNull();
+    expect(result.current.chartData!.baseFee).toHaveLength(2);
+    expect(result.current.chartData!.blobTips).toEqual([]);
+    expect(result.current.chartData!.blobTipSummary).toBeNull();
+    expect(result.current.chartData!.blobTipsCoverageLabel).toBe('tip data unavailable for this view');
   });
 
   it('drops empty market buckets so missing data does not plot as zero', async () => {

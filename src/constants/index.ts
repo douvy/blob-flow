@@ -72,6 +72,16 @@ export const CHART_PAGES = [
     description: 'Blob cost compared with calldata-equivalent cost approximation.',
   },
   {
+    slug: 'blob-tips',
+    title: 'Blob Tips Chart',
+    description: 'Average priority fee each rollup or sender paid per blob transaction, the bid that decides whose blobs a builder includes.',
+  },
+  {
+    slug: 'tip-spread',
+    title: 'Blob Tip Spread Chart',
+    description: 'Median, 95th percentile, and highest priority fee paid for blobs in every bucket.',
+  },
+  {
     slug: 'rolling-market-stats',
     title: 'Rolling Market Stats',
     description: 'Windowed fee, utilization, cost, and sender totals.',
@@ -216,5 +226,19 @@ export const MEMPOOL_REFRESH_MS = 30000;
  * views and "Headroom" in blob details. Shared so all views describe it the
  * same way.
  */
+/**
+ * Newest blocks the homepage samples for live figures. Shared by every
+ * surface that reads them so React Query serves one fetch to all of them.
+ */
+export const LATEST_BLOCKS_SAMPLE = 30;
+
+/**
+ * Tooltip for the priority fee (tip) figures. A blob transaction's bid for a
+ * blob slot is the priority fee it pays on execution gas, so one sender
+ * raising it can crowd the others out of blocks.
+ */
+export const PRIORITY_FEE_TOOLTIP =
+  'Priority fee (tip) per unit of execution gas, distinct from the blob fee market. When blob slots are contested, builders favor higher-tipping blob transactions, so this is the main lever a sender has to get its blobs in ahead of others.';
+
 export const FEE_HEADROOM_TOOLTIP =
   'Fee cap headroom: how far this transaction\'s max fee sits above the current blob base fee. Higher means more buffer before it stops being includable.';
