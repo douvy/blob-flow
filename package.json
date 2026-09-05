@@ -34,7 +34,7 @@
     "eslint-config-next": "^16.3.0",
     "html-to-image": "^1.11.13",
     "lucide-react": "^1.30.0",
-    "next": "^16.2.12",
+    "next": "^16.3.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.8",
     "recharts": "^3.10.1",
