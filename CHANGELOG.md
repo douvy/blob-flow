@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.12.0](https://github.com/douvy/blob-flow/compare/v1.11.0...v1.12.0) (2026-09-05)
+
+
+### Features
+
+* aggregate pending and recent blobs on entity pages ([#285](https://github.com/douvy/blob-flow/issues/285)) ([7f30c4a](https://github.com/douvy/blob-flow/commit/7f30c4a7ad87326c415efef1a4f6bde795bf0f0f))
+* **charts:** surface blob transaction tips and add tip graphs ([#296](https://github.com/douvy/blob-flow/issues/296)) ([46de128](https://github.com/douvy/blob-flow/commit/46de12839591c0ef3ad55eb1ad0016eca0329b42))
+
+
+### Bug Fixes
+
+* make clickable table rows read as links ([#284](https://github.com/douvy/blob-flow/issues/284)) ([a734f63](https://github.com/douvy/blob-flow/commit/a734f63abe2fe5222153b9e3206350edea1bd46e))
+
+
+### Dependencies
+
+* **deps-dev:** bump @testing-library/user-event from 14.6.1 to 14.6.3 ([#287](https://github.com/douvy/blob-flow/issues/287)) ([dab07e2](https://github.com/douvy/blob-flow/commit/dab07e2894a919f89e4b82cf5dce30fc40a28acd))
+* **deps-dev:** bump postcss from 8.5.25 to 8.5.26 ([#288](https://github.com/douvy/blob-flow/issues/288)) ([6ed785a](https://github.com/douvy/blob-flow/commit/6ed785a704ecdfc5d903da7882013e5727e28d57))
+* **deps-dev:** bump sharp from 0.34.5 to 0.35.3 ([#295](https://github.com/douvy/blob-flow/issues/295)) ([a8674ea](https://github.com/douvy/blob-flow/commit/a8674ea4b91c86872d13fad099d8152d92f63595))
+* **deps:** bump @types/node from 26.1.1 to 26.1.2 ([#289](https://github.com/douvy/blob-flow/issues/289)) ([dde1833](https://github.com/douvy/blob-flow/commit/dde183353bd4557b22bf503e75f4b1e2594ca344))
+* **deps:** bump eslint-config-next from 16.2.10 to 16.3.0 ([#293](https://github.com/douvy/blob-flow/issues/293)) ([22439af](https://github.com/douvy/blob-flow/commit/22439afc507e1ee985307fefa3fb41e29a62e88e))
+* **deps:** bump lucide-react from 1.28.0 to 1.30.0 ([#292](https://github.com/douvy/blob-flow/issues/292)) ([6ffeb9f](https://github.com/douvy/blob-flow/commit/6ffeb9f9d34b320c6c0b55526b6998c0b2ca0b85))
+* **deps:** bump viem from 2.55.10 to 2.55.11 ([#291](https://github.com/douvy/blob-flow/issues/291)) ([63b80cf](https://github.com/douvy/blob-flow/commit/63b80cf24539692dad59b7f55c172408bc6add36))
+
 ## [1.11.0](https://github.com/douvy/blob-flow/compare/v1.10.0...v1.11.0) (2026-08-10)
 
 
