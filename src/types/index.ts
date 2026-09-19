@@ -1451,6 +1451,15 @@ export interface BackendBuilderDetailResponse extends BackendBuildersResponse {
   builder: BackendBuilderStats;
   users: BackendBuilderUserRow[];
   skipped: BackendBuilderSkippedRow[];
+  /**
+   * Earliest block timestamp the `skipped` rows cover. Per-transaction
+   * candidate detail is pruned after a retention window while the
+   * `candidates` aggregates on the builder are permanent, so over a long
+   * range the rows only describe blocks from this instant onward and sum to
+   * less than `candidates.eligible_skipped_txs`. Null when nothing was
+   * pruned, or absent on a backend that predates the field.
+   */
+  skipped_detail_from?: string | null;
   recent_blocks: BackendBuilderRecentBlock[];
 }
 

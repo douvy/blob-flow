@@ -319,4 +319,21 @@ describe('BuilderDetail', () => {
 
     expect(screen.getByText('Unregistered builder')).toBeInTheDocument();
   });
+
+  it('says when pruned candidate detail means the skipped rows cover less than the total', () => {
+    mockData({ ...detail, skipped_detail_from: '2026-01-01T12:00:00.000Z' });
+    renderDetail();
+
+    // Rendered in the viewer's local time (tests pin Asia/Tokyo, UTC+9).
+    expect(
+      screen.getByText(/Per-sender detail covers blocks from Jan 1, 2026, 21:00:00 onward/)
+    ).toBeInTheDocument();
+  });
+
+  it('shows no coverage note when nothing was pruned', () => {
+    mockData({ ...detail, skipped_detail_from: null });
+    renderDetail();
+
+    expect(screen.queryByText(/Per-sender detail covers/)).not.toBeInTheDocument();
+  });
 });

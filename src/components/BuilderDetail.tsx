@@ -38,6 +38,7 @@ import type {
 } from '@/types';
 import {
   formatGwei,
+  formatLocalTimestamp,
   formatNumber,
   formatPercent,
   formatWeiToEth,
@@ -386,9 +387,12 @@ function UsersSection({ users }: { users: BackendBuilderUserRow[] }) {
 function SkippedSection({
   skipped,
   hasSnapshot,
+  detailFrom,
 }: {
   skipped: BackendBuilderSkippedRow[];
   hasSnapshot: boolean;
+  /** Earliest block the rows cover, when older candidate detail was pruned. */
+  detailFrom?: string | null;
 }) {
   return (
     <section className="mb-8">
@@ -397,6 +401,16 @@ function SkippedSection({
         These are pending blob transactions our own node could see that this builder&apos;s
         blocks did not include. {ELIGIBLE_SKIPPED_TOOLTIP}
       </p>
+      {/* The aggregate card above is permanent, but the rows come from
+          per-transaction detail the indexer prunes, so over a long range they
+          cover less than the card does and the two are not meant to add up. */}
+      {hasSnapshot && detailFrom && (
+        <p className="mb-4 max-w-3xl text-xs text-[#6e7787]">
+          Per-sender detail covers blocks from {formatLocalTimestamp(detailFrom)} onward;
+          older candidate detail has been pruned, so these rows sum to less than the
+          eligible skipped total above.
+        </p>
+      )}
       {hasSnapshot ? (
         <TableShell>
           <TableHeader>
@@ -685,7 +699,11 @@ function BuilderDetailInner({ builderKey }: { builderKey: string }) {
 
             <StatCards builder={builder} />
             <UsersSection users={data.users} />
-            <SkippedSection skipped={data.skipped} hasSnapshot={builder.candidates !== null} />
+            <SkippedSection
+              skipped={data.skipped}
+              hasSnapshot={builder.candidates !== null}
+              detailFrom={data.skipped_detail_from}
+            />
             <RecentBlocksSection blocks={data.recent_blocks} />
           </div>
         )}
