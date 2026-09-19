@@ -1,5 +1,5 @@
 import { getBlockByNumber, getLatestBlocks, getBlobByTxHash, getBlobByVersionedHash } from './blocks';
-import { getRawBlobs } from './blobs';
+import { getBlobReplacements, getRawBlobs } from './blobs';
 import { search } from './search';
 import {
     getAttributionUsageChart,
@@ -8,6 +8,7 @@ import {
     getCostComparisonChart,
     getRollingStatsChart,
 } from './charts';
+import { getBuilderByKey, getBuilderShareChart, getBuilders } from './builders';
 import { getEntityBlobs, getEntityBySlug } from './entities';
 import { getMempool } from './mempool';
 import { getNetworks } from './networks';
@@ -26,6 +27,7 @@ export const api = {
     getBlobTransaction,
     search,
     getRawBlobs,
+    getBlobReplacements,
     getBlobPricing,
     getBlobRecords,
     getBlobMarketChart,
@@ -33,6 +35,9 @@ export const api = {
     getCostComparisonChart,
     getBlobTipsChart,
     getRollingStatsChart,
+    getBuilders,
+    getBuilderByKey,
+    getBuilderShareChart,
     getStats,
     getStatsWindows,
     getStatus,
