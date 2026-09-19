@@ -14,6 +14,21 @@ export function builderPagePath(key: string): string {
   return `/builder/${encodeURIComponent(key)}`;
 }
 
+/**
+ * The builder key as it arrives in a route param. Keys carry a ':' after
+ * their prefix, and depending on how the URL was built and which side renders
+ * it, Next can hand the segment over still percent-encoded. Decoding an
+ * already-decoded key is a no-op, and a key that is not valid percent-encoding
+ * (a stray '%' in extra-data text) is kept as is rather than throwing.
+ */
+export function decodeBuilderKeyParam(key: string): string {
+  try {
+    return decodeURIComponent(key);
+  } catch {
+    return key;
+  }
+}
+
 export const DEFAULT_BUILDER_RANGE: BuilderRange = '24h';
 
 export const BUILDER_RANGE_OPTIONS: ReadonlyArray<{ value: BuilderRange; label: string }> = [

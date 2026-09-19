@@ -17,6 +17,7 @@ import { RelativeTime } from './RelativeTime';
 import RawBlobViewer from './RawBlobViewer';
 import RawBlobActions from './RawBlobActions';
 import AttributionBadge from './AttributionBadge';
+import BuilderTag from './BuilderTag';
 import { useRawBlobAvailability } from '../hooks/useRawBlobAvailability';
 import { orderBlobsByTxIndex } from '@/lib/blobOrder';
 import { formatTimeToInclusion, TIME_TO_INCLUSION_TOOLTIP } from '@/lib/builders';
@@ -98,8 +99,19 @@ export function BlobDetailsContent({ block }: { block: Block }) {
     <div className="px-4 sm:px-6 py-4 border-t border-divider">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <h3 className="text-sm font-medium text-white">Blob details</h3>
-        <span className="text-xs text-[#6e7787]">
-          {block.blobs.length} blob{block.blobs.length === 1 ? '' : 's'} in block {block.number}
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-[#6e7787]">
+          <span>
+            {block.blobs.length} blob{block.blobs.length === 1 ? '' : 's'} in block {block.number}
+          </span>
+          {/* The row above may predate builder attribution (REST-built blocks
+              carry none), so the builder is named here where the per-block
+              fetch has supplied it. */}
+          {block.builder && (
+            <>
+              <span aria-hidden="true">·</span>
+              <BuilderTag builder={block.builder} compact />
+            </>
+          )}
         </span>
       </div>
 

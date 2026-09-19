@@ -264,7 +264,7 @@ function BuildersLeaderboardInner() {
                 color={builderColors[builder.key]}
               />
               {builder.mev_boost_blocks > 0 && (
-                <span className={`hidden text-xs md:block ${MUTED_TEXT}`}>
+                <span className={`hidden truncate text-xs md:block ${MUTED_TEXT}`}>
                   {formatNumber(builder.mev_boost_blocks)} via MEV-Boost
                 </span>
               )}
@@ -286,7 +286,7 @@ function BuildersLeaderboardInner() {
                   {builder.blob_share_percent.toFixed(1)}%
                 </span>
               </span>
-              <span className={`text-xs ${MUTED_TEXT}`}>
+              <span className={`truncate text-xs ${MUTED_TEXT}`}>
                 {builder.avg_blobs_per_blob_block.toFixed(1)} avg/blob block
               </span>
             </div>
@@ -311,7 +311,7 @@ function BuildersLeaderboardInner() {
           return (
             <div className="flex min-w-0 flex-col">
               <span className="tabular-nums">{formatTipBand(tip)}</span>
-              <span className={`text-xs ${MUTED_TEXT}`}>p10 · p50 · p90</span>
+              <span className={`truncate text-xs ${MUTED_TEXT}`}>p10 · p50 · p90</span>
             </div>
           );
         },
@@ -324,8 +324,8 @@ function BuildersLeaderboardInner() {
         header: ({ column }) => (
           <div className="flex items-center gap-1">
             <SortableHeader column={column}>
-              <span className="lg:hidden">Inclusion</span>
-              <span className="hidden lg:inline">Time to inclusion</span>
+              <span className="xl:hidden">Inclusion</span>
+              <span className="hidden xl:inline">Time to inclusion</span>
             </SortableHeader>
             <HeaderHelp label="How time to inclusion is measured">
               {TIME_TO_INCLUSION_TOOLTIP}
@@ -338,7 +338,7 @@ function BuildersLeaderboardInner() {
           return (
             <div className="flex min-w-0 flex-col">
               <span className="tabular-nums">{formatTimeToInclusion(inclusion.p50)}</span>
-              <span className={`text-xs ${MUTED_TEXT}`}>
+              <span className={`truncate text-xs ${MUTED_TEXT}`}>
                 p90 {formatTimeToInclusion(inclusion.p90)}, {formatNumber(inclusion.sample_count)}{' '}
                 {inclusion.sample_count === 1 ? 'sample' : 'samples'}
               </span>
@@ -374,7 +374,7 @@ function BuildersLeaderboardInner() {
               <span className="tabular-nums">
                 {formatNumber(candidates.eligible_skipped_txs)}
               </span>
-              <span className={`text-xs ${MUTED_TEXT}`}>
+              <span className={`truncate text-xs ${MUTED_TEXT}`}>
                 of {formatNumber(candidates.snapshot_blocks)} snapshot{' '}
                 {candidates.snapshot_blocks === 1 ? 'block' : 'blocks'}
               </span>

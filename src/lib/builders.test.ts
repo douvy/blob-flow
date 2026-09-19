@@ -10,6 +10,7 @@ import {
   TIME_TO_INCLUSION_TOOLTIP,
   builderDisplayName,
   builderPagePath,
+  decodeBuilderKeyParam,
   formatInclusionIndex,
   formatSignedGweiDelta,
   formatTimeToInclusion,
@@ -17,6 +18,20 @@ import {
   isBuilderRange,
   isCandidateReason,
 } from './builders';
+
+describe('decodeBuilderKeyParam', () => {
+  it('decodes a percent-encoded route segment', () => {
+    expect(decodeBuilderKeyParam('extra%3Arsync-builder.xyz')).toBe('extra:rsync-builder.xyz');
+  });
+
+  it('leaves an already decoded key alone', () => {
+    expect(decodeBuilderKeyParam('extra:rsync-builder.xyz')).toBe('extra:rsync-builder.xyz');
+  });
+
+  it('keeps a key that is not valid percent-encoding', () => {
+    expect(decodeBuilderKeyParam('extra:50%off')).toBe('extra:50%off');
+  });
+});
 
 describe('builderPagePath', () => {
   it('encodes the separators builder keys carry', () => {
