@@ -18,7 +18,11 @@ import RawBlobViewer from './RawBlobViewer';
 import RawBlobActions from './RawBlobActions';
 import AttributionBadge from './AttributionBadge';
 import { useRawBlobAvailability } from '../hooks/useRawBlobAvailability';
+import { orderBlobsByTxIndex } from '@/lib/blobOrder';
+import { formatTimeToInclusion, TIME_TO_INCLUSION_TOOLTIP } from '@/lib/builders';
 import { FEE_HEADROOM_TOOLTIP, PRIORITY_FEE_TOOLTIP } from '../constants';
+
+const NEVER_PENDING_TOOLTIP = 'Not seen pending before inclusion';
 
 function BlobUserCell({ blob }: { blob: BlobResponse }) {
   const attribution = blob.user_attribution || 'Unknown';
@@ -86,6 +90,9 @@ export function BlobDetailsContent({ block }: { block: Block }) {
   // the deployment confirms an archive is configured for it, hiding the
   // feature entirely on deployments without one.
   const archiveAvailable = useRawBlobAvailability(block.blobs[0]?.network_name ?? '');
+  // Read the block in block order where the rows allow it, so the list
+  // matches the transaction positions shown on each row.
+  const blobs = React.useMemo(() => orderBlobsByTxIndex(block.blobs), [block.blobs]);
 
   return (
     <div className="px-4 sm:px-6 py-4 border-t border-divider">
@@ -96,11 +103,11 @@ export function BlobDetailsContent({ block }: { block: Block }) {
         </span>
       </div>
 
-      {block.blobs.length === 0 ? (
+      {blobs.length === 0 ? (
         <div className="mt-4 text-sm text-[#6c727f]">No blob records available for this block.</div>
       ) : (
         <div className="mt-3 divide-y divide-divider/80">
-          {block.blobs.map((blob) => {
+          {blobs.map((blob) => {
             const realizedCost = blob.realized_cost_wei
               ? formatBlobWeiCost(blob.realized_cost_wei)
               : formatBlobTotalCost(blob.total_cost_wei || blob.total_cost_eth);
@@ -167,6 +174,19 @@ export function BlobDetailsContent({ block }: { block: Block }) {
                     {maxFee}
                   </BlobDetailField>
                   <BlobDetailField label="Headroom" title={FEE_HEADROOM_TOOLTIP}>{headroom}</BlobDetailField>
+                  <BlobDetailField label="Tx position">
+                    {blob.tx_index === undefined ? '-' : `#${blob.tx_index}`}
+                  </BlobDetailField>
+                  <BlobDetailField
+                    label="Time to inclusion"
+                    title={
+                      blob.time_to_inclusion_ms === undefined
+                        ? NEVER_PENDING_TOOLTIP
+                        : TIME_TO_INCLUSION_TOOLTIP
+                    }
+                  >
+                    {formatTimeToInclusion(blob.time_to_inclusion_ms)}
+                  </BlobDetailField>
                   <BlobDetailField label="Time"><RelativeTime timestamp={blob.timestamp} /></BlobDetailField>
                   <BlobDetailField label="Status">
                     {blob.confirmed ? 'Confirmed' : 'Pending'}

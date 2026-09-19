@@ -2,10 +2,11 @@
 
 import React from 'react';
 import Link from '@/components/NetworkLink';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Hammer } from 'lucide-react';
 import { useLiveBlockList } from '../hooks/useLiveBlockList';
 import DataStateWrapper from './DataStateWrapper';
 import { Block } from '../types';
+import { builderDisplayName } from '@/lib/builders';
 import { formatBlobFee, formatPercent } from '../utils';
 import { HOMEPAGE_BLOCK_ROWS } from '../constants';
 
@@ -148,6 +149,20 @@ function BlockRow({ block }: { block: Block }) {
           <div className="truncate text-sm font-medium text-blue">
             {Number(block.number).toLocaleString()}
           </div>
+          {/* The whole row is already a link, so the builder is plain text
+              here: a nested anchor is invalid HTML. Blocks the backfill has
+              not reached carry no builder and get no line at all. */}
+          {block.builder && (
+            <div
+              className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-[#8a93a5]"
+              title={`Built by ${builderDisplayName(block.builder)}`}
+            >
+              <Hammer className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span className={`truncate ${block.builder.known ? '' : 'font-mono'}`}>
+                {builderDisplayName(block.builder)}
+              </span>
+            </div>
+          )}
         </div>
         <div className="min-w-0">
           <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-[#6e7687]">
