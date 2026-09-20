@@ -1,5 +1,5 @@
 import { BlobResponse } from '../../types';
-import { getBlobTransaction } from './transactions';
+import { getBlobInclusion, getBlobTransaction } from './transactions';
 
 const originalFetch = global.fetch;
 
@@ -151,5 +151,49 @@ describe('api/transactions', () => {
     }) as unknown as typeof fetch;
 
     await expect(getBlobTransaction(TX_HASH)).rejects.toThrow('API error: 500');
+  });
+});
+
+describe('api/transactions getBlobInclusion', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('reads the inclusion timeline for the hash on the given network', async () => {
+    const timeline = {
+      chain_id: 1,
+      tx_hash: TX_HASH,
+      confirmed: true,
+      included: null,
+      window: null,
+      skipped_blocks: 0,
+      eligible_skipped_blocks: 0,
+      skipped: [],
+      skipped_truncated: false,
+    };
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(timeline));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(getBlobInclusion(TX_HASH, 'sepolia')).resolves.toEqual(timeline);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/blob/${TX_HASH}/inclusion?network=sepolia`),
+      expect.any(Object)
+    );
+  });
+
+  it('resolves null for a hash the indexer does not know', async () => {
+    global.fetch = vi.fn().mockResolvedValue(notFoundResponse()) as unknown as typeof fetch;
+
+    await expect(getBlobInclusion(TX_HASH)).resolves.toBeNull();
+  });
+
+  it('surfaces other failures', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
+
+    await expect(getBlobInclusion(TX_HASH)).rejects.toThrow();
   });
 });

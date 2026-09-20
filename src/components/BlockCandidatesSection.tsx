@@ -4,12 +4,9 @@ import React from 'react';
 import Link from '@/components/NetworkLink';
 import AttributionBadge from '@/components/AttributionBadge';
 import { RelativeTime } from '@/components/RelativeTime';
+import CandidateReasonBadge from '@/components/CandidateReasonBadge';
 import { PRIORITY_FEE_TOOLTIP } from '@/constants';
-import {
-  CANDIDATE_REASON_LABELS,
-  ELIGIBLE_SKIPPED_TOOLTIP,
-  isCandidateReason,
-} from '@/lib/builders';
+import { ELIGIBLE_SKIPPED_TOOLTIP } from '@/lib/builders';
 import type { Block, BlobInclusionCandidateResponse } from '@/types';
 import { formatGwei, truncateAddress, truncateTxHash } from '@/utils';
 
@@ -39,27 +36,6 @@ function formatCandidateGwei(gwei?: string): string {
   if (!gwei) return '-';
   const value = Number(gwei);
   return Number.isFinite(value) ? formatGwei(value, 4) : '-';
-}
-
-function CandidateReasonBadge({ reason }: { reason: string }) {
-  if (!isCandidateReason(reason)) {
-    return <span className="text-xs text-[#8a93a5]">{reason}</span>;
-  }
-
-  const { label, description } = CANDIDATE_REASON_LABELS[reason];
-  const tone =
-    reason === 'eligible'
-      ? 'border-[#ffb86b] text-[#ffb86b]'
-      : 'border-divider text-[#8a93a5]';
-
-  return (
-    <span
-      title={description}
-      className={`inline-block whitespace-nowrap rounded border px-2 py-0.5 text-xs ${tone}`}
-    >
-      {label}
-    </span>
-  );
 }
 
 const TH_CLASS =

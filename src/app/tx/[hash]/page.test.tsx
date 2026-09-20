@@ -70,14 +70,17 @@ function makeTransaction(overrides: Partial<BlobTransaction> = {}): BlobTransact
   };
 }
 
-// The page runs two queries through the same mocked hook (the transaction
-// itself and the supplementary fee-bump replacements); dispatch on the query
-// key so each caller gets its own fixture.
+// The page runs three queries through the same mocked hook (the transaction
+// itself, its inclusion timeline, and the supplementary fee-bump
+// replacements); dispatch on the query key so each caller gets its own
+// fixture.
 function mockTransaction(transaction: BlobTransaction | null) {
   vi.mocked(useApiData).mockImplementation((_fetchFunction, queryKey) => {
     const key = Array.isArray(queryKey) ? queryKey[0] : queryKey;
+    const data =
+      key === 'blob-replacements' ? [] : key === 'blob-inclusion' ? null : transaction;
     return {
-      data: key === 'blob-replacements' ? [] : transaction,
+      data,
       isLoading: false,
       error: null,
       refetch: vi.fn(),
@@ -345,6 +348,26 @@ describe('TransactionDetailPage', () => {
 
       expect(pollFor(null)).toBe(false);
     });
+  });
+
+  it('loads the inclusion timeline only once the transaction is indexed', () => {
+    mockTransaction(makeTransaction());
+    render(<TransactionDetailPage />);
+
+    const timelineCall = vi
+      .mocked(useApiData)
+      .mock.calls.find(([, queryKey]) => Array.isArray(queryKey) && queryKey[0] === 'blob-inclusion');
+    expect(timelineCall?.[1]).toEqual(['blob-inclusion', DEFAULT_NETWORK.apiParam, TX_HASH]);
+
+    vi.mocked(useApiData).mockClear();
+    mockTransaction(null);
+    render(<TransactionDetailPage />);
+
+    expect(
+      vi
+        .mocked(useApiData)
+        .mock.calls.some(([, queryKey]) => Array.isArray(queryKey) && queryKey[0] === 'blob-inclusion')
+    ).toBe(false);
   });
 
   it('rejects a malformed hash without offering an explorer link', () => {

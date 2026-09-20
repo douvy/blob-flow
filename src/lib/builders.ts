@@ -152,6 +152,18 @@ export const ELIGIBLE_SKIPPED_TOOLTIP =
   'builder did not include. Our mempool is not the builder’s, so this is never proof ' +
   'the builder saw a transaction and rejected it.';
 
+export const INCLUSION_TIMELINE_NOTE =
+  'A skipped block is one that arrived while the transaction sat in our node’s pool and ' +
+  'did not include it. Only an eligible miss says anything about the builder, and only ' +
+  'that the transaction was visible to our node and not included: our mempool is not the ' +
+  'builder’s. Per-block detail exists only for blocks indexed live and is pruned after ' +
+  'about a week.';
+
+export const WAITED_TOOLTIP =
+  'How long the transaction had been pending when this block was produced, measured ' +
+  'from when our node first saw it. Negative when the block’s slot started before our ' +
+  'node saw the transaction.';
+
 export const BUILDER_COVERAGE_NOTE =
   'Builder attribution only exists for blocks indexed since the feature shipped, so ' +
   'totals for a range can read lower than the blob market for the same window until ' +
