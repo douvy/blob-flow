@@ -136,6 +136,51 @@ describe('UsersLeaderboard', () => {
     });
   });
 
+  it('sorts by the clicked column, ascending first for names and descending for counts', () => {
+    renderLeaderboard();
+    const rowNames = () =>
+      screen
+        .getAllByRole('link', { name: /^View activity for/ })
+        .map((row) => row.getAttribute('aria-label'));
+    const sortOf = (name: RegExp) =>
+      screen.getByRole('button', { name }).closest('th')?.getAttribute('aria-sort');
+
+    // The server order is by blob count, which is also the initial sort.
+    expect(sortOf(/^Blobs/)).toBe('descending');
+    expect(rowNames()).toEqual([
+      'View activity for Arbitrum',
+      'View activity for Base',
+      'View activity for 0x3333...3333',
+    ]);
+
+    // The name column starts ascending and flips on the next click. It sorts
+    // alphanumerically, which keeps bare addresses behind the named entities.
+    fireEvent.click(screen.getByRole('button', { name: /^User/ }));
+    expect(sortOf(/^User/)).toBe('ascending');
+    expect(sortOf(/^Blobs/)).toBe('none');
+    expect(rowNames()).toEqual([
+      'View activity for Arbitrum',
+      'View activity for Base',
+      'View activity for 0x3333...3333',
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: /^User/ }));
+    expect(sortOf(/^User/)).toBe('descending');
+    expect(rowNames()).toEqual([
+      'View activity for 0x3333...3333',
+      'View activity for Base',
+      'View activity for Arbitrum',
+    ]);
+
+    // A numeric column starts descending.
+    fireEvent.click(screen.getByRole('button', { name: /^Blobs/ }));
+    expect(sortOf(/^Blobs/)).toBe('descending');
+    expect(rowNames()).toEqual([
+      'View activity for Arbitrum',
+      'View activity for Base',
+      'View activity for 0x3333...3333',
+    ]);
+  });
+
   it('navigates to the entity page when an attributed row is clicked', () => {
     renderLeaderboard();
 

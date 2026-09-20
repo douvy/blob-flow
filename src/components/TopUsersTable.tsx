@@ -12,17 +12,17 @@ import {
 } from 'lucide-react';
 import {
   flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
+  useTable,
   type Column,
   type ColumnDef,
+  type RowData,
   type SortingState,
 } from '@tanstack/react-table';
 import { BackendUsersRange, User } from '../types';
 import DataStateWrapper from './DataStateWrapper';
 import { useNetwork } from '../hooks/useNetwork';
 import { useTopUsers } from '../hooks/useTopUsers';
+import { sortableTableFeatures, type SortableTableFeatures } from '../lib/tableFeatures';
 import { useTimeRange, type TimeRange } from '../contexts/TimeRangeContext';
 import {
   assignSeriesColors,
@@ -80,11 +80,11 @@ function sortLabel(direction: false | 'asc' | 'desc'): string {
   return '';
 }
 
-function SortableHeader<TData, TValue>({
+function SortableHeader<TData extends RowData, TValue>({
   column,
   children,
 }: {
-  column: Column<TData, TValue>;
+  column: Column<SortableTableFeatures, TData, TValue>;
   children: React.ReactNode;
 }) {
   const sortDirection = column.getIsSorted();
@@ -154,10 +154,11 @@ export default function TopUsersTable() {
     [tableData]
   );
 
-  const columns = React.useMemo<ColumnDef<User>[]>(
+  const columns = React.useMemo<ColumnDef<SortableTableFeatures, User>[]>(
     () => [
       {
         accessorKey: 'name',
+        sortFn: 'alphanumeric',
         header: ({ column }) => (
           <SortableHeader column={column}>User</SortableHeader>
         ),
@@ -218,15 +219,14 @@ export default function TopUsersTable() {
     [timeRange, userColors]
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features: sortableTableFeatures,
     data: tableData,
     columns,
     state: {
       sorting,
     },
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   // Attributed rows are entity-grouped and open the entity page; the key is
@@ -354,7 +354,7 @@ export default function TopUsersTable() {
                     role="link"
                     aria-label={`View activity for ${row.original.name}`}
                   >
-                    {row.getVisibleCells().map((cell) => (
+                    {row.getAllCells().map((cell) => (
                       <TableCell
                         key={cell.id}
                         className={`whitespace-nowrap text-sm text-white ${CELL_PADDING} ${COLUMN_WIDTHS[cell.column.id]}`}
