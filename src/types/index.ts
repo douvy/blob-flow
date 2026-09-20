@@ -1383,14 +1383,18 @@ export interface BackendBuilderStats {
   candidates: BackendBuilderCandidateStats | null;
 }
 
-/** Response envelope shared by the builder list and detail endpoints. */
-export interface BackendBuildersResponse {
+/** Envelope shared by the builder list and detail endpoints. */
+export interface BackendBuilderEnvelope {
   chain_id: number;
   network_name?: string;
   range: BuilderRange | string;
   window: BackendBuilderWindow;
   totals: BackendBuilderTotals;
   generated_at: string;
+}
+
+/** The /builders leaderboard: every builder with a block in the window. */
+export interface BackendBuildersResponse extends BackendBuilderEnvelope {
   builders: BackendBuilderStats[];
 }
 
@@ -1446,20 +1450,21 @@ export interface BackendBuilderRecentBlock {
   eligible_skipped_max_tip?: string;
 }
 
-/** One builder's detail view: the list envelope plus its own breakdowns. */
-export interface BackendBuilderDetailResponse extends BackendBuildersResponse {
+/** One builder's detail view: the shared envelope plus its own breakdowns. */
+export interface BackendBuilderDetailResponse extends BackendBuilderEnvelope {
   builder: BackendBuilderStats;
   users: BackendBuilderUserRow[];
   skipped: BackendBuilderSkippedRow[];
   /**
-   * Earliest block timestamp the `skipped` rows cover. Per-transaction
-   * candidate detail is pruned after a retention window while the
-   * `candidates` aggregates on the builder are permanent, so over a long
-   * range the rows only describe blocks from this instant onward and sum to
-   * less than `candidates.eligible_skipped_txs`. Null when nothing was
-   * pruned, or absent on a backend that predates the field.
+   * The oldest candidate observation still stored inside the window, and so
+   * the instant from which the `skipped` rows cover anything. The rows are
+   * rebuilt from per-transaction candidate detail the indexer keeps for a
+   * limited time, while `candidates` on the builder sums permanent per-block
+   * aggregates, so over a long range the rows can describe only part of the
+   * window and the two are not expected to add up. Null when the window
+   * holds no candidate detail at all.
    */
-  skipped_detail_from?: string | null;
+  skipped_detail_from: string | null;
   recent_blocks: BackendBuilderRecentBlock[];
 }
 

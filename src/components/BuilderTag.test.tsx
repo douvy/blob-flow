@@ -58,9 +58,16 @@ describe('BuilderTag', () => {
     expect(screen.getByTitle('Unregistered builder: derived from extra data')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Titan Builder' })).toHaveClass('font-mono');
 
+    // The key prefix, not the raw extra data, says which fallback the indexer
+    // took: binary extra data can be present and still unusable.
     rerender(
       <BuilderTag
-        builder={makeBuilder({ known: false, extra_data: '0x', extra_data_text: undefined })}
+        builder={makeBuilder({
+          known: false,
+          key: 'addr:0x4838b106fce9647bdf1e7877bf73ce8b0bad5f97',
+          extra_data: '0xdeadbeef',
+          extra_data_text: undefined,
+        })}
       />
     );
 

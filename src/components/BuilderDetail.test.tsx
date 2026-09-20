@@ -126,9 +126,9 @@ const detail: BackendBuilderDetailResponse = {
   window: { from: '2026-01-01T00:00:00.000Z', to: '2026-01-02T00:00:00.000Z' },
   totals: { blocks: 3700, blob_blocks: 2400, blobs: 10600 },
   generated_at: '2026-01-02T00:00:00.000Z',
-  builders: [builder],
   builder,
   users,
+  skipped_detail_from: '2026-01-01T00:00:00.000Z',
   skipped: [
     {
       key: 'Base',
@@ -320,20 +320,36 @@ describe('BuilderDetail', () => {
     expect(screen.getByText('Unregistered builder')).toBeInTheDocument();
   });
 
-  it('says when pruned candidate detail means the skipped rows cover less than the total', () => {
+  it('says from when the skipped rows cover the window, without claiming they add up', () => {
     mockData({ ...detail, skipped_detail_from: '2026-01-01T12:00:00.000Z' });
     renderDetail();
 
     // Rendered in the viewer's local time (tests pin Asia/Tokyo, UTC+9).
     expect(
-      screen.getByText(/Per-sender detail covers blocks from Jan 1, 2026, 21:00:00 onward/)
+      screen.getByText(/Per-sender detail is available from Jan 1, 2026, 21:00:00 onward/)
     ).toBeInTheDocument();
+    expect(screen.getByText(/not expected to add up/)).toBeInTheDocument();
   });
 
-  it('shows no coverage note when nothing was pruned', () => {
-    mockData({ ...detail, skipped_detail_from: null });
+  it('says no per-sender detail is retained when the window holds none', () => {
+    // The aggregate still reports skipped transactions, so an empty table must
+    // not read as "nothing was skipped".
+    mockData({ ...detail, skipped_detail_from: null, skipped: [] });
     renderDetail();
 
-    expect(screen.queryByText(/Per-sender detail covers/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Per-sender detail is available/)).not.toBeInTheDocument();
+    expect(screen.getByText(/No per-sender candidate detail is retained/)).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing eligible was left pending/)).not.toBeInTheDocument();
+  });
+
+  it('carries the selected range back to the leaderboard', () => {
+    searchParams = new URLSearchParams('range=7d');
+    mockData(detail);
+    renderDetail();
+
+    expect(screen.getByRole('link', { name: /Back to Builders/ })).toHaveAttribute(
+      'href',
+      '/builders?range=7d'
+    );
   });
 });

@@ -236,7 +236,7 @@ export function buildersMetadata(network?: string): Metadata {
   const description =
     'Which Ethereum block builders include which rollups’ blobs: share of blocks and ' +
     'blobs, tip bands paid for inclusion, time to inclusion, and the eligible pending ' +
-    'blob transactions each builder left out.';
+    'blob transactions visible to our node that each builder did not include.';
   return {
     title,
     description,
@@ -256,7 +256,7 @@ export function builderMetadata(key: string, network?: string): Metadata {
   const description =
     `Blob inclusion stats for the Ethereum block builder ${name}: blocks and blobs built, ` +
     'which senders it includes, the tips they paid, and the eligible pending blob ' +
-    'transactions it left out.';
+    'transactions visible to our node that it did not include.';
 
   return {
     title,

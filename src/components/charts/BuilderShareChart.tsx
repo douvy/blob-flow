@@ -222,7 +222,12 @@ export default function BuilderShareChart({ data, metric, variant }: BuilderShar
                         }
                       />
                     ))}
-                  <ChartTooltipRow label="Total" value={formatTotal(bucketTotal, metric)} />
+                  {/* Only blocks with a builder row are counted, so the
+                      denominator is named as such rather than as the bucket. */}
+                  <ChartTooltipRow
+                    label="Attributed total"
+                    value={formatTotal(bucketTotal, metric)}
+                  />
                 </ChartTooltipFrame>
               );
             }}

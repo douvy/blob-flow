@@ -113,7 +113,9 @@ describe('toBuilderShareData', () => {
         bucket_seconds: 86_400,
         points: [
           {
-            timestamp: '2026-01-01T00:00:00Z',
+            // 18:00 UTC is already the next day in the pinned Asia/Tokyo zone,
+            // so a UTC-based label would read 1/1 and fail here.
+            timestamp: '2026-01-01T18:00:00Z',
             blocks: 10,
             blobs: 20,
             values: { titan: { blocks: 10, blobs: 20 } },
@@ -124,7 +126,7 @@ describe('toBuilderShareData', () => {
       'count'
     );
 
-    expect(rows[0].label).toBe('1/1');
+    expect(rows[0].label).toBe('1/2');
   });
 
   it('adds the date to sub-day buckets once the data spans more than a day', () => {

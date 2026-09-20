@@ -89,9 +89,18 @@ function BuilderShareSectionInner() {
   return (
     <div className={CHART_CARD_CLASS}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <h2 className="text-md font-medium text-white">
-          Builder share over {BUILDER_RANGE_DESCRIPTIONS[range]}
-        </h2>
+        <div>
+          <h2 className="text-md font-medium text-white">
+            Builder share over {BUILDER_RANGE_DESCRIPTIONS[range]}
+          </h2>
+          {/* A share here is of attributed blocks and blobs only. Without this
+              line a builder with six of ten attributed blocks in a thousand
+              block bucket reads as sixty percent of the network. */}
+          <p className="mt-1 text-xs text-[#6e7787]">
+            Share of the blocks and blobs that carry a builder row, not of every block in the
+            window.
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <ToggleGroup label="Metric" options={METRIC_OPTIONS} value={metric} onChange={setMetric} />
           <ToggleGroup

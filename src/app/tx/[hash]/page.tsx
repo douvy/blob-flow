@@ -431,12 +431,15 @@ export default function TransactionDetailPage() {
                 </h2>
                 <TransactionBlobs transaction={transaction} />
               </section>
-
-              <TransactionReplacements txHash={txHash} />
             </>
           ) : null}
         </DataStateWrapper>
       )}
+
+      {/* Outside the transaction branch on purpose: a replaced pending
+          transaction is evicted from the blob table, so its page says "not
+          indexed" while the replacement log still names what superseded it. */}
+      {isValidHash && <TransactionReplacements txHash={txHash} />}
     </div>
   );
 }

@@ -229,7 +229,18 @@ describe('BuildersLeaderboard', () => {
     fireEvent.click(screen.getByRole('link', { name: 'View builder stats for beaverbuild' }));
 
     expect(routerPush).toHaveBeenCalledWith(
-      networkPath('/builder/extra%3Abeaver', DEFAULT_NETWORK.apiParam)
+      networkPath('/builder/extra%3Abeaver?range=24h', DEFAULT_NETWORK.apiParam)
+    );
+  });
+
+  it('carries the selected range into the builder page', () => {
+    searchParams = new URLSearchParams('range=30d');
+    renderLeaderboard();
+
+    fireEvent.click(screen.getByRole('link', { name: 'View builder stats for beaverbuild' }));
+
+    expect(routerPush).toHaveBeenCalledWith(
+      networkPath('/builder/extra%3Abeaver?range=30d', DEFAULT_NETWORK.apiParam)
     );
   });
 
@@ -241,8 +252,31 @@ describe('BuildersLeaderboard', () => {
     });
 
     expect(routerPush).toHaveBeenCalledWith(
-      networkPath('/builder/titan', DEFAULT_NETWORK.apiParam)
+      networkPath('/builder/titan?range=24h', DEFAULT_NETWORK.apiParam)
     );
+  });
+
+  it('keeps builders with no snapshot last whichever way eligible skipped is sorted', () => {
+    renderLeaderboard();
+    const header = screen.getByRole('button', { name: /^Eligible skipped/ });
+    const rowNames = () =>
+      screen
+        .getAllByRole('link', { name: /^View builder stats for/ })
+        .map((row) => row.getAttribute('aria-label'));
+
+    // First click sorts descending: the measured builder leads.
+    fireEvent.click(header);
+    expect(rowNames()).toEqual([
+      'View builder stats for Titan Builder',
+      'View builder stats for beaverbuild',
+    ]);
+
+    // Ascending must not promote "no snapshot" as if it were the smallest count.
+    fireEvent.click(header);
+    expect(rowNames()).toEqual([
+      'View builder stats for Titan Builder',
+      'View builder stats for beaverbuild',
+    ]);
   });
 
   it('shows an empty state when the window has no builders', () => {

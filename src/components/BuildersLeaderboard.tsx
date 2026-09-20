@@ -87,28 +87,38 @@ export function formatTipBand(tip: NonNullable<BackendBuilderStats['tip']>): str
   return `${p10} · ${p50} · ${p90}`;
 }
 
-/** Sort key for the tip band: the median, with no band sorting lowest. */
-function tipSortValue(builder: BackendBuilderStats): number {
-  if (!builder.tip) return Number.NEGATIVE_INFINITY;
+// The three measured columns can have no measurement at all (no priced
+// transaction, no inclusion sample, no candidate snapshot). That is not a
+// low value, so the sort keys return undefined and the columns are declared
+// sortUndefined: 'last', which keeps the unmeasured rows at the bottom in
+// both directions instead of surfacing them as the smallest values.
+
+/** Sort key for the tip band: the median. */
+function tipSortValue(builder: BackendBuilderStats): number | undefined {
+  if (!builder.tip) return undefined;
   const p50 = Number(builder.tip.p50_gwei);
-  return Number.isFinite(p50) ? p50 : Number.NEGATIVE_INFINITY;
+  return Number.isFinite(p50) ? p50 : undefined;
 }
 
-/** Sort key for time to inclusion: the median, with no sample sorting lowest. */
-function inclusionSortValue(builder: BackendBuilderStats): number {
+/** Sort key for time to inclusion: the median. */
+function inclusionSortValue(builder: BackendBuilderStats): number | undefined {
   const inclusion = builder.time_to_inclusion_ms;
-  if (!inclusion || !Number.isFinite(inclusion.p50)) return Number.NEGATIVE_INFINITY;
+  if (!inclusion || !Number.isFinite(inclusion.p50)) return undefined;
   return inclusion.p50;
 }
 
 /**
  * Sort key for eligible skipped. A missing snapshot is not zero skipped
- * transactions, it is no measurement, so it sorts below a real zero rather
- * than tying with it.
+ * transactions, it is no measurement, so it must never tie with a real zero.
  */
-function skippedSortValue(builder: BackendBuilderStats): number {
-  if (!builder.candidates) return Number.NEGATIVE_INFINITY;
+function skippedSortValue(builder: BackendBuilderStats): number | undefined {
+  if (!builder.candidates) return undefined;
   return builder.candidates.eligible_skipped_txs;
+}
+
+/** Orders the measured values; unmeasured rows never reach this. */
+function compareMeasured(a: number | undefined, b: number | undefined): number {
+  return compareNumbers(a ?? 0, b ?? 0);
 }
 
 function compareNumbers(a: number, b: number): number {
@@ -296,7 +306,8 @@ function BuildersLeaderboardInner() {
       {
         id: 'tip',
         accessorFn: (builder) => tipSortValue(builder),
-        sortingFn: (a, b) => compareNumbers(tipSortValue(a.original), tipSortValue(b.original)),
+        sortUndefined: 'last',
+        sortingFn: (a, b) => compareMeasured(tipSortValue(a.original), tipSortValue(b.original)),
         header: ({ column }) => (
           <div className="flex items-center gap-1">
             <SortableHeader column={column}>Tip band</SortableHeader>
@@ -319,8 +330,9 @@ function BuildersLeaderboardInner() {
       {
         id: 'inclusion',
         accessorFn: (builder) => inclusionSortValue(builder),
+        sortUndefined: 'last',
         sortingFn: (a, b) =>
-          compareNumbers(inclusionSortValue(a.original), inclusionSortValue(b.original)),
+          compareMeasured(inclusionSortValue(a.original), inclusionSortValue(b.original)),
         header: ({ column }) => (
           <div className="flex items-center gap-1">
             <SortableHeader column={column}>
@@ -349,8 +361,9 @@ function BuildersLeaderboardInner() {
       {
         id: 'skipped',
         accessorFn: (builder) => skippedSortValue(builder),
+        sortUndefined: 'last',
         sortingFn: (a, b) =>
-          compareNumbers(skippedSortValue(a.original), skippedSortValue(b.original)),
+          compareMeasured(skippedSortValue(a.original), skippedSortValue(b.original)),
         header: ({ column }) => (
           <div className="flex items-center gap-1">
             <SortableHeader column={column}>Eligible skipped</SortableHeader>
@@ -395,11 +408,16 @@ function BuildersLeaderboardInner() {
     getSortedRowModel: getSortedRowModel(),
   });
 
+  // The detail page reads the same ?range= param, so the window travels with
+  // the click: a builder seen on the 30d board must not open on a 24h view
+  // where it may have built nothing.
   const goToRow = React.useCallback(
     (builder: BuilderRow) => {
-      router.push(networkPath(builderPagePath(builder.key), selectedNetwork.apiParam));
+      router.push(
+        networkPath(`${builderPagePath(builder.key)}?range=${range}`, selectedNetwork.apiParam)
+      );
     },
-    [router, selectedNetwork.apiParam]
+    [range, router, selectedNetwork.apiParam]
   );
 
   const handleRowKeyDown = React.useCallback(

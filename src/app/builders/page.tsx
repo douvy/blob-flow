@@ -24,8 +24,9 @@ export default function BuildersPage() {
           The block builders behind the blocks we indexed in the selected window: how many
           blocks and blobs each one built, the tips the blob transactions it included paid,
           how long those transactions waited for inclusion, and the eligible pending blob
-          transactions it left out. Click any row for that builder&apos;s senders, skipped
-          transactions, and recent blocks.
+          transactions that were visible to our node and not included. That last figure is what
+          our own mempool saw, not proof a builder saw or rejected anything. Click any row for
+          that builder&apos;s senders, skipped transactions, and recent blocks.
         </p>
 
         <div className="mb-8">

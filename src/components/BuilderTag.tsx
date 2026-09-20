@@ -7,14 +7,14 @@ import { builderDisplayName, builderPagePath } from '@/lib/builders';
 import type { BlockBuilderResponse } from '@/types';
 
 /**
- * How an unregistered builder's identity was guessed. Builders that publish
- * a marker in the block's extra data are keyed off it; the rest fall back to
- * the fee recipient address, which is the weaker signal of the two.
+ * How an unregistered builder's identity was guessed. The key prefix is the
+ * indexer's own record of which fallback it took: `addr:` means the fee
+ * recipient address (the weaker signal), anything else the block's extra
+ * data. The raw fields are not re-inspected here because the indexer may
+ * have judged printable extra data unusable and fallen back regardless.
  */
 function derivedSourceLabel(builder: BlockBuilderResponse): string {
-  const extraData = builder.extra_data_text?.trim() || builder.extra_data?.trim() || '';
-  const hasExtraData = extraData !== '' && extraData !== '0x';
-  return hasExtraData ? 'extra data' : 'fee recipient';
+  return builder.key.startsWith('addr:') ? 'fee recipient' : 'extra data';
 }
 
 /**

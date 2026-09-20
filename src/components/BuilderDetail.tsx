@@ -391,8 +391,8 @@ function SkippedSection({
 }: {
   skipped: BackendBuilderSkippedRow[];
   hasSnapshot: boolean;
-  /** Earliest block the rows cover, when older candidate detail was pruned. */
-  detailFrom?: string | null;
+  /** Oldest retained candidate observation in the window; null when there is none. */
+  detailFrom: string | null;
 }) {
   return (
     <section className="mb-8">
@@ -401,14 +401,16 @@ function SkippedSection({
         These are pending blob transactions our own node could see that this builder&apos;s
         blocks did not include. {ELIGIBLE_SKIPPED_TOOLTIP}
       </p>
-      {/* The aggregate card above is permanent, but the rows come from
-          per-transaction detail the indexer prunes, so over a long range they
-          cover less than the card does and the two are not meant to add up. */}
-      {hasSnapshot && detailFrom && (
+      {/* The aggregate card above sums permanent per-block figures, but the
+          rows come from per-transaction detail the indexer keeps for a limited
+          time, so they can cover less of the window and are not meant to add
+          up to it. A null start means no detail at all is retained. */}
+      {hasSnapshot && detailFrom !== null && (
         <p className="mb-4 max-w-3xl text-xs text-[#6e7787]">
-          Per-sender detail covers blocks from {formatLocalTimestamp(detailFrom)} onward;
-          older candidate detail has been pruned, so these rows sum to less than the
-          eligible skipped total above.
+          Per-sender detail is available from {formatLocalTimestamp(detailFrom)} onward. The
+          eligible skipped total above is kept per block permanently, while these rows come
+          from candidate detail the indexer retains for a limited time, so they can cover
+          less of the window and are not expected to add up to it.
         </p>
       )}
       {hasSnapshot ? (
@@ -429,7 +431,9 @@ function SkippedSection({
           <TableBody className="divide-y divide-divider">
             {skipped.length === 0 && (
               <EmptyTableRow colSpan={5}>
-                Nothing eligible was left pending in the snapshot blocks.
+                {detailFrom === null
+                  ? 'No per-sender candidate detail is retained for this window, so the eligible skipped total above cannot be broken down by sender.'
+                  : 'Nothing eligible was left pending in the blocks the detail covers.'}
               </EmptyTableRow>
             )}
             {skipped.map((row) => (
@@ -608,8 +612,10 @@ function BuilderDetailInner({ builderKey }: { builderKey: string }) {
 
   return (
     <div className="container mx-auto max-w-7xl px-4 py-8">
+      {/* Carry the window back so the leaderboard reopens on the view the
+          reader came from rather than its default. */}
       <Link
-        href="/builders"
+        href={`/builders?range=${range}`}
         className="mb-6 inline-flex items-center gap-2 text-sm text-blue hover:underline"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
