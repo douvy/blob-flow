@@ -11,6 +11,13 @@ updates:
     commit-message:
       prefix: "deps"
       include: "scope"
+    groups:
+      # @vitest/coverage-v8 pins its exact vitest version as a peer dependency,
+      # so bumping either one alone fails npm ci with ERESOLVE.
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
