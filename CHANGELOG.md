@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.1](https://github.com/douvy/blob-flow/compare/v1.14.0...v1.14.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* **blocks:** take builder attribution from the pricing feed on initial load ([#311](https://github.com/douvy/blob-flow/issues/311)) ([5fb67eb](https://github.com/douvy/blob-flow/commit/5fb67eb691280d6c312d23b90cf2211a7a52b076))
+
 ## [1.14.0](https://github.com/douvy/blob-flow/compare/v1.13.0...v1.14.0) (2026-09-20)
 
 
