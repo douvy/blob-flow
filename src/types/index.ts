@@ -1586,6 +1586,109 @@ export type BlockDetailResponse = NewBlockData & {
   candidates: BlobInclusionCandidateResponse[];
 };
 
+// ---- Blob inclusion timeline ----
+
+/**
+ * One block on a transaction's inclusion timeline: who built it and how full
+ * its blob space was. The occupancy fields and the builder are each omitted
+ * when their row is missing (a builder backfill that has not reached the
+ * height, or a reorg rewrite in flight).
+ */
+export interface BlobInclusionBlockResponse {
+  block_number: number;
+  block_timestamp: string;
+  /** How many blobs the block carried, against the most it could have. */
+  blob_count?: number;
+  max_blobs?: number;
+  /** The block's blob base fee in wei: what a priced_out_blob_fee miss was measured against. */
+  blob_base_fee?: string;
+  blob_base_fee_gwei?: string;
+  builder?: BlockBuilderResponse;
+}
+
+/**
+ * A block that arrived while the transaction was pending in our node's pool
+ * and did not include it, with the reason the indexer classified the miss
+ * under at the time. Only `eligible` says anything about the builder, and
+ * only that the transaction was visible to our node and not included.
+ */
+export interface BlobInclusionSkippedBlockResponse extends BlobInclusionBlockResponse {
+  /**
+   * How long the transaction had been pending when this block was produced:
+   * block_timestamp minus first_seen_at. Signed like time_to_inclusion_ms.
+   * Omitted when first_seen_at is unknown.
+   */
+  waited_ms?: number;
+  reason: BlobInclusionCandidateReason;
+}
+
+/** The block that finally carried the transaction. */
+export interface BlobInclusionIncludedBlockResponse extends BlobInclusionBlockResponse {
+  /** Beacon slot of the block. Omitted for networks without a configured beacon genesis. */
+  slot?: number;
+  /** Position of the transaction within the block. Omitted for older rows. */
+  tx_index?: number;
+}
+
+/**
+ * The blocks a transaction waited through. Only blocks the indexer saw arrive
+ * live classified their pending pool, so `snapshot_blocks` is the most that
+ * can appear in `skipped`; a gap is not evidence that a block included
+ * nothing.
+ */
+export interface BlobInclusionWindowResponse {
+  /**
+   * The first block produced after the transaction was first seen (or the
+   * first block that recorded it as a candidate, whichever is earlier).
+   */
+  from_block: number;
+  /**
+   * The block before inclusion, or the newest indexed block while pending.
+   * Below from_block when no block has been produced in the wait yet.
+   */
+  to_block: number;
+  /** How many indexed blocks lie in the window. */
+  blocks: number;
+  /** How many of them classified their pending pool. */
+  snapshot_blocks: number;
+}
+
+/**
+ * The `/blob/{txHash}/inclusion` payload: how long a blob transaction waited
+ * for a block and which blocks passed it by while it did.
+ */
+export interface BlobInclusionResponse {
+  chain_id: number;
+  network_name?: string;
+  tx_hash: string;
+  confirmed: boolean;
+  /** Same fields and omissions as on the blob row itself. */
+  first_seen_at?: string;
+  time_to_inclusion_ms?: number;
+  /** Null while the transaction is pending. */
+  included: BlobInclusionIncludedBlockResponse | null;
+  /**
+   * Null only when nothing bounds the wait: the transaction was never seen
+   * pending and no block recorded it as a candidate.
+   */
+  window: BlobInclusionWindowResponse | null;
+  /**
+   * Every block that recorded the transaction as a candidate and left it out,
+   * and those whose reason was `eligible`. Both cover the whole retained
+   * history even when `skipped` is truncated.
+   */
+  skipped_blocks: number;
+  eligible_skipped_blocks: number;
+  /**
+   * Those blocks oldest first, capped at the 500 most recent. When the cap
+   * cuts the list, `skipped_truncated` is true and the blocks left out are the
+   * oldest, between window.from_block and the first listed entry. Empty when
+   * the transaction was included from history or its rows have been pruned.
+   */
+  skipped: BlobInclusionSkippedBlockResponse[];
+  skipped_truncated: boolean;
+}
+
 // ---- Blob replacements ----
 
 /**

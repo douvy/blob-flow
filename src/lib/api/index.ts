@@ -16,7 +16,7 @@ import { getBlobPricing } from './pricing';
 import { getBlobRecords } from './records';
 import { getStats, getStatsWindows } from './stats';
 import { getStatus } from './status';
-import { getBlobTransaction } from './transactions';
+import { getBlobInclusion, getBlobTransaction } from './transactions';
 import { getTopUsers, getUserByAddress, getUserBlobs } from './users';
 
 export const api = {
@@ -25,6 +25,7 @@ export const api = {
     getBlobByTxHash,
     getBlobByVersionedHash,
     getBlobTransaction,
+    getBlobInclusion,
     search,
     getRawBlobs,
     getBlobReplacements,

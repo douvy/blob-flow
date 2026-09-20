@@ -1,4 +1,4 @@
-import { ApiResponse, BlobResponse, BlobTransaction } from '../../types';
+import { ApiResponse, BlobInclusionResponse, BlobResponse, BlobTransaction } from '../../types';
 import { getBlockByNumber } from './blocks';
 import { fetchApi, isNotFoundError } from './core';
 
@@ -68,4 +68,33 @@ export async function getBlobTransaction(
         confirmed,
         blobsComplete,
     };
+}
+
+/**
+ * Get a blob transaction's inclusion timeline: how long it waited between our
+ * node first seeing it pending and a block including it, and which blocks
+ * arrived in between without including it, each with its builder, its blob
+ * occupancy and the reason the miss was classified under.
+ *
+ * Returns null when no indexed blob transaction has this hash.
+ *
+ * @param txHash - Transaction hash to look up
+ * @param network - Optional network parameter
+ */
+export async function getBlobInclusion(
+    txHash: string,
+    network?: string,
+): Promise<BlobInclusionResponse | null> {
+    try {
+        const response = await fetchApi<ApiResponse<BlobInclusionResponse>>(
+            `/blob/${txHash}/inclusion`,
+            network
+        );
+        return response.data ?? null;
+    } catch (error) {
+        if (isNotFoundError(error)) {
+            return null;
+        }
+        throw error;
+    }
 }

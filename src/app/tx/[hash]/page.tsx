@@ -10,6 +10,7 @@ import DataStateWrapper from '@/components/DataStateWrapper';
 import RawBlobActions from '@/components/RawBlobActions';
 import RawBlobViewer from '@/components/RawBlobViewer';
 import StatCard from '@/components/StatCard';
+import TransactionInclusion from '@/components/TransactionInclusion';
 import TransactionReplacements from '@/components/TransactionReplacements';
 import { RelativeTime } from '@/components/RelativeTime';
 import { useApiData } from '@/hooks/useApiData';
@@ -431,6 +432,8 @@ export default function TransactionDetailPage() {
                 </h2>
                 <TransactionBlobs transaction={transaction} />
               </section>
+
+              <TransactionInclusion txHash={txHash} />
             </>
           ) : null}
         </DataStateWrapper>
