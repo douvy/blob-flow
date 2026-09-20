@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/douvy/blob-flow/compare/v1.13.0...v1.14.0) (2026-09-20)
+
+
+### Features
+
+* **tx:** show the blob inclusion timeline from indexer 0.20.0 ([#309](https://github.com/douvy/blob-flow/issues/309)) ([b777c3b](https://github.com/douvy/blob-flow/commit/b777c3beb673ad842029343f90cea79ab75a76ab))
+
 ## [1.13.0](https://github.com/douvy/blob-flow/compare/v1.12.0...v1.13.0) (2026-09-20)
 
 
