@@ -38,7 +38,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.8",
     "recharts": "^3.10.1",
-    "tailwind-merge": "^3.6.0",
+    "tailwind-merge": "^3.7.0",
     "typescript": "^6.0.3",
     "viem": "^2.55.11"
   },
