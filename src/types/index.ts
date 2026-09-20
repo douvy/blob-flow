@@ -373,6 +373,12 @@ export interface BackendBlobPricingRecentBlock {
   is_full: boolean;
   is_above_target: boolean;
   update_fraction: number;
+  /**
+   * Builder attribution, served on /blob/pricing recent_blocks only (the
+   * pricing object on a websocket block leaves it out, since the block
+   * carries its own). Omitted for blocks the backfill has not reached.
+   */
+  builder?: BlockBuilderResponse;
 }
 
 export interface BlobPricingRecentBlock {

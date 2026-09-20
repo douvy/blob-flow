@@ -529,6 +529,34 @@ describe('api/blocks builder attribution', () => {
     expect('candidates' in block).toBe(false);
   });
 
+  it('takes the builder from the pricing row when the block itself carries none', () => {
+    const block = transformNewBlockData({
+      block_number: 100,
+      blob_count: 1,
+      timestamp: '2026-01-01T00:00:00.000Z',
+      blobs: [],
+    }, { ...makePricingBlock(100), builder });
+
+    expect(block.builder).toBe(builder);
+  });
+
+  it('attributes the initial block list from the pricing feed', async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce(makePricingResponse([
+        { ...makePricingBlock(101), builder },
+        makePricingBlock(100),
+      ]))
+      .mockResolvedValueOnce(jsonResponse([makeBlob(101, '0xabc'), makeBlob(100, '0xdef')])) as unknown as typeof fetch;
+
+    const result = await getLatestBlocks(2, 'mainnet');
+
+    expect(result.data.map((block) => block.number)).toEqual(['101', '100']);
+    expect(result.data[0].builder).toBe(builder);
+    // Blocks the backfill has not reached stay unattributed rather than
+    // inheriting a neighbour's builder.
+    expect(result.data[1].builder).toBeUndefined();
+  });
+
   it('carries builder and candidates through the block endpoint', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       jsonResponse({

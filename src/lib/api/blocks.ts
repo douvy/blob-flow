@@ -49,6 +49,9 @@ export function transformNewBlockData(
     const targetBlobs = blockPricing?.target_blobs || 0;
     const utilizationPercent = blockPricing?.utilization_percent ?? 0;
     const blobCount = blockPricing?.blob_count ?? blockData.blob_count;
+    // The REST list is assembled from the pricing feed and the blob feed, and
+    // only the pricing row knows the builder; live blocks carry it directly.
+    const builder = blockData.builder ?? blockPricing?.builder;
 
     return {
         id: blockData.block_number,
@@ -71,7 +74,7 @@ export function transformNewBlockData(
         // Both are absent on most inputs: builder attribution only exists for
         // blocks the backfill has reached, and the candidate snapshot is
         // served by the REST block endpoint alone.
-        ...(blockData.builder ? { builder: blockData.builder } : {}),
+        ...(builder ? { builder } : {}),
         ...(blockData.candidates ? { candidates: blockData.candidates } : {})
     };
 }
