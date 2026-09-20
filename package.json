@@ -1,6 +1,6 @@
 {
   "name": "blob-flow",
-  "version": "1.14.1",
+  "version": "1.14.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -47,11 +47,11 @@
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.7",
-    "@vitest/coverage-v8": "^5.0.1",
+    "@vitest/coverage-v8": "^4.1.8",
     "jsdom": "^30.0.1",
     "postcss": "^8.5.28",
     "sharp": "^0.35.3",
     "tailwindcss": "^4.3.2",
-    "vitest": "^5.0.1"
+    "vitest": "^4.1.10"
   }
 }
