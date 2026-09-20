@@ -216,6 +216,61 @@ export function usersMetadata(network?: string): Metadata {
   };
 }
 
+/**
+ * A builder key's display name, derived from the key alone: metadata must not
+ * depend on the indexer being reachable. Derived keys carry a prefix naming
+ * where they came from (`extra:` the block's extra data, `addr:` its fee
+ * recipient), which is noise in a title.
+ */
+function builderKeyName(key: string): string {
+  const bare = key.replace(/^(extra|addr):/, '').trim();
+  if (!bare) return 'Builder';
+  if (/^0x[0-9a-f]{40}$/i.test(bare)) return shortAddress(bare);
+  // titleCaseSlug only splits on dashes, so anything else keeps its own
+  // spelling rather than being mangled into title case.
+  return /^[a-z0-9-]+$/i.test(bare) ? titleCaseSlug(bare.toLowerCase()) : bare;
+}
+
+export function buildersMetadata(network?: string): Metadata {
+  const title = `Block Builders & Blob Inclusion${networkTitleSuffix(network)}`;
+  const description =
+    'Which Ethereum block builders include which rollups’ blobs: share of blocks and ' +
+    'blobs, tip bands paid for inclusion, time to inclusion, and the eligible pending ' +
+    'blob transactions visible to our node that each builder did not include.';
+  return {
+    title,
+    description,
+    alternates: canonical('/builders', network),
+    // No card of its own, so it shares the dashboard's, scoped to this network.
+    ...statCard('/api/og/home', `Live Ethereum blob analytics on ${SITE_NAME}`, {
+      network,
+      title,
+      description,
+    }),
+  };
+}
+
+export function builderMetadata(key: string, network?: string): Metadata {
+  const name = builderKeyName(key);
+  const title = `${name} Builder Stats${networkTitleSuffix(network)}`;
+  const description =
+    `Blob inclusion stats for the Ethereum block builder ${name}: blocks and blobs built, ` +
+    'which senders it includes, the tips they paid, and the eligible pending blob ' +
+    'transactions visible to our node that it did not include.';
+
+  return {
+    title,
+    description,
+    alternates: canonical(`/builder/${encodeURIComponent(key)}`, network),
+    // No card of its own, so it shares the dashboard's, scoped to this network.
+    ...statCard('/api/og/home', `Live Ethereum blob analytics on ${SITE_NAME}`, {
+      network,
+      title,
+      description,
+    }),
+  };
+}
+
 export function recordsMetadata(network?: string): Metadata {
   return {
     title: `Blob Market Records${networkTitleSuffix(network)}`,

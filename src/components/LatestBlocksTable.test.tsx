@@ -5,7 +5,7 @@ import { DEFAULT_NETWORK } from '../constants';
 import { api } from '../lib/api';
 import { useApiData } from '../hooks/useApiData';
 import { useNetwork } from '../hooks/useNetwork';
-import { Block, BlobResponse, LatestBlocksResponse } from '../types';
+import { Block, BlobResponse, BlockBuilderResponse, LatestBlocksResponse } from '../types';
 import LatestBlocksTable from './LatestBlocksTable';
 
 // Expanded rows render BlobDetailsContent, whose archive-availability hook
@@ -64,6 +64,17 @@ const blob: BlobResponse = {
   blob_gas_used: 131072,
   realized_cost_wei: '1000000000000000',
   max_cost_wei: '2000000000000000',
+};
+
+const builder: BlockBuilderResponse = {
+  key: 'builder:titan',
+  name: 'Titan Builder',
+  known: true,
+  fee_recipient: '0x1234567890abcdef1234567890abcdef12345678',
+  extra_data: '0x546974616e',
+  extra_data_text: 'Titan',
+  tx_count: 180,
+  candidate_snapshot: true,
 };
 
 function makeBlock(id: number, blobs: BlobResponse[] = []): Block {
@@ -138,6 +149,34 @@ describe('LatestBlocksTable', () => {
 
     expect(screen.getByText('Blob details')).toBeInTheDocument();
     expect(screen.getByText('Blob #0')).toBeInTheDocument();
+  });
+
+  it('names the builder on attributed blocks and nothing on the rest', () => {
+    mockApiData({
+      data: [
+        { ...makeBlock(201), builder },
+        makeBlock(200, [blob]),
+      ],
+    });
+
+    render(<LatestBlocksTable />);
+
+    expect(screen.getByRole('link', { name: 'Titan Builder' })).toHaveAttribute(
+      'href',
+      '/builder/builder%3Atitan'
+    );
+    // The unattributed block says nothing rather than "unknown".
+    expect(screen.getAllByRole('link', { name: 'Titan Builder' })).toHaveLength(1);
+    expect(screen.queryByText(/unknown builder/i)).not.toBeInTheDocument();
+  });
+
+  it('does not expand the row when the builder link is clicked', () => {
+    mockApiData({ data: [{ ...makeBlock(200, [blob]), builder }] });
+
+    render(<LatestBlocksTable />);
+    fireEvent.click(screen.getByRole('link', { name: 'Titan Builder' }));
+
+    expect(screen.queryByText('Blob details')).not.toBeInTheDocument();
   });
 
   it('falls back to total_cost_eth when total_cost_wei is invalid', () => {

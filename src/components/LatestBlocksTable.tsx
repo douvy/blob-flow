@@ -17,6 +17,7 @@ import {
   getAttributionTestnetLabels,
 } from '../utils';
 import AttributionBadge, { STACKED_ICON, TestnetRibbon } from './AttributionBadge';
+import BuilderTag from './BuilderTag';
 import { BlobDetailsContent } from './BlobDetailsContent';
 import { BLOCKS_PAGE_LIMIT, BLOCKS_PAGE_SIZE } from '../constants';
 import { useFlipRows } from '../hooks/useFlipRows';
@@ -364,6 +365,13 @@ export default function LatestBlocksTable() {
                             </Link>
                           </div>
                           <div className="text-xs text-[#8a93a5] mt-1 font-normal whitespace-nowrap"><RelativeTime timestamp={block.timestamp} /></div>
+                          {/* Blocks the backfill has not reached carry no
+                              builder, and show nothing rather than "unknown". */}
+                          {block.builder && (
+                            <div className="mt-1 font-normal">
+                              <BuilderTag builder={block.builder} compact />
+                            </div>
+                          )}
                           <div className="text-xs text-[#8a93a5] mt-1 font-normal sm:hidden">{baseFee}</div>
                         </td>
                         <td className="py-3 px-3 sm:px-4 text-sm text-white">

@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { OG_CARD_DEFAULT_RANGE } from '@/lib/ogChartSeries';
 import {
     blockMetadata,
+    builderMetadata,
+    buildersMetadata,
     chartMetadata,
     homeMetadata,
     liveMetadata,
@@ -93,5 +95,43 @@ describe('pageMetadata stat share cards', () => {
     it('keeps the canonical URL free of the range, which is a view preference', () => {
         expect(homeMetadata('sepolia', '7d').alternates?.canonical).toBe('/sepolia');
         expect(homeMetadata(undefined, '7d').alternates?.canonical).toBe('/');
+    });
+});
+
+describe('builder page metadata', () => {
+    it('titles and canonicalizes the builder index', () => {
+        const metadata = buildersMetadata('sepolia');
+
+        expect(metadata.title).toBe('Block Builders & Blob Inclusion · Sepolia');
+        expect(metadata.alternates?.canonical).toBe('/sepolia/builders');
+        expect(ogImageUrl(metadata)).toBe('/api/og/home?network=sepolia');
+    });
+
+    it('names a known builder from its key alone', () => {
+        // Metadata must not depend on the indexer being reachable, so the name
+        // comes from the key rather than a lookup.
+        expect(builderMetadata('beaverbuild').title).toBe('Beaverbuild Builder Stats');
+        expect(builderMetadata('titan-builder').title).toBe('Titan Builder Builder Stats');
+    });
+
+    it('drops the prefix a derived key carries and shortens an address', () => {
+        expect(builderMetadata('extra:rsync-builder').title).toBe('Rsync Builder Builder Stats');
+        expect(builderMetadata(`addr:0x${'ab'.repeat(20)}`).title).toBe(
+            `0xabababab…abab Builder Stats`
+        );
+    });
+
+    it('encodes the key in the canonical URL', () => {
+        expect(builderMetadata('extra:titan builder', 'sepolia').alternates?.canonical).toBe(
+            '/sepolia/builder/extra%3Atitan%20builder'
+        );
+    });
+
+    it('indexes builder pages, and unfurls them with the dashboard card', () => {
+        const metadata = builderMetadata('beaverbuild');
+
+        expect(metadata.robots).toBeUndefined();
+        expect(metadata.twitter?.card).toBe('summary_large_image');
+        expect(ogImageUrl(metadata)).toBe('/api/og/home?network=mainnet');
     });
 });

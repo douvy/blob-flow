@@ -1,4 +1,4 @@
-import { ApiResponse, BlobResponse } from '../../types';
+import { ApiResponse, BlobReplacementResponse, BlobResponse } from '../../types';
 import { fetchApi } from './core';
 
 // The indexer returns at most this many rows per /blob/latest request no
@@ -47,4 +47,25 @@ export async function getRawBlobs(
   }
 
   return blobs.slice(0, limit);
+}
+
+/**
+ * Fetch the fee-bump replacements our node saw for a blob transaction: the
+ * pending transactions it superseded, and the one that superseded it, from the
+ * same sender at the same nonce.
+ * @param txHash - Transaction hash to look up replacements for
+ * @param network - Optional network parameter
+ * @param limit - Number of replacement records to return
+ */
+export async function getBlobReplacements(
+  txHash: string,
+  network?: string,
+  limit = 25
+): Promise<BlobReplacementResponse[]> {
+  const response = await fetchApi<ApiResponse<BlobReplacementResponse[]>>(
+    `/blob/replacements?tx_hash=${encodeURIComponent(txHash)}&limit=${limit}`,
+    network
+  );
+
+  return response.data ?? [];
 }

@@ -69,6 +69,17 @@ export interface BlobResponse {
   versioned_hash?: string;
   /** All versioned hashes carried by this blob's transaction. Omitted for rows indexed before versioned hashes were stored. */
   versioned_hashes?: string[];
+  /** Position of the carrying transaction within its block. Omitted for pending blobs and for older rows. */
+  tx_index?: number;
+  /** When our node first saw this transaction pending. Omitted when it was never seen before inclusion. */
+  first_seen_at?: string;
+  /**
+   * Milliseconds from first_seen_at to the including block's slot start.
+   * Signed: a negative value means our node only saw the transaction after
+   * the slot had started, so the builder had it before we did. Omitted when
+   * the transaction was never seen pending.
+   */
+  time_to_inclusion_ms?: number;
 }
 
 /**
@@ -119,6 +130,8 @@ export interface NewBlockData {
   timestamp: string;
   blobs: BlobResponse[];
   pricing: BackendBlobPricingRecentBlock;
+  /** Builder attribution. Omitted for blocks the backfill has not reached. */
+  builder?: BlockBuilderResponse;
 }
 
 // transformNewBlockData is also reused to rebuild blocks from REST blob
@@ -126,6 +139,11 @@ export interface NewBlockData {
 // typed without weakening the wire guarantee above.
 export type NewBlockInput = Omit<NewBlockData, 'pricing'> & {
   pricing?: BackendBlobPricingRecentBlock;
+  /**
+   * Candidate snapshot, which only the REST block endpoint serves. Kept off
+   * NewBlockData so the wire guarantee above still describes live blocks.
+   */
+  candidates?: BlobInclusionCandidateResponse[];
 };
 
 export interface NewBlockEvent {
@@ -239,6 +257,13 @@ export interface Block {
   timestamp: string;
   attribution: string[];
   blobs: BlobResponse[];
+  /** Builder attribution. Absent for blocks the backfill has not reached. */
+  builder?: BlockBuilderResponse;
+  /**
+   * Pending blob transactions our node held at this block's slot start. Only
+   * the REST block endpoint serves them, so live blocks never carry any.
+   */
+  candidates?: BlobInclusionCandidateResponse[];
 }
 
 // Latest blocks response (frontend-shaped)
@@ -1257,4 +1282,331 @@ export interface VsComparison {
   rows: VsComparisonRow[];
   rowWins: { a: number; b: number };
   overall: VsWinner;
+}
+
+// ---- Block builders ----
+
+/**
+ * Windows the builder endpoints aggregate over. Unlike the chart ranges there
+ * is no 'all': the backend rejects it with a 400.
+ */
+export type BuilderRange = '1h' | '24h' | '7d' | '30d';
+
+/** Inclusive-exclusive time span the reported numbers cover. */
+export interface BackendBuilderWindow {
+  from: string;
+  to: string;
+}
+
+/**
+ * Totals across the window. These count only blocks that have a builder row,
+ * so until the backfill reaches a range they read lower than the blob market
+ * chart for the same window.
+ */
+export interface BackendBuilderTotals {
+  blocks: number;
+  blob_blocks: number;
+  blobs: number;
+}
+
+/** Payment from the builder to the proposer, in wei with an ETH companion. */
+export interface BackendBuilderProposerPayment {
+  median: string;
+  median_eth: string;
+  total: string;
+  total_eth: string;
+}
+
+/**
+ * Priority fee distribution across the blob transactions this builder
+ * included, in wei per execution gas with gwei companions.
+ */
+export interface BackendBuilderTipStats {
+  tx_count: number;
+  min: string;
+  min_gwei: string;
+  p10: string;
+  p10_gwei: string;
+  p50: string;
+  p50_gwei: string;
+  p90: string;
+  p90_gwei: string;
+}
+
+/**
+ * Wait from our node first seeing a blob transaction pending to the slot start
+ * of the block that included it. Only transactions seen pending first have a
+ * sample, and values can be negative (see `BlobResponse.time_to_inclusion_ms`).
+ */
+export interface BackendBuilderInclusionStats {
+  sample_count: number;
+  p50: number;
+  p90: number;
+}
+
+/**
+ * Pending blob transactions our node held at the slot start that the builder
+ * did not include. Null when no block of this builder was indexed live, so no
+ * snapshot exists. "Eligible skipped" is what our mempool saw, never proof the
+ * builder rejected anything: its mempool is not ours.
+ */
+export interface BackendBuilderCandidateStats {
+  snapshot_blocks: number;
+  blocks_with_eligible_skipped: number;
+  eligible_skipped_txs: number;
+  eligible_skipped_blobs: number;
+  eligible_skipped_max_tip?: string;
+  eligible_skipped_max_tip_gwei?: string;
+}
+
+/** One builder's aggregated stats over the requested window. */
+export interface BackendBuilderStats {
+  key: string;
+  name: string;
+  /**
+   * False when the key was derived rather than recognized: an `extra:` prefix
+   * means it came from the block's extra data, `addr:` from the fee recipient.
+   */
+  known: boolean;
+  fee_recipients: string[];
+  blocks: number;
+  blob_blocks: number;
+  blobs: number;
+  full_blocks: number;
+  block_share_percent: number;
+  blob_share_percent: number;
+  avg_blobs_per_blob_block: number;
+  mev_boost_blocks: number;
+  proposer_payment_wei: BackendBuilderProposerPayment | null;
+  tip: BackendBuilderTipStats | null;
+  time_to_inclusion_ms: BackendBuilderInclusionStats | null;
+  candidates: BackendBuilderCandidateStats | null;
+}
+
+/** Envelope shared by the builder list and detail endpoints. */
+export interface BackendBuilderEnvelope {
+  chain_id: number;
+  network_name?: string;
+  range: BuilderRange | string;
+  window: BackendBuilderWindow;
+  totals: BackendBuilderTotals;
+  generated_at: string;
+}
+
+/** The /builders leaderboard: every builder with a block in the window. */
+export interface BackendBuildersResponse extends BackendBuilderEnvelope {
+  builders: BackendBuilderStats[];
+}
+
+/** Median time to inclusion for one row of a builder's detail page. */
+export interface BackendBuilderInclusionP50 {
+  sample_count: number;
+  p50: number;
+}
+
+/** One sender whose blobs this builder included. */
+export interface BackendBuilderUserRow {
+  key: string;
+  name?: string;
+  is_entity: boolean;
+  blobs: number;
+  tx_count: number;
+  share_within_builder_percent: number;
+  share_overall_percent: number;
+  /**
+   * share_within_builder_percent divided by share_overall_percent: 1 is
+   * neutral, above 1 means this builder carries more of the sender's blobs
+   * than the network does. Null when the sender has no overall share.
+   */
+  inclusion_index: number | null;
+  tip_p50?: string;
+  tip_p50_gwei?: string;
+  time_to_inclusion_ms: BackendBuilderInclusionP50 | null;
+}
+
+/** One sender whose eligible pending blob transactions the builder left out. */
+export interface BackendBuilderSkippedRow {
+  key: string;
+  name?: string;
+  is_entity: boolean;
+  txs: number;
+  blobs: number;
+  max_tip?: string;
+  max_tip_gwei?: string;
+  p50_tip?: string;
+  p50_tip_gwei?: string;
+}
+
+/** One block built by this builder, newest first. */
+export interface BackendBuilderRecentBlock {
+  number: number;
+  timestamp: string;
+  blob_count: number;
+  blob_params_max?: number;
+  proposer_payment_wei?: string;
+  /** Whether our node held a candidate snapshot for this block's slot. */
+  candidate_snapshot: boolean;
+  eligible_skipped_txs?: number;
+  eligible_skipped_max_tip?: string;
+}
+
+/** One builder's detail view: the shared envelope plus its own breakdowns. */
+export interface BackendBuilderDetailResponse extends BackendBuilderEnvelope {
+  builder: BackendBuilderStats;
+  users: BackendBuilderUserRow[];
+  skipped: BackendBuilderSkippedRow[];
+  /**
+   * The oldest candidate observation still stored inside the window, and so
+   * the instant from which the `skipped` rows cover anything. The rows are
+   * rebuilt from per-transaction candidate detail the indexer keeps for a
+   * limited time, while `candidates` on the builder sums permanent per-block
+   * aggregates, so over a long range the rows can describe only part of the
+   * window and the two are not expected to add up. Null when the window
+   * holds no candidate detail at all.
+   */
+  skipped_detail_from: string | null;
+  recent_blocks: BackendBuilderRecentBlock[];
+}
+
+export interface BackendBuilderShareSeries {
+  key: string;
+  name: string;
+  known: boolean;
+}
+
+export interface BackendBuilderShareValue {
+  blocks: number;
+  blobs: number;
+}
+
+/** One bucket. Every series has a value here, zero-filled when idle. */
+export interface BackendBuilderSharePoint {
+  timestamp: string;
+  start_block?: number;
+  end_block?: number;
+  blocks: number;
+  blobs: number;
+  values: Record<string, BackendBuilderShareValue>;
+}
+
+export interface BackendBuilderShareChartShare {
+  key: string;
+  name: string;
+  known: boolean;
+  blocks: number;
+  blobs: number;
+  block_share_percent: number;
+  blob_share_percent: number;
+}
+
+export interface BackendBuilderShareChartSummary {
+  total_blocks: number;
+  total_blobs: number;
+  shares: BackendBuilderShareChartShare[];
+}
+
+/** Builder share over time. The long tail is grouped under the key `other`. */
+export interface BackendBuilderShareChartResponse {
+  chain_id: number;
+  network_name: string;
+  range: BuilderRange | string;
+  granularity: Exclude<BackendChartGranularity, 'auto'> | string;
+  bucket_seconds: number;
+  start_time: string;
+  end_time: string;
+  generated_at: string;
+  series: BackendBuilderShareSeries[];
+  points: BackendBuilderSharePoint[];
+  summary: BackendBuilderShareChartSummary;
+}
+
+/**
+ * Builder attribution for a single block. Omitted for blocks indexed before
+ * the feature shipped and not yet backfilled.
+ */
+export interface BlockBuilderResponse {
+  key: string;
+  name: string;
+  /** False when the key was derived from extra data or the fee recipient. */
+  known: boolean;
+  fee_recipient: string;
+  extra_data: string;
+  extra_data_text?: string;
+  tx_count: number;
+  proposer_payment_wei?: string;
+  proposer_payment_eth?: string;
+  proposer_payment_to?: string;
+  /** Whether our node held a candidate snapshot for this block's slot. */
+  candidate_snapshot: boolean;
+  pending_candidate_txs?: number;
+  eligible_skipped_txs?: number;
+  eligible_skipped_blobs?: number;
+  eligible_skipped_max_tip?: string;
+  eligible_skipped_max_tip_gwei?: string;
+}
+
+/**
+ * Why a pending blob transaction our node held was not included in the block.
+ * Everything but `eligible` explains the omission; `eligible` means we could
+ * see no reason, which is still not proof the builder saw the transaction.
+ */
+export type BlobInclusionCandidateReason =
+  | 'eligible'
+  | 'too_recent'
+  | 'nonce_gap'
+  | 'priced_out_blob_fee'
+  | 'priced_out_exec_fee'
+  | 'no_room';
+
+/**
+ * One pending blob transaction our node held at a block's slot start, with why
+ * it was or was not a plausible candidate for that block.
+ */
+export interface BlobInclusionCandidateResponse {
+  tx_hash: string;
+  from_address: string;
+  user_attribution?: string;
+  nonce?: number;
+  blob_count: number;
+  max_priority_fee_per_gas?: string;
+  max_priority_fee_per_gas_gwei?: string;
+  max_fee_per_gas?: string;
+  max_fee_per_gas_gwei?: string;
+  max_fee_per_blob_gas?: string;
+  max_fee_per_blob_gas_gwei?: string;
+  first_seen_at: string;
+  reason: BlobInclusionCandidateReason;
+}
+
+/**
+ * The REST block endpoint's payload: the live block shape plus the candidate
+ * snapshot, which only that endpoint serves (the WebSocket never sends it).
+ */
+export type BlockDetailResponse = NewBlockData & {
+  candidates: BlobInclusionCandidateResponse[];
+};
+
+// ---- Blob replacements ----
+
+/**
+ * One fee-bump replacement: a pending blob transaction our node saw superseded
+ * by another from the same sender at the same nonce.
+ */
+export interface BlobReplacementResponse {
+  chain_id: number;
+  network_name?: string;
+  replaced_tx_hash: string;
+  replacement_tx_hash: string;
+  from_address: string;
+  nonce: number;
+  replaced_at: string;
+  replaced_max_priority_fee_per_gas?: string;
+  replaced_max_priority_fee_per_gas_gwei?: string;
+  replaced_max_fee_per_blob_gas?: string;
+  replaced_max_fee_per_blob_gas_gwei?: string;
+  replaced_first_seen_at?: string;
+  replacement_max_priority_fee_per_gas?: string;
+  replacement_max_priority_fee_per_gas_gwei?: string;
+  replacement_max_fee_per_blob_gas?: string;
+  replacement_max_fee_per_blob_gas_gwei?: string;
 }

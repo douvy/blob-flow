@@ -3,6 +3,7 @@
 import Link from '@/components/NetworkLink';
 import { RelativeTime } from '@/components/RelativeTime';
 import { FEE_HEADROOM_TOOLTIP, PRIORITY_FEE_TOOLTIP } from '@/constants';
+import { formatTimeToInclusion, TIME_TO_INCLUSION_TOOLTIP } from '@/lib/builders';
 import { BlobResponse } from '@/types';
 import {
   formatBlobCount,
@@ -71,6 +72,12 @@ export default function BlobTable({
               : formatBlobTotalCost(blob.total_cost_wei || blob.total_cost_eth);
             const maxCost = formatBlobWeiCost(blob.max_cost_wei);
             const headroom = formatFeeHeadroom(blob.fee_cap_headroom_percent);
+            // Only transactions our node saw pending have a sample, so the
+            // line is dropped entirely rather than showing a placeholder.
+            const inclusionLabel =
+              blob.time_to_inclusion_ms === undefined
+                ? null
+                : `incl. in ${formatTimeToInclusion(blob.time_to_inclusion_ms)}`;
 
             return (
               <tr key={`${blob.tx_hash}-${blob.blob_index}`} className="bg-gradient-to-r from-[#17181b] to-[#141519]/60 hover:bg-gradient-to-r hover:from-[#1f2127]/70 hover:to-[#23252b]/70 transition-colors">
@@ -83,7 +90,10 @@ export default function BlobTable({
                   >
                     {truncateTxHash(blob.tx_hash)}
                   </Link>
-                  <div className="text-xs text-[#8a93a5] mt-1 font-sans whitespace-nowrap">blob #{blob.blob_index}</div>
+                  <div className="text-xs text-[#8a93a5] mt-1 font-sans whitespace-nowrap">
+                    blob #{blob.blob_index}
+                    {blob.tx_index !== undefined && <> tx #{blob.tx_index}</>}
+                  </div>
                   {showFrom && (
                     <div className="text-xs text-[#8a93a5] mt-1 font-sans whitespace-nowrap">
                       from{' '}
@@ -108,6 +118,14 @@ export default function BlobTable({
                     </div>
                   )}
                   <div className="text-xs text-[#8a93a5] mt-1 font-sans whitespace-nowrap lg:hidden"><RelativeTime timestamp={blob.timestamp} /></div>
+                  {inclusionLabel && (
+                    <div
+                      className="text-xs text-[#8a93a5] mt-1 font-sans whitespace-nowrap lg:hidden"
+                      title={TIME_TO_INCLUSION_TOOLTIP}
+                    >
+                      {inclusionLabel}
+                    </div>
+                  )}
                 </td>
                 {showBlock && (
                   <td className={`hidden sm:table-cell py-3 px-3 sm:px-4 text-sm text-white ${blockWidth}`}>
@@ -134,7 +152,14 @@ export default function BlobTable({
                   <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap" title={FEE_HEADROOM_TOOLTIP}>{headroom} room</div>
                   <div className="text-xs text-[#8a93a5] mt-1 whitespace-nowrap md:hidden">{baseFee}</div>
                 </td>
-                <td className="hidden lg:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap"><RelativeTime timestamp={blob.timestamp} /></td>
+                <td className="hidden lg:table-cell py-3 px-3 sm:px-4 text-sm text-white whitespace-nowrap">
+                  <div><RelativeTime timestamp={blob.timestamp} /></div>
+                  {inclusionLabel && (
+                    <div className="text-xs text-[#8a93a5] mt-1" title={TIME_TO_INCLUSION_TOOLTIP}>
+                      {inclusionLabel}
+                    </div>
+                  )}
+                </td>
               </tr>
             );
           })}
