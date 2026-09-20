@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.14.2](https://github.com/douvy/blob-flow/compare/v1.14.1...v1.14.2) (2026-09-20)
+
+
+### Dependencies
+
+* **deps-dev:** bump vitest from 4.1.10 to 5.0.1 ([#301](https://github.com/douvy/blob-flow/issues/301)) ([b28adad](https://github.com/douvy/blob-flow/commit/b28adad735e5653d3388541a2b5b7cfe461321dc))
+* **deps:** bump @tanstack/react-table from 8.21.3 to 9.2.4 ([#305](https://github.com/douvy/blob-flow/issues/305)) ([69bc016](https://github.com/douvy/blob-flow/commit/69bc0161263e8c44d2e71069bfe772f4493c1269))
+* **deps:** bump next from 16.2.12 to 16.3.5 ([#306](https://github.com/douvy/blob-flow/issues/306)) ([f23509b](https://github.com/douvy/blob-flow/commit/f23509bb2a08915d10511a77b056be7e91c90083))
+
 ## [1.14.1](https://github.com/douvy/blob-flow/compare/v1.14.0...v1.14.1) (2026-09-20)
 
 
