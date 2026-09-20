@@ -5,11 +5,10 @@ import { useRouter } from 'next/navigation';
 import { ArrowDown, ArrowUp, ArrowUpDown, CircleHelp } from 'lucide-react';
 import {
   flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
+  useTable,
   type Column,
   type ColumnDef,
+  type RowData,
   type SortingState,
 } from '@tanstack/react-table';
 import type { BackendBuilderStats, BackendBuildersResponse } from '@/types';
@@ -18,6 +17,7 @@ import { useApiData } from '@/hooks/useApiData';
 import { useBuilderRangeParam } from '@/hooks/useBuilderRangeParam';
 import { useNetwork } from '@/hooks/useNetwork';
 import { api } from '@/lib/api';
+import { sortableTableFeatures, type SortableTableFeatures } from '@/lib/tableFeatures';
 import {
   BUILDER_COVERAGE_NOTE,
   BUILDER_RANGE_DESCRIPTIONS,
@@ -133,11 +133,11 @@ function sortLabel(direction: false | 'asc' | 'desc'): string {
   return '';
 }
 
-function SortableHeader<TData, TValue>({
+function SortableHeader<TData extends RowData, TValue>({
   column,
   children,
 }: {
-  column: Column<TData, TValue>;
+  column: Column<SortableTableFeatures, TData, TValue>;
   children: React.ReactNode;
 }) {
   const sortDirection = column.getIsSorted();
@@ -238,7 +238,7 @@ function BuildersLeaderboardInner() {
     [tableData]
   );
 
-  const columns = React.useMemo<ColumnDef<BuilderRow>[]>(
+  const columns = React.useMemo<ColumnDef<SortableTableFeatures, BuilderRow>[]>(
     () => [
       {
         id: 'rank',
@@ -252,6 +252,7 @@ function BuildersLeaderboardInner() {
       {
         id: 'name',
         accessorFn: (builder) => builderDisplayName(builder),
+        sortFn: 'alphanumeric',
         header: ({ column }) => <SortableHeader column={column}>Builder</SortableHeader>,
         cell: ({ row }) => <BuilderIdentity builder={row.original} />,
       },
@@ -307,7 +308,7 @@ function BuildersLeaderboardInner() {
         id: 'tip',
         accessorFn: (builder) => tipSortValue(builder),
         sortUndefined: 'last',
-        sortingFn: (a, b) => compareMeasured(tipSortValue(a.original), tipSortValue(b.original)),
+        sortFn: (a, b) => compareMeasured(tipSortValue(a.original), tipSortValue(b.original)),
         header: ({ column }) => (
           <div className="flex items-center gap-1">
             <SortableHeader column={column}>Tip band</SortableHeader>
@@ -331,7 +332,7 @@ function BuildersLeaderboardInner() {
         id: 'inclusion',
         accessorFn: (builder) => inclusionSortValue(builder),
         sortUndefined: 'last',
-        sortingFn: (a, b) =>
+        sortFn: (a, b) =>
           compareMeasured(inclusionSortValue(a.original), inclusionSortValue(b.original)),
         header: ({ column }) => (
           <div className="flex items-center gap-1">
@@ -362,7 +363,7 @@ function BuildersLeaderboardInner() {
         id: 'skipped',
         accessorFn: (builder) => skippedSortValue(builder),
         sortUndefined: 'last',
-        sortingFn: (a, b) =>
+        sortFn: (a, b) =>
           compareMeasured(skippedSortValue(a.original), skippedSortValue(b.original)),
         header: ({ column }) => (
           <div className="flex items-center gap-1">
@@ -399,13 +400,12 @@ function BuildersLeaderboardInner() {
     [builderColors]
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features: sortableTableFeatures,
     data: tableData,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   // The detail page reads the same ?range= param, so the window travels with
@@ -574,7 +574,7 @@ function BuildersLeaderboardInner() {
                     role="link"
                     aria-label={`View builder stats for ${builderDisplayName(row.original)}`}
                   >
-                    {row.getVisibleCells().map((cell) => (
+                    {row.getAllCells().map((cell) => (
                       <TableCell
                         key={cell.id}
                         className={`align-top whitespace-nowrap text-sm text-white ${CELL_PADDING} ${COLUMN_WIDTHS[cell.column.id]}`}

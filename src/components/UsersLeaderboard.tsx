@@ -5,11 +5,10 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowDown, ArrowUp, ArrowUpDown, CircleHelp } from 'lucide-react';
 import {
   flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
+  useTable,
   type Column,
   type ColumnDef,
+  type RowData,
   type SortingState,
 } from '@tanstack/react-table';
 import { BackendUsersRange, User } from '../types';
@@ -18,6 +17,7 @@ import { useApiData } from '../hooks/useApiData';
 import { api } from '../lib/api';
 import { useNetwork } from '../hooks/useNetwork';
 import { trackEvent } from '../lib/analytics';
+import { sortableTableFeatures, type SortableTableFeatures } from '../lib/tableFeatures';
 import {
   assignSeriesColors,
   attributionColorKey,
@@ -121,11 +121,11 @@ function sortLabel(direction: false | 'asc' | 'desc'): string {
   return '';
 }
 
-function SortableHeader<TData, TValue>({
+function SortableHeader<TData extends RowData, TValue>({
   column,
   children,
 }: {
-  column: Column<TData, TValue>;
+  column: Column<SortableTableFeatures, TData, TValue>;
   children: React.ReactNode;
 }) {
   const sortDirection = column.getIsSorted();
@@ -210,7 +210,7 @@ function LeaderboardInner() {
   // The server orders by blob count in the window, and transformUserResponses
   // numbers rows in that order, so id is the rank and stays attached to its
   // row through client-side re-sorts.
-  const columns = React.useMemo<ColumnDef<User>[]>(
+  const columns = React.useMemo<ColumnDef<SortableTableFeatures, User>[]>(
     () => [
       {
         id: 'rank',
@@ -223,6 +223,7 @@ function LeaderboardInner() {
       },
       {
         accessorKey: 'name',
+        sortFn: 'alphanumeric',
         header: ({ column }) => (
           <SortableHeader column={column}>User</SortableHeader>
         ),
@@ -291,7 +292,7 @@ function LeaderboardInner() {
         header: ({ column }) => (
           <SortableHeader column={column}>Total Cost</SortableHeader>
         ),
-        sortingFn: (a, b) =>
+        sortFn: (a, b) =>
           compareBigint(totalCostWeiValue(a.original), totalCostWeiValue(b.original)),
         cell: ({ row }) => (
           <span className="tabular-nums">
@@ -311,15 +312,14 @@ function LeaderboardInner() {
     [displayData?.hasServerShares, range, tableData.length, userColors]
   );
 
-  const table = useReactTable({
+  const table = useTable({
+    features: sortableTableFeatures,
     data: tableData,
     columns,
     state: {
       sorting,
     },
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   // Attributed rows are entity-grouped and open the entity page; the key is
@@ -474,7 +474,7 @@ function LeaderboardInner() {
                     role="link"
                     aria-label={`View activity for ${row.original.name}`}
                   >
-                    {row.getVisibleCells().map((cell) => (
+                    {row.getAllCells().map((cell) => (
                       <TableCell
                         key={cell.id}
                         className={`whitespace-nowrap text-sm text-white ${CELL_PADDING} ${COLUMN_WIDTHS[cell.column.id]}`}
