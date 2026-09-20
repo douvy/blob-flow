@@ -468,3 +468,111 @@ describe('api/blocks', () => {
     });
   });
 });
+
+describe('api/blocks builder attribution', () => {
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  const builder = {
+    key: 'beaverbuild',
+    name: 'beaverbuild',
+    known: true,
+    fee_recipient: '0xfee',
+    extra_data: '0x6265617665726275696c642e6f7267',
+    extra_data_text: 'beaverbuild.org',
+    tx_count: 180,
+    proposer_payment_wei: '40000000000000000',
+    proposer_payment_eth: '0.04',
+    candidate_snapshot: true,
+    pending_candidate_txs: 4,
+    eligible_skipped_txs: 1,
+    eligible_skipped_blobs: 2,
+  };
+
+  const candidates = [
+    {
+      tx_hash: '0xskipped',
+      from_address: '0xsender',
+      user_attribution: 'Base',
+      blob_count: 2,
+      first_seen_at: '2026-01-01T00:00:00.000Z',
+      reason: 'eligible' as const,
+    },
+  ];
+
+  it('carries builder attribution through the live block transform', () => {
+    const block = transformNewBlockData({
+      block_number: 100,
+      blob_count: 1,
+      timestamp: '2026-01-01T00:00:00.000Z',
+      blobs: [],
+      builder,
+    });
+
+    expect(block.builder).toBe(builder);
+    // The WebSocket never sends candidates, so a live block has none.
+    expect(block.candidates).toBeUndefined();
+  });
+
+  it('leaves builder and candidates off a payload that carries neither', () => {
+    const block = transformNewBlockData({
+      block_number: 100,
+      blob_count: 1,
+      timestamp: '2026-01-01T00:00:00.000Z',
+      blobs: [],
+    });
+
+    expect(block.builder).toBeUndefined();
+    expect(block.candidates).toBeUndefined();
+    expect('builder' in block).toBe(false);
+    expect('candidates' in block).toBe(false);
+  });
+
+  it('takes the builder from the pricing row when the block itself carries none', () => {
+    const block = transformNewBlockData({
+      block_number: 100,
+      blob_count: 1,
+      timestamp: '2026-01-01T00:00:00.000Z',
+      blobs: [],
+    }, { ...makePricingBlock(100), builder });
+
+    expect(block.builder).toBe(builder);
+  });
+
+  it('attributes the initial block list from the pricing feed', async () => {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce(makePricingResponse([
+        { ...makePricingBlock(101), builder },
+        makePricingBlock(100),
+      ]))
+      .mockResolvedValueOnce(jsonResponse([makeBlob(101, '0xabc'), makeBlob(100, '0xdef')])) as unknown as typeof fetch;
+
+    const result = await getLatestBlocks(2, 'mainnet');
+
+    expect(result.data.map((block) => block.number)).toEqual(['101', '100']);
+    expect(result.data[0].builder).toBe(builder);
+    // Blocks the backfill has not reached stay unattributed rather than
+    // inheriting a neighbour's builder.
+    expect(result.data[1].builder).toBeUndefined();
+  });
+
+  it('carries builder and candidates through the block endpoint', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      jsonResponse({
+        block_number: 25467750,
+        blob_count: 1,
+        timestamp: '2026-01-01T00:00:00.000Z',
+        blobs: [makeBlob(25467750, '0xabc')],
+        pricing: makePricingBlock(25467750),
+        builder,
+        candidates,
+      })
+    ) as unknown as typeof fetch;
+
+    const block = await getBlockByNumber(25467750, 'mainnet');
+
+    expect(block?.builder).toBe(builder);
+    expect(block?.candidates).toBe(candidates);
+  });
+});

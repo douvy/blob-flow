@@ -10,6 +10,8 @@ import DataStateWrapper from '@/components/DataStateWrapper';
 import RawBlobActions from '@/components/RawBlobActions';
 import RawBlobViewer from '@/components/RawBlobViewer';
 import StatCard from '@/components/StatCard';
+import TransactionInclusion from '@/components/TransactionInclusion';
+import TransactionReplacements from '@/components/TransactionReplacements';
 import { RelativeTime } from '@/components/RelativeTime';
 import { useApiData } from '@/hooks/useApiData';
 import { useNetwork } from '@/hooks/useNetwork';
@@ -31,9 +33,12 @@ import {
   truncateAddress,
   truncateTxHash,
 } from '@/utils';
+import { formatTimeToInclusion, TIME_TO_INCLUSION_TOOLTIP } from '@/lib/builders';
 import { FEE_HEADROOM_TOOLTIP, PRIORITY_FEE_TOOLTIP, SECONDS_PER_BLOCK } from '@/constants';
 
 const TX_HASH_PATTERN = /^0x[0-9a-f]{64}$/i;
+
+const NEVER_PENDING_TOOLTIP = 'Not seen pending before inclusion';
 
 /** A blob's raw bytes are reachable when it has a versioned hash and a slot. */
 function canViewRawBlob(blob: BlobResponse): boolean {
@@ -291,6 +296,19 @@ function TransactionSummary({ transaction }: { transaction: BlobTransaction }) {
           {formatFeeHeadroom(blob.fee_cap_headroom_percent)}
         </DetailField>
         <DetailField label="Slot">{slot !== null ? slot.toLocaleString() : '-'}</DetailField>
+        <DetailField label="Tx position">
+          {blob.tx_index === undefined ? '-' : `#${blob.tx_index}`}
+        </DetailField>
+        <DetailField
+          label="Time to inclusion"
+          title={
+            blob.time_to_inclusion_ms === undefined
+              ? NEVER_PENDING_TOOLTIP
+              : TIME_TO_INCLUSION_TOOLTIP
+          }
+        >
+          {formatTimeToInclusion(blob.time_to_inclusion_ms)}
+        </DetailField>
       </dl>
     </>
   );
@@ -414,10 +432,17 @@ export default function TransactionDetailPage() {
                 </h2>
                 <TransactionBlobs transaction={transaction} />
               </section>
+
+              <TransactionInclusion txHash={txHash} />
             </>
           ) : null}
         </DataStateWrapper>
       )}
+
+      {/* Outside the transaction branch on purpose: a replaced pending
+          transaction is evicted from the blob table, so its page says "not
+          indexed" while the replacement log still names what superseded it. */}
+      {isValidHash && <TransactionReplacements txHash={txHash} />}
     </div>
   );
 }

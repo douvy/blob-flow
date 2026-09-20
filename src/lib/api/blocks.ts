@@ -4,8 +4,8 @@ import {
     BackendBlobPricingResponse,
     BlobResponse,
     Block,
+    BlockDetailResponse,
     LatestBlocksResponse,
-    NewBlockData,
     NewBlockInput,
 } from '../../types';
 import { fetchApi, isNotFoundError } from './core';
@@ -49,6 +49,9 @@ export function transformNewBlockData(
     const targetBlobs = blockPricing?.target_blobs || 0;
     const utilizationPercent = blockPricing?.utilization_percent ?? 0;
     const blobCount = blockPricing?.blob_count ?? blockData.blob_count;
+    // The REST list is assembled from the pricing feed and the blob feed, and
+    // only the pricing row knows the builder; live blocks carry it directly.
+    const builder = blockData.builder ?? blockPricing?.builder;
 
     return {
         id: blockData.block_number,
@@ -67,7 +70,12 @@ export function transformNewBlockData(
         isAboveTarget: blockPricing?.is_above_target ?? false,
         timestamp: blockData.timestamp,
         attribution: getAttributions(blockData.blobs, blobCount),
-        blobs: blockData.blobs
+        blobs: blockData.blobs,
+        // Both are absent on most inputs: builder attribution only exists for
+        // blocks the backfill has reached, and the candidate snapshot is
+        // served by the REST block endpoint alone.
+        ...(builder ? { builder } : {}),
+        ...(blockData.candidates ? { candidates: blockData.candidates } : {})
     };
 }
 
@@ -236,7 +244,7 @@ export async function getBlockByNumber(
     network?: string,
 ): Promise<Block | null> {
     try {
-        const response = await fetchApi<ApiResponse<NewBlockData>>(
+        const response = await fetchApi<ApiResponse<BlockDetailResponse>>(
             `/block/${blockNumber}`,
             network
         );

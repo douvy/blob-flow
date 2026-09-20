@@ -5,7 +5,7 @@ import { DEFAULT_NETWORK } from '../constants';
 import { LiveDataProvider } from '../contexts/LiveDataContext';
 import { useApiData } from '../hooks/useApiData';
 import { useNetwork } from '../hooks/useNetwork';
-import { BlobResponse, Block, LatestBlocksResponse } from '../types';
+import { BlobResponse, Block, BlockBuilderResponse, LatestBlocksResponse } from '../types';
 import RecentBlocksPanel from './RecentBlocksPanel';
 
 vi.mock('../hooks/useApiData', () => ({
@@ -44,6 +44,17 @@ class MockWebSocket {
     this.onmessage?.(new MessageEvent('message', { data }));
   }
 }
+
+const builder: BlockBuilderResponse = {
+  key: 'builder:titan',
+  name: 'Titan Builder',
+  known: true,
+  fee_recipient: '0x1234567890abcdef1234567890abcdef12345678',
+  extra_data: '0x546974616e',
+  extra_data_text: 'Titan',
+  tx_count: 180,
+  candidate_snapshot: true,
+};
 
 function makeBlock(overrides: Partial<Block>): Block {
   return {
@@ -200,6 +211,28 @@ describe('RecentBlocksPanel', () => {
     expect(aboveTargetMeter.querySelector('[title="Target"]')).toHaveStyle({
       left: '66.66666666666666%',
     });
+  });
+
+  it('names the builder without nesting a link inside the row link', () => {
+    vi.mocked(useApiData<LatestBlocksResponse>).mockReturnValue({
+      data: {
+        data: [
+          makeBlock({ id: 200, number: '200', builder }),
+          makeBlock({ id: 201, number: '201' }),
+        ],
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderRecentBlocksPanel();
+
+    expect(screen.getByText('Titan Builder')).toBeInTheDocument();
+    // The row itself is the only link; the builder is plain text inside it.
+    expect(screen.queryByRole('link', { name: 'Titan Builder' })).not.toBeInTheDocument();
+    // The unattributed block gets no builder line at all.
+    expect(screen.getAllByText('Titan Builder')).toHaveLength(1);
   });
 
   it('builds a rolling recent block list from websocket events before REST data arrives', () => {

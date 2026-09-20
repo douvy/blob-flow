@@ -70,13 +70,32 @@ function makeTransaction(overrides: Partial<BlobTransaction> = {}): BlobTransact
   };
 }
 
+// The page runs three queries through the same mocked hook (the transaction
+// itself, its inclusion timeline, and the supplementary fee-bump
+// replacements); dispatch on the query key so each caller gets its own
+// fixture.
 function mockTransaction(transaction: BlobTransaction | null) {
-  vi.mocked(useApiData).mockReturnValue({
-    data: transaction,
-    isLoading: false,
-    error: null,
-    refetch: vi.fn(),
-  } as unknown as ReturnType<typeof useApiData>);
+  vi.mocked(useApiData).mockImplementation((_fetchFunction, queryKey) => {
+    const key = Array.isArray(queryKey) ? queryKey[0] : queryKey;
+    const data =
+      key === 'blob-replacements' ? [] : key === 'blob-inclusion' ? null : transaction;
+    return {
+      data,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useApiData>;
+  });
+}
+
+/** The most recent call the transaction query made to the mocked hook. */
+function lastTransactionCall() {
+  return vi
+    .mocked(useApiData)
+    .mock.calls.filter(
+      ([, queryKey]) => Array.isArray(queryKey) && queryKey[0] === 'blob-transaction'
+    )
+    .at(-1);
 }
 
 describe('TransactionDetailPage', () => {
@@ -187,6 +206,28 @@ describe('TransactionDetailPage', () => {
     expect(screen.getAllByText('-').length).toBeGreaterThan(0);
   });
 
+  it('shows where in its block the transaction landed and how long it waited', () => {
+    mockTransaction(
+      makeTransaction({ primary: makeBlob({ tx_index: 41, time_to_inclusion_ms: 4200 }) })
+    );
+    render(<TransactionDetailPage />);
+
+    expect(screen.getByText('#41')).toBeInTheDocument();
+    expect(screen.getByText('4.2s')).toBeInTheDocument();
+  });
+
+  it('says a transaction was never seen pending rather than showing a wait', () => {
+    mockTransaction(makeTransaction());
+    render(<TransactionDetailPage />);
+
+    const inclusion = screen.getByText('Time to inclusion').parentElement;
+    expect(inclusion).toHaveTextContent('-');
+    expect(inclusion?.querySelector('dd')).toHaveAttribute(
+      'title',
+      'Not seen pending before inclusion'
+    );
+  });
+
   it('names the explorer it links out to', () => {
     mockTransaction(makeTransaction());
     render(<TransactionDetailPage />);
@@ -257,7 +298,7 @@ describe('TransactionDetailPage', () => {
     mockTransaction(null);
     render(<TransactionDetailPage />);
 
-    expect(vi.mocked(useApiData).mock.calls.at(-1)?.[1]).toEqual([
+    expect(lastTransactionCall()?.[1]).toEqual([
       'blob-transaction',
       'sepolia',
       TX_HASH,
@@ -271,7 +312,7 @@ describe('TransactionDetailPage', () => {
     // The page passes react-query a function so the interval can follow the
     // result; exercise that function directly, since useApiData is mocked.
     function pollFor(data: BlobTransaction | null) {
-      const options = vi.mocked(useApiData).mock.calls.at(-1)?.[2];
+      const options = lastTransactionCall()?.[2];
       const refetchInterval = options?.refetchInterval;
       if (typeof refetchInterval !== 'function') {
         throw new Error('the transaction query should poll conditionally');
@@ -307,6 +348,26 @@ describe('TransactionDetailPage', () => {
 
       expect(pollFor(null)).toBe(false);
     });
+  });
+
+  it('loads the inclusion timeline only once the transaction is indexed', () => {
+    mockTransaction(makeTransaction());
+    render(<TransactionDetailPage />);
+
+    const timelineCall = vi
+      .mocked(useApiData)
+      .mock.calls.find(([, queryKey]) => Array.isArray(queryKey) && queryKey[0] === 'blob-inclusion');
+    expect(timelineCall?.[1]).toEqual(['blob-inclusion', DEFAULT_NETWORK.apiParam, TX_HASH]);
+
+    vi.mocked(useApiData).mockClear();
+    mockTransaction(null);
+    render(<TransactionDetailPage />);
+
+    expect(
+      vi
+        .mocked(useApiData)
+        .mock.calls.some(([, queryKey]) => Array.isArray(queryKey) && queryKey[0] === 'blob-inclusion')
+    ).toBe(false);
   });
 
   it('rejects a malformed hash without offering an explorer link', () => {

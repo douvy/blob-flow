@@ -1,4 +1,4 @@
-import { getRawBlobs } from './blobs';
+import { getBlobReplacements, getRawBlobs } from './blobs';
 
 const originalFetch = global.fetch;
 
@@ -156,5 +156,62 @@ describe('api/blobs', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(result).toHaveLength(200);
+  });
+});
+
+describe('api/blobs replacements', () => {
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('fetches the replacement chain for a transaction hash', async () => {
+    const replacements = [
+      {
+        chain_id: 1,
+        network_name: 'mainnet',
+        replaced_tx_hash: '0xold',
+        replacement_tx_hash: '0xnew',
+        from_address: '0xabc',
+        nonce: 42,
+        replaced_at: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: replacements }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await getBlobReplacements('0xnew', 'mainnet', 5);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/blob/replacements?tx_hash=0xnew&limit=5&network=mainnet'),
+      expect.any(Object)
+    );
+    expect(result).toBe(replacements);
+  });
+
+  it('defaults to 25 rows and encodes the hash it was handed', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: [] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await getBlobReplacements('0x a&b');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/blob/replacements?tx_hash=0x%20a%26b&limit=25'),
+      expect.any(Object)
+    );
+  });
+
+  it('reads an empty envelope as no replacements', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: null }),
+    }) as unknown as typeof fetch;
+
+    await expect(getBlobReplacements('0xnone')).resolves.toEqual([]);
   });
 });

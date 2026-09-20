@@ -19,5 +19,9 @@ describe('api/index', () => {
     expect(api).toHaveProperty('getUserByAddress');
     expect(api).toHaveProperty('getUserBlobs');
     expect(api).toHaveProperty('getEntityBySlug');
+    expect(api).toHaveProperty('getBuilders');
+    expect(api).toHaveProperty('getBuilderByKey');
+    expect(api).toHaveProperty('getBuilderShareChart');
+    expect(api).toHaveProperty('getBlobReplacements');
   });
 });

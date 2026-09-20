@@ -1,21 +1,63 @@
 "use client";
 
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from '@/components/NetworkLink';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import DataStateWrapper from '@/components/DataStateWrapper';
 import { BlobDetailsContent } from '@/components/BlobDetailsContent';
+import BlockCandidatesSection from '@/components/BlockCandidatesSection';
 import BlockTipsSection from '@/components/BlockTipsSection';
+import BuilderTag from '@/components/BuilderTag';
 import StatCard from '@/components/StatCard';
 import { useApiData } from '@/hooks/useApiData';
 import { useIndexerStatus } from '@/hooks/useIndexerStatus';
 import { api } from '@/lib/api';
 import { useNetwork } from '@/hooks/useNetwork';
 import { Block, StatusResponse } from '@/types';
-import { formatBlobFee, formatGwei, formatLocalTimestamp, formatUtilizationPercent } from '@/utils';
+import {
+  formatBlobFee,
+  formatGwei,
+  formatLocalTimestamp,
+  formatUtilizationPercent,
+  truncateAddress,
+} from '@/utils';
 import { summarizeBlockTips } from '@/lib/blockTips';
 import { PRIORITY_FEE_TOOLTIP } from '@/constants';
+
+const BUILDER_COVERAGE_TOOLTIP =
+  'Builder attribution exists only for blocks the backfill has reached, so an older block can ' +
+  'show none even though it was built by someone.';
+
+const PROPOSER_PAYMENT_TOOLTIP =
+  "The block's last transaction from the fee recipient, read as the payment to the proposer. " +
+  'That is a MEV-Boost heuristic rather than a value the block itself states, so a locally ' +
+  'built block or an unusual payout shape can leave it empty or wrong.';
+
+/** One field of the builder strip under the block's stat grid. */
+function BuilderField({
+  label,
+  title,
+  children,
+  monospace = false,
+}: {
+  label: string;
+  title?: string;
+  children: React.ReactNode;
+  monospace?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[11px] font-medium text-[#6e7787] uppercase tracking-wider">{label}</dt>
+      <dd
+        className={`mt-1 text-sm text-white truncate ${monospace ? 'font-mono' : ''}`}
+        title={title}
+      >
+        {children}
+      </dd>
+    </div>
+  );
+}
 
 function formatBaseFee(block: Block): string {
   if (!block.baseFeeGwei || block.baseFeeGwei === '0') return '-';
@@ -46,7 +88,7 @@ function describeMissingBlock(
   coverage?: StatusResponse
 ): string {
   if (coverage?.earliest_indexed_block != null && blockNumber < coverage.earliest_indexed_block) {
-    return `This block is older than the indexer's retention window for ${networkName} — the earliest indexed block is ${coverage.earliest_indexed_block.toLocaleString()}.`;
+    return `This block is older than the indexer's retention window for ${networkName}: the earliest indexed block is ${coverage.earliest_indexed_block.toLocaleString()}.`;
   }
   if (coverage?.latest_indexed_block != null && blockNumber > coverage.latest_indexed_block) {
     return `This block is ahead of the latest indexed block for ${networkName} (${coverage.latest_indexed_block.toLocaleString()}). It may not exist on chain yet.`;
@@ -79,8 +121,8 @@ export default function BlockDetailPage() {
   const loadingComponent = (
     <div className="space-y-6">
       <div className="h-8 bg-[#26282e] rounded w-64 animate-pulse" />
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {[...Array(6)].map((_, i) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {[...Array(7)].map((_, i) => (
           <div key={i} className="bg-gradient-to-b from-[#22252c] to-[#16171b] border border-divider rounded-lg p-4">
             <div className="h-3 bg-[#26282e] rounded w-20 animate-pulse mb-2" />
             <div className="h-6 bg-[#26282e] rounded w-24 animate-pulse" />
@@ -170,7 +212,7 @@ export default function BlockDetailPage() {
                     )}
                   </p>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <StatCard label="Blobs" value={block.blobCount.toLocaleString()} />
                     <StatCard label="Utilization" value={formatUtilization(block)} />
                     <StatCard label="Base Fee" value={formatBaseFee(block)} />
@@ -185,10 +227,50 @@ export default function BlockDetailPage() {
                       value={formatTip(tipSummary?.maxGwei ?? null)}
                       title={PRIORITY_FEE_TOOLTIP}
                     />
+                    <StatCard
+                      label="Built by"
+                      title={BUILDER_COVERAGE_TOOLTIP}
+                      value={
+                        block.builder ? (
+                          <BuilderTag builder={block.builder} />
+                        ) : (
+                          <span className="text-[#6c727f]">Not attributed yet</span>
+                        )
+                      }
+                    />
                   </div>
+
+                  {block.builder && (
+                    <dl className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-4 rounded-lg border border-divider bg-gradient-to-r from-[#17181b] to-[#141519]/60 px-4 sm:px-6 py-4">
+                      <BuilderField
+                        label="Fee recipient"
+                        title={block.builder.fee_recipient}
+                        monospace
+                      >
+                        {truncateAddress(block.builder.fee_recipient)}
+                      </BuilderField>
+                      <BuilderField
+                        label="Extra data"
+                        title={block.builder.extra_data_text || block.builder.extra_data || '-'}
+                        monospace={!block.builder.extra_data_text}
+                      >
+                        {block.builder.extra_data_text || block.builder.extra_data || '-'}
+                      </BuilderField>
+                      <BuilderField label="Tx count">
+                        {block.builder.tx_count.toLocaleString()}
+                      </BuilderField>
+                      <BuilderField label="Proposer payment" title={PROPOSER_PAYMENT_TOOLTIP}>
+                        {block.builder.proposer_payment_eth
+                          ? `${block.builder.proposer_payment_eth} ETH`
+                          : '-'}
+                      </BuilderField>
+                    </dl>
+                  )}
                 </div>
 
                 {tipSummary && <BlockTipsSection summary={tipSummary} />}
+
+                <BlockCandidatesSection block={block} />
 
                 <section>
                   <h2 className="text-2xl font-windsor-bold text-white mb-4">Blobs</h2>

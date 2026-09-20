@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.14.1](https://github.com/douvy/blob-flow/compare/v1.14.0...v1.14.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* **blocks:** take builder attribution from the pricing feed on initial load ([#311](https://github.com/douvy/blob-flow/issues/311)) ([5fb67eb](https://github.com/douvy/blob-flow/commit/5fb67eb691280d6c312d23b90cf2211a7a52b076))
+
+## [1.14.0](https://github.com/douvy/blob-flow/compare/v1.13.0...v1.14.0) (2026-09-20)
+
+
+### Features
+
+* **tx:** show the blob inclusion timeline from indexer 0.20.0 ([#309](https://github.com/douvy/blob-flow/issues/309)) ([b777c3b](https://github.com/douvy/blob-flow/commit/b777c3beb673ad842029343f90cea79ab75a76ab))
+
+## [1.13.0](https://github.com/douvy/blob-flow/compare/v1.12.0...v1.13.0) (2026-09-20)
+
+
+### Features
+
+* **builders:** add block builder stats pages and builder attribution ([#308](https://github.com/douvy/blob-flow/issues/308)) ([663a136](https://github.com/douvy/blob-flow/commit/663a136fdd8fad5676f4f6f9ac9632df3a829fec))
+
+
+### Dependencies
+
+* **deps-dev:** bump @testing-library/user-event from 14.6.3 to 14.6.7 ([#300](https://github.com/douvy/blob-flow/issues/300)) ([9bea986](https://github.com/douvy/blob-flow/commit/9bea986376c41556142b6820c3c2312865380cde))
+* **deps-dev:** bump postcss from 8.5.26 to 8.5.28 ([#303](https://github.com/douvy/blob-flow/issues/303)) ([8c53ef0](https://github.com/douvy/blob-flow/commit/8c53ef0931807e86fe6419ef07d95974d13a5507))
+* **deps:** bump @types/node from 26.1.2 to 26.4.1 ([#298](https://github.com/douvy/blob-flow/issues/298)) ([f7a7c4a](https://github.com/douvy/blob-flow/commit/f7a7c4a18f96e19975c7997c3417e218f1cd641a))
+* **deps:** bump @types/react-dom from 19.2.4 to 19.2.7 ([#299](https://github.com/douvy/blob-flow/issues/299)) ([9429a04](https://github.com/douvy/blob-flow/commit/9429a0407b7a531c463e8de8a37d2521443f2b72))
+* **deps:** bump lucide-react from 1.30.0 to 1.41.0 ([#302](https://github.com/douvy/blob-flow/issues/302)) ([890a088](https://github.com/douvy/blob-flow/commit/890a088815b308eaabaff7aca569338dc0699c96))
+
 ## [1.12.0](https://github.com/douvy/blob-flow/compare/v1.11.0...v1.12.0) (2026-09-05)
 
 
