@@ -3,6 +3,15 @@ import pkg from './package.json' with { type: 'json' };
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    // Next 16.3 runs the project-local tsc CLI for the build type check by
+    // default. The CLI checks every file the tsconfig selects, including the
+    // *.test.ts(x) files this repo deliberately leaves out of type checking
+    // (see tsconfig.typecheck.json), which have never been type-clean. The
+    // compiler-API checker skips test files, matching npm run typecheck.
+    // Revisit when TypeScript 7 lands, since its JavaScript API is unavailable.
+    useTypeScriptCli: false,
+  },
   output: 'standalone', // Optimizes for Vercel deployment
   // The share card routes read fonts and images from public/ at request time
   // via fs (satori needs the raw .woff bytes and a data URI for the logo).
